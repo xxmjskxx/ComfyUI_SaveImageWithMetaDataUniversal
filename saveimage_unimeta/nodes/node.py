@@ -101,13 +101,19 @@ class SaveImageWithMetaDataUniversal:
                     "STRING",
                     {
                         "default": "ComfyUI",
-                        "tooltip": "You can use %seed%, %width%, %height%, %pprompt%, %nprompt%, %model%, %date% in the filename. Date can accept any variety of the yyyyMMddhhmmss format, e.g. %date:yy-MM-dd%.",
+                        "tooltip": (
+                            "You can use %seed%, %width%, %height%, %pprompt%, %nprompt%, %model%, %date% in the filename. "
+                            "Date can accept any variety of the yyyyMMddhhmmss format, e.g. %date:yy-MM-dd%."
+                        ),
                     },
                 ),
                 "sampler_selection_method": (
                     SAMPLER_SELECTION_METHOD,
                     {
-                        "tooltip": "How to choose which earlier sampler node's settings to record: farthest, nearest, or by node id (see sampler_selection_node_id).",
+                        "tooltip": (
+                            "How to choose which earlier sampler node's settings to record: farthest, nearest, "
+                            "or by node id (see sampler_selection_node_id)."
+                        ),
                     },
                 ),
                 "sampler_selection_node_id": (
@@ -117,13 +123,19 @@ class SaveImageWithMetaDataUniversal:
                         "min": 0,
                         "max": 999999999,
                         "step": 1,
-                        "tooltip": "When method is 'By node ID', this specifies which sampler node to treat as authoritative for Steps/CFG/etc.",
+                        "tooltip": (
+                            "When method is 'By node ID', this specifies which sampler node to treat as "
+                            "authoritative for Steps/CFG/etc."
+                        ),
                     },
                 ),
                 "file_format": (
                     s.SAVE_FILE_FORMATS,
                     {
-                        "tooltip": "Image format for output. PNG retains full metadata; JPEG/WebP may strip or re-encode some fields.",
+                        "tooltip": (
+                            "Image format for output. PNG retains full metadata; JPEG/WebP may strip or "
+                            "re-encode some fields."
+                        ),
                     },
                 ),
             },
@@ -132,7 +144,9 @@ class SaveImageWithMetaDataUniversal:
                     "BOOLEAN",
                     {
                         "default": True,
-                        "tooltip": "If using WebP, toggles lossless mode (ignores quality slider).",
+                        "tooltip": (
+                            "If using WebP, toggles lossless mode (ignores quality slider)."
+                        ),
                     },
                 ),
                 "quality": (
@@ -141,7 +155,9 @@ class SaveImageWithMetaDataUniversal:
                         "default": 100,
                         "min": 1,
                         "max": 100,
-                        "tooltip": "Quality for lossy formats (JPEG/WebP lossy). 100 = best quality, larger files.",
+                        "tooltip": (
+                            "Quality for lossy formats (JPEG/WebP lossy). 100 = best quality, larger files."
+                        ),
                     },
                 ),
                 "max_jpeg_exif_kb": (
@@ -151,53 +167,77 @@ class SaveImageWithMetaDataUniversal:
                         "min": 4,
                         "max": 256,
                         "step": 1,
-                        "tooltip": "Maximum EXIF size (KB) to embed in JPEG. If exceeded, falls back to parameters-only EXIF or COM marker.",
+                        "tooltip": (
+                            "Maximum EXIF size (KB) to embed in JPEG. If exceeded, falls back to parameters-only "
+                            "EXIF or COM marker."
+                        ),
                     },
                 ),
                 "save_workflow_json": (
                     "BOOLEAN",
                     {
                         "default": False,
-                        "tooltip": "Save the workflow as a JSON file alongside the image.",
+                        "tooltip": (
+                            "Save the workflow as a JSON file alongside the image."
+                        ),
                     },
                 ),
                 "add_counter_to_filename": (
                     "BOOLEAN",
                     {
                         "default": True,
-                        "tooltip": "Automatically append an incrementing counter to avoid overwriting existing files with the same prefix.",
+                        "tooltip": (
+                            "Automatically append an incrementing counter to avoid overwriting existing files "
+                            "with the same prefix."
+                        ),
                     },
                 ),
                 "civitai_sampler": (
                     "BOOLEAN",
                     {
                         "default": False,
-                        "tooltip": "Add a Civitai-compatible sampler notation (if enabled) for better import fidelity on Civitai.",
+                        "tooltip": (
+                            "Add a Civitai-compatible sampler notation (if enabled) for better import fidelity on "
+                            "Civitai."
+                        ),
                     },
                 ),
                 "guidance_as_cfg": (
                     "BOOLEAN",
                     {
                         "default": False,
-                        "tooltip": "When enabled, record 'Guidance' value under 'CFG scale' and suppress separate Guidance field. Makes guidance with models like FLUX Civitai-compatible (if enabled).",
+                        "tooltip": (
+                            "When enabled, record 'Guidance' value under 'CFG scale' and suppress separate Guidance "
+                            "field. Makes guidance with models like FLUX Civitai-compatible (if enabled)."
+                        ),
                     },
                 ),
                 "extra_metadata": (
                     "EXTRA_METADATA",
-                    {"tooltip": "Additional metadata key-value pairs from the Create Extra MetaData node to include in the saved image."},
+                    {
+                        "tooltip": (
+                            "Additional metadata key-value pairs from the Create Extra MetaData node to include in "
+                            "the saved image."
+                        )
+                    },
                 ),
                 "save_workflow_image": (
                     "BOOLEAN",
                     {
                         "default": True,
-                        "tooltip": "If disabled, the workflow data will not be saved in the image metadata.",
+                        "tooltip": (
+                            "If disabled, the workflow data will not be saved in the image metadata."
+                        ),
                     },
                 ),
                 "include_lora_summary": (
                     "BOOLEAN",
                     {
                         "default": True,
-                        "tooltip": "Include a compact aggregated LoRAs summary line (set False to list only individual Lora_X entries).",
+                        "tooltip": (
+                            "Include a compact aggregated LoRAs summary line (set False to list only individual "
+                            "Lora_X entries)."
+                        ),
                     },
                 ),
             },
@@ -208,7 +248,10 @@ class SaveImageWithMetaDataUniversal:
     RETURN_NAMES = ("images",)
     FUNCTION = "save_images"
     CATEGORY = "SaveImageWithMetaDataUniversal"
-    Description = "Save images with extensive metadata support, including prompts, model info, and custom fields. Support for both automated metadata field detection and user-defined metadata rules."
+    Description = (
+        "Save images with extensive metadata support, including prompts, model info, and custom fields. "
+        "Supports both automated metadata field detection and user-defined metadata rules."
+    )
     OUTPUT_NODE = True
 
     pattern_format = re.compile(r"(%[^%]+%)")

@@ -47,10 +47,20 @@ def set_forced_include(raw: str) -> set[str]:  # pragma: no cover - simple sette
         FORCED_INCLUDE_CLASSES.update(parsed)
     return FORCED_INCLUDE_CLASSES
 
+def clear_forced_include() -> set[str]:  # pragma: no cover - simple helper
+    """Clear all globally forced include node classes.
+
+    Returns:
+        The now-empty global set (for chaining / test assertions).
+    """
+    FORCED_INCLUDE_CLASSES.clear()
+    return FORCED_INCLUDE_CLASSES
+
 __all__ = [
     "CAPTURE_FIELD_LIST",
     "FORCED_INCLUDE_CLASSES",
     "set_forced_include",
+    "clear_forced_include",
 ]
 ###############################
 # Extension loading utilities #
