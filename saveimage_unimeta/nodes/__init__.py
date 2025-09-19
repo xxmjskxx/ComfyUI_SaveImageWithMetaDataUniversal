@@ -4,6 +4,7 @@ from .node import (  # noqa: N999 - package path inherited from external naming 
     SaveGeneratedUserRules,
     SaveImageWithMetaDataUniversal,
     ShowGeneratedUserRules,
+    MetadataRuleScanner,
 )
 from ..defs import set_forced_include
 
@@ -75,12 +76,14 @@ class MetadataForceInclude:
 __all__ = [
     "SaveImageWithMetaDataUniversal",
     "MetadataForceInclude",
+    "MetadataRuleScanner",
 ]
 
 NODE_CLASS_MAPPINGS = {
     "SaveImageWithMetaDataUniversal": SaveImageWithMetaDataUniversal,
     "CreateExtraMetaDataUniversal": CreateExtraMetaDataUniversal,
     "MetadataForceInclude": MetadataForceInclude,
+    "MetadataRuleScanner": MetadataRuleScanner,
     "SaveCustomMetadataRules": SaveCustomMetadataRules,
     "ShowGeneratedUserRules": ShowGeneratedUserRules,
     "SaveGeneratedUserRules": SaveGeneratedUserRules,
@@ -89,6 +92,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SaveImageWithMetaDataUniversal": "Save Image w/ Metadata Universal",
     "CreateExtraMetaDataUniversal": "Create Extra MetaData",
     "MetadataForceInclude": "Metadata Force Include",
+    "MetadataRuleScanner": "Metadata Rule Scanner",
     "SaveCustomMetadataRules": "Save Custom Metadata Rules",
     "ShowGeneratedUserRules": "Show generated_user_rules.py",
     "SaveGeneratedUserRules": "Save generated_user_rules.py",
