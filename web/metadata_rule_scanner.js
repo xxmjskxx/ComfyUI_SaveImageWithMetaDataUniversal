@@ -82,7 +82,6 @@ app.registerExtension({
                         let otherHeights = 0;
                         for (const w of nodeRef.widgets) {
                             if (w === widget) continue;
-                            // Prefer explicit height; fallback to computeSize if available
                             let h = w.height;
                             if (!h && typeof w.computeSize === "function") {
                                 try { h = w.computeSize(nodeRef.size[0])[1]; } catch(_) {}
@@ -90,22 +89,34 @@ app.registerExtension({
                             otherHeights += (h || 40);
                         }
 
-                        // Title + internal padding allowance
-                        const CHROME = 40; // node title bar + internal spacing
-                        const minBottom = 160; // minimal practical editing area
-                        const available = Math.max(minBottom, nodeRef.size[1] - (otherHeights + CHROME));
+                        const CHROME = 40; // title + padding
+                        const MIN_BOTTOM = 120; // minimal reasonable editing area
 
-                        // Apply to bottom widget
-                        widget.height = available; // layout height used by graph
-                        const innerH = Math.max(available - 8, 120); // inner textarea height
+                        // Raw space currently available inside node for bottom widget
+                        const rawAvailable = nodeRef.size[1] - (otherHeights + CHROME);
+                        let available;
+                        if (rawAvailable < MIN_BOTTOM) {
+                            // Not enough space: clamp to raw (could even be negative) so we don't force node to resize larger.
+                            // We'll give the textarea a minimal height and rely on scrolling.
+                            available = Math.max(60, rawAvailable); // allow very small but usable
+                        } else {
+                            available = rawAvailable;
+                        }
+
+                        // Apply to bottom widget. If negative (extreme shrink), fallback to minimal layout height.
+                        widget.height = Math.max(60, available);
+                        const innerH = Math.max(40, widget.height - 8); // textarea inside padding
                         widget.inputEl.style.height = innerH + "px";
-                        widget.inputEl.style.maxHeight = innerH + "px"; // prevent stretching beyond node bounds
+                        widget.inputEl.style.maxHeight = innerH + "px";
                         widget.inputEl.style.overflow = "auto";
 
-                        // Ensure node container at least fits summed widgets
-                        const requiredNodeH = otherHeights + widget.height + CHROME + 8; // small pad
-                        if (requiredNodeH > nodeRef.size[1]) {
-                            nodeRef.size[1] = requiredNodeH;
+                        // Recompute true required node height (what we *could* be) using preferred bottom min if we have slack
+                        const preferredBottom = Math.max(MIN_BOTTOM, widget.height);
+                        const idealNodeH = otherHeights + preferredBottom + CHROME + 8;
+
+                        // If current node is larger than ideal (e.g. after shrinking top widget), shrink it.
+                        if (nodeRef.size[1] > idealNodeH + 4) {
+                            nodeRef.size[1] = idealNodeH;
                         }
                     } catch (e) {
                         console.warn("MetadataRuleScanner layout adjust failed", e);
