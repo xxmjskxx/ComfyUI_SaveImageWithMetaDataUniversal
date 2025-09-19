@@ -111,15 +111,28 @@ app.registerExtension({
                             available = rawAvailable;
                         }
 
-                        // Apply to bottom widget. If negative (extreme shrink), fallback to minimal layout height.
-                        widget.height = Math.max(60, available);
-                        const innerH = Math.max(40, widget.height - 8); // textarea inside padding
+                        // Apply to bottom widget using logical height (cannot assign to widget.height; getter only in some builds)
+                        const bottomLogical = Math.max(60, available);
+                        widget._logicalHeight = bottomLogical;
+                        if (!widget._computeOverridden) {
+                            const origCompute = widget.computeSize ? widget.computeSize.bind(widget) : null;
+                            widget.computeSize = function(w) {
+                                let width = w;
+                                if (origCompute) {
+                                    try { width = origCompute(w)[0]; } catch(_) {}
+                                }
+                                return [width, widget._logicalHeight || 120];
+                            };
+                            widget._computeOverridden = true;
+                        }
+                        // Inner textarea height (leave a small label/padding allowance ~14px)
+                        const innerH = Math.max(40, bottomLogical - 14);
                         widget.inputEl.style.height = innerH + "px";
                         widget.inputEl.style.maxHeight = innerH + "px";
                         widget.inputEl.style.overflow = "auto";
 
                         // Recompute true required node height (what we *could* be) using preferred bottom min if we have slack
-                        const preferredBottom = Math.max(MIN_BOTTOM, widget.height);
+                        const preferredBottom = Math.max(MIN_BOTTOM, widget._logicalHeight || bottomLogical);
                         const idealNodeH = otherHeights + preferredBottom + CHROME + 8;
 
                         // If current node is larger than ideal (e.g. after shrinking top widget), shrink it.
@@ -137,7 +150,7 @@ app.registerExtension({
                         }
                         let yCursor = startY;
                         for (const w of nodeRef.widgets) {
-                            const effH = (w === widget) ? widget.height : (getWidgetHeight(w) || 20);
+                            const effH = (w === widget) ? (widget._logicalHeight || 120) : (getWidgetHeight(w) || 20);
                             const h = Math.max(effH, 8);
                             w.y = yCursor;
                             yCursor += h + 4;
