@@ -6,8 +6,7 @@ app.registerExtension({
     name: "SaveImageWithMetaDataUniversal.MetadataRuleScanner",
     
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
-        // Debug logging
-        console.log("SaveImageWithMetaDataUniversal: Checking node:", nodeData.name, "Display name:", nodeData.display_name);
+    // Only minimal logging (remove noisy per-node enumeration)
         
         // Match by either class name or display name
         if (nodeData.name === "MetadataRuleScanner" || 
@@ -53,134 +52,81 @@ app.registerExtension({
                 function adjustHeights() {
                     try {
                         if (!nodeRef.widgets || !nodeRef.widgets.length) return;
+                        const TOP_H = 52; // visible top textarea
+                        const TOP_LAYOUT = TOP_H + 18; // label + padding
+                        const CHROME = 34; // node title + inner top padding approximation
+                        const MIN_BOTTOM = 140;
+                        const MAX_BOTTOM = 500; // don't let it balloon
+                        const PADDING = 6; // bottom padding
+
+                        // Identify widgets
                         const top = nodeRef.widgets.find(w => w.name === "exclude_keywords");
-                        // Force the top widget (exclude_keywords) to a compact logical layout height
-                        if (top && top.inputEl) {
-                            const TOP_TEXTAREA_H = 52; // px (visible textarea height target)
-                            // Force the DOM element to the target height
-                            top.inputEl.style.height = TOP_TEXTAREA_H + "px";
-                            top.inputEl.style.minHeight = TOP_TEXTAREA_H + "px";
-                            top.inputEl.style.maxHeight = (TOP_TEXTAREA_H + 12) + "px"; // a tiny bit of headroom
-                            top.inputEl.style.overflowY = "auto";
-                            top.inputEl.style.resize = "vertical"; // allow user expansion if really needed
+                        const bottom = widget; // results
 
-                            // Make sure LiteGraph's layout engine also believes this widget is short.
-                            // Some internal ComfyUI widgets cache a larger height on creation; overriding
-                            // computeSize ensures future draws use our compact value (height + label + margin).
-                            const LAYOUT_H = TOP_TEXTAREA_H + 18; // label + padding allowance
-                            if (!top._forceCompactApplied) {
-                                const origCompute = top.computeSize ? top.computeSize.bind(top) : null;
-                                top.computeSize = function(w) {
-                                    // Preserve width logic if original existed
+                        // Style top (idempotent)
+                        if (top?.inputEl) {
+                            Object.assign(top.inputEl.style, {
+                                height: TOP_H + "px",
+                                minHeight: TOP_H + "px",
+                                maxHeight: TOP_H + 12 + "px",
+                                overflowY: "auto",
+                                resize: "vertical"
+                            });
+                            if (!top._forced) {
+                                const orig = top.computeSize ? top.computeSize.bind(top) : null;
+                                top.computeSize = w => {
                                     let width = w;
-                                    if (origCompute) {
-                                        try { width = origCompute(w)[0]; } catch(_) {}
-                                    }
-                                    return [width, LAYOUT_H];
+                                    if (orig) { try { width = orig(w)[0]; } catch(_){} }
+                                    return [width, TOP_LAYOUT];
                                 };
-                                // Store logical layout height for later calculations
-                                top._logicalHeight = LAYOUT_H;
-                                top._forceCompactApplied = true;
-                            }
-                        }
-                        // Helper to obtain a widget's effective layout height
-                        const getWidgetHeight = (w) => {
-                            if (!w) return 0;
-                            return w._logicalHeight || w.height || (typeof w.computeSize === "function" ? (w.computeSize(nodeRef.size[0])||[0,20])[1] : 20);
-                        }
-
-                        // Calculate space for bottom widget
-                        // Sum heights of all other widgets (excluding bottom results)
-                        let otherHeights = 0;
-                        for (const w of nodeRef.widgets) {
-                            if (w === widget) continue;
-                            otherHeights += getWidgetHeight(w) || 40;
-                        }
-
-                        const CHROME = 40; // title + padding
-                        const MIN_BOTTOM = 120; // minimal reasonable editing area
-
-                        // Raw space currently available inside node for bottom widget
-                        const rawAvailable = nodeRef.size[1] - (otherHeights + CHROME);
-                        let available;
-                        if (rawAvailable < MIN_BOTTOM) {
-                            // Not enough space: clamp to raw (could even be negative) so we don't force node to resize larger.
-                            // We'll give the textarea a minimal height and rely on scrolling.
-                            available = Math.max(60, rawAvailable); // allow very small but usable
-                        } else {
-                            available = rawAvailable;
-                        }
-
-                        // Apply to bottom widget using logical height (cannot assign to widget.height; getter only in some builds)
-                        const bottomLogical = Math.max(60, available);
-                        widget._logicalHeight = bottomLogical;
-                        if (!widget._computeOverridden) {
-                            const origCompute = widget.computeSize ? widget.computeSize.bind(widget) : null;
-                            widget.computeSize = function(w) {
-                                let width = w;
-                                if (origCompute) {
-                                    try { width = origCompute(w)[0]; } catch(_) {}
-                                }
-                                return [width, widget._logicalHeight || 120];
-                            };
-                            widget._computeOverridden = true;
-                        }
-                        // Inner textarea height (leave a small label/padding allowance ~14px)
-                        const innerH = Math.max(40, bottomLogical - 14);
-                        widget.inputEl.style.height = innerH + "px";
-                        widget.inputEl.style.maxHeight = innerH + "px";
-                        widget.inputEl.style.overflow = "auto";
-
-                        // Recompute true required node height (what we *could* be) using preferred bottom min if we have slack
-                        const preferredBottom = Math.max(MIN_BOTTOM, widget._logicalHeight || bottomLogical);
-                        const idealNodeH = otherHeights + preferredBottom + CHROME + 8;
-
-                        // If current node is larger than ideal (e.g. after shrinking top widget), shrink it.
-                        if (nodeRef.size[1] > idealNodeH + 4) {
-                            nodeRef.size[1] = idealNodeH;
-                        }
-
-                        // Recalculate widget y positions to eliminate stale spacing from earlier heights.
-                        const startY = nodeRef.widgets_start_y || 4;
-                        // Ensure results widget is last in ordering so gap doesn't appear above toggles.
-                        const currentIdx = nodeRef.widgets.indexOf(widget);
-                        if (currentIdx !== -1 && currentIdx !== nodeRef.widgets.length - 1) {
-                            nodeRef.widgets.splice(currentIdx, 1);
-                            nodeRef.widgets.push(widget);
-                        }
-                        let yCursor = startY;
-                        for (const w of nodeRef.widgets) {
-                            const effH = (w === widget) ? (widget._logicalHeight || 120) : (getWidgetHeight(w) || 20);
-                            const h = Math.max(effH, 8);
-                            w.y = yCursor;
-                            yCursor += h + 4;
-                        }
-
-                        // Detect excessive vertical gap between first (top) and second widget.
-                        if (nodeRef.widgets.length > 2) {
-                            const first = nodeRef.widgets[0];
-                            const second = nodeRef.widgets[1];
-                            const firstH = getWidgetHeight(first) || first.height || 20;
-                            const gap = second.y - (first.y + firstH + 4);
-                            if (gap > 40) { // large unexpected gap
-                                const shift = gap - 4;
-                                for (let i = 1; i < nodeRef.widgets.length; i++) {
-                                    nodeRef.widgets[i].y -= shift;
-                                }
-                                nodeRef.size[1] -= shift; // shrink node accordingly
+                                top._logicalHeight = TOP_LAYOUT;
+                                top._forced = true;
                             }
                         }
 
-                        // Debug dump (remove later)
-                        if (!nodeRef._scannerLayoutLoggedOnce) {
-                            try {
-                                console.log("[MetadataRuleScanner layout] widgets:");
-                                nodeRef.widgets.forEach((w,i)=>{
-                                    console.log(`#${i}`, w.name, 'y=', w.y, 'h=', w.height);
-                                });
-                            } catch(_) {}
-                            nodeRef._scannerLayoutLoggedOnce = true;
+                        // Collect middle widgets (everything except top & bottom)
+                        const middle = nodeRef.widgets.filter(w => w !== top && w !== bottom);
+                        // Estimate middle total height
+                        let middleTotal = 0;
+                        middle.forEach(w => {
+                            let h = w._logicalHeight || w.height || (typeof w.computeSize === "function" ? (w.computeSize(nodeRef.size[0])||[0,20])[1] : 20);
+                            if (!h || h < 20) h = 20;
+                            middleTotal += h + 4; // include spacing
+                        });
+
+                        // Desired node height -> if user resized, honor up to MAX_BOTTOM
+                        let desiredNodeH = nodeRef.size[1];
+                        if (!desiredNodeH || desiredNodeH < 240) desiredNodeH = 240;
+
+                        // Compute available for bottom based on current node size
+                        let availableForBottom = desiredNodeH - (CHROME + TOP_LAYOUT + middleTotal + PADDING);
+                        // Clamp
+                        if (availableForBottom < MIN_BOTTOM) availableForBottom = MIN_BOTTOM;
+                        if (availableForBottom > MAX_BOTTOM) availableForBottom = MAX_BOTTOM;
+                        bottom._logicalHeight = availableForBottom;
+
+                        // Update bottom textarea element heights
+                        const innerBottom = Math.max(40, availableForBottom - 14);
+                        Object.assign(bottom.inputEl.style, {
+                            height: innerBottom + "px",
+                            maxHeight: innerBottom + "px",
+                            overflow: "auto"
+                        });
+
+                        // Now recompute node height exactly to fit stacked widgets
+                        const finalNodeH = CHROME + TOP_LAYOUT + middleTotal + availableForBottom + PADDING;
+                        nodeRef.size[1] = finalNodeH;
+
+                        // Assign y positions
+                        let y = nodeRef.widgets_start_y || 4;
+                        if (top) { top.y = y; y += TOP_LAYOUT + 4; }
+                        for (const w of middle) {
+                            let mH = w._logicalHeight || w.height || 20;
+                            if (mH < 20) mH = 20;
+                            w.y = y;
+                            y += mH + 4;
                         }
+                        bottom.y = y;
                     } catch (e) {
                         console.warn("MetadataRuleScanner layout adjust failed", e);
                     }
