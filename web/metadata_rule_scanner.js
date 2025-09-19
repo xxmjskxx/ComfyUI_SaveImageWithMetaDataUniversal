@@ -55,8 +55,8 @@ app.registerExtension({
                         const TOP_H = 52; // visible top textarea
                         const TOP_LAYOUT = TOP_H + 18; // label + padding
                         const CHROME = 34; // node title + inner top padding approximation
-                        const MIN_BOTTOM = 140;
-                        const MAX_BOTTOM = 500; // don't let it balloon
+                        const MIN_BOTTOM_VISIBLE = 80; // minimal functional editing space
+                        const MAX_BOTTOM = 500; // hard cap for expansion
                         const PADDING = 6; // bottom padding
 
                         // Identify widgets
@@ -94,28 +94,31 @@ app.registerExtension({
                             middleTotal += h + 4; // include spacing
                         });
 
-                        // Desired node height -> if user resized, honor up to MAX_BOTTOM
-                        let desiredNodeH = nodeRef.size[1];
-                        if (!desiredNodeH || desiredNodeH < 240) desiredNodeH = 240;
+                        // Desired node height as currently set (user resize attempt)
+                        let desiredNodeH = nodeRef.size[1] || 0;
+                        if (desiredNodeH < 200) desiredNodeH = 200; // minimal sensible total height
 
-                        // Compute available for bottom based on current node size
+                        // Space currently available for bottom (may be small / negative if node shrunk aggressively)
                         let availableForBottom = desiredNodeH - (CHROME + TOP_LAYOUT + middleTotal + PADDING);
-                        // Clamp
-                        if (availableForBottom < MIN_BOTTOM) availableForBottom = MIN_BOTTOM;
-                        if (availableForBottom > MAX_BOTTOM) availableForBottom = MAX_BOTTOM;
-                        bottom._logicalHeight = availableForBottom;
+                        // If user shrinks the node so much that available space < MIN_BOTTOM_VISIBLE, just use whatever remains (even if very small) but never below 40; we'll then expand node just enough to fit.
+                        const rawBottom = Math.max(40, availableForBottom);
+                        let targetBottom = rawBottom;
+                        if (targetBottom > MAX_BOTTOM) targetBottom = MAX_BOTTOM;
+                        bottom._logicalHeight = targetBottom;
 
                         // Update bottom textarea element heights
-                        const innerBottom = Math.max(40, availableForBottom - 14);
+                        const innerBottom = Math.max(40, targetBottom - 14);
                         Object.assign(bottom.inputEl.style, {
                             height: innerBottom + "px",
                             maxHeight: innerBottom + "px",
                             overflow: "auto"
                         });
 
-                        // Now recompute node height exactly to fit stacked widgets
-                        const finalNodeH = CHROME + TOP_LAYOUT + middleTotal + availableForBottom + PADDING;
-                        nodeRef.size[1] = finalNodeH;
+                        // Recalculate final node height required (may grow slightly if user made it too small)
+                        const requiredH = CHROME + TOP_LAYOUT + middleTotal + targetBottom + PADDING;
+                        if (requiredH > nodeRef.size[1] + 2 || requiredH < nodeRef.size[1] - 2) {
+                            nodeRef.size[1] = requiredH;
+                        }
 
                         // Assign y positions
                         let y = nodeRef.widgets_start_y || 4;
@@ -127,6 +130,8 @@ app.registerExtension({
                             y += mH + 4;
                         }
                         bottom.y = y;
+                        // Sync canvas after positioning
+                        nodeRef.setDirtyCanvas?.(true);
                     } catch (e) {
                         console.warn("MetadataRuleScanner layout adjust failed", e);
                     }
