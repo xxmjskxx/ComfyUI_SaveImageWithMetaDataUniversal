@@ -37,6 +37,8 @@ app.registerExtension({
                 widget.inputEl.style.minHeight = "220px";
                 widget.inputEl.style.resize = "vertical";
                 widget.inputEl.style.boxSizing = "border-box";
+                widget.inputEl.style.width = "100%"; // avoid horizontal clipping
+                widget.inputEl.style.overflowX = "auto";
 
                 // Ensure base node size baseline
                 if (this.size && this.size[0] < 440) this.size[0] = 440;
@@ -117,6 +119,16 @@ app.registerExtension({
                         // If current node is larger than ideal (e.g. after shrinking top widget), shrink it.
                         if (nodeRef.size[1] > idealNodeH + 4) {
                             nodeRef.size[1] = idealNodeH;
+                        }
+
+                        // Recalculate widget y positions to eliminate stale spacing from earlier heights.
+                        const startY = nodeRef.widgets_start_y || 4;
+                        let yCursor = startY;
+                        for (const w of nodeRef.widgets) {
+                            // Skip hidden or zero-height widgets gracefully
+                            const h = Math.max( (w === widget ? widget.height : (w.height || 20)), 8 );
+                            w.y = yCursor;
+                            yCursor += h + 4; // spacing
                         }
                     } catch (e) {
                         console.warn("MetadataRuleScanner layout adjust failed", e);
