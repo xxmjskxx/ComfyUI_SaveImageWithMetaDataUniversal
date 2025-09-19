@@ -1,4 +1,5 @@
 import { app } from "../../scripts/app.js";
+import { ComfyWidgets } from "../../scripts/widgets.js";
 
 // Add a custom widget to MetadataRuleScanner for displaying results
 app.registerExtension({
@@ -21,14 +22,29 @@ app.registerExtension({
                 
                 console.log("SaveImageWithMetaDataUniversal: Creating MetadataRuleScanner node, adding widget");
                 
-                // Add the results display widget
-                const widget = this.addWidget("text", "scan_results_display", "", function(v) {
-                    // Callback when value changes
-                }, {
-                    multiline: true,
-                    placeholder: "After running Metadata Rule Scanner, the results will populate here.\nYou can edit these rules before copying them for use.",
-                    serialize: false  // Don't save this in the workflow
-                });
+                // Add the results display widget using ComfyWidgets for true multiline behavior
+                const wDef = ComfyWidgets["STRING"](
+                    this,
+                    "scan_results_display",
+                    ["STRING", { multiline: true }],
+                    app
+                );
+                const widget = wDef.widget;
+                widget.serialize = false;
+                widget.inputEl.placeholder = "After running Metadata Rule Scanner, the results will populate here.\nYou can edit these rules before saving.";
+                widget.inputEl.style.whiteSpace = "pre";
+                widget.inputEl.style.fontFamily = "monospace";
+                widget.inputEl.style.minHeight = "260px";
+                widget.inputEl.style.resize = "vertical";
+                // Slightly widen node default width if small
+                if (this.size && this.size[0] < 420) {
+                    this.size[0] = 420;
+                }
+                if (this.size && this.size[1] < 300) {
+                    this.size[1] = 300;
+                }
+                this.onResize?.(this.size);
+                this.setDirtyCanvas?.(true);
                 
                 console.log("SaveImageWithMetaDataUniversal: Widget added:", widget);
                 
