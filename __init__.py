@@ -7,14 +7,19 @@ Allows imports like:
 Runtime (ComfyUI) does not require this, but test isolation does.
 """
 
+import os
+
 __all__ = [
     # Populated lazily; left for static analyzers
     "NODE_CLASS_MAPPINGS",
     "NODE_DISPLAY_NAME_MAPPINGS",
+    "WEB_DIRECTORY",
 ]
 
 NODE_CLASS_MAPPINGS = {}
 NODE_DISPLAY_NAME_MAPPINGS = {}
+
+WEB_DIRECTORY = os.path.join(os.path.dirname(os.path.realpath(__file__)), "web")
 
 
 def _lazy_load_nodes():  # pragma: no cover - side-effect only
