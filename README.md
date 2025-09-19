@@ -25,7 +25,8 @@ See `docs/WORKFLOW_COMPRESSION_DESIGN.md` for deferred workflow compression & ad
 | ---- | ------- |
 | `SaveImageWithMetaDataUniversal` | Save images + produce enriched metadata (PNGInfo / EXIF) & parameter string. |
 | `Create Extra MetaData` | Inject additional custom key-value metadata pairs. |
-| `Metadata Rule Scanner` | Configure metadata rule scanning (force include node classes). |
+| `Metadata Rule Scanner` | Scan installed nodes to suggest metadata capture rules (exclude keywords, modes, metafield forcing). |
+| `Metadata Force Include` | Configure global forced node class names for capture definition loading. |
 
 ## Node UI Parameters (Key Additions)
 `include_lora_summary` (BOOLEAN, default True): Controls aggregated `LoRAs:` line. When False, only individual `Lora_X` entries appear. Overrides env flag precedence (see below).
@@ -34,20 +35,21 @@ See `docs/WORKFLOW_COMPRESSION_DESIGN.md` for deferred workflow compression & ad
 
 NOTE: The previous `force_include_node_class` input has moved to the dedicated `Metadata Rule Scanner` node.
 
-### Metadata Rule Scanner
+### Metadata Rule Scanner vs Metadata Force Include
 
-Use this helper node to force-include node classes in rule scanning even when graph traversal heuristics would normally exclude them (e.g., custom sampler wrappers, prompt preprocessors).
+Two separate nodes now handle scanning vs global class forcing:
 
-Inputs:
-* `force_include_node_class` (STRING, multiline): Comma or newline separated list of class names.
+1. `Metadata Rule Scanner` (defined in `node.py`):
+  * Inputs: `exclude_keywords`, `include_existing`, `mode`, `force_include_metafields`.
+  * Scans installed nodes and suggests capture rules + sampler mappings.
+  * Produces JSON rules suggestion + a human-readable diff summary.
 
-Behavior:
-* Parses the list, normalizes whitespace, and merges into a global forced include set.
-* The `SaveImageWithMetaDataUniversal` node automatically merges this set into its required class list before loading user metadata definitions.
-* Re-execution is always allowed so you can iteratively expand the set.
+2. `Metadata Force Include` (new helper):
+  * Inputs: `force_include_node_class` (multiline), `reset_forced` (bool), `dry_run` (optional bool).
+  * Maintains a global set of node class names treated as required when loading user metadata definitions.
+  * Output: Comma-joined list of currently forced classes (`FORCED_CLASSES`).
 
-Output:
-* A single string output (`FORCED_CLASSES`) containing a comma-joined list of all currently forced classes (useful for debugging display nodes).
+`SaveImageWithMetaDataUniversal` automatically merges the forced class set before deciding whether to load user JSON definition files.
 
 ### Fallback Stages & Indicator
 JPEG saves now record a `Metadata Fallback:` stage when size constraints trigger progressive trimming:

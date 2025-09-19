@@ -7,11 +7,12 @@ All notable changes to this project will be documented in this file.
 
 ## [0.2.0] - 2025-09-19
 ### Added
-- `MetadataRuleScanner` node to configure metadata rule scanning and force inclusion of specified node classes.
+- `MetadataRuleScanner` scanning node (rule suggestion) separate from force include config.
+- `MetadataForceInclude` node to manage globally forced node class names.
 - Global registry `FORCED_INCLUDE_CLASSES` with helpers: `set_forced_include`, `clear_forced_include`.
 
 ### Changed
-- Moved `force_include_node_class` input from `SaveImageWithMetaDataUniversal` to dedicated `MetadataRuleScanner` node.
+- Split concerns: scanning vs forced class configuration (previous single scanner responsibilities divided into two nodes).
 - Improved description wrapping for `SaveImageWithMetaDataUniversal` to satisfy style guidance.
 
 ### Metadata Fallback
