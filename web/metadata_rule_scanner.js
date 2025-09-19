@@ -31,22 +31,55 @@ app.registerExtension({
                 );
                 const widget = wDef.widget;
                 widget.serialize = false;
-                widget.inputEl.placeholder = "After running Metadata Rule Scanner, the results will populate here.\nYou can edit these rules before saving.";
+                widget.inputEl.placeholder = "After running Metadata Rule Scanner, the results will populate here.\nYou can edit these rules before saving with the Save Custom Metadata Rules node.";
                 widget.inputEl.style.whiteSpace = "pre";
                 widget.inputEl.style.fontFamily = "monospace";
-                widget.inputEl.style.minHeight = "260px";
+                widget.inputEl.style.minHeight = "220px";
                 widget.inputEl.style.resize = "vertical";
-                // Slightly widen node default width if small
-                if (this.size && this.size[0] < 420) {
-                    this.size[0] = 420;
+                widget.inputEl.style.boxSizing = "border-box";
+
+                // Ensure base node size baseline
+                if (this.size && this.size[0] < 440) this.size[0] = 440;
+                if (this.size && this.size[1] < 360) this.size[1] = 360;
+
+                const nodeRef = this;
+
+                function adjustHeights() {
+                    try {
+                        // Constrain the first multiline (exclude_keywords)
+                        const top = nodeRef.widgets?.find(w => w.name === "exclude_keywords");
+                        if (top && top.inputEl && !top._shrunk) {
+                            top.inputEl.style.height = "52px"; // ~2 lines
+                            top.inputEl.style.maxHeight = "72px";
+                            top.inputEl.style.resize = "vertical"; // allow slight expansion if user wants
+                            top.inputEl.style.overflowY = "auto";
+                            top._shrunk = true;
+                        }
+                        // Remaining vertical space to allocate to bottom widget
+                        // Reserve approximate chrome (title + three control rows + padding)
+                        const RESERVED = 180; // tune if needed
+                        const avail = Math.max(160, nodeRef.size[1] - RESERVED);
+                        widget.inputEl.style.height = avail + "px";
+                        widget.inputEl.style.overflow = "auto";
+                    } catch (e) {
+                        console.warn("MetadataRuleScanner layout adjust failed", e);
+                    }
                 }
-                if (this.size && this.size[1] < 300) {
-                    this.size[1] = 300;
-                }
-                this.onResize?.(this.size);
-                this.setDirtyCanvas?.(true);
-                
-                console.log("SaveImageWithMetaDataUniversal: Widget added:", widget);
+
+                // Wrap onResize so only bottom grows with node while top stays capped
+                const origResize = this.onResize;
+                this.onResize = function(sz) {
+                    const r = origResize ? origResize.apply(this, arguments) : undefined;
+                    adjustHeights();
+                    return r;
+                };
+
+                requestAnimationFrame(() => {
+                    adjustHeights();
+                    nodeRef.setDirtyCanvas?.(true);
+                });
+
+                console.log("SaveImageWithMetaDataUniversal: Widget added & layout adjusted:", widget);
                 
                 return r;
             };
