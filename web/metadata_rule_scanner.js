@@ -50,13 +50,31 @@ app.registerExtension({
                         const top = nodeRef.widgets.find(w => w.name === "exclude_keywords");
                         // Force the top widget (exclude_keywords) to a compact logical layout height
                         if (top && top.inputEl) {
-                            const TOP_TEXTAREA_H = 52; // px
+                            const TOP_TEXTAREA_H = 52; // px (visible textarea height target)
+                            // Force the DOM element to the target height
                             top.inputEl.style.height = TOP_TEXTAREA_H + "px";
-                            top.inputEl.style.maxHeight = "72px";
+                            top.inputEl.style.minHeight = TOP_TEXTAREA_H + "px";
+                            top.inputEl.style.maxHeight = (TOP_TEXTAREA_H + 12) + "px"; // a tiny bit of headroom
                             top.inputEl.style.overflowY = "auto";
-                            top.inputEl.style.resize = "vertical"; // still allow minimal manual expansion
-                            // Synchronize widget.height so LiteGraph layout uses the compact height
-                            top.height = TOP_TEXTAREA_H + 10; // small padding for label margin
+                            top.inputEl.style.resize = "vertical"; // allow user expansion if really needed
+
+                            // Make sure LiteGraph's layout engine also believes this widget is short.
+                            // Some internal ComfyUI widgets cache a larger height on creation; overriding
+                            // computeSize ensures future draws use our compact value (height + label + margin).
+                            const LAYOUT_H = TOP_TEXTAREA_H + 18; // label + padding allowance
+                            top.height = LAYOUT_H;
+                            if (!top._forceCompactApplied) {
+                                const origCompute = top.computeSize ? top.computeSize.bind(top) : null;
+                                top.computeSize = function(w) {
+                                    // Preserve width logic if original existed
+                                    let width = w;
+                                    if (origCompute) {
+                                        try { width = origCompute(w)[0]; } catch(_) {}
+                                    }
+                                    return [width, LAYOUT_H];
+                                };
+                                top._forceCompactApplied = true;
+                            }
                         }
 
                         // Calculate space for bottom widget
@@ -158,6 +176,10 @@ app.registerExtension({
                     }
                     if (this.setDirtyCanvas) {
                         this.setDirtyCanvas(true);
+                    }
+                    // Re-run sizing in case content length affects scrollbars etc.
+                    if (typeof this.onResize === "function") {
+                        try { this.onResize(this.size); } catch(_) {}
                     }
                 }
                 
