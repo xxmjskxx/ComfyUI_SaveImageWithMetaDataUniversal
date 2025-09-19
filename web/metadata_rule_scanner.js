@@ -32,13 +32,17 @@ app.registerExtension({
                 const widget = wDef.widget;
                 widget.serialize = false;
                 widget.inputEl.placeholder = "After running Metadata Rule Scanner, the results will populate here.\nYou can edit these rules before saving with the Save Custom Metadata Rules node.";
-                widget.inputEl.style.whiteSpace = "pre";
+                // Use wrapping so long lines don't force horizontal scrolling
+                widget.inputEl.style.whiteSpace = "pre-wrap"; // preserve newlines, allow wrap
+                widget.inputEl.style.wordBreak = "break-word";
+                widget.inputEl.style.overflowWrap = "anywhere";
                 widget.inputEl.style.fontFamily = "monospace";
                 widget.inputEl.style.minHeight = "220px";
                 widget.inputEl.style.resize = "vertical";
                 widget.inputEl.style.boxSizing = "border-box";
                 widget.inputEl.style.width = "100%"; // avoid horizontal clipping
-                widget.inputEl.style.overflowX = "auto";
+                widget.inputEl.style.overflowX = "hidden"; // hide horizontal scrollbar
+                widget.inputEl.wrap = "soft";
 
                 // Ensure base node size baseline
                 if (this.size && this.size[0] < 440) this.size[0] = 440;
@@ -123,6 +127,12 @@ app.registerExtension({
 
                         // Recalculate widget y positions to eliminate stale spacing from earlier heights.
                         const startY = nodeRef.widgets_start_y || 4;
+                        // Ensure results widget is last in ordering so gap doesn't appear above toggles.
+                        const currentIdx = nodeRef.widgets.indexOf(widget);
+                        if (currentIdx !== -1 && currentIdx !== nodeRef.widgets.length - 1) {
+                            nodeRef.widgets.splice(currentIdx, 1);
+                            nodeRef.widgets.push(widget);
+                        }
                         let yCursor = startY;
                         for (const w of nodeRef.widgets) {
                             // Skip hidden or zero-height widgets gracefully
