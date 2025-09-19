@@ -68,7 +68,6 @@ app.registerExtension({
                             // Some internal ComfyUI widgets cache a larger height on creation; overriding
                             // computeSize ensures future draws use our compact value (height + label + margin).
                             const LAYOUT_H = TOP_TEXTAREA_H + 18; // label + padding allowance
-                            top.height = LAYOUT_H;
                             if (!top._forceCompactApplied) {
                                 const origCompute = top.computeSize ? top.computeSize.bind(top) : null;
                                 top.computeSize = function(w) {
@@ -79,8 +78,15 @@ app.registerExtension({
                                     }
                                     return [width, LAYOUT_H];
                                 };
+                                // Store logical layout height for later calculations
+                                top._logicalHeight = LAYOUT_H;
                                 top._forceCompactApplied = true;
                             }
+                        }
+                        // Helper to obtain a widget's effective layout height
+                        const getWidgetHeight = (w) => {
+                            if (!w) return 0;
+                            return w._logicalHeight || w.height || (typeof w.computeSize === "function" ? (w.computeSize(nodeRef.size[0])||[0,20])[1] : 20);
                         }
 
                         // Calculate space for bottom widget
@@ -88,11 +94,7 @@ app.registerExtension({
                         let otherHeights = 0;
                         for (const w of nodeRef.widgets) {
                             if (w === widget) continue;
-                            let h = w.height;
-                            if (!h && typeof w.computeSize === "function") {
-                                try { h = w.computeSize(nodeRef.size[0])[1]; } catch(_) {}
-                            }
-                            otherHeights += (h || 40);
+                            otherHeights += getWidgetHeight(w) || 40;
                         }
 
                         const CHROME = 40; // title + padding
@@ -135,17 +137,18 @@ app.registerExtension({
                         }
                         let yCursor = startY;
                         for (const w of nodeRef.widgets) {
-                            // Skip hidden or zero-height widgets gracefully
-                            const h = Math.max( (w === widget ? widget.height : (w.height || 20)), 8 );
+                            const effH = (w === widget) ? widget.height : (getWidgetHeight(w) || 20);
+                            const h = Math.max(effH, 8);
                             w.y = yCursor;
-                            yCursor += h + 4; // spacing
+                            yCursor += h + 4;
                         }
 
                         // Detect excessive vertical gap between first (top) and second widget.
                         if (nodeRef.widgets.length > 2) {
                             const first = nodeRef.widgets[0];
                             const second = nodeRef.widgets[1];
-                            const gap = second.y - (first.y + first.height + 4);
+                            const firstH = getWidgetHeight(first) || first.height || 20;
+                            const gap = second.y - (first.y + firstH + 4);
                             if (gap > 40) { // large unexpected gap
                                 const shift = gap - 4;
                                 for (let i = 1; i < nodeRef.widgets.length; i++) {
