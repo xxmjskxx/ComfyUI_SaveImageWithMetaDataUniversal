@@ -48,12 +48,23 @@ app.registerExtension({
                 }
 
                 let payload = null;
-                // Preferred path: UI payload like { ui: { scan_results: [ ... ] } }
-                if (message?.ui?.scan_results && Array.isArray(message.ui.scan_results) && message.ui.scan_results.length) {
+                // 1) New direct top-level key (string)
+                if (typeof message?.scan_results === "string" && message.scan_results.trim()) {
+                    payload = message.scan_results;
+                    console.log("SaveImageWithMetaDataUniversal: Using top-level scan_results string");
+                }
+                // 2) New top-level list variant (defensive)
+                else if (Array.isArray(message?.scan_results) && message.scan_results.length) {
+                    payload = message.scan_results[0];
+                    console.log("SaveImageWithMetaDataUniversal: Using top-level scan_results array");
+                }
+                // 3) UI payload list
+                else if (message?.ui?.scan_results && Array.isArray(message.ui.scan_results) && message.ui.scan_results.length) {
                     payload = message.ui.scan_results[0];
-                    console.log("SaveImageWithMetaDataUniversal: Using UI scan_results payload");
-                } else if (message && message.output && message.output.length > 0) {
-                    // Legacy fallback: first string in result tuple
+                    console.log("SaveImageWithMetaDataUniversal: Using ui.scan_results payload");
+                }
+                // 4) Legacy tuple result
+                else if (message?.output?.length > 0) {
                     payload = message.output[0];
                     console.log("SaveImageWithMetaDataUniversal: Using legacy output payload");
                 }

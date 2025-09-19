@@ -1848,12 +1848,16 @@ class MetadataRuleScanner:
         env = os.environ
         if not env.get("PYTEST_CURRENT_TEST") and not env.get("METADATA_TEST_MODE"):
             try:
+                # Provide both legacy tuple and richer UI mapping. For convenience add
+                # top-level keys so extensions can read message.scan_results directly.
                 return {  # type: ignore[return-value]
-                    "ui": {"scan_results": [pretty_json]},
+                    "ui": {"scan_results": [pretty_json], "diff_report": [diff_report]},
+                    "scan_results": pretty_json,  # direct string
+                    "diff_report": diff_report,
                     "result": base_result,
                 }
             except Exception:
-                # Fallback silently to legacy form
+                # Fallback silently to legacy form if any serialization issue
                 pass
         return base_result
 
