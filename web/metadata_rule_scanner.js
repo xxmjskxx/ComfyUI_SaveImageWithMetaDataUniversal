@@ -55,9 +55,10 @@ app.registerExtension({
                         const TOP_H = 52; // visible top textarea
                         const TOP_LAYOUT = TOP_H + 18; // label + padding
                         const CHROME = 34; // node title + inner top padding approximation
-                        const MIN_BOTTOM_VISIBLE = 80; // minimal functional editing space
-                        const MAX_BOTTOM = 500; // hard cap for expansion
-                        const PADDING = 6; // bottom padding
+                        const DEFAULT_BOTTOM = 140; // default bottom editor height
+                        const MIN_BOTTOM_VISIBLE = 60; // minimal functional editing space
+                        const MAX_BOTTOM = 420; // hard cap for expansion
+                        const PADDING = 4; // tighter padding for exact fit
 
                         // Identify widgets
                         const top = nodeRef.widgets.find(w => w.name === "exclude_keywords");
@@ -96,10 +97,15 @@ app.registerExtension({
 
                         // Desired node height as currently set (user resize attempt)
                         let desiredNodeH = nodeRef.size[1] || 0;
-                        if (desiredNodeH < 200) desiredNodeH = 200; // minimal sensible total height
+                        if (desiredNodeH < 210) desiredNodeH = 210; // minimal sensible total height
 
                         // Space currently available for bottom (may be small / negative if node shrunk aggressively)
                         let availableForBottom = desiredNodeH - (CHROME + TOP_LAYOUT + middleTotal + PADDING);
+                        if (!nodeRef._bottomInitialized) {
+                            // On first pass ignore user-sized node: use default bottom and recompute node height
+                            availableForBottom = DEFAULT_BOTTOM;
+                            nodeRef._bottomInitialized = true;
+                        }
                         // If user shrinks the node so much that available space < MIN_BOTTOM_VISIBLE, just use whatever remains (even if very small) but never below 40; we'll then expand node just enough to fit.
                         const rawBottom = Math.max(40, availableForBottom);
                         let targetBottom = rawBottom;
@@ -107,7 +113,8 @@ app.registerExtension({
                         bottom._logicalHeight = targetBottom;
 
                         // Update bottom textarea element heights
-                        const innerBottom = Math.max(40, targetBottom - 14);
+                        // Inner area subtract ~10 for internal LiteGraph widget chrome instead of 14 to avoid bottom spill
+                        const innerBottom = Math.max(40, targetBottom - 10);
                         Object.assign(bottom.inputEl.style, {
                             height: innerBottom + "px",
                             maxHeight: innerBottom + "px",
