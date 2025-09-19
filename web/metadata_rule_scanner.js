@@ -140,6 +140,31 @@ app.registerExtension({
                             w.y = yCursor;
                             yCursor += h + 4; // spacing
                         }
+
+                        // Detect excessive vertical gap between first (top) and second widget.
+                        if (nodeRef.widgets.length > 2) {
+                            const first = nodeRef.widgets[0];
+                            const second = nodeRef.widgets[1];
+                            const gap = second.y - (first.y + first.height + 4);
+                            if (gap > 40) { // large unexpected gap
+                                const shift = gap - 4;
+                                for (let i = 1; i < nodeRef.widgets.length; i++) {
+                                    nodeRef.widgets[i].y -= shift;
+                                }
+                                nodeRef.size[1] -= shift; // shrink node accordingly
+                            }
+                        }
+
+                        // Debug dump (remove later)
+                        if (!nodeRef._scannerLayoutLoggedOnce) {
+                            try {
+                                console.log("[MetadataRuleScanner layout] widgets:");
+                                nodeRef.widgets.forEach((w,i)=>{
+                                    console.log(`#${i}`, w.name, 'y=', w.y, 'h=', w.height);
+                                });
+                            } catch(_) {}
+                            nodeRef._scannerLayoutLoggedOnce = true;
+                        }
                     } catch (e) {
                         console.warn("MetadataRuleScanner layout adjust failed", e);
                     }
