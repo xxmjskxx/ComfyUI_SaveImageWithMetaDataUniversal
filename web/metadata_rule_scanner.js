@@ -41,33 +41,35 @@ app.registerExtension({
                 console.log("SaveImageWithMetaDataUniversal: MetadataRuleScanner executed with message:", message);
                 const r = onExecuted ? onExecuted.apply(this, arguments) : undefined;
                 
-                if (message && message.output) {
-                    // Find the results widget
-                    const resultsWidget = this.widgets?.find(w => w.name === "scan_results_display");
-                    console.log("SaveImageWithMetaDataUniversal: Found results widget:", resultsWidget);
-                    
-                    if (resultsWidget && message.output.length > 0) {
-                        // Use the JSON output (first return value)
-                        const jsonResults = message.output[0];
-                        if (jsonResults) {
-                            console.log("SaveImageWithMetaDataUniversal: Updating widget with results:", jsonResults);
-                            // Pretty format the JSON for better readability
-                            try {
-                                const parsed = JSON.parse(jsonResults);
-                                resultsWidget.value = JSON.stringify(parsed, null, 2);
-                            } catch (e) {
-                                // Fallback to raw text if JSON parsing fails
-                                resultsWidget.value = jsonResults;
-                            }
-                            
-                            // Force widget update and redraw
-                            if (resultsWidget.callback) {
-                                resultsWidget.callback(resultsWidget.value);
-                            }
-                            if (this.setDirtyCanvas) {
-                                this.setDirtyCanvas(true);
-                            }
-                        }
+                // Find the results widget early
+                const resultsWidget = this.widgets?.find(w => w.name === "scan_results_display");
+                if (!resultsWidget) {
+                    return r;
+                }
+
+                let payload = null;
+                // Preferred path: UI payload like { ui: { scan_results: [ ... ] } }
+                if (message?.ui?.scan_results && Array.isArray(message.ui.scan_results) && message.ui.scan_results.length) {
+                    payload = message.ui.scan_results[0];
+                    console.log("SaveImageWithMetaDataUniversal: Using UI scan_results payload");
+                } else if (message && message.output && message.output.length > 0) {
+                    // Legacy fallback: first string in result tuple
+                    payload = message.output[0];
+                    console.log("SaveImageWithMetaDataUniversal: Using legacy output payload");
+                }
+
+                if (payload) {
+                    try {
+                        const parsed = JSON.parse(payload);
+                        resultsWidget.value = JSON.stringify(parsed, null, 2);
+                    } catch (e) {
+                        resultsWidget.value = payload;
+                    }
+                    if (resultsWidget.callback) {
+                        resultsWidget.callback(resultsWidget.value);
+                    }
+                    if (this.setDirtyCanvas) {
+                        this.setDirtyCanvas(true);
                     }
                 }
                 
