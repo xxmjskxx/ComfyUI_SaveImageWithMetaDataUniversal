@@ -1,6 +1,8 @@
 {
-  "last_node_id": 21,
-  "last_link_id": 29,
+  "id": "be522516-bc43-4789-862a-0d77f24a455a",
+  "revision": 0,
+  "last_node_id": 26,
+  "last_link_id": 39,
   "nodes": [
     {
       "id": 10,
@@ -9,10 +11,10 @@
         812,
         429
       ],
-      "size": {
-        "0": 210,
-        "1": 46
-      },
+      "size": [
+        210,
+        46
+      ],
       "flags": {},
       "order": 9,
       "mode": 0,
@@ -20,8 +22,7 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 9,
-          "slot_index": 0
+          "link": 9
         },
         {
           "name": "vae",
@@ -34,94 +35,360 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            19
-          ],
-          "shape": 3
+            31
+          ]
         }
       ],
       "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.59",
         "Node name for S&R": "VAEDecode"
-      }
+      },
+      "widgets_values": []
     },
     {
-      "id": 16,
-      "type": "CreateExtraMetaData",
+      "id": 24,
+      "type": "SDXLEmptyLatentSizePicker+",
       "pos": [
-        763,
-        962
+        40,
+        860
       ],
       "size": [
-        245.1999969482422,
-        226
+        279.4117126464844,
+        170
       ],
       "flags": {},
-      "order": 8,
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            34
+          ]
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "links": [
+            32
+          ]
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": [
+            33
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui_essentials",
+        "ver": "9d9f4bedfc9f0321c19faf71855e228c93bd0dc9",
+        "Node name for S&R": "SDXLEmptyLatentSizePicker+"
+      },
+      "widgets_values": [
+        "832x1216 (0.68)",
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "id": 1,
+      "type": "CheckpointLoaderSimple",
+      "pos": [
+        -340,
+        450
+      ],
+      "size": [
+        315,
+        98
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            17
+          ]
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "slot_index": 1,
+          "links": [
+            13,
+            14
+          ]
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "slot_index": 2,
+          "links": [
+            18
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.59",
+        "Node name for S&R": "CheckpointLoaderSimple"
+      },
+      "widgets_values": [
+        "animagine-xl-3.1.safetensors"
+      ]
+    },
+    {
+      "id": 14,
+      "type": "CLIPTextEncode",
+      "pos": [
+        40,
+        350
+      ],
+      "size": [
+        340,
+        200
+      ],
+      "flags": {},
+      "order": 5,
       "mode": 0,
       "inputs": [
         {
-          "name": "extra_metadata",
-          "type": "EXTRA_METADATA",
-          "link": 20
-        },
-        {
-          "name": "value1",
-          "type": "STRING",
-          "link": 27,
-          "widget": {
-            "name": "value1"
-          }
-        },
-        {
-          "name": "value2",
-          "type": "STRING",
-          "link": 26,
-          "widget": {
-            "name": "value2"
-          }
+          "name": "clip",
+          "type": "CLIP",
+          "link": 13
         }
       ],
       "outputs": [
         {
-          "name": "EXTRA_METADATA",
-          "type": "EXTRA_METADATA",
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "slot_index": 0,
           "links": [
-            25
-          ],
-          "shape": 3,
-          "slot_index": 0
+            16
+          ]
         }
       ],
       "properties": {
-        "Node name for S&R": "CreateExtraMetaData"
+        "cnr_id": "comfy-core",
+        "ver": "0.3.59",
+        "Node name for S&R": "CLIPTextEncode"
       },
       "widgets_values": [
-        "custom_w",
-        "",
-        "custom_h",
-        "",
-        "",
-        "",
-        "",
-        ""
+        "1girl, hatsune miku, vocaloid, aqua hair, aqua eyes, twintails, aqua necktie, cyan shirt, sleeveless, detached sleeves, black sleeves, upper body, smile, looking at viewer, waving, masterpiece, best quality, very aesthetic, absurdres"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 13,
+      "type": "CLIPTextEncode",
+      "pos": [
+        40,
+        600
+      ],
+      "size": [
+        350,
+        220
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 14
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            15
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.59",
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "lowres, (bad), text, error, fewer, extra, missing, worst quality, jpeg artifacts, low quality, watermark, unfinished, displeasing, oldest, early, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract]"
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 20,
+      "type": "CR Integer To String",
+      "pos": [
+        457,
+        743
+      ],
+      "size": [
+        210,
+        54
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "int_",
+          "type": "INT",
+          "link": 32
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "slot_index": 0,
+          "links": [
+            35
+          ]
+        },
+        {
+          "name": "show_help",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyroll",
+        "ver": "d78b780ae43fcf8c6b7c6505e6ffb4584281ceca",
+        "Node name for S&R": "CR Integer To String"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 21,
+      "type": "CR Integer To String",
+      "pos": [
+        460,
+        847
+      ],
+      "size": [
+        210,
+        54
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "int_",
+          "type": "INT",
+          "link": 33
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "slot_index": 0,
+          "links": [
+            36
+          ]
+        },
+        {
+          "name": "show_help",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyroll",
+        "ver": "d78b780ae43fcf8c6b7c6505e6ffb4584281ceca",
+        "Node name for S&R": "CR Integer To String"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 22,
+      "type": "SaveImageWithMetaDataUniversal",
+      "pos": [
+        1100,
+        440
+      ],
+      "size": [
+        317.0025329589844,
+        342
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 31
+        },
+        {
+          "name": "extra_metadata",
+          "shape": 7,
+          "type": "EXTRA_METADATA",
+          "link": 38
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal",
+        "ver": "c9a87453bc4257614c87d28a64a5be9c4fdccba9",
+        "Node name for S&R": "SaveImageWithMetaDataUniversal"
+      },
+      "widgets_values": [
+        "extra_metadata",
+        "Farthest",
+        0,
+        "png",
+        true,
+        100,
+        false,
+        true,
+        false,
+        false,
+        true,
+        false
       ]
     },
     {
-      "id": 17,
-      "type": "CreateExtraMetaData",
+      "id": 26,
+      "type": "CreateExtraMetaDataUniversal",
       "pos": [
-        440,
+        430,
         960
       ],
-      "size": {
-        "0": 245.1999969482422,
-        "1": 226
-      },
+      "size": [
+        297.732421875,
+        226
+      ],
       "flags": {},
-      "order": 0,
+      "order": 2,
       "mode": 0,
       "inputs": [
         {
           "name": "extra_metadata",
+          "shape": 7,
           "type": "EXTRA_METADATA",
           "link": null
         }
@@ -131,14 +398,14 @@
           "name": "EXTRA_METADATA",
           "type": "EXTRA_METADATA",
           "links": [
-            20
-          ],
-          "shape": 3,
-          "slot_index": 0
+            39
+          ]
         }
       ],
       "properties": {
-        "Node name for S&R": "CreateExtraMetaData"
+        "aux_id": "xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal",
+        "ver": "c9a87453bc4257614c87d28a64a5be9c4fdccba9",
+        "Node name for S&R": "CreateExtraMetaDataUniversal"
       },
       "widgets_values": [
         "custom_key",
@@ -152,149 +419,82 @@
       ]
     },
     {
-      "id": 1,
-      "type": "CheckpointLoaderSimple",
+      "id": 25,
+      "type": "CreateExtraMetaDataUniversal",
       "pos": [
-        -340,
-        370
+        760,
+        960
       ],
-      "size": {
-        "0": 315,
-        "1": 98
-      },
+      "size": [
+        297.732421875,
+        226
+      ],
       "flags": {},
-      "order": 1,
-      "mode": 0,
-      "outputs": [
-        {
-          "name": "MODEL",
-          "type": "MODEL",
-          "links": [
-            17
-          ],
-          "shape": 3,
-          "slot_index": 0
-        },
-        {
-          "name": "CLIP",
-          "type": "CLIP",
-          "links": [
-            13,
-            14
-          ],
-          "shape": 3,
-          "slot_index": 1
-        },
-        {
-          "name": "VAE",
-          "type": "VAE",
-          "links": [
-            18
-          ],
-          "shape": 3,
-          "slot_index": 2
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "CheckpointLoaderSimple"
-      },
-      "widgets_values": [
-        "animagine-xl-3.1.safetensors"
-      ]
-    },
-    {
-      "id": 13,
-      "type": "CLIPTextEncode",
-      "pos": [
-        40,
-        600
-      ],
-      "size": {
-        "0": 315,
-        "1": 98
-      },
-      "flags": {},
-      "order": 4,
+      "order": 7,
       "mode": 0,
       "inputs": [
         {
-          "name": "clip",
-          "type": "CLIP",
-          "link": 14
+          "name": "extra_metadata",
+          "shape": 7,
+          "type": "EXTRA_METADATA",
+          "link": 39
+        },
+        {
+          "name": "value1",
+          "type": "STRING",
+          "widget": {
+            "name": "value1"
+          },
+          "link": 35
+        },
+        {
+          "name": "value2",
+          "shape": 7,
+          "type": "STRING",
+          "widget": {
+            "name": "value2"
+          },
+          "link": 36
         }
       ],
       "outputs": [
         {
-          "name": "CONDITIONING",
-          "type": "CONDITIONING",
+          "name": "EXTRA_METADATA",
+          "type": "EXTRA_METADATA",
           "links": [
-            15
-          ],
-          "shape": 3,
-          "slot_index": 0
+            38
+          ]
         }
       ],
       "properties": {
-        "Node name for S&R": "CLIPTextEncode"
+        "aux_id": "xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal",
+        "ver": "c9a87453bc4257614c87d28a64a5be9c4fdccba9",
+        "Node name for S&R": "CreateExtraMetaDataUniversal"
       },
       "widgets_values": [
-        "lowres, (bad), text, error, fewer, extra, missing, worst quality, jpeg artifacts, low quality, watermark, unfinished, displeasing, oldest, early, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract]",
-        true
-      ]
-    },
-    {
-      "id": 14,
-      "type": "CLIPTextEncode",
-      "pos": [
-        40,
-        430
-      ],
-      "size": {
-        "0": 315,
-        "1": 98
-      },
-      "flags": {},
-      "order": 3,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "clip",
-          "type": "CLIP",
-          "link": 13
-        }
-      ],
-      "outputs": [
-        {
-          "name": "CONDITIONING",
-          "type": "CONDITIONING",
-          "links": [
-            16
-          ],
-          "shape": 3,
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "CLIPTextEncode"
-      },
-      "widgets_values": [
-        "1girl, hatsune miku, vocaloid, aqua hair, aqua eyes, twintails, aqua necktie, cyan shirt, sleeveless, detached sleeves, black sleeves, upper body, smile, looking at viewer, waving, masterpiece, best quality, very aesthetic, absurdres",
-        true
+        "custom_w",
+        "",
+        "custom_h",
+        "",
+        "",
+        "",
+        "",
+        ""
       ]
     },
     {
       "id": 9,
       "type": "KSampler",
       "pos": [
-        445,
-        430
+        460,
+        390
       ],
-      "size": {
-        "0": 315,
-        "1": 262
-      },
+      "size": [
+        315,
+        262
+      ],
       "flags": {},
-      "order": 7,
+      "order": 8,
       "mode": 0,
       "inputs": [
         {
@@ -315,8 +515,7 @@
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 8,
-          "slot_index": 3
+          "link": 34
         }
       ],
       "outputs": [
@@ -325,11 +524,12 @@
           "type": "LATENT",
           "links": [
             9
-          ],
-          "shape": 3
+          ]
         }
       ],
       "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.59",
         "Node name for S&R": "KSampler"
       },
       "widgets_values": [
@@ -341,204 +541,9 @@
         "karras",
         1
       ]
-    },
-    {
-      "id": 20,
-      "type": "CR Integer To String",
-      "pos": [
-        457,
-        743
-      ],
-      "size": [
-        210,
-        54
-      ],
-      "flags": {},
-      "order": 5,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "int_",
-          "type": "INT",
-          "link": 29,
-          "widget": {
-            "name": "int_"
-          }
-        }
-      ],
-      "outputs": [
-        {
-          "name": "STRING",
-          "type": "STRING",
-          "links": [
-            27
-          ],
-          "shape": 3,
-          "slot_index": 0
-        },
-        {
-          "name": "show_help",
-          "type": "STRING",
-          "links": null,
-          "shape": 3
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "CR Integer To String"
-      },
-      "widgets_values": [
-        0
-      ]
-    },
-    {
-      "id": 21,
-      "type": "CR Integer To String",
-      "pos": [
-        460,
-        847
-      ],
-      "size": [
-        210,
-        54
-      ],
-      "flags": {},
-      "order": 6,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "int_",
-          "type": "INT",
-          "link": 28,
-          "widget": {
-            "name": "int_"
-          }
-        }
-      ],
-      "outputs": [
-        {
-          "name": "STRING",
-          "type": "STRING",
-          "links": [
-            26
-          ],
-          "shape": 3,
-          "slot_index": 0
-        },
-        {
-          "name": "show_help",
-          "type": "STRING",
-          "links": null,
-          "shape": 3
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "CR Integer To String"
-      },
-      "widgets_values": [
-        0
-      ]
-    },
-    {
-      "id": 8,
-      "type": "EmptyLatentImageFromPresetsSDXL",
-      "pos": [
-        40,
-        800
-      ],
-      "size": {
-        "0": 315,
-        "1": 122
-      },
-      "flags": {},
-      "order": 2,
-      "mode": 0,
-      "outputs": [
-        {
-          "name": "latent",
-          "type": "LATENT",
-          "links": [
-            8
-          ],
-          "shape": 3
-        },
-        {
-          "name": "w",
-          "type": "INT",
-          "links": [
-            29
-          ],
-          "shape": 3,
-          "slot_index": 1
-        },
-        {
-          "name": "h",
-          "type": "INT",
-          "links": [
-            28
-          ],
-          "shape": 3,
-          "slot_index": 2
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "EmptyLatentImageFromPresetsSDXL"
-      },
-      "widgets_values": [
-        " 832 x 1216",
-        1
-      ]
-    },
-    {
-      "id": 15,
-      "type": "SaveImageWithMetaData",
-      "pos": [
-        1106,
-        430
-      ],
-      "size": [
-        315,
-        482
-      ],
-      "flags": {},
-      "order": 10,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "link": 19
-        },
-        {
-          "name": "extra_metadata",
-          "type": "EXTRA_METADATA",
-          "link": 25
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "SaveImageWithMetaData"
-      },
-      "widgets_values": [
-        "extra_metadata",
-        "Farthest",
-        0,
-        "png",
-        true,
-        100,
-        false,
-        true,
-        false
-      ]
     }
   ],
   "links": [
-    [
-      8,
-      8,
-      0,
-      9,
-      3,
-      "LATENT"
-    ],
     [
       9,
       9,
@@ -596,72 +601,89 @@
       "VAE"
     ],
     [
-      19,
+      31,
       10,
       0,
-      15,
+      22,
       0,
       "IMAGE"
     ],
     [
+      32,
+      24,
+      1,
       20,
-      17,
       0,
-      16,
-      0,
-      "EXTRA_METADATA"
+      "INT"
     ],
     [
+      33,
+      24,
+      2,
+      21,
+      0,
+      "INT"
+    ],
+    [
+      34,
+      24,
+      0,
+      9,
+      3,
+      "LATENT"
+    ],
+    [
+      35,
+      20,
+      0,
       25,
-      16,
+      1,
+      "STRING"
+    ],
+    [
+      36,
+      21,
       0,
-      15,
+      25,
+      2,
+      "STRING"
+    ],
+    [
+      38,
+      25,
+      0,
+      22,
       1,
       "EXTRA_METADATA"
     ],
     [
+      39,
       26,
-      21,
       0,
-      16,
-      2,
-      "STRING"
-    ],
-    [
-      27,
-      20,
+      25,
       0,
-      16,
-      1,
-      "STRING"
-    ],
-    [
-      28,
-      8,
-      2,
-      21,
-      0,
-      "INT"
-    ],
-    [
-      29,
-      8,
-      1,
-      20,
-      0,
-      "INT"
+      "EXTRA_METADATA"
     ]
   ],
   "groups": [],
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.7513148009015779,
+      "scale": 0.7513148009015777,
       "offset": [
-        653.6784224287038,
-        -213.77225271772178
+        359.325672640418,
+        -28.830995341370624
       ]
-    }
+    },
+    "workspace_info": {
+      "id": "f8719b5c-6888-4d4a-a725-28159058fa29"
+    },
+    "groupNodes": {},
+    "frontendVersion": "1.25.11",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": false,
+    "VHS_KeepIntermediate": true
   },
   "version": 0.4
 }

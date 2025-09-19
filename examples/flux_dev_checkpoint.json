@@ -1,69 +1,103 @@
 {
-  "id": "c855e372-bda8-41b2-aa57-4f2744073b75",
+  "id": "871cd2e5-9fd0-43d8-b22f-3dcb2051cd2e",
   "revision": 0,
-  "last_node_id": 25,
-  "last_link_id": 39,
+  "last_node_id": 38,
+  "last_link_id": 58,
   "nodes": [
     {
-      "id": 9,
+      "id": 6,
       "type": "CLIPTextEncode",
       "pos": [
-        394,
-        382
+        384,
+        192
       ],
       "size": [
-        210.29940795898438,
-        88
+        422.8500061035156,
+        164.30999755859375
       ],
       "flags": {},
-      "order": 6,
+      "order": 2,
       "mode": 0,
       "inputs": [
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 37
-        },
-        {
-          "name": "text",
-          "type": "STRING",
-          "widget": {
-            "name": "text"
-          },
-          "link": 39
+          "link": 45
         }
       ],
       "outputs": [
         {
           "name": "CONDITIONING",
           "type": "CONDITIONING",
+          "slot_index": 0,
           "links": [
-            32
+            56
           ]
         }
       ],
+      "title": "CLIP Text Encode (Positive Prompt)",
       "properties": {
         "cnr_id": "comfy-core",
         "ver": "0.3.59",
         "Node name for S&R": "CLIPTextEncode"
       },
       "widgets_values": [
-        ""
-      ]
+        "cute anime girl with massive fluffy fennec ears and a big fluffy tail blonde messy long hair blue eyes wearing a maid outfit with a long black gold leaf pattern dress and a white apron mouth open placing a fancy black forest cake with candles on top of a dinner table of an old dark Victorian mansion lit by candlelight with a bright window to the foggy forest and very expensive stuff everywhere there are paintings on the walls"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
     },
     {
-      "id": 1,
+      "id": 27,
+      "type": "EmptySD3LatentImage",
+      "pos": [
+        471,
+        455
+      ],
+      "size": [
+        315,
+        106
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "slot_index": 0,
+          "links": [
+            51
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.59",
+        "Node name for S&R": "EmptySD3LatentImage"
+      },
+      "widgets_values": [
+        1024,
+        1024,
+        1
+      ],
+      "color": "#323",
+      "bgcolor": "#535"
+    },
+    {
+      "id": 30,
       "type": "CheckpointLoaderSimple",
       "pos": [
-        24,
-        54
+        48,
+        192
       ],
       "size": [
         315,
         98
       ],
       "flags": {},
-      "order": 0,
+      "order": 1,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -72,7 +106,7 @@
           "type": "MODEL",
           "slot_index": 0,
           "links": [
-            35
+            47
           ]
         },
         {
@@ -80,125 +114,69 @@
           "type": "CLIP",
           "slot_index": 1,
           "links": [
-            36,
-            37
+            45,
+            54
           ]
         },
         {
           "name": "VAE",
           "type": "VAE",
-          "links": []
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.3.59",
-        "Node name for S&R": "CheckpointLoaderSimple"
-      },
-      "widgets_values": [
-        "CounterfeitV30_v30.safetensors"
-      ]
-    },
-    {
-      "id": 25,
-      "type": "PrimitiveStringMultiline",
-      "pos": [
-        30,
-        410
-      ],
-      "size": [
-        280,
-        120
-      ],
-      "flags": {},
-      "order": 1,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "STRING",
-          "type": "STRING",
+          "slot_index": 2,
           "links": [
-            39
+            46
           ]
         }
       ],
       "properties": {
         "cnr_id": "comfy-core",
         "ver": "0.3.59",
-        "Node name for S&R": "PrimitiveStringMultiline"
+        "Node name for S&R": "CheckpointLoaderSimple",
+        "models": [
+          {
+            "name": "flux1-dev-fp8.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/flux1-dev/resolve/main/flux1-dev-fp8.safetensors?download=true",
+            "directory": "checkpoints"
+          }
+        ]
       },
       "widgets_values": [
-        "(low quality, worst quality:1.4), embedding:EasyNegative"
+        "flux1-dev-fp8.safetensors"
       ]
     },
     {
-      "id": 24,
-      "type": "PrimitiveStringMultiline",
-      "pos": [
-        30,
-        240
-      ],
-      "size": [
-        280,
-        130
-      ],
-      "flags": {},
-      "order": 2,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "STRING",
-          "type": "STRING",
-          "links": [
-            38
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.3.59",
-        "Node name for S&R": "PrimitiveStringMultiline"
-      },
-      "widgets_values": [
-        "masterpiece, best quality, hatsune miku, upper body"
-      ]
-    },
-    {
-      "id": 11,
+      "id": 31,
       "type": "KSampler",
       "pos": [
-        670,
-        240
+        816,
+        192
       ],
       "size": [
         315,
         262
       ],
       "flags": {},
-      "order": 8,
+      "order": 5,
       "mode": 0,
       "inputs": [
         {
           "name": "model",
           "type": "MODEL",
-          "link": 35
+          "link": 47
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 33
+          "link": 57
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 32
+          "link": 55
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 34
+          "link": 51
         }
       ],
       "outputs": [
@@ -207,7 +185,7 @@
           "type": "LATENT",
           "slot_index": 0,
           "links": [
-            28
+            52
           ]
         }
       ],
@@ -217,77 +195,36 @@
         "Node name for S&R": "KSampler"
       },
       "widgets_values": [
-        123,
-        "fixed",
+        972054013131368,
+        "randomize",
         20,
-        8,
-        "dpmpp_2m",
-        "karras",
+        1,
+        "euler",
+        "simple",
         1
       ]
     },
     {
-      "id": 23,
-      "type": "EmptyLatentImage",
-      "pos": [
-        360,
-        530
-      ],
-      "size": [
-        270,
-        106
-      ],
-      "flags": {},
-      "order": 3,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "LATENT",
-          "type": "LATENT",
-          "links": [
-            34
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.3.59",
-        "Node name for S&R": "EmptyLatentImage"
-      },
-      "widgets_values": [
-        512,
-        512,
-        1
-      ]
-    },
-    {
-      "id": 8,
+      "id": 33,
       "type": "CLIPTextEncode",
       "pos": [
         390,
-        240
+        400
       ],
       "size": [
-        210.29940795898438,
-        88
+        422.8500061035156,
+        164.30999755859375
       ],
-      "flags": {},
-      "order": 7,
+      "flags": {
+        "collapsed": true
+      },
+      "order": 3,
       "mode": 0,
       "inputs": [
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 36
-        },
-        {
-          "name": "text",
-          "type": "STRING",
-          "widget": {
-            "name": "text"
-          },
-          "link": 38
+          "link": 54
         }
       ],
       "outputs": [
@@ -296,10 +233,11 @@
           "type": "CONDITIONING",
           "slot_index": 0,
           "links": [
-            33
+            55
           ]
         }
       ],
+      "title": "CLIP Text Encode (Negative Prompt)",
       "properties": {
         "cnr_id": "comfy-core",
         "ver": "0.3.59",
@@ -307,74 +245,83 @@
       },
       "widgets_values": [
         ""
-      ]
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
     },
     {
-      "id": 2,
-      "type": "VAELoader",
+      "id": 35,
+      "type": "FluxGuidance",
       "pos": [
-        -10,
-        590
+        576,
+        96
       ],
       "size": [
-        323.17578125,
+        211.60000610351562,
         58
       ],
       "flags": {},
       "order": 4,
       "mode": 0,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 56
+        }
+      ],
       "outputs": [
         {
-          "name": "VAE",
-          "type": "VAE",
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
           "slot_index": 0,
           "links": [
-            13
+            57
           ]
         }
       ],
       "properties": {
         "cnr_id": "comfy-core",
         "ver": "0.3.59",
-        "Node name for S&R": "VAELoader"
+        "Node name for S&R": "FluxGuidance"
       },
       "widgets_values": [
-        "clearvae_nanslesstest.safetensors"
+        3.5
       ]
     },
     {
-      "id": 13,
+      "id": 8,
       "type": "VAEDecode",
       "pos": [
-        770,
-        150
+        1151,
+        195
       ],
       "size": [
         210,
         46
       ],
       "flags": {},
-      "order": 9,
+      "order": 6,
       "mode": 0,
       "inputs": [
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 28
+          "link": 52
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 13
+          "link": 46
         }
       ],
       "outputs": [
         {
           "name": "IMAGE",
           "type": "IMAGE",
+          "slot_index": 0,
           "links": [
-            31
+            58
           ]
         }
       ],
@@ -386,71 +333,30 @@
       "widgets_values": []
     },
     {
-      "id": 22,
-      "type": "PrimitiveStringMultiline",
-      "pos": [
-        990,
-        230
-      ],
-      "size": [
-        390,
-        150
-      ],
-      "flags": {},
-      "order": 5,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "STRING",
-          "type": "STRING",
-          "links": [
-            30
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.3.59",
-        "Node name for S&R": "PrimitiveStringMultiline"
-      },
-      "widgets_values": [
-        "siwm-%model:10%/%pprompt:20%-%nprompt:20%/%seed%-%width%x%height%_%date:yyyyMMdd-hhmmss%"
-      ]
-    },
-    {
-      "id": 21,
+      "id": 38,
       "type": "SaveImageWithMetaDataUniversal",
       "pos": [
         1390,
-        150
+        190
       ],
       "size": [
         317.0025329589844,
         342
       ],
       "flags": {},
-      "order": 10,
+      "order": 7,
       "mode": 0,
       "inputs": [
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 31
+          "link": 58
         },
         {
           "name": "extra_metadata",
           "shape": 7,
           "type": "EXTRA_METADATA",
           "link": null
-        },
-        {
-          "name": "filename_prefix",
-          "type": "STRING",
-          "widget": {
-            "name": "filename_prefix"
-          },
-          "link": 30
         }
       ],
       "outputs": [
@@ -466,7 +372,7 @@
         "Node name for S&R": "SaveImageWithMetaDataUniversal"
       },
       "widgets_values": [
-        "siwm-%model:10%/%pprompt:20%-%nprompt:20%/%seed%-%width%x%height%_%date:yyyyMMdd-hhmmss%",
+        "ComfyUI",
         "Farthest",
         0,
         "png",
@@ -477,122 +383,103 @@
         false,
         false,
         true,
-        true
+        false
       ]
     }
   ],
   "links": [
     [
-      13,
-      2,
+      45,
+      30,
+      1,
+      6,
       0,
-      13,
+      "CLIP"
+    ],
+    [
+      46,
+      30,
+      2,
+      8,
       1,
       "VAE"
     ],
     [
-      28,
-      11,
-      0,
-      13,
-      0,
-      "LATENT"
-    ],
-    [
+      47,
       30,
-      22,
       0,
-      21,
-      2,
-      "STRING"
-    ],
-    [
       31,
-      13,
-      0,
-      21,
-      0,
-      "IMAGE"
-    ],
-    [
-      32,
-      9,
-      0,
-      11,
-      2,
-      "CONDITIONING"
-    ],
-    [
-      33,
-      8,
-      0,
-      11,
-      1,
-      "CONDITIONING"
-    ],
-    [
-      34,
-      23,
-      0,
-      11,
-      3,
-      "LATENT"
-    ],
-    [
-      35,
-      1,
-      0,
-      11,
       0,
       "MODEL"
     ],
     [
-      36,
-      1,
-      1,
+      51,
+      27,
+      0,
+      31,
+      3,
+      "LATENT"
+    ],
+    [
+      52,
+      31,
+      0,
       8,
       0,
-      "CLIP"
+      "LATENT"
     ],
     [
-      37,
+      54,
+      30,
       1,
-      1,
-      9,
+      33,
       0,
       "CLIP"
     ],
     [
+      55,
+      33,
+      0,
+      31,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      56,
+      6,
+      0,
+      35,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      57,
+      35,
+      0,
+      31,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      58,
+      8,
+      0,
       38,
-      24,
       0,
-      8,
-      1,
-      "STRING"
-    ],
-    [
-      39,
-      25,
-      0,
-      9,
-      1,
-      "STRING"
+      "IMAGE"
     ]
   ],
   "groups": [],
   "config": {},
   "extra": {
-    "workspace_info": {
-      "id": "0d55eb4d-53e5-46b5-b89f-a652a6803ff9"
-    },
-    "groupNodes": {},
     "ds": {
-      "scale": 0.7765935672514627,
+      "scale": 0.8800000000000004,
       "offset": [
-        147.14703306023227,
-        181.81435113280702
+        48.6175380334148,
+        40.90660357743927
       ]
     },
+    "groupNodes": {},
     "frontendVersion": "1.25.11",
     "VHS_latentpreview": false,
     "VHS_latentpreviewrate": 0,

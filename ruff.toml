@@ -1,0 +1,15 @@
+# Ruff configuration for SaveImageWithMetaDataUniversal
+line-length = 120
+target-version = "py312"
+
+[lint]
+select = ["E", "F", "I", "UP", "W"]
+ignore = [
+  # Allow broad excepts in guarded runtime import sections
+  "BLE001",
+  # Allow import not resolved for ComfyUI runtime-only modules in tests
+  "I001",
+]
+
+[lint.per-file-ignores]
+"tests/*" = ["F401", "F403"]

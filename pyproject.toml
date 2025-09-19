@@ -1,14 +1,65 @@
 [project]
-name = "comfyui-saveimagewithmetadata"
-description = "Add a node to save images with metadata (PNGInfo) extracted from the input values of each node.\nSince the values are extracted dynamically, values output by various extension nodes can be added to metadata."
+name = "ComfyUI_SaveImageWithMetaDataUniversal"
+description = "Add a node to save images with metadata (PNGInfo) extracted from the input values of each node.\nSince the values are extracted dynamically, values output by various extension nodes can be added to metadata.\nCompared with the original SaveImageWithMetaData, explicit support for various nodes has been added, as well as an attempt to add Universal support for all nodes by scanning all installed nodes and creating new rules."
 version = "1.0.0"
 license = { file = "LICENSE" }
 
 [project.urls]
-Repository = "https://github.com/nkchocoai/ComfyUI-SaveImageWithMetaData"
+Repository = "https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal"
 #  Used by Comfy Registry https://comfyregistry.org
 
 [tool.comfy]
-PublisherId = "nkchocoai"
-DisplayName = "ComfyUI-SaveImageWithMetaData"
+PublisherId = "xxmjskxx"
+DisplayName = "ComfyUI_SaveImageWithMetaDataUniversal"
 Icon = ""
+
+
+[project.optional-dependencies]
+dev = [
+    "mypy",  # linting
+    "ruff",
+    "pytest",
+    "bump-my-version",
+    "coverage",  # testing
+    "pip-audit",
+    "pre-commit",
+]
+
+[tool.ruff]
+line-length = 140
+target-version = "py312"  # Adjust based on your Python version
+# extend-exclude = ["static", "ci/templates"]
+src = ["src", "tests"]
+exclude = ["*cookiecutter.project_slug*"]
+
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # Pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # Line too long (handled by formatter)
+    "E402",  # Module level import not at top of file
+]
+
+[tool.ruff.lint.flake8-quotes]
+inline-quotes = "double"
+
+# [tool.ruff.format]
+# quote-style = "double"
+# indent-style = "space"
+
+# Pytest configuration
+[tool.pytest.ini_options]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+minversion = "6.0"
+# addopts = "-ra -q"
+testpaths = [
+    "tests",
+]
