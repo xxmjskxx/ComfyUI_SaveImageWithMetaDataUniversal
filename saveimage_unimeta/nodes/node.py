@@ -60,7 +60,7 @@ except Exception:  # noqa: BLE001 - circular or missing in isolated test
 from ..capture import Capture
 
 # from ..utils.deserialize import format_config
-from ..defs import load_user_definitions
+from ..defs import load_user_definitions, FORCED_INCLUDE_CLASSES
 from ..defs.captures import CAPTURE_FIELD_LIST
 from ..defs.combo import SAMPLER_SELECTION_METHOD
 from ..defs.meta import MetaField
@@ -200,13 +200,6 @@ class SaveImageWithMetaDataUniversal:
                         "tooltip": "Include a compact aggregated LoRAs summary line (set False to list only individual Lora_X entries).",
                     },
                 ),
-                "force_include_node_class": (
-                    "STRING",
-                    {
-                        "default": "",
-                        "tooltip": "Comma separated list of node class names to force include in rule scanning even if heuristics would filter them.",
-                    },
-                ),
             },
             "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO"},
         }
@@ -238,8 +231,7 @@ class SaveImageWithMetaDataUniversal:
         extra_pnginfo=None,
         save_workflow_image=True,
         include_lora_summary=True,
-        guidance_as_cfg=False,
-        force_include_node_class="",
+    guidance_as_cfg=False,
     ):
         """Persist images to disk with rich, optionally extended metadata.
 
@@ -273,13 +265,11 @@ class SaveImageWithMetaDataUniversal:
             required_classes = {cls for (_, cls) in trace_tree_for_loader.values()}
         except Exception:
             required_classes = None
-        # Force include classes from user input
-        if force_include_node_class:
-            forced = {c.strip() for c in force_include_node_class.split(",") if c.strip()}
-            if forced:
-                if required_classes is None:
-                    required_classes = set()
-                required_classes.update(forced)
+        # Merge any globally forced include classes provided by MetadataRuleScanner
+        if FORCED_INCLUDE_CLASSES:
+            if required_classes is None:
+                required_classes = set()
+            required_classes.update(FORCED_INCLUDE_CLASSES)
         load_user_definitions(required_classes)
         # print(" ".join([cstr("[Metadata Loader] Using Captures File with").msg_o, cstr(f"{len(CAPTURE_FIELD_LIST)}").VIOLET, cstr("for save_images:").msg_o, cstr(format_config(CAPTURE_FIELD_LIST)).end]))
         # print(" ".join([cstr("[Metadata Loader] Using Samplers File with"), cstr(f"{len(SAMPLERS)}").VIOLET, cstr("for save_images:").msg_o, cstr(format_config(SAMPLERS)).end]))
@@ -1300,7 +1290,7 @@ class MetadataRuleScanner:
                 "exclude_keywords": (
                     "STRING",
                     {
-                        "multiline": False,
+                        "multiline": True,
                         "default": "mask,find,resize,rotate,detailer,bus,scale,vision,text to,crop,xy,plot,controlnet,save,trainlora,postshot,loramanager",
                         "tooltip": "Comma-separated keywords to exclude nodes whose class names contain any of them.",
                     },

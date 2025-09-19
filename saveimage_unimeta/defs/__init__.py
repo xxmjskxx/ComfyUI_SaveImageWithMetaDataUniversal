@@ -30,6 +30,28 @@ else:  # Provide minimal placeholders sufficient for tests importing enums/utili
     CAPTURE_FIELD_LIST = {}
     SAMPLERS = {}
 
+FORCED_INCLUDE_CLASSES: set[str] = set()
+
+def set_forced_include(raw: str) -> set[str]:  # pragma: no cover - simple setter
+    """Parse and store forced include node class names.
+
+    Args:
+        raw: Comma or whitespace separated class names.
+
+    Returns:
+        The updated global set (for chaining / debugging / test assertions).
+    """
+    global FORCED_INCLUDE_CLASSES
+    parsed = {c.strip() for c in raw.replace("\n", ",").split(",") if c.strip()}
+    if parsed:
+        FORCED_INCLUDE_CLASSES.update(parsed)
+    return FORCED_INCLUDE_CLASSES
+
+__all__ = [
+    "CAPTURE_FIELD_LIST",
+    "FORCED_INCLUDE_CLASSES",
+    "set_forced_include",
+]
 ###############################
 # Extension loading utilities #
 ###############################

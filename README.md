@@ -1,5 +1,5 @@
 # ComfyUI-SaveImageWithMetaDataUniversal
-![SaveImageWithMetaData Preview](img/save_image_with_metadata.png)  
+![SaveImageWithMetaData Preview](img/save_image_with_metadata_universal.png)  
 
 > Enhanced Automatic1111‑style metadata capture with dual-encoder prompt support, LoRA & embedding hashing, optional aggregated summaries, and test-friendly deterministic formatting.
 
@@ -25,12 +25,29 @@ See `docs/WORKFLOW_COMPRESSION_DESIGN.md` for deferred workflow compression & ad
 | ---- | ------- |
 | `SaveImageWithMetaDataUniversal` | Save images + produce enriched metadata (PNGInfo / EXIF) & parameter string. |
 | `Create Extra MetaData` | Inject additional custom key-value metadata pairs. |
+| `Metadata Rule Scanner` | Configure metadata rule scanning (force include node classes). |
 
 ## Node UI Parameters (Key Additions)
 `include_lora_summary` (BOOLEAN, default True): Controls aggregated `LoRAs:` line. When False, only individual `Lora_X` entries appear. Overrides env flag precedence (see below).
 `guidance_as_cfg` (BOOLEAN, default False): When enabled the recorded `CFG scale:` value is replaced with the captured `Guidance` value (if present) and the original `Guidance:` field is omitted. This is useful when workflows report guidance separately but you want the traditional Automatic1111 single `CFG scale:` line.
 `max_jpeg_exif_kb` (INT, default 60, min 4, max 256): Maximum EXIF segment size (in kilobytes) the node will attempt to embed in JPEG files. If the full metadata (parameters + workflow JSON + hashes, etc.) exceeds this limit the node automatically falls back to: (1) a parameters‑only reduced EXIF block (still A1111 compatible). If that also exceeds the limit or the encoder rejects it, it finally falls back to inserting the full parameter string in a JPEG COM marker. WebP is unaffected (it stores extended metadata separately). Lower this if you encounter viewers that choke on large EXIF blocks; raise cautiously (JPEG hard limit ~64KB for a single APP1 segment, practical safe ceiling kept below 256KB to avoid fragmentation / viewer issues).
- `force_include_node_class` (STRING, optional): Comma separated list of node class names to force include in metadata rule scanning even if heuristics would normally exclude them.
+
+NOTE: The previous `force_include_node_class` input has moved to the dedicated `Metadata Rule Scanner` node.
+
+### Metadata Rule Scanner
+
+Use this helper node to force-include node classes in rule scanning even when graph traversal heuristics would normally exclude them (e.g., custom sampler wrappers, prompt preprocessors).
+
+Inputs:
+* `force_include_node_class` (STRING, multiline): Comma or newline separated list of class names.
+
+Behavior:
+* Parses the list, normalizes whitespace, and merges into a global forced include set.
+* The `SaveImageWithMetaDataUniversal` node automatically merges this set into its required class list before loading user metadata definitions.
+* Re-execution is always allowed so you can iteratively expand the set.
+
+Output:
+* A single string output (`FORCED_CLASSES`) containing a comma-joined list of all currently forced classes (useful for debugging display nodes).
 
 ### Fallback Stages & Indicator
 JPEG saves now record a `Metadata Fallback:` stage when size constraints trigger progressive trimming:
@@ -138,6 +155,11 @@ git clone https://github.com/nkchocoai/ComfyUI-SaveImageWithMetaData.git
 ### Create Extra MetaData
 - Specifies metadata to be added to the image to be saved.
 - Example: In [extra_metadata.png](examples/extra_metadata.png).
+
+### Metadata Rule Scanner
+- Forces inclusion of specific node class names during metadata capture rule evaluation.
+- Supply comma/newline separated names in the `force_include_node_class` field.
+- Connect/not connect output as desired (side effect occurs regardless).
 
 ## Metadata to be given
 - Positive prompt
