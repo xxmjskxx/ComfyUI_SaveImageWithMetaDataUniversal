@@ -29,8 +29,24 @@ class MetadataRuleScanner:
                             "include in metadata rule scanning."
                         ),
                     },
-                )
-            }
+                ),
+                "reset_forced": (
+                    "BOOLEAN",
+                    {
+                        "default": False,
+                        "tooltip": "If true, clear previously forced classes before applying new list.",
+                    },
+                ),
+            },
+            "optional": {
+                "dry_run": (
+                    "BOOLEAN",
+                    {
+                        "default": False,
+                        "tooltip": "If true, do not modify global set; just echo what would be applied.",
+                    },
+                ),
+            },
         }
 
     RETURN_TYPES = ("FORCED_CLASSES",)
@@ -39,9 +55,16 @@ class MetadataRuleScanner:
     OUTPUT_NODE = False
 
     @staticmethod
-    def configure(force_include_node_class=""):
-        updated = set_forced_include(force_include_node_class)
-        # Return a sorted, comma string for potential downstream display/debug nodes.
+    def configure(force_include_node_class="", reset_forced=False, dry_run=False):
+        from ..defs import clear_forced_include  # local import to avoid cycle
+        if reset_forced and not dry_run:
+            clear_forced_include()
+        if force_include_node_class and not dry_run:
+            updated = set_forced_include(force_include_node_class)
+        else:
+            from ..defs import FORCED_INCLUDE_CLASSES as _F
+            updated = _F
+        # Return a sorted comma string and count for diagnostics
         return (",".join(sorted(updated)),)
 
     @classmethod
