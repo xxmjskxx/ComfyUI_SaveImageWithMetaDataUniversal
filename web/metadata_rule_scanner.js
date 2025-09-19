@@ -46,21 +46,49 @@ app.registerExtension({
 
                 function adjustHeights() {
                     try {
-                        // Constrain the first multiline (exclude_keywords)
-                        const top = nodeRef.widgets?.find(w => w.name === "exclude_keywords");
-                        if (top && top.inputEl && !top._shrunk) {
-                            top.inputEl.style.height = "52px"; // ~2 lines
+                        if (!nodeRef.widgets || !nodeRef.widgets.length) return;
+                        const top = nodeRef.widgets.find(w => w.name === "exclude_keywords");
+                        // Force the top widget (exclude_keywords) to a compact logical layout height
+                        if (top && top.inputEl) {
+                            const TOP_TEXTAREA_H = 52; // px
+                            top.inputEl.style.height = TOP_TEXTAREA_H + "px";
                             top.inputEl.style.maxHeight = "72px";
-                            top.inputEl.style.resize = "vertical"; // allow slight expansion if user wants
                             top.inputEl.style.overflowY = "auto";
-                            top._shrunk = true;
+                            top.inputEl.style.resize = "vertical"; // still allow minimal manual expansion
+                            // Synchronize widget.height so LiteGraph layout uses the compact height
+                            top.height = TOP_TEXTAREA_H + 10; // small padding for label margin
                         }
-                        // Remaining vertical space to allocate to bottom widget
-                        // Reserve approximate chrome (title + three control rows + padding)
-                        const RESERVED = 180; // tune if needed
-                        const avail = Math.max(160, nodeRef.size[1] - RESERVED);
-                        widget.inputEl.style.height = avail + "px";
+
+                        // Calculate space for bottom widget
+                        // Sum heights of all other widgets (excluding bottom results)
+                        let otherHeights = 0;
+                        for (const w of nodeRef.widgets) {
+                            if (w === widget) continue;
+                            // Prefer explicit height; fallback to computeSize if available
+                            let h = w.height;
+                            if (!h && typeof w.computeSize === "function") {
+                                try { h = w.computeSize(nodeRef.size[0])[1]; } catch(_) {}
+                            }
+                            otherHeights += (h || 40);
+                        }
+
+                        // Title + internal padding allowance
+                        const CHROME = 40; // node title bar + internal spacing
+                        const minBottom = 160; // minimal practical editing area
+                        const available = Math.max(minBottom, nodeRef.size[1] - (otherHeights + CHROME));
+
+                        // Apply to bottom widget
+                        widget.height = available; // layout height used by graph
+                        const innerH = Math.max(available - 8, 120); // inner textarea height
+                        widget.inputEl.style.height = innerH + "px";
+                        widget.inputEl.style.maxHeight = innerH + "px"; // prevent stretching beyond node bounds
                         widget.inputEl.style.overflow = "auto";
+
+                        // Ensure node container at least fits summed widgets
+                        const requiredNodeH = otherHeights + widget.height + CHROME + 8; // small pad
+                        if (requiredNodeH > nodeRef.size[1]) {
+                            nodeRef.size[1] = requiredNodeH;
+                        }
                     } catch (e) {
                         console.warn("MetadataRuleScanner layout adjust failed", e);
                     }
