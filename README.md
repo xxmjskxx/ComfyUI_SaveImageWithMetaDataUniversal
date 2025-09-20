@@ -1,12 +1,17 @@
 # ComfyUI-SaveImageWithMetaDataUniversal
-![SaveImageWithMetaData Preview](img/save_image_with_metadata_universal.png)  
+![SaveImageWithMetaData Preview](img/save_image_with_metadata_universal.png)
+> Enhanced Automatic1111‑style, Civitai-compatible metadata capture with extendend support for prompt encoders, lora and model loaders, embeddings, samplers, clip models, guidance, shift, and more.
 
-> Enhanced Automatic1111‑style metadata capture with dual-encoder prompt support, LoRA & embedding hashing, optional aggregated summaries, and test-friendly deterministic formatting.
+- Extensive rework of [ComfyUI-SaveImageWithMetaData](https://github.com/nkchocoai/ComfyUI-SaveImageWithMetaData/), a custom node for [ComfyUI](https://github.com/comfyanonymous/ComfyUI), that attempts to add universal support for all custom node packs, while also adding explicit support for a few custom nodes.
+- The `Save Image w/ Metadata Universal` node saves images with metadata extracted from the input values of each node.
+- Adds full support for saving workflows and metadata to WEBP images.
+- Adds support for for saving workflows and metadata to JPEGs (limited to 64KB—only smaller workflows can be saved to JPEGs).
+- Adds two new nodes `Metadata Rule Scanner` and `Save Custom Metadata Rules` which scan all installed nodes and create and save new rules for extracting their input values (I can't test with every custom node pack, but it has been working well so far).
+- Since the value extraction rules are created dynamically, values output by various extension nodes can be added to metadata.
 
 ## Table of Contents
-* [Quick Feature Overview](#quick-feature-overview-added--extended)
 * [Quick Start](#quick-start)
-* [Design / Future Ideas](#design--future-ideas)
+* [Quick Feature Overview](#quick-feature-overview-added--extended)
 * [Nodes Provided](#nodes-provided)
 * [Node UI Parameters](#node-ui-parameters-key-additions)
 * [JPEG Metadata Size & Fallback Behavior](#jpeg-metadata-size--fallback-behavior)
@@ -14,19 +19,24 @@
 * [New Input (Scanner): force_include_node_class](#new-input-scanner-force_include_node_class)
 * [Fallback Stages & Indicator](#fallback-stages--indicator)
 * [Troubleshooting / FAQ](#troubleshooting--faq)
+* [Design / Future Ideas](#design--future-ideas)
 * [Environment Flags](#environment-flags)
 * [Parameter String Formatting Modes](#parameter-string-formatting-modes)
 * [Ordering Guarantees](#ordering-guarantees)
 * [Contributing](#contributing-summary)
 * [Filename Token Reference](#filename-token-reference)
 
+## Installation
+```
+cd <ComfyUI directory>/custom_nodes
+git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
+```
+
 ## Quick Start
-1. Install: Place this folder (`ComfyUI_SaveImageWithMetaDataUniversal`) inside `ComfyUI/custom_nodes/` and restart ComfyUI.
-2. Drop Nodes:
-  * `SaveImageWithMetaDataUniversal` (main save node)
-  * Optionally `Create Extra MetaData` for custom key/value pairs
-3. Connect `images` input from your generation workflow (e.g. sampler output) and set `filename_prefix`.
-4. (Optional) Add extra metadata: create `Create Extra MetaData` → link to `extra_metadata` input.
+- Use the `Metadata Rule Scanner` and `Save Custom Metadata Rules` nodes to create and and save new rules for metadata capture. Examples can be found in the workflow `scan-and-save-custom-metadata-rules.json` in the examples folder. 
+- Start using the `Save Image w/ Metadata Universal` node to save your images.
+- Set both civitai_sampler and guidance_as_cfg to true in the `Save Image w/ Metadata Universal` node for complete Civitai compatibility.
+
 5. JPEG vs PNG:
   * Use PNG (or WebP lossless) for guaranteed full workflow + parameters.
   * JPEG has a hard ~64KB EXIF limit; large workflows trigger fallback trimming.
@@ -53,15 +63,15 @@ That’s it: save images, inspect embedded metadata (PNGInfo tab / EXIF tools), 
 * Dynamic (call-time) evaluation of all environment flags—changes take effect without restart.
 * Google-style docstrings and Ruff-enforced style (line length 140) across core modules.
 
-### Design / Future Ideas
-See `docs/WORKFLOW_COMPRESSION_DESIGN.md` for deferred workflow compression & adaptive embedding strategy.
-
 ## Nodes Provided
 | Node | Purpose |
 | ---- | ------- |
 | `SaveImageWithMetaDataUniversal` | Save images + produce enriched metadata (PNGInfo / EXIF) & parameter string. |
 | `Create Extra MetaData` | Inject additional custom key-value metadata pairs. |
+| `Save Custom Metadata Rules` | Persist generated rule suggestions to `generated_user_rules.py` (append or overwrite). |
 | `Metadata Rule Scanner` | Scan installed nodes to suggest metadata capture rules (exclude keywords, modes, metafield forcing). |
+| `Show generated_user_rules.py` | Display the current merged user rules file contents for review/editing. |
+| `Save generated_user_rules.py` | Validate and write edited rules text back to the user rules file. |
 | `Metadata Force Include` | Configure global forced node class names for capture definition loading. |
 | `Show Text (UniMeta)` | Local variant (key `ShowText|unimeta`) for displaying connected text outputs; based on pythongosssss Show Text (MIT). |
 
@@ -157,6 +167,9 @@ Environment flag `METADATA_NO_HASH_DETAIL` suppresses the extended hash breakdow
 
 **How do I know which fallback stage occurred programmatically?**  
 Parse the tail of the parameters string for `Metadata Fallback:`. (A future explicit key may be added.)
+
+### Design / Future Ideas
+See `docs/WORKFLOW_COMPRESSION_DESIGN.md` for deferred workflow compression & adaptive embedding strategy.
 
 ## Environment Flags
 | Flag | Effect |
