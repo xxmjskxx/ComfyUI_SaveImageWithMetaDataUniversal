@@ -102,8 +102,8 @@ class SaveImageWithMetaDataUniversal:
                     {
                         "default": "ComfyUI",
                         "tooltip": (
-                            "You can use %seed%, %width%, %height%, %pprompt%, %nprompt%, %model%, %date% in the filename. "
-                            "Date can accept any variety of the yyyyMMddhhmmss format, e.g. %date:yy-MM-dd%."
+                            "You can use %seed%, %width%, %height%, %pprompt%, %nprompt%, %model%, %date% in the "
+                            "filename. Date can accept any variety of the yyyyMMddhhmmss format, e.g. %date:yy-MM-dd%."
                         ),
                     },
                 ),
@@ -165,11 +165,14 @@ class SaveImageWithMetaDataUniversal:
                     {
                         "default": 60,
                         "min": 4,
-                        "max": 256,
+                        "max": 64,  # Hard UI cap: real single APP1 EXIF segment practical limit ~64KB
                         "step": 1,
                         "tooltip": (
-                            "Maximum EXIF size (KB) to embed in JPEG. If exceeded, falls back to parameters-only "
-                            "EXIF or COM marker."
+                            "Maximum EXIF payload (KB) to attempt embedding in JPEG.\nPractical hard cap ~64KB due to "
+                            "single APP1 (EXIF) segment size; larger blocks are rejected or stripped. If exceeded, "
+                            "fallback stages apply: reduced-exif (parameters only) -> minimal (trimmed) -> com-marker."
+                            "\nYou should have no issues writing smaller workflows and metadata, but should "
+                            "use PNG/WebP for full workflow storage with larger workflows and metadata."
                         ),
                     },
                 ),
@@ -248,7 +251,7 @@ class SaveImageWithMetaDataUniversal:
     RETURN_NAMES = ("images",)
     FUNCTION = "save_images"
     CATEGORY = "SaveImageWithMetaDataUniversal"
-    Description = (
+    DESCRIPTION = (
         "Save images with extensive metadata support, including prompts, model info, and custom fields. "
         "Supports both automated metadata field detection and user-defined metadata rules."
     )
@@ -314,8 +317,9 @@ class SaveImageWithMetaDataUniversal:
                 required_classes = set()
             required_classes.update(FORCED_INCLUDE_CLASSES)
         load_user_definitions(required_classes)
-        # print(" ".join([cstr("[Metadata Loader] Using Captures File with").msg_o, cstr(f"{len(CAPTURE_FIELD_LIST)}").VIOLET, cstr("for save_images:").msg_o, cstr(format_config(CAPTURE_FIELD_LIST)).end]))
-        # print(" ".join([cstr("[Metadata Loader] Using Samplers File with"), cstr(f"{len(SAMPLERS)}").VIOLET, cstr("for save_images:").msg_o, cstr(format_config(SAMPLERS)).end]))
+    # (Verbose debug print placeholders retained (commented) to show former formatted output lines.)
+    # print("[Metadata Loader] Using Captures File with ...")
+    # print("[Metadata Loader] Using Samplers File with ...")
         if _DEBUG_VERBOSE:
             logger.info(
                 "[Metadata Loader] Using Captures File with %d entries",
@@ -405,12 +409,19 @@ class SaveImageWithMetaDataUniversal:
                     exif_ifd = {}
                     if save_workflow_image:
                         if prompt is not None:
-                            zeroth_ifd[piexif.ImageIFD.Model] = f"prompt:{json.dumps(prompt, separators=(',', ':'))}".encode()
+                            zeroth_ifd[piexif.ImageIFD.Model] = (
+                                f"prompt:{json.dumps(prompt, separators=(',', ':'))}".encode()
+                            )
                         if extra_pnginfo is not None:
                             for i, (k, v) in enumerate(extra_pnginfo.items()):
-                                zeroth_ifd[piexif.ImageIFD.Make - i] = f"{k}:{json.dumps(v, separators=(',', ':'))}".encode()
+                                zeroth_ifd[piexif.ImageIFD.Make - i] = (
+                                    f"{k}:{json.dumps(v, separators=(',', ':'))}".encode()
+                                )
                     if parameters:
-                        exif_ifd[piexif.ExifIFD.UserComment] = piexif.helper.UserComment.dump(parameters, encoding="unicode")
+                        exif_ifd[piexif.ExifIFD.UserComment] = piexif.helper.UserComment.dump(
+                            parameters,
+                            encoding="unicode",
+                        )
                     if zeroth_ifd or exif_ifd:
                         exif_dict = {"0th": zeroth_ifd, "Exif": exif_ifd}
                         exif_bytes = piexif.dump(exif_dict)
@@ -424,33 +435,81 @@ class SaveImageWithMetaDataUniversal:
                 if file_format == "webp":  # WebP only: allow lossless flag
                     save_kwargs["lossless"] = lossless_webp
                 if exif_bytes is not None and file_format in {"jpeg", "jpg"}:
-                    # Guard against oversized EXIF (JPEG limit ~64KB). If too large, fallback to parameters-only EXIF.
+                    # Guard against oversized EXIF.
+                    # Two limits:
+                    # 1. User-configurable logical limit (max_jpeg_exif_kb / env hard max) to keep files reasonable.
+                    # 2. JPEG segment technical limit (~64KB single APP1) enforced by Pillow.
+                    try:
+                        segment_limit = int(
+                            os.environ.get("METADATA_JPEG_EXIF_SEGMENT_LIMIT", "65500")
+                        )  # soft technical ceiling
+                    except Exception:
+                        segment_limit = 65500
+                    # Clamp segment limit to sane range (50KB .. 65533)
+                    if segment_limit < 50000:
+                        segment_limit = 50000
+                    elif segment_limit > 65533:
+                        segment_limit = 65533
                     try:
                         user_limit = int(max_jpeg_exif_kb)
                     except Exception:
                         user_limit = 60
-                    # Clamp user input to sane bounds (4KB .. 256KB)
+                    # Clamp user input to sane bounds with optional env override.
+                    # Default hard ceiling stays at 256KB to preserve broad decoder compatibility.
+                    # Power users can raise (e.g. 512, 768) via METADATA_JPEG_EXIF_HARD_MAX_KB for experimentation.
+                    try:
+                        hard_max_env = int(os.environ.get("METADATA_JPEG_EXIF_HARD_MAX_KB", "256"))
+                    except Exception:
+                        hard_max_env = 256
+                    # Enforce an absolute safety cap to avoid pathological multi-MB EXIF blocks
+                    if hard_max_env < 64:
+                        # Prevent users from accidentally lowering below a reasonable experimental range
+                        hard_max_env = 64
+                    elif hard_max_env > 2048:
+                        # 2MB absolute ceiling (already extreme for EXIF) to avoid memory abuse
+                        hard_max_env = 2048
                     if user_limit < 4:
                         user_limit = 4
-                    elif user_limit > 256:
-                        user_limit = 256
+                    elif user_limit > hard_max_env:
+                        user_limit = hard_max_env
                     max_exif = user_limit * 1024
-                    if len(exif_bytes) > max_exif:
+                    exif_size = len(exif_bytes)
+                    if exif_size > max_exif or exif_size > segment_limit:
+                        if len(exif_bytes) > segment_limit:
+                            logger.info(
+                                "[SaveImageWithMetaData] EXIF size %d exceeds segment limit %d; applying fallback",
+                                exif_size,
+                                segment_limit,
+                            )
                         # Stage 1 fallback: parameters-only EXIF (reduced-exif)
                         try:
                             minimal_exif_full = None
                             if parameters:
                                 uc_full = piexif.helper.UserComment.dump(parameters, encoding="unicode")
-                                minimal_exif_full = piexif.dump({"0th": {}, "Exif": {piexif.ExifIFD.UserComment: uc_full}})
+                                minimal_exif_full = piexif.dump(
+                                    {
+                                        "0th": {},
+                                        "Exif": {piexif.ExifIFD.UserComment: uc_full},
+                                    }
+                                )
                             if minimal_exif_full and len(minimal_exif_full) <= max_exif:
                                 save_kwargs["exif"] = minimal_exif_full
                                 fallback_stage = "reduced-exif"
                             else:
                                 # Stage 2 fallback: trimmed parameter string (minimal)
-                                trimmed_parameters = self._build_minimal_parameters(parameters) if parameters else parameters
+                                trimmed_parameters = (
+                                    self._build_minimal_parameters(parameters)
+                                    if parameters
+                                    else parameters
+                                )
                                 if trimmed_parameters and trimmed_parameters != parameters:
                                     uc_trim = piexif.helper.UserComment.dump(trimmed_parameters, encoding="unicode")
-                                    minimal_exif_trim = piexif.dump({"0th": {}, "Exif": {piexif.ExifIFD.UserComment: uc_trim}})
+                                    minimal_exif_trim = piexif.dump(
+                                        {
+                                            "0th": {},
+                                            "Exif": {piexif.ExifIFD.UserComment: uc_trim},
+                                        }
+                                    )
                                     if len(minimal_exif_trim) <= max_exif:
                                         parameters = trimmed_parameters
                                         save_kwargs["exif"] = minimal_exif_trim
@@ -478,7 +537,34 @@ class SaveImageWithMetaDataUniversal:
                     else:
                         save_kwargs["exif"] = exif_bytes
 
-                img.save(file_path, **save_kwargs)
+                # Attempt initial save; catch Pillow EXIF size error and retry with fallback.
+                try:
+                    img.save(file_path, **save_kwargs)
+                    if file_format in {"jpeg", "jpg"}:
+                        logger.debug(
+                            "[SaveImageWithMetaData] JPEG save EXIF=%s size=%s fallback=%s",  # noqa: G004
+                            "yes" if "exif" in save_kwargs else "no",
+                            exif_size if 'exif_size' in locals() else 0,
+                            fallback_stage,
+                        )
+                except ValueError as e:
+                    if (
+                        "EXIF data is too long" in str(e)
+                        and file_format in {"jpeg", "jpg"}
+                        and "exif" in save_kwargs
+                    ):
+                        logger.warning(
+                            "[SaveImageWithMetaData] Pillow rejected EXIF (%s). Retrying with COM marker fallback.",
+                            e,
+                        )
+                        # Drop EXIF and force COM marker path; mark fallback if not already set.
+                        save_kwargs.pop("exif", None)
+                        if fallback_stage == "none":
+                            fallback_stage = "reduced-exif"
+                        # Retry minimal save (no EXIF) – parameters will be written via COM path below
+                        img.save(file_path, optimize=True, quality=quality)
+                    else:
+                        raise
 
                 # JPEG COM marker fallback if EXIF removed due to size
                 if file_format in {"jpeg", "jpg"} and parameters and ("exif" not in save_kwargs):
@@ -502,8 +588,14 @@ class SaveImageWithMetaDataUniversal:
                             "[SaveImageWithMetaData] Failed to write JPEG COM marker fallback: %s",
                             e,
                         )
-                elif file_format in {"jpeg", "jpg"} and ("exif" in save_kwargs) and fallback_stage in {"reduced-exif", "minimal"} and parameters:
-                    # EXIF present but we still need to encode fallback stage; rebuild tiny EXIF with appended tag if not already noted
+                elif (
+                    file_format in {"jpeg", "jpg"}
+                    and ("exif" in save_kwargs)
+                    and fallback_stage in {"reduced-exif", "minimal"}
+                    and parameters
+                ):
+                    # EXIF present but we still need to encode fallback stage; rebuild tiny EXIF
+                    # with appended tag if not already noted
                     try:
                         if "Metadata Fallback:" not in parameters:
                             if parameters.endswith("\n"):
@@ -554,7 +646,8 @@ class SaveImageWithMetaDataUniversal:
         lines = full_parameters.strip().splitlines()
         if not lines:
             return full_parameters
-        # Collect header (prompt + negative prompt) until we reach a line containing 'Steps:' token or a line with multiple comma-separated fields
+    # Collect header (prompt + negative prompt) until we reach a line containing 'Steps:' token
+    # or a line with multiple comma-separated fields
         header = []
         tail_lines = []
         for i, line in enumerate(lines):
@@ -614,7 +707,9 @@ class SaveImageWithMetaDataUniversal:
             # (model, vae, prompts, size, etc.). This prevents fully empty A111
             # metadata and when exotic samplers are used or the sampler list is incomplete
             # and prevents a fatal error if no sampler node is found.
-            logger.warning("[SaveImageWithMetaData] Sampler node not found; falling back to partial metadata generation.")
+            logger.warning(
+                "[SaveImageWithMetaData] Sampler node not found; falling back to partial metadata generation."
+            )
             return Capture.gen_pnginfo_dict(
                 inputs_before_this_node,  # treat inputs before this node as the sampler context
                 inputs_before_this_node,
@@ -626,7 +721,11 @@ class SaveImageWithMetaDataUniversal:
         inputs_before_sampler_node = Trace.filter_inputs_by_trace_tree(inputs, trace_tree_from_sampler_node)
 
         # generate PNGInfo from inputs
-        pnginfo_dict = Capture.gen_pnginfo_dict(inputs_before_sampler_node, inputs_before_this_node, save_civitai_sampler)
+        pnginfo_dict = Capture.gen_pnginfo_dict(
+            inputs_before_sampler_node,
+            inputs_before_this_node,
+            save_civitai_sampler,
+        )
         return pnginfo_dict
 
     @classmethod
@@ -711,7 +810,10 @@ class CreateExtraMetaDataUniversal:
     RETURN_TYPES = ("EXTRA_METADATA",)
     FUNCTION = "create_extra_metadata"
     CATEGORY = "SaveImageWithMetaDataUniversal"
-    Description = "Manually create extra metadata key-value pairs to include in saved images. Keys and values should be strings. Commas in values will be replaced with slashes."
+    DESCRIPTION = (
+        "Manually create extra metadata key-value pairs to include in saved images. "
+        "Keys and values should be strings. Commas in values will be replaced with slashes."
+    )
 
     def create_extra_metadata(
         self,
@@ -748,7 +850,7 @@ class ShowGeneratedUserRules:
     RETURN_NAMES = ("generated_user_rules.py",)
     FUNCTION = "show_rules"
     CATEGORY = "SaveImageWithMetaDataUniversal/rules"
-    Description = "Display the contents of generated_user_rules.py for review or editing."
+    DESCRIPTION = "Display the contents of generated_user_rules.py for review or editing."
 
     def _rules_path(self) -> str:
         base_py = os.path.dirname(os.path.dirname(__file__))  # .../py
@@ -790,7 +892,7 @@ class SaveGeneratedUserRules:
     RETURN_NAMES = ("status",)
     FUNCTION = "save_rules"
     CATEGORY = "SaveImageWithMetaDataUniversal/rules"
-    Description = "Save the edited rules text back to generated_user_rules.py, with syntax validation."
+    DESCRIPTION = "Save the edited rules text back to generated_user_rules.py, with syntax validation."
 
     def _rules_path(self) -> str:
         base_py = os.path.dirname(os.path.dirname(__file__))  # .../py
@@ -808,7 +910,11 @@ class SaveGeneratedUserRules:
             return False, f"Error: {e}"
 
     def _find_dict_span(self, text: str, name: str) -> tuple[int | None, int | None]:
-        """Finds the span of the dict assigned to `name` (e.g., name = { ... }). Returns (start_idx, end_idx) of the braces, or (None, None)."""
+        """Locate the span of the dict assigned to ``name``.
+
+        Example: ``name = { ... }``. Returns a tuple (start_idx, end_idx) for the outer
+        braces or (None, None) if not found.
+        """
         import re
 
         m = re.search(rf"\b{name}\s*=\s*\{{", text)
@@ -843,7 +949,11 @@ class SaveGeneratedUserRules:
         return None, None
 
     def _parse_top_level_entries(self, body: str) -> list[tuple[str, str]]:
-        """Parse top-level entries of a dict body (without surrounding braces) into an ordered list of (key, value_text)."""
+        """Parse top-level entries of a dict body into ordered (key, value_text) pairs.
+
+        The ``body`` string is the inside portion of a dict literal, i.e. without
+        surrounding braces.
+        """
         entries = []
         i = 0
         n = len(body)
@@ -1030,30 +1140,28 @@ class SaveGeneratedUserRules:
 #
 # --- Heuristic Definitions For MetadataRuleScanner ---
 #
-"""
-HEURISTIC_RULES: List of dicts defining rules to identify metadata fields from node inputs. Used by MetadataRuleScanner to suggest metadata capture rules for nodes classes.
+"""Heuristic rule specification summary.
 
-HEURISTIC_RULES supports: keywords, excluded_keywords, exact_only (True/False), required_context, required_class_keywords, required_class_regex, required_class_keyword_groups, excluded_class_keywords
+HEURISTIC_RULES: list of dicts defining how to discover metadata fields from node
+inputs. Used by MetadataRuleScanner to suggest capture rules for node classes.
 
-keywords: tuple of keywords to match input field names (case-insensitive, partial match unless exact_only is True)
-
-excluded_keywords: tuple of keywords that must NOT be present in input field names
-
-exact_only: if True, only exact matches of keywords are considered
-
-required_context: list of keywords that must be present in any input field name on the node (case-insensitive, partial match) to consider this rule applicable
-
-required_class_keywords: list of keywords that must be present in the node class name (case-insensitive, partial match) to consider this rule applicable
-
-required_class_regex: list of regex patterns that must match the node class name to consider this rule applicable
-
-required_class_keyword_groups: dict with "groups" (list of keyword lists) and "mins" (list of minimum counts) specifying groups of keywords where at least the specified minimum number of keywords from each group must be present in the node class name (case-insensitive, partial match)
-
-excluded_class_keywords: tuple of keywords that must NOT be present in the node class name (case-insensitive, partial match)
-
-type: a string or list/tuple/set of strings denoting allowed ComfyUI input types (e.g., "FLOAT", "INT", "STRING"). If provided, only inputs whose declared type matches one of these are considered.
-
-"fields" (output structure enhancement): For is_multi rules, the scanner now returns either a single "field_name" (if only one match) or a list of all matching input names under "fields". This avoids losing information when multiple similarly-patterned inputs exist (e.g., lora_1 .. lora_5). For hash_field companions the same structure (fields / field_name) is mirrored plus "format".
+Supported keys:
+    keywords: tuple of keywords matched against input names (case-insensitive,
+        partial unless ``exact_only`` True)
+    excluded_keywords: tuple of keywords disqualifying an input name
+    exact_only: if True, keywords must match the full input name
+    required_context: list of keywords where at least one must appear in some
+        input field name for the rule to apply
+    required_class_keywords: keywords that must appear in the node class name
+    required_class_regex: regex patterns that must match the node class name
+    required_class_keyword_groups: dict with "groups" (list of keyword lists)
+        and "mins" (parallel list of minimum counts) requiring a threshold of
+        matches per group in the class name
+    excluded_class_keywords: keywords which must NOT be in the class name
+    type: allowed input types (string or collection of strings)
+    fields: (output enhancement) for multi matches, scanner returns a list
+        "fields" instead of single "field_name"; hash_field companions mirror
+        this structure plus a "format" field
 """
 HEURISTIC_RULES = [
     {
@@ -1334,8 +1442,13 @@ class MetadataRuleScanner:
                     "STRING",
                     {
                         "multiline": True,
-                        "default": "mask,find,resize,rotate,detailer,bus,scale,vision,text to,crop,xy,plot,controlnet,save,trainlora,postshot,loramanager",
-                        "tooltip": "Comma-separated keywords to exclude nodes whose class names contain any of them.",
+                        "default": (
+                            "mask,find,resize,rotate,detailer,bus,scale,vision,text to,crop,xy,plot,controlnet,save,"
+                            "trainlora,postshot,loramanager"
+                        ),
+                        "tooltip": (
+                            "Comma-separated keywords to exclude nodes whose class names contain any of them."
+                        ),
                     },
                 )
             },
@@ -1344,14 +1457,20 @@ class MetadataRuleScanner:
                     "BOOLEAN",
                     {
                         "default": False,
-                        "tooltip": "If true, also rescan nodes already present in current capture definitions (useful after runtime changes).",
+                        "tooltip": (
+                            "If true, also rescan nodes already present in current capture definitions "
+                            "(useful after runtime changes)."
+                        ),
                     },
                 ),
                 "mode": (
                     ("new_only", "all", "existing_only"),
                     {
                         "default": "new_only",
-                        "tooltip": "new_only: only new fields for existing nodes; all: full suggestions; existing_only: only nodes already captured.",
+                        "tooltip": (
+                            "new_only: only new fields for existing nodes\n"
+                            "all: full suggestions\nexisting_only: only nodes already captured."
+                        ),
                     },
                 ),
                 "force_include_metafields": (
@@ -1359,7 +1478,21 @@ class MetadataRuleScanner:
                     {
                         "multiline": False,
                         "default": "",
-                        "tooltip": "Comma-separated MetaField names to always include even if already present (e.g. MODEL_HASH,LORA_MODEL_HASH).",
+                        "tooltip": (
+                            "Comma-separated MetaField names to always include even if already present "
+                            "(e.g. MODEL_HASH,LORA_MODEL_HASH)."
+                        ),
+                    },
+                ),
+                "force_include_node_class": (
+                    "STRING",
+                    {
+                        "multiline": True,
+                        "default": "",
+                        "tooltip": (
+                            "Exact node class names (comma or newline separated) always to include in scan output, "
+                            "even if excluded by keywords or mode."
+                        ),
                     },
                 ),
             },
@@ -1369,7 +1502,11 @@ class MetadataRuleScanner:
     RETURN_NAMES = ("suggested_rules_json", "diff_report")
     FUNCTION = "scan_for_rules"
     CATEGORY = "SaveImageWithMetaDataUniversal/rules"
-    DESCRIPTION = "Scans installed nodes to suggest rules for capturing metadata and outputs the rules in JSON format. 'exclude_keywords' can filter out irrelevant nodes by their class names."
+    DESCRIPTION = (
+        "Scans installed nodes to suggest rules for capturing metadata and outputs the rules in JSON format. "
+        "'exclude_keywords' can filter out irrelevant nodes by their class names. "
+        "'force_include_node_class' accepts exact class names to always include, overriding exclusion & mode filters."
+    )
     NODE_NAME = "Metadata Rule Scanner"
 
     def find_common_prefix(self, strings):
@@ -1384,10 +1521,19 @@ class MetadataRuleScanner:
         include_existing=False,
         mode="new_only",
         force_include_metafields="",
+        force_include_node_class="",
     ):
         if _DEBUG_VERBOSE:
             logger.info("[Metadata Scanner] Starting scan...")
+        import re  # local to avoid global import cost when node unused
+
         suggested_nodes, suggested_samplers = {}, {}
+        forced_node_names = {
+            cls.strip()
+            for cls in re.split(r"[\n,]", force_include_node_class or "")
+            if cls.strip()
+        }
+        # Normalize case exactly as keys appear in nodes.NODE_CLASS_MAPPINGS (case sensitive match only)
         exclude_list = [kw.strip().lower() for kw in exclude_keywords.split(",") if kw.strip()]
         all_nodes = {k: v for k, v in nodes.NODE_CLASS_MAPPINGS.items() if hasattr(v, "INPUT_TYPES")}
 
@@ -1396,7 +1542,9 @@ class MetadataRuleScanner:
         if include_existing and initial_mode == "new_only":
             effective_mode = "all"
             if _DEBUG_VERBOSE:
-                logger.info("[Metadata Scanner] include_existing=True upgraded mode from 'new_only' to 'all' (compat mode).")
+                logger.info(
+                    "[Metadata Scanner] include_existing=True upgraded mode from 'new_only' to 'all' (compat mode)."
+                )
         else:
             effective_mode = initial_mode
         force_include_set = {tok.strip().upper() for tok in force_include_metafields.split(",") if tok.strip()}
@@ -1409,7 +1557,7 @@ class MetadataRuleScanner:
 
         # --- Stage 1: Smarter Sampler Detection ---
         for class_name, class_object in all_nodes.items():
-            if any(kw in class_name.lower() for kw in exclude_list):
+            if class_name not in forced_node_names and any(kw in class_name.lower() for kw in exclude_list):
                 continue
             if "sampler" in class_name.lower():
                 try:
@@ -1462,7 +1610,9 @@ class MetadataRuleScanner:
 
         # --- Stage 2: More Accurate Capture Rule Detection ---
         for class_name, class_object in all_nodes.items():
-            if any(kw in class_name.lower() for kw in exclude_list):
+            excluded_by_keyword = any(kw in class_name.lower() for kw in exclude_list)
+            is_forced = class_name in forced_node_names
+            if excluded_by_keyword and not is_forced:
                 continue
             is_existing = class_name in CAPTURE_FIELD_LIST
             if is_existing and effective_mode == "new_only":
@@ -1474,8 +1624,9 @@ class MetadataRuleScanner:
             elif is_existing and effective_mode == "all":
                 pass
             elif not is_existing and effective_mode == "existing_only":
-                # Skip brand new nodes in existing_only mode
-                continue
+                # Skip brand new nodes in existing_only mode unless forced
+                if not is_forced:
+                    continue
             elif not is_existing and effective_mode in ("new_only", "all"):
                 pass  # include
 
@@ -1541,7 +1692,12 @@ class MetadataRuleScanner:
                                 # list of dicts: [{"keywords": [...], "min": 1}, ...]
                                 groups = [g.get("keywords", []) for g in groups_spec if isinstance(g, dict)]
                                 mins = [g.get("min", 1) for g in groups_spec if isinstance(g, dict)]
-                            if isinstance(groups, list | tuple) and isinstance(mins, list | tuple) and len(groups) == len(mins) and groups:
+                            if (
+                                isinstance(groups, list | tuple)
+                                and isinstance(mins, list | tuple)
+                                and len(groups) == len(mins)
+                                and groups
+                            ):
                                 name_simple = re.sub(r"[ _-]+", "", lower_name)
                                 all_ok = True
                                 for kws, min_req in zip(groups, mins):
@@ -1583,7 +1739,10 @@ class MetadataRuleScanner:
                         continue
 
                     context_kws = rule.get("required_context")
-                    if context_kws and not any(any(ctx in name.lower() for ctx in context_kws) for name in all_input_names):
+                    if context_kws and not any(
+                        any(ctx in name.lower() for ctx in context_kws)
+                        for name in all_input_names
+                    ):
                         continue
 
                     if rule["metafield"] in node_suggestions:
@@ -1611,7 +1770,10 @@ class MetadataRuleScanner:
                     # --- EARLY MULTI-FIELD HANDLING ---
                     if rule.get("is_multi"):
                         # Gather matching field names
-                        kws_norm = [kw.lower() if isinstance(kw, str) else str(kw).lower() for kw in rule.get("keywords", [])]
+                        kws_norm = [
+                            kw.lower() if isinstance(kw, str) else str(kw).lower()
+                            for kw in rule.get("keywords", [])
+                        ]
                         regex_patterns = rule.get("keywords_regex") or []
                         matching_fields = []
                         for fn in all_input_names:
@@ -1817,7 +1979,15 @@ class MetadataRuleScanner:
             "summary": {},
         }
         if suggested_nodes:
-            final_output["nodes"] = {node: {mf.name: data for mf, data in rules.items()} for node, rules in suggested_nodes.items()}
+            final_output["nodes"] = {
+                node: {mf.name: data for mf, data in rules.items()}
+                for node, rules in suggested_nodes.items()
+            }
+        # Ensure forced nodes appear even if they yielded no new suggestions
+        for forced in forced_node_names:
+            if forced not in final_output["nodes"]:
+                # If existing rules known, surface empty dict (caller can merge later)
+                final_output["nodes"][forced] = {}
         if suggested_samplers:
             final_output["samplers"] = suggested_samplers
         final_output["summary"] = {
@@ -1828,13 +1998,28 @@ class MetadataRuleScanner:
             "total_existing_fields_included": total_existing_fields_included,
             "total_skipped_fields": total_skipped_fields,
             "force_included_metafields": sorted(list(force_include_set)) if force_include_set else [],
+            "forced_node_classes": sorted(list(forced_node_names)) if forced_node_names else [],
         }
 
-        diff_report = (
-            f"Mode={effective_mode}; New nodes={new_nodes_count}; Existing nodes w/ new fields={existing_nodes_with_new}; "
-            f"New fields={total_new_fields}; Existing fields included={total_existing_fields_included}; Skipped fields={total_skipped_fields}; "
-            f"Force include={','.join(sorted(force_include_set)) if force_include_set else 'None'}"
-        )
+        diff_chunks = [
+            f"Mode={effective_mode}",
+            f"New nodes={new_nodes_count}",
+            f"Existing nodes w/ new fields={existing_nodes_with_new}",
+            f"New fields={total_new_fields}",
+            f"Existing fields included={total_existing_fields_included}",
+            f"Skipped fields={total_skipped_fields}",
+            "Force metafields="
+            + (
+                ",".join(sorted(force_include_set))
+                if force_include_set
+                else "None"
+            ),
+        ]
+        if forced_node_names:
+            diff_chunks.append(
+                "Forced node classes=" + ",".join(sorted(forced_node_names))
+            )
+        diff_report = "; ".join(diff_chunks)
 
         # Produce pretty JSON once (avoid double dumps in UI path)
         pretty_json = json.dumps(final_output, indent=4)
@@ -1875,7 +2060,10 @@ class SaveCustomMetadataRules:
     RETURN_NAMES = ("status",)
     FUNCTION = "save_rules"
     CATEGORY = "SaveImageWithMetaDataUniversal/rules"
-    DESCRIPTION = "Saves custom metadata capture rules to user_captures.json and user_samplers.json, and generates a Python extension allowing imported nodes to have their 'field_name's and values written to metadata."
+    DESCRIPTION = (
+        "Saves custom metadata capture rules to user_captures.json and user_samplers.json, and generates a Python "
+        "extension allowing imported nodes to have their 'field_name's and values written to metadata."
+    )
     NODE_NAME = "Save Custom Metadata Rules"
     OUTPUT_NODE = True
 
@@ -1922,12 +2110,23 @@ class SaveCustomMetadataRules:
                 lines = []
                 lines.append("from ..meta import MetaField")
                 lines.append(
-                    "from ..formatters import (calc_model_hash, calc_vae_hash, calc_lora_hash, calc_unet_hash, convert_skip_clip, get_scaled_width, get_scaled_height, extract_embedding_names, extract_embedding_hashes)"
+                    "from ..formatters import (\n"
+                    "    calc_model_hash, calc_vae_hash, calc_lora_hash, calc_unet_hash,\n"
+                    "    convert_skip_clip, get_scaled_width, get_scaled_height,\n"
+                    "    extract_embedding_names, extract_embedding_hashes\n"
+                    ")"
                 )
-                lines.append("from ..validators import is_positive_prompt, is_negative_prompt")
-                # Common selectors from built-in extensions
                 lines.append(
-                    "from .efficiency_nodes import (get_lora_model_name_stack, get_lora_model_hash_stack, get_lora_strength_model_stack, get_lora_strength_clip_stack)"
+                    "from ..validators import (\n"
+                    "    is_positive_prompt, is_negative_prompt\n"
+                    ")"
+                )
+                # Common selectors from built-in extensions (wrapped for style)
+                lines.append(
+                    "from .efficiency_nodes import (\n"
+                    "    get_lora_model_name_stack, get_lora_model_hash_stack,\n"
+                    "    get_lora_strength_model_stack, get_lora_strength_clip_stack\n"
+                    ")"
                 )
                 lines.append("")
                 # A mapping of known callable names to actual objects
@@ -2008,3 +2207,6 @@ class SaveCustomMetadataRules:
             return (f"Successfully saved: {', '.join(saved_files)}",)
         except Exception as e:
             raise ValueError(f"Error saving rules: {e}")
+
+
+

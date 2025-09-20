@@ -6,6 +6,7 @@ from .node import (  # noqa: N999 - package path inherited from external naming 
     ShowGeneratedUserRules,
     MetadataRuleScanner,
 )
+from .show_text import ShowText  # local unimeta variant (separate file for clarity)
 from ..defs import set_forced_include
 
 class MetadataForceInclude:
@@ -87,6 +88,7 @@ NODE_CLASS_MAPPINGS = {
     "SaveCustomMetadataRules": SaveCustomMetadataRules,
     "ShowGeneratedUserRules": ShowGeneratedUserRules,
     "SaveGeneratedUserRules": SaveGeneratedUserRules,
+    "ShowText|unimeta": ShowText,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "SaveImageWithMetaDataUniversal": "Save Image w/ Metadata Universal",
@@ -96,4 +98,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "SaveCustomMetadataRules": "Save Custom Metadata Rules",
     "ShowGeneratedUserRules": "Show generated_user_rules.py",
     "SaveGeneratedUserRules": "Save generated_user_rules.py",
+    "ShowText|unimeta": "Show Text (UniMeta)",
 }

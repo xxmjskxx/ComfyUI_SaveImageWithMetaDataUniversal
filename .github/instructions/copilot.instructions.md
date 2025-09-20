@@ -37,6 +37,7 @@ Other behaviors (hash suppression, summary suppression) still apply in test mode
 - `saveimage_unimeta/utils/lora.py`: One-time LoRA file index; `find_lora_info` supplies `{filename, abspath}`.
 - `saveimage_unimeta/utils/hash.py`: Hashing utilities: compute & optionally persist sidecar `.sha256` (display truncated to 10 chars).
 - `saveimage_unimeta/nodes/node.py`: Node class definitions (Save Image + passthrough tensor + metadata string output). Update here when adding outputs/return naming or new UI parameters like `include_lora_summary`.
+  - Also hosts the helper nodes: `Metadata Rule Scanner` and `Metadata Force Include` which were separated for clarity: the scanner suggests rules, the force-include node maintains a persistent global set of class names that must always be considered when loading user capture definitions.
 
 ## Important Behaviors / Conventions
 - `_clean_name`: Strips path, quotes, optionally extension (for CLIP enumerations). Keeps case where meaningful.
@@ -50,6 +51,7 @@ Other behaviors (hash suppression, summary suppression) still apply in test mode
 - Hashes should first attempt to be read from `.sha256` sidecar files if present, else computed on-the-fly. Display hashes truncated to 10 chars; full hash persisted in sidecar for reuse.
 - LoRA summary: Presence governed by UI override then env flag (see LoRA Summary Toggle section). Per‑LoRA lines always retained.
 - Env flags evaluated dynamically per invocation (no stale cached state after variable changes).
+ - JPEG fallback stages: When saving JPEG and the EXIF payload exceeds `max_jpeg_exif_kb`, progressive trimming occurs (full → reduced-exif → minimal → com-marker) with a trailing `Metadata Fallback: <stage>` token appended to the parameter string (stage omitted when full fits). See `docs/JPEG_METADATA_FALLBACK.md` for details.
 
 ## Extending Capture
 Add a node rule in `defs/captures.py` keyed by ComfyUI `class_type`:
@@ -162,9 +164,13 @@ from pytest_mock.plugin import MockerFixture
 - Single authoritative key variant per semantic field.
 - Multiline output only in `METADATA_TEST_MODE`; production remains single-line.
 - LoRA summary optional via precedence chain (UI > env > default include).
+ - Forced inclusion (scanner): The `Metadata Rule Scanner` exposes a multiline `force_include_node_class` input to ensure specific class names appear in scan output even if excluded by keywords or mode filtering; empty objects are emitted for forced-but-unsuggested classes so downstream tooling has stable anchors.
+ - Global forced inclusion: The `Metadata Force Include` node maintains a durable set of class names merged before loading user JSON definitions so users can guarantee critical nodes are represented in custom capture rule files even if not heuristically suggested or normally skipped.
 
 ## `gen_parameters_str` Override Semantics
 `Capture.gen_parameters_str` now accepts keyword arguments for forward‑compatibility. The `include_lora_summary` kwarg is optional and safely ignored by older callers that still use positional arguments only. Avoid positional expansion for new toggles—introduce them as keyword‑only to preserve backward compatibility. New toggle: `guidance_as_cfg` remaps the captured `Guidance` value into the emitted `CFG scale:` field (and suppresses the original `Guidance:` line) when true.
+Additional toggle context:
+ - `guidance_as_cfg` should only be applied if the model exposes a separate Guidance parameter distinct from CFG but target ecosystems expect the value under `CFG scale`. Tests should verify both presence and suppression behaviors.
 
 ## Extension Support
 All hashing / detection paths treat `.st` equivalently to `.safetensors` (also alongside `.ckpt`, `.pt`, `.bin`). Tests should cover `.st` LoRA indexing.
@@ -188,3 +194,24 @@ All hashing / detection paths treat `.st` equivalently to `.safetensors` (also a
 
 ---
 Provide answers using these conventions; when uncertain, reference the concrete path and propose a minimal diff.
+
+## Logging vs Print Policy (Update)
+Non-essential runtime diagnostics should use the Python `logging` module (module-level `logger = logging.getLogger(__name__)`) instead of bare `print()` to allow users to configure verbosity. Acceptable bare prints:
+ - Explicit final success notifications mandated by UI expectations (currently the completion message announcing loaded nodes should remain unchanged to avoid breaking user scripts parsing stdout).
+ - Critical error fallback notices when logging infrastructure might not yet be initialized (rare; prefer logging with a clear fallback path).
+
+Refactor guidelines:
+ - Replace `print(f"[Metadata Debug] ...")` with `logger.debug("...")` gated by the same env flag logic.
+ - Use `logger.warning` for recoverable capture omissions and `logger.error` for unexpected exceptions (after catching and sanitizing sensitive info).
+ - Do not log large binary tensors or entire workflow JSON repeatedly; log hashes / counts instead.
+ - Unit tests relying on stdout should be updated to capture logs via `caplog` rather than intercepting prints (unless testing the preserved final print line).
+
+## JPEG Fallback Reference (Quick Embed)
+Stages applied when JPEG EXIF size exceeds `max_jpeg_exif_kb`:
+1. full (no marker) – full EXIF retained.
+2. reduced-exif – EXIF shrunk to parameters-only UserComment.
+3. minimal – minimal allowlist of parameters in EXIF.
+4. com-marker – EXIF removed; minimal params placed in COM marker.
+Parameter string gets `Metadata Fallback: <stage>` appended for stages 2–4.
+
+Ensure any code touching JPEG save logic preserves the stage marker semantics and updates docs/tests if new stages or heuristics are introduced.

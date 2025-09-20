@@ -3,6 +3,42 @@
 
 > Enhanced Automatic1111‑style metadata capture with dual-encoder prompt support, LoRA & embedding hashing, optional aggregated summaries, and test-friendly deterministic formatting.
 
+## Table of Contents
+* [Quick Feature Overview](#quick-feature-overview-added--extended)
+* [Quick Start](#quick-start)
+* [Design / Future Ideas](#design--future-ideas)
+* [Nodes Provided](#nodes-provided)
+* [Node UI Parameters](#node-ui-parameters-key-additions)
+* [JPEG Metadata Size & Fallback Behavior](#jpeg-metadata-size--fallback-behavior)
+* [Metadata Rule Scanner vs Metadata Force Include](#metadata-rule-scanner-vs-metadata-force-include)
+* [New Input (Scanner): force_include_node_class](#new-input-scanner-force_include_node_class)
+* [Fallback Stages & Indicator](#fallback-stages--indicator)
+* [Troubleshooting / FAQ](#troubleshooting--faq)
+* [Environment Flags](#environment-flags)
+* [Parameter String Formatting Modes](#parameter-string-formatting-modes)
+* [Ordering Guarantees](#ordering-guarantees)
+* [Contributing](#contributing-summary)
+* [Filename Token Reference](#filename-token-reference)
+
+## Quick Start
+1. Install: Place this folder (`ComfyUI_SaveImageWithMetaDataUniversal`) inside `ComfyUI/custom_nodes/` and restart ComfyUI.
+2. Drop Nodes:
+  * `SaveImageWithMetaDataUniversal` (main save node)
+  * Optionally `Create Extra MetaData` for custom key/value pairs
+3. Connect `images` input from your generation workflow (e.g. sampler output) and set `filename_prefix`.
+4. (Optional) Add extra metadata: create `Create Extra MetaData` → link to `extra_metadata` input.
+5. JPEG vs PNG:
+  * Use PNG (or WebP lossless) for guaranteed full workflow + parameters.
+  * JPEG has a hard ~64KB EXIF limit; large workflows trigger fallback trimming.
+6. Control size:
+  * `max_jpeg_exif_kb` (default 60, hard UI max 64) governs how much EXIF the node tries before fallback.
+7. Read fallback stage: If parameters end with `Metadata Fallback: <stage>`, trimming occurred.
+8. LoRA summary: Toggle with `include_lora_summary` or env `METADATA_NO_LORA_SUMMARY`.
+9. Need deterministic multi‑line params for tests? Set env `METADATA_TEST_MODE=1`.
+10. Scan for new capture rules: Use `Metadata Rule Scanner` → review JSON output → integrate into user rules file if desired.
+
+That’s it: save images, inspect embedded metadata (PNGInfo tab / EXIF tools), and rely on staged fallbacks to keep saves robust.
+
 ## Quick Feature Overview (Added / Extended)
 * Automatic1111‑style parameter string generation (single-line in production; multiline when `METADATA_TEST_MODE=1`).
 * Dual Flux encoder prompt handling: captures / aliases T5 + CLIP prompts, suppressing unified positive when both present.
@@ -27,13 +63,37 @@ See `docs/WORKFLOW_COMPRESSION_DESIGN.md` for deferred workflow compression & ad
 | `Create Extra MetaData` | Inject additional custom key-value metadata pairs. |
 | `Metadata Rule Scanner` | Scan installed nodes to suggest metadata capture rules (exclude keywords, modes, metafield forcing). |
 | `Metadata Force Include` | Configure global forced node class names for capture definition loading. |
+| `Show Text (UniMeta)` | Local variant (key `ShowText|unimeta`) for displaying connected text outputs; based on pythongosssss Show Text (MIT). |
 
 ## Node UI Parameters (Key Additions)
-`include_lora_summary` (BOOLEAN, default True): Controls aggregated `LoRAs:` line. When False, only individual `Lora_X` entries appear. Overrides env flag precedence (see below).
-`guidance_as_cfg` (BOOLEAN, default False): When enabled the recorded `CFG scale:` value is replaced with the captured `Guidance` value (if present) and the original `Guidance:` field is omitted. This is useful when workflows report guidance separately but you want the traditional Automatic1111 single `CFG scale:` line.
-`max_jpeg_exif_kb` (INT, default 60, min 4, max 256): Maximum EXIF segment size (in kilobytes) the node will attempt to embed in JPEG files. If the full metadata (parameters + workflow JSON + hashes, etc.) exceeds this limit the node automatically falls back to: (1) a parameters‑only reduced EXIF block (still A1111 compatible). If that also exceeds the limit or the encoder rejects it, it finally falls back to inserting the full parameter string in a JPEG COM marker. WebP is unaffected (it stores extended metadata separately). Lower this if you encounter viewers that choke on large EXIF blocks; raise cautiously (JPEG hard limit ~64KB for a single APP1 segment, practical safe ceiling kept below 256KB to avoid fragmentation / viewer issues).
+Key quality‑of‑life and compatibility controls exposed by the primary save node:
 
-NOTE: The previous `force_include_node_class` input has moved to the dedicated `Metadata Rule Scanner` node.
+* `include_lora_summary` (BOOLEAN, default True): Toggles the aggregated `LoRAs:` summary line; when False only individual `Lora_*` entries are emitted. UI setting overrides env flags.
+* `guidance_as_cfg` (BOOLEAN, default False): Substitutes the captured `Guidance` value into `CFG scale` and omits the separate `Guidance:` field for better A1111 / Civitai parity when models expose guidance separately.
+* `max_jpeg_exif_kb` (INT, default 60, min 4, max 64): UI‑enforced ceiling for attempted JPEG EXIF payload. Real-world single APP1 EXIF segment limit is ~64KB; exceeding it triggers staged fallback (reduced-exif → minimal → com-marker). For large workflows prefer PNG / lossless WebP.
+
+### JPEG Metadata Size & Fallback Behavior
+JPEG metadata is constrained by a single APP1 (EXIF) segment (~64KB). This repository now enforces a hard UI cap of 64KB for `max_jpeg_exif_kb`; values above this provide no benefit and are rejected by Pillow or stripped by consumers. Large prompt + workflow JSON + hash detail can exceed the limit quickly.
+
+When saving JPEG, the node evaluates total EXIF size vs `max_jpeg_exif_kb` (<=64) and applies staged fallback:
+1. full (no message) — Full EXIF (workflow + parameters) fits.
+2. reduced-exif — EXIF shrunk to parameters-only `UserComment`.
+3. minimal — Trimmed parameter string (core fields + LoRAs + hashes) embedded as EXIF.
+4. com-marker — EXIF dropped entirely; trimmed parameters stored in a JPEG COM marker.
+
+If a fallback stage is used the parameters string gets an appended token: `Metadata Fallback: <stage>`.
+
+Recommendations:
+* Keep `max_jpeg_exif_kb` between 48–64 (the upper bound is enforced).
+* Prefer PNG or lossless WebP when you require guaranteed full workflow embedding.
+* Treat JPEG as delivery/export; archive originals as PNG if full metadata fidelity matters.
+
+Limitations:
+* Social platforms often strip both EXIF and COM markers; consider sidecar archival if critical.
+* COM marker text has no structure; downstream tooling must parse the plain parameter string.
+* Multi-segment APPn fragmentation (splitting across several EXIF/APP markers) is not implemented (deferred; see `docs/WORKFLOW_COMPRESSION_DESIGN.md`).
+
+NOTE: The previous `force_include_node_class` input moved to the dedicated `Metadata Rule Scanner` node.
 
 ### Metadata Rule Scanner vs Metadata Force Include
 
@@ -51,6 +111,19 @@ Two separate nodes now handle scanning vs global class forcing:
 
 `SaveImageWithMetaDataUniversal` automatically merges the forced class set before deciding whether to load user JSON definition files.
 
+> Experimental UI Notice: An earlier experimental auto-populated editable JSON rules textarea for the `Metadata Rule Scanner` has been disabled and archived under `web/disabled/metadata_rule_scanner/` for potential future iteration. It was removed to simplify maintenance and avoid layout instability concerns.
+
+#### New Input (Scanner): `force_include_node_class`
+
+`Metadata Rule Scanner` now exposes an optional multiline `force_include_node_class` field. Provide exact class names (comma or newline separated) to forcibly include those nodes in the scan results even when they:
+* Match one of the `exclude_keywords`, or
+* Would normally be omitted by `mode` (e.g. `existing_only` skipping new nodes).
+
+Output Effects:
+* `summary.forced_node_classes` lists them.
+* `diff_report` appends a `Forced node classes=` segment.
+* If a forced class yields no heuristic suggestions, an empty object is emitted so tooling can still merge or annotate it.
+
 ### Fallback Stages & Indicator
 JPEG saves now record a `Metadata Fallback:` stage when size constraints trigger progressive trimming:
 
@@ -62,6 +135,28 @@ JPEG saves now record a `Metadata Fallback:` stage when size constraints trigger
 | `com-marker` | All EXIF removed (too large); minimal parameters written into a JPEG COM marker |
 
 When a fallback occurs the `Metadata Fallback: <stage>` marker is appended to the parameters string to aid downstream tooling.
+
+### Troubleshooting / FAQ
+**Why is my workflow JSON missing in a JPEG?**  
+The save exceeded `max_jpeg_exif_kb` and fell back to `reduced-exif`, `minimal`, or `com-marker`. Use PNG / WebP or lower the workflow size.
+
+**I see `Metadata Fallback: minimal` — did I lose important info?**  
+Only non-core keys were trimmed. Prompts, sampler settings, LoRAs, hashes, seed, model & VAE info remain.
+
+**Forced node shows up with empty `{}` in scanner output. Bug?**  
+No—`force_include_node_class` guarantees presence even if no heuristic rules match yet; use it as an anchor for manual rules.
+
+**My LoRA summary line disappeared.**  
+Either `include_lora_summary=False` in the node or `METADATA_NO_LORA_SUMMARY` env flag was set (UI param takes precedence).
+
+**Parameter string suddenly multiline.**  
+Environment variable `METADATA_TEST_MODE=1` was set (intended for tests). Unset it for production single-line mode.
+
+**Why are hashes missing detail JSON?**  
+Environment flag `METADATA_NO_HASH_DETAIL` suppresses the extended hash breakdown.
+
+**How do I know which fallback stage occurred programmatically?**  
+Parse the tail of the parameters string for `Metadata Fallback:`. (A future explicit key may be added.)
 
 ## Environment Flags
 | Flag | Effect |
@@ -93,160 +188,25 @@ pytest -q
 See `CONTRIBUTING.md` for full guidelines.
 
 ---
-Original README continues below.
+### Filename Token Reference
+| Token | Replaced With |
+|-------|---------------|
+| `%seed%` | Seed value |
+| `%width%` | Image width |
+| `%height%` | Image height |
+| `%pprompt%` | Positive prompt |
+| `%pprompt:[n]%` | First n chars of positive prompt |
+| `%nprompt%` | Negative prompt |
+| `%nprompt:[n]%` | First n chars of negative prompt |
+| `%model%` | Checkpoint base name |
+| `%model:[n]%` | First n chars of checkpoint name |
+| `%date%` | Timestamp (yyyyMMddhhmmss) |
+| `%date:[format]%` | Custom pattern (yyyy, MM, dd, hh, mm, ss) |
+
+Date pattern components:
+`yyyy` | `MM` | `dd` | `hh` | `mm` | `ss`
+
+For extended sampler selection details and advanced capture behavior, refer to the in-code docstrings (`Trace`, `Capture`) or open an issue if external docs would help.
+
 日本語版READMEは[こちら](README.jp.md)。
-
-- Custom node for [ComfyUI](https://github.com/comfyanonymous/ComfyUI).
-- Add a node to save images with metadata (PNGInfo) extracted from the input values of each node.
-- Since the values are extracted dynamically, values output by various extension nodes can be added to metadata.
-
-## Installation
-```
-cd <ComfyUI directory>/custom_nodes
-git clone https://github.com/nkchocoai/ComfyUI-SaveImageWithMetaData.git
-```
-
-## Nodes
-### Save Image With Metadata
-- Saves the `images` received as input as an image with metadata (PNGInfo).
-- Metadata is extracted from the input of the KSampler node found by `sampler_selection_method` and the input of the previously executed node.
-  - Target KSampler nodes are the key of `SAMPLERS` in the file [py/defs/samplers.py](py/defs/samplers.py) and the file in [py/defs/ext/](py/defs/ext/).
-
-#### filename_prefix
-- The string (Key) specified in `filename_prefix` will be replaced with the retrieved information.
-
-| Key             | Information to be replaced            |
-| --------------- | ------------------------------------- |
-| %seed%          | seed value                            |
-| %width%         | Image width                           |
-| %height%        | Image height                          |
-| %pprompt%       | Positive Prompt                       |
-| %pprompt:[n]%   | first n characters of Positive Prompt |
-| %nprompt%       | Negative Prompt                       |
-| %nprompt:[n]%   | First n characters of Negative Prompt |
-| %model%         | Checkpoint name                       |
-| %model:[n]%     | First n characters of Checkpoint name |
-| %date%          | Date of generation(yyyyMMddhhmmss)    |
-| %date:[format]% | Date of generation                    |
-
-- See the following table for the identifier specified by `[format]` in `%date:[format]%`.
-
-| Identifier | Description |
-| ---------- | ----------- |
-| yyyy       | year        |
-| MM         | month       |
-| dd         | day         |
-| hh         | hour        |
-| mm         | minute      |
-| ss         | second      |
-
-#### sampler_selection_method
-- Specifies how to select a KSampler node that has been executed before this node.
-
-##### Farthest
-- Selects the farthest KSampler node from this node.
-- Example: In [everywhere_prompt_utilities.png](examples/everywhere_prompt_utilities.png), select the upper KSampler node (seed=12345).
-
-##### Nearest
-- Select the nearest KSampler node to this node.
-- Example: In [everywhere_prompt_utilities.png](examples/everywhere_prompt_utilities.png), select the bottom KSampler node (seed=67890).
-
-##### By node ID
-- Select the KSampler node whose node ID is `sampler_selection_node_id`.
-
-### Create Extra MetaData
-- Specifies metadata to be added to the image to be saved.
-- Example: In [extra_metadata.png](examples/extra_metadata.png).
-
-### Metadata Rule Scanner
-- Forces inclusion of specific node class names during metadata capture rule evaluation.
-- Supply comma/newline separated names in the `force_include_node_class` field.
-- Connect/not connect output as desired (side effect occurs regardless).
-
-## Metadata to be given
-- Positive prompt
-- Negative prompt
-- Steps
-- Sampler
-- CFG Scale
-- Seed
-- Clip skip
-- Size
-- Model
-- Model hash
-- VAE
-  - It is referenced from the input of SaveImageWithMetadata node, not KSampler node.
-- VAE hash
-  - It is referenced from the input of SaveImageWithMetadata node, not KSampler node.
-- Loras
-  - Model name
-  - Model hash
-  - Strength model
-  - Strength clip
-- Embeddings
-  - Name
-  - Hash
-- If batch size >= 2 :
-  - Batch index
-  - Batch size
-- Hashes
-  - Model, Loras, Embeddings
-  - For [Civitai](https://civitai.com/)
-
-## Supported nodes and extensions
-- Please check the following file for supported nodes.
-  - [py/defs/captures.py](py/defs/captures.py)
-  - [py/defs/samplers.py](py/defs/samplers.py)
-- Please check the following directories for supported extensions.
-  - [py/defs/ext/](py/defs/ext/)
-
-## CI & Development
-
-![CI](https://github.com/jags111/efficiency-nodes-comfyui/actions/workflows/ci.yml/badge.svg)
-
-The project includes a GitHub Actions workflow (`ci.yml`) that runs on pushes and pull requests to `main`:
-
-- Ruff lint (`ruff check .`)
-- Pytest with coverage (`coverage run -m pytest -q` / `coverage xml`)
-- Dependency vulnerability scan (`pip-audit`, non-fatal)
-
-### Local Development
-```
-pip install -e .[dev]
-ruff check .
-coverage run -m pytest -q
-coverage report -m
-```
-
-### Environment Flags
-| Variable | Purpose |
-| -------- | ------- |
-| `METADATA_DEBUG_PROMPTS` | Verbose prompt capture logging. |
-| `METADATA_DEBUG_LORA` | Detailed LoRA parsing diagnostics. |
-| `METADATA_NO_HASH_DETAIL` | Suppress verbose Hash detail JSON block. |
-| `METADATA_DEBUG` | General debug enablement. |
-
-### Extending CI
-Potential enhancements you can add:
-1. Coverage upload to Codecov.
-2. Pre-commit hook enforcement.
-3. Wheel/sdist packaging on tag.
-4. Selective path triggers to speed runs.
-
-### Pre-commit Hooks
-This repository includes a `.pre-commit-config.yaml` with:
-- Ruff lint & format (`ruff`, `ruff-format` with auto-fix)
-- Trailing whitespace / end-of-file fixes
-- Mixed line ending normalization (LF)
-- Large file guard & private key detector
-
-Enable locally:
-```
-pip install -e .[dev]
-pre-commit install
-# Run on all files initially
-pre-commit run --all-files
-```
-
-Optional (manual stage) quick test hook can be enabled by uncommenting the local section inside `.pre-commit-config.yaml`.
 
