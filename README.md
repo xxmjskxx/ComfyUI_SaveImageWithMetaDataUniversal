@@ -44,11 +44,6 @@ git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
   * `max_jpeg_exif_kb` (default 60, hard UI max 64) governs how much EXIF the node tries before fallback.
 7. Read fallback stage: If parameters end with `Metadata Fallback: <stage>`, trimming occurred.
 8. LoRA summary: Toggle with `include_lora_summary` or env `METADATA_NO_LORA_SUMMARY`.
-9. Need deterministic multi‑line params for tests? Set env `METADATA_TEST_MODE=1`.
-10. Scan for new capture rules: Use `Metadata Rule Scanner` → review JSON output → integrate into user rules file if desired.
-
-That’s it: save images, inspect embedded metadata (PNGInfo tab / EXIF tools), and rely on staged fallbacks to keep saves robust.
-
 ## Quick Feature Overview (Added / Extended)
 * Automatic1111‑style parameter string generation (single-line in production; multiline when `METADATA_TEST_MODE=1`).
 * Dual Flux encoder prompt handling: captures / aliases T5 + CLIP prompts, suppressing unified positive when both present.
@@ -58,22 +53,16 @@ That’s it: save images, inspect embedded metadata (PNGInfo tab / EXIF tools), 
   * Per-LoRA model name, hash, strengths always retained.
 * Embedding resolution with secure path normalization and hashing.
 * Hash detail (structured JSON) optionally included (suppressed via `METADATA_NO_HASH_DETAIL`).
-* Batch fields (`Batch index`, `Batch size`) inserted at stable position—ordering is intentionally fixed.
 * Sampler normalization limited to specific cases (e.g. `euler_karras`) to avoid unwanted renames.
 * Dynamic (call-time) evaluation of all environment flags—changes take effect without restart.
-* Google-style docstrings and Ruff-enforced style (line length 140) across core modules.
-
-## Nodes Provided
-| Node | Purpose |
-| ---- | ------- |
-| `SaveImageWithMetaDataUniversal` | Save images + produce enriched metadata (PNGInfo / EXIF) & parameter string. |
-| `Create Extra MetaData` | Inject additional custom key-value metadata pairs. |
-| `Save Custom Metadata Rules` | Persist generated rule suggestions to `generated_user_rules.py` (append or overwrite). |
-| `Metadata Rule Scanner` | Scan installed nodes to suggest metadata capture rules (exclude keywords, modes, metafield forcing). |
-| `Show generated_user_rules.py` | Display the current merged user rules file contents for review/editing. |
-| `Save generated_user_rules.py` | Validate and write edited rules text back to the user rules file. |
-| `Metadata Force Include` | Configure global forced node class names for capture definition loading. |
-| `Show Text (UniMeta)` | Local variant (key `ShowText|unimeta`) for displaying connected text outputs; based on pythongosssss Show Text (MIT). |
+## Quick Feature Overview
+* Clean Automatic1111‑style parameter line (optional multi‑line test mode).
+* Works with multiple prompt encoder styles automatically.
+* LoRA support: detects loaders & inline tags; optional summary line.
+* Captures model / LoRA hashes for reproducibility.
+* Can shorten output (hide hash detail or summary line).
+* Stable ordering for predictable diffs.
+* Plays nicely with most custom node packs out‑of‑the‑box.
 
 ## Node UI Parameters (Key Additions)
 Key quality‑of‑life and compatibility controls exposed by the primary save node:
