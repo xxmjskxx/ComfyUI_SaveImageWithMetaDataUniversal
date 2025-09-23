@@ -49,20 +49,21 @@ git clone https://github.com/nkchocoai/ComfyUI-SaveImageWithMetaData.git
 
 ##### Farthest
 - このノードに最も遠いKSamplerノードを選びます。
-- 例: [everywhere_prompt_utilities.png](examples/everywhere_prompt_utilities.png) において、上段のKSamplerノード(seed=12345)を選びます。
+- 例: [everywhere_prompt_utilities.png](example_workflows/everywhere_prompt_utilities.png) において、上段のKSamplerノード(seed=12345)を選びます。
 
 ##### Nearest
 - このノードに最も近いKSamplerノードを選びます。
-- 例: [everywhere_prompt_utilities.png](examples/everywhere_prompt_utilities.png) において、下段のKSamplerノード(seed=67890)を選びます。
+- 例: [everywhere_prompt_utilities.png](example_workflows/everywhere_prompt_utilities.png) において、下段のKSamplerノード(seed=67890)を選びます。
 
 ##### By node ID
 - ノードIDが `sampler_selection_node_id` であるKSamplerノードを選びます。
 
 ### Create Extra MetaData
 - 保存する画像に追加するメタデータを指定します。
-- 例: [extra_metadata.png](examples/extra_metadata.png)。
+- 例: [extra_metadata.png](example_workflows/extra_metadata.png)。
 
 ## 付与されるメタデータ
+(詳細なJPEGメタデータのフォールバック段階については `docs/JPEG_METADATA_FALLBACK.md` を参照してください。環境変数による制御フラグ一覧は英語版READMEの `Environment Flags` セクションを参照してください。)
 - Positive prompt
 - Negative prompt
 - Steps

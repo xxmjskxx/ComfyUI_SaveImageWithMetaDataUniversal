@@ -1,0 +1,839 @@
+{
+  "id": "3b7b6305-8f6f-4ef0-afc6-95b0b48eceaf",
+  "revision": 0,
+  "last_node_id": 14,
+  "last_link_id": 20,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "Efficient Loader",
+      "pos": [
+        136,
+        89
+      ],
+      "size": [
+        400,
+        478
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "lora_stack",
+          "shape": 7,
+          "type": "LORA_STACK",
+          "link": null
+        },
+        {
+          "name": "cnet_stack",
+          "shape": 7,
+          "type": "CONTROL_NET_STACK",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            1,
+            9
+          ]
+        },
+        {
+          "name": "CONDITIONING+",
+          "type": "CONDITIONING",
+          "slot_index": 1,
+          "links": [
+            2,
+            10
+          ]
+        },
+        {
+          "name": "CONDITIONING-",
+          "type": "CONDITIONING",
+          "links": [
+            3,
+            11
+          ]
+        },
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "slot_index": 3,
+          "links": [
+            4,
+            12
+          ]
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "slot_index": 4,
+          "links": [
+            5,
+            13
+          ]
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": null
+        },
+        {
+          "name": "DEPENDENCIES",
+          "type": "DEPENDENCIES",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "efficiency-nodes-comfyui",
+        "ver": "f0971b5553ead8f6e66bb99564431e2590cd3981",
+        "Node name for S&R": "Efficient Loader"
+      },
+      "widgets_values": [
+        "animagine-xl-3.0.safetensors",
+        "Baked VAE",
+        -1,
+        "None",
+        1,
+        1,
+        "1girl, hatsune miku, upper body, smile, looking at viewer, masterpiece, best quality",
+        "lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, artist name",
+        "none",
+        "comfy",
+        1024,
+        1024,
+        1
+      ],
+      "color": "#2a363b",
+      "bgcolor": "#335533",
+      "shape": 1
+    },
+    {
+      "id": 4,
+      "type": "Eff. Loader SDXL",
+      "pos": [
+        141,
+        628
+      ],
+      "size": [
+        400,
+        418
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "lora_stack",
+          "shape": 7,
+          "type": "LORA_STACK",
+          "link": null
+        },
+        {
+          "name": "cnet_stack",
+          "shape": 7,
+          "type": "CONTROL_NET_STACK",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "SDXL_TUPLE",
+          "type": "SDXL_TUPLE",
+          "links": [
+            6
+          ]
+        },
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "slot_index": 1,
+          "links": [
+            7
+          ]
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            8
+          ]
+        },
+        {
+          "name": "DEPENDENCIES",
+          "type": "DEPENDENCIES",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "efficiency-nodes-comfyui",
+        "ver": "f0971b5553ead8f6e66bb99564431e2590cd3981",
+        "Node name for S&R": "Eff. Loader SDXL"
+      },
+      "widgets_values": [
+        "animagine-xl-3.0.safetensors",
+        -2,
+        "None",
+        -2,
+        6,
+        2,
+        "Baked VAE",
+        "1girl, hatsune miku, upper body, smile, looking at viewer, masterpiece, best quality",
+        "lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, artist name",
+        "none",
+        "comfy",
+        832,
+        1216,
+        1
+      ],
+      "color": "#223322",
+      "bgcolor": "#335555",
+      "shape": 1
+    },
+    {
+      "id": 6,
+      "type": "KSampler Adv. (Efficient)",
+      "pos": [
+        1050,
+        266
+      ],
+      "size": [
+        323.57684326171875,
+        422
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 9
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 10
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 11
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 12
+        },
+        {
+          "name": "optional_vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": 13
+        },
+        {
+          "name": "script",
+          "shape": 7,
+          "type": "SCRIPT",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": null
+        },
+        {
+          "name": "CONDITIONING+",
+          "type": "CONDITIONING",
+          "links": null
+        },
+        {
+          "name": "CONDITIONING-",
+          "type": "CONDITIONING",
+          "links": null
+        },
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": null
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": null
+        },
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            18
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "efficiency-nodes-comfyui",
+        "ver": "f0971b5553ead8f6e66bb99564431e2590cd3981",
+        "Node name for S&R": "KSampler Adv. (Efficient)"
+      },
+      "widgets_values": [
+        "enable",
+        456,
+        null,
+        25,
+        7,
+        "euler_ancestral",
+        "normal",
+        0,
+        10000,
+        "disable",
+        "none",
+        "true"
+      ],
+      "color": "#222233",
+      "bgcolor": "#665533",
+      "shape": 1
+    },
+    {
+      "id": 3,
+      "type": "KSampler (Efficient)",
+      "pos": [
+        603,
+        89
+      ],
+      "size": [
+        339.13238525390625,
+        350
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 1
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 2
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 3
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 4
+        },
+        {
+          "name": "optional_vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": 5
+        },
+        {
+          "name": "script",
+          "shape": 7,
+          "type": "SCRIPT",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": null
+        },
+        {
+          "name": "CONDITIONING+",
+          "type": "CONDITIONING",
+          "links": null
+        },
+        {
+          "name": "CONDITIONING-",
+          "type": "CONDITIONING",
+          "links": null
+        },
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": null
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": null
+        },
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            17,
+            20
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "efficiency-nodes-comfyui",
+        "ver": "f0971b5553ead8f6e66bb99564431e2590cd3981",
+        "Node name for S&R": "KSampler (Efficient)"
+      },
+      "widgets_values": [
+        123,
+        null,
+        20,
+        7,
+        "euler_ancestral",
+        "normal",
+        1,
+        "none",
+        "true"
+      ],
+      "color": "#223333",
+      "bgcolor": "#553333",
+      "shape": 1
+    },
+    {
+      "id": 5,
+      "type": "KSampler SDXL (Eff.)",
+      "pos": [
+        603,
+        720
+      ],
+      "size": [
+        312.2434997558594,
+        334
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "sdxl_tuple",
+          "type": "SDXL_TUPLE",
+          "link": 6
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 7
+        },
+        {
+          "name": "optional_vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": 8
+        },
+        {
+          "name": "script",
+          "shape": 7,
+          "type": "SCRIPT",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "SDXL_TUPLE",
+          "type": "SDXL_TUPLE",
+          "links": null
+        },
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": null
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": null
+        },
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            19
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "efficiency-nodes-comfyui",
+        "ver": "f0971b5553ead8f6e66bb99564431e2590cd3981",
+        "Node name for S&R": "KSampler SDXL (Eff.)"
+      },
+      "widgets_values": [
+        789,
+        null,
+        20,
+        7,
+        "euler_ancestral",
+        "normal",
+        0,
+        -1,
+        "none",
+        "true"
+      ],
+      "color": "#332222",
+      "bgcolor": "#553355",
+      "shape": 1
+    },
+    {
+      "id": 11,
+      "type": "SaveImage",
+      "pos": [
+        1077,
+        -79
+      ],
+      "size": [
+        263.2173767089844,
+        273.5193786621094
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 17
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.59"
+      },
+      "widgets_values": [
+        "eff-without-meta"
+      ]
+    },
+    {
+      "id": 14,
+      "type": "SaveImageWithMetaDataUniversal",
+      "pos": [
+        1500,
+        870
+      ],
+      "size": [
+        317.0025329589844,
+        342
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 19
+        },
+        {
+          "name": "extra_metadata",
+          "shape": 7,
+          "type": "EXTRA_METADATA",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal",
+        "ver": "c9a87453bc4257614c87d28a64a5be9c4fdccba9",
+        "Node name for S&R": "SaveImageWithMetaDataUniversal"
+      },
+      "widgets_values": [
+        "eff_xl",
+        "Farthest",
+        0,
+        "png",
+        true,
+        100,
+        false,
+        true,
+        false,
+        false,
+        true,
+        false
+      ]
+    },
+    {
+      "id": 13,
+      "type": "SaveImageWithMetaDataUniversal",
+      "pos": [
+        1470,
+        410
+      ],
+      "size": [
+        317.0025329589844,
+        342
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 18
+        },
+        {
+          "name": "extra_metadata",
+          "shape": 7,
+          "type": "EXTRA_METADATA",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal",
+        "ver": "c9a87453bc4257614c87d28a64a5be9c4fdccba9",
+        "Node name for S&R": "SaveImageWithMetaDataUniversal"
+      },
+      "widgets_values": [
+        "eff_adv",
+        "Farthest",
+        0,
+        "png",
+        true,
+        100,
+        false,
+        true,
+        false,
+        false,
+        true,
+        false
+      ]
+    },
+    {
+      "id": 12,
+      "type": "SaveImageWithMetaDataUniversal",
+      "pos": [
+        1470,
+        -80
+      ],
+      "size": [
+        317.0025329589844,
+        342
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 20
+        },
+        {
+          "name": "extra_metadata",
+          "shape": 7,
+          "type": "EXTRA_METADATA",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal",
+        "ver": "c9a87453bc4257614c87d28a64a5be9c4fdccba9",
+        "Node name for S&R": "SaveImageWithMetaDataUniversal"
+      },
+      "widgets_values": [
+        "eff",
+        "Farthest",
+        0,
+        "png",
+        true,
+        100,
+        false,
+        true,
+        false,
+        false,
+        true,
+        false
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      3,
+      0,
+      "MODEL"
+    ],
+    [
+      2,
+      1,
+      1,
+      3,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      3,
+      1,
+      2,
+      3,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      4,
+      1,
+      3,
+      3,
+      3,
+      "LATENT"
+    ],
+    [
+      5,
+      1,
+      4,
+      3,
+      4,
+      "VAE"
+    ],
+    [
+      6,
+      4,
+      0,
+      5,
+      0,
+      "SDXL_TUPLE"
+    ],
+    [
+      7,
+      4,
+      1,
+      5,
+      1,
+      "LATENT"
+    ],
+    [
+      8,
+      4,
+      2,
+      5,
+      2,
+      "VAE"
+    ],
+    [
+      9,
+      1,
+      0,
+      6,
+      0,
+      "MODEL"
+    ],
+    [
+      10,
+      1,
+      1,
+      6,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      11,
+      1,
+      2,
+      6,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      12,
+      1,
+      3,
+      6,
+      3,
+      "LATENT"
+    ],
+    [
+      13,
+      1,
+      4,
+      6,
+      4,
+      "VAE"
+    ],
+    [
+      17,
+      3,
+      5,
+      11,
+      0,
+      "IMAGE"
+    ],
+    [
+      18,
+      6,
+      5,
+      13,
+      0,
+      "IMAGE"
+    ],
+    [
+      19,
+      5,
+      3,
+      14,
+      0,
+      "IMAGE"
+    ],
+    [
+      20,
+      3,
+      5,
+      12,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "workspace_info": {
+      "id": "f809ef73-1c77-4f32-856b-bf776be293a3"
+    },
+    "groupNodes": {},
+    "ds": {
+      "scale": 0.8506593152857546,
+      "offset": [
+        -1.1171423233603264,
+        149.56441759154643
+      ]
+    },
+    "frontendVersion": "1.25.11",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": false,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4
+}

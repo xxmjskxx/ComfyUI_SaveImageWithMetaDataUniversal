@@ -1,0 +1,5 @@
+pytest>=8.2
+pillow>=10.0
+numpy>=1.26
+piexif>=1.1
+ruff>=0.5

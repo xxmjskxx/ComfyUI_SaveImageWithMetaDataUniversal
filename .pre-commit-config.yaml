@@ -1,0 +1,32 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.4  # Sync with project ruff version range
+    hooks:
+      - id: ruff
+        args: ["--fix"]
+      - id: ruff-format
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
+      - id: check-added-large-files
+      - id: detect-private-key
+  # Optional: lightweight security / static checks could be added later
+  # - repo: https://github.com/pycqa/isort
+  #   rev: 5.13.2
+  #   hooks:
+  #     - id: isort
+
+# Local manual hook example (disabled by default): run tests quickly
+# To enable, uncomment below and run: pre-commit run quick-pytest -a
+#  - repo: local
+#    hooks:
+#      - id: quick-pytest
+#        name: quick pytest
+#        entry: pytest -q
+#        language: system
+#        pass_filenames: false
+#        stages: [manual]
