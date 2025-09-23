@@ -142,6 +142,7 @@ saveimage_unimeta/user_captures.json
 saveimage_unimeta/user_samplers.json
 saveimage_unimeta/defs/ext/generated_user_rules.py
 tests/
+_test_outputs/
 # .github/copilot-instructions.md
 # .github/instructions/
 saveimage_unimeta/defs/ext/mjsk_PCLazyLoraLoader.py
