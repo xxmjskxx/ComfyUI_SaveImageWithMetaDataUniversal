@@ -236,7 +236,7 @@ class SaveImageWithMetaDataUniversal:
                 "include_lora_summary": (
                     "BOOLEAN",
                     {
-                        "default": True,
+                        "default": False,
                         "tooltip": (
                             "Include a compact aggregated LoRAs summary line (set False to list only individual "
                             "Lora_X entries)."

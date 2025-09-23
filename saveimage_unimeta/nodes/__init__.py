@@ -15,6 +15,13 @@ class MetadataForceInclude:
     Separated from the scanning node so the scanner (`MetadataRuleScanner` implemented
     in `node.py`) can expose its own inputs: exclude_keywords, include_existing,
     mode, force_include_metafields, etc.
+
+    Outputs:
+        forced_classes (FORCED_CLASSES): Internal custom type (semantic marker) containing the
+            comma-separated forced class list. Use mainly for tooling or future automation.
+        forced_classes_str (STRING): Plain comma-separated list of currently forced node class
+            names. Connect this to a text display node (e.g. Show Text (UniMeta)) to audit the
+            active configuration.
     """
 
     @classmethod
@@ -51,7 +58,15 @@ class MetadataForceInclude:
             },
         }
 
-    RETURN_TYPES = ("FORCED_CLASSES",)
+    # Provide both the custom type (for clarity / future tooling) and a plain STRING mirror so
+    # users can connect directly into generic text display nodes without union inputs.
+    RETURN_TYPES = ("FORCED_CLASSES", "STRING")
+    RETURN_NAMES = ("forced_classes", "forced_classes_str")
+    # Non-standard helper mapping (safe no-op if frontend ignores it) supplying UI tooltip text for outputs.
+    OUTPUT_TOOLTIPS = {
+        "forced_classes": "Custom marker type with the current forced node class names (same data as string output).",
+        "forced_classes_str": "Plain comma-separated list of forced node class names for display/logging.",
+    }
     FUNCTION = "configure"
     CATEGORY = "SaveImageWithMetaDataUniversal"
     OUTPUT_NODE = False
@@ -67,7 +82,8 @@ class MetadataForceInclude:
         else:
             from ..defs import FORCED_INCLUDE_CLASSES as _F
             updated = _F
-        return (",".join(sorted(updated)),)
+        joined = ",".join(sorted(updated))
+        return (joined, joined)
 
     @classmethod
     def IS_CHANGED(cls, *args, **kwargs):  # noqa: N802

@@ -21,8 +21,18 @@ class ShowText:
     def INPUT_TYPES(cls):  # noqa: N802
         return {
             "required": {
-                # Force input: must be connected; mirrors reference behavior
-                "text": ("STRING", {"forceInput": True}),
+                # Single STRING input (original behavior). To show forced classes, use the
+                # second STRING output now exposed by the Metadata Force Include node.
+                "text": (
+                    "STRING",
+                    {
+                        "forceInput": True,
+                        "tooltip": (
+                            "Text to display (STRING). Connect the Metadata Force Include string output "
+                            "to view forced classes."
+                        ),
+                    },
+                ),
             },
             "hidden": {
                 "unique_id": "UNIQUE_ID",

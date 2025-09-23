@@ -142,9 +142,11 @@ saveimage_unimeta/user_captures.json
 saveimage_unimeta/user_samplers.json
 saveimage_unimeta/defs/ext/generated_user_rules.py
 tests/
-.github/copilot-instructions.md
+# .github/copilot-instructions.md
+# .github/instructions/
 saveimage_unimeta/defs/ext/mjsk_PCLazyLoraLoader.py
 How_to_Use_Ruff_Pytest_and_GitHub_CICD.md
 .pytest_cache/
 .ruff_cache/
 web/disabled/metadata_rule_scanner/
+ignore/

@@ -1830,17 +1830,38 @@ class Capture:
 
         sampler = None
         scheduler = None
-        if len(sampler_names) > 0:
-            sampler = sampler_names[0][1]
-        if len(schedulers) > 0:
-            scheduler = schedulers[0][1]
+        if sampler_names:
+            try:
+                sampler = sampler_names[0][1]
+            except Exception:
+                sampler = sampler_names[0]  # best-effort fallback
+        if schedulers:
+            try:
+                scheduler = schedulers[0][1]
+            except Exception:
+                scheduler = schedulers[0]
+
+        # Extract underlying primitive values if wrapped
+        try:
+            if sampler is not None and not isinstance(sampler, str):
+                sampler = getattr(sampler, "name", sampler)
+            if scheduler is not None and not isinstance(scheduler, str):
+                scheduler = getattr(scheduler, "name", scheduler)
+        except Exception:
+            pass
+
+        # Coerce to str (avoids TypeError on concatenation when objects like KSAMPLER instances leak through)
+        sampler = str(sampler).strip() if sampler is not None else None
+        scheduler = str(scheduler).strip() if scheduler is not None else None
+        sampler_l = sampler.lower() if sampler else None
+        scheduler_l = scheduler.lower() if scheduler else None
 
         # If we don't have a sampler at all, return an empty string
         # so the caller can omit it gracefully.
         if not sampler:
             return ""
 
-        match sampler:
+        match sampler_l:
             case "euler" | "euler_cfg_pp":
                 return "Euler"
             case "euler_ancestral" | "euler_ancestral_cfg_pp":
@@ -1848,25 +1869,25 @@ class Capture:
             case "heun" | "heunpp2":
                 return "Heun"
             case "dpm_2":
-                return sampler_with_karras("DPM2", scheduler)
+                return sampler_with_karras("DPM2", scheduler_l)
             case "dpm_2_ancestral":
-                return sampler_with_karras("DPM2 a", scheduler)
+                return sampler_with_karras("DPM2 a", scheduler_l)
             case "lms":
-                return sampler_with_karras("LMS", scheduler)
+                return sampler_with_karras("LMS", scheduler_l)
             case "dpm_fast":
                 return "DPM fast"
             case "dpm_adaptive":
                 return "DPM adaptive"
             case "dpmpp_2s_ancestral":
-                return sampler_with_karras("DPM++ 2S a", scheduler)
+                return sampler_with_karras("DPM++ 2S a", scheduler_l)
             case "dpmpp_sde" | "dpmpp_sde_gpu":
-                return sampler_with_karras("DPM++ SDE", scheduler)
+                return sampler_with_karras("DPM++ SDE", scheduler_l)
             case "dpmpp_2m":
-                return sampler_with_karras("DPM++ 2M", scheduler)
+                return sampler_with_karras("DPM++ 2M", scheduler_l)
             case "dpmpp_2m_sde" | "dpmpp_2m_sde_gpu":
-                return sampler_with_karras("DPM++ 2M SDE", scheduler)
+                return sampler_with_karras("DPM++ 2M SDE", scheduler_l)
             case "dpmpp_3m_sde" | "dpmpp_3m_sde_gpu":
-                return sampler_with_karras_exponential("DPM++ 3M SDE", scheduler)
+                return sampler_with_karras_exponential("DPM++ 3M SDE", scheduler_l)
             case "lcm":
                 return "LCM"
             case "ddim":
@@ -1874,6 +1895,6 @@ class Capture:
             case "uni_pc" | "uni_pc_bh2":
                 return "UniPC"
 
-        if not scheduler or scheduler == "normal":
-            return sampler
-        return sampler + "_" + scheduler
+        if not scheduler_l or scheduler_l == "normal":
+            return sampler or ""
+        return f"{sampler}_{scheduler_l}"

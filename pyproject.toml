@@ -1,6 +1,10 @@
 [project]
-name = "ComfyUI_SaveImageWithMetaDataUniversal"
-description = "Add a node to save images with metadata (PNGInfo) extracted from the input values of each node.\nSince the values are extracted dynamically, values output by various extension nodes can be added to metadata.\nCompared with the original SaveImageWithMetaData, explicit support for various nodes has been added, as well as an attempt to add Universal support for all nodes by scanning all installed nodes and creating new rules."
+name = "SaveImageWithMetaDataUniversal"
+description = """
+Node for saving PNGs, WEBPs, and JPEGs with rich automatically captured metadata: prompts, model/VAE/LoRA names & hashes,
+sampler & scheduler (Civitai-compatible), workflow embedding, dynamic rule scanning + forced include system, deterministic ordering,
+filename tokens, and staged JPEG fallback (full → reduced-exif → minimal → com-marker) to preserve as much data as possible.
+"""
 version = "1.0.0"
 license = { file = "LICENSE" }
 
@@ -9,8 +13,8 @@ Repository = "https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal
 #  Used by Comfy Registry https://comfyregistry.org
 
 [tool.comfy]
-PublisherId = "xxmjskxx"
-DisplayName = "ComfyUI_SaveImageWithMetaDataUniversal"
+PublisherId = "mjsk"
+DisplayName = "Save Image w/ Metadata Universal"
 Icon = ""
 
 
