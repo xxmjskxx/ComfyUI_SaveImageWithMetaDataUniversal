@@ -4,6 +4,18 @@ import os
 from collections.abc import Iterable, Iterator
 from typing import Any
 
+from .defs.captures import CAPTURE_FIELD_LIST
+from .defs.formatters import (
+    calc_lora_hash,
+    calc_model_hash,
+    calc_unet_hash,
+    calc_vae_hash,
+    display_model_name,
+    display_vae_name,
+)
+from .defs.meta import MetaField
+from .utils.color import cstr
+
 from nodes import NODE_CLASS_MAPPINGS
 
 # In unit tests we set METADATA_TEST_MODE to avoid importing the real hook module,
@@ -25,20 +37,10 @@ else:  # Lightweight stub sufficient for get_inputs traversal
         prompt_executer = _PromptExecuterStub()
 
     hook = _HookStub()
-from .defs.captures import CAPTURE_FIELD_LIST
-from .defs.formatters import (
-    calc_lora_hash,
-    calc_model_hash,
-    calc_unet_hash,
-    calc_vae_hash,
-    display_model_name,
-    display_vae_name,
-)
-from .defs.meta import MetaField
 
 try:  # Runtime environment (ComfyUI) provides these; guard for static analysis / tests.
-    from comfy_execution.graph import DynamicPrompt
-    from execution import get_input_data
+    from comfy_execution.graph import DynamicPrompt  # type: ignore
+    from execution import get_input_data  # type: ignore
 except ImportError:  # Fallback stubs allow linting/tests outside ComfyUI runtime.
 
     def get_input_data(*args, **kwargs):
@@ -72,7 +74,30 @@ def _include_lora_summary() -> bool:  # noqa: D401
 
 
 logger = logging.getLogger(__name__)
-_DEBUG_PROMPTS = os.environ.get("METADATA_DEBUG_PROMPTS", "").strip() != ""
+
+def _debug_prompts_enabled() -> bool:
+    """Return True if verbose prompt/sampler debug logging is enabled (runtime evaluated)."""
+    return os.environ.get("METADATA_DEBUG_PROMPTS", "").strip() != ""
+
+# If user toggled debug flag, ensure logger emits DEBUG regardless of inherited root level.
+if _debug_prompts_enabled():
+    try:
+        logger.setLevel(logging.DEBUG)
+    except Exception:
+        pass
+    try:
+        # Ensure at least one handler is attached so debug lines are visible
+        added_handler = False
+        if not logger.handlers:
+            handler = logging.StreamHandler()
+            handler.setLevel(logging.DEBUG)
+            handler.setFormatter(logging.Formatter("[%(levelname)s] %(message)s"))
+            logger.addHandler(handler)
+            added_handler = True
+        # Avoid duplicate logs when root also has handlers by not propagating
+        logger.propagate = False
+    except Exception:
+        pass
 
 
 class Capture:
@@ -241,7 +266,12 @@ class Capture:
                 if "prefix" in field_data:
                     prefix = field_data["prefix"]
                     values = [
-                        v[0] for k, v in input_data[0].items() if k.startswith(prefix) and isinstance(v, list) and v and v[0] != "None"
+                        v[0]
+                        for k, v in input_data[0].items()
+                        if k.startswith(prefix)
+                        and isinstance(v, list)
+                        and v
+                        and v[0] != "None"
                     ]
                     for val in values:
                         inputs[meta].append((node_id, val))
@@ -458,7 +488,7 @@ class Capture:
             need_t5 = MetaField.T5_PROMPT not in inputs
             need_clip = MetaField.CLIP_PROMPT not in inputs
             if need_t5 or need_clip:
-                DEBUG_PROMPTS = _DEBUG_PROMPTS  # noqa: N806
+                DEBUG_PROMPTS = _debug_prompts_enabled()  # noqa: N806
                 for node_id, obj in prompt.items():
                     if obj.get("class_type") != "CLIPTextEncodeFlux":
                         continue
@@ -573,7 +603,7 @@ class Capture:
         # Insert version stamp early so downstream additions (e.g., Hash detail) can reference it.
         if "Metadata generator version" not in pnginfo_dict:
             pnginfo_dict["Metadata generator version"] = CAPTURE_VERSION
-        DEBUG_PROMPTS = _DEBUG_PROMPTS  # noqa: N806
+        DEBUG_PROMPTS = _debug_prompts_enabled()  # noqa: N806
 
         def update_pnginfo_dict(inputs, metafield, key):
             x = inputs.get(metafield, [])
@@ -729,7 +759,8 @@ class Capture:
         _merge_prompt_variants(MetaField.POSITIVE_PROMPT, positive=True)
         _merge_prompt_variants(MetaField.NEGATIVE_PROMPT, positive=False)
 
-        # Post-pass: If Negative prompt was never truly provided (empty, 'none', or identical to positive with no variant merge), blank it.
+    # Post-pass: If Negative prompt was never truly provided (empty, 'none',
+    # or identical to positive with no variant merge), blank it.
         neg_raw = pnginfo_dict.get("Negative prompt")
         pos_raw = pnginfo_dict.get("Positive prompt")
 
@@ -752,11 +783,15 @@ class Capture:
         if DEBUG_PROMPTS:
             try:
                 logger.debug(
-                    "[Metadata Debug] Post-normalization prompt keys: %s",
+                    cstr("[Metadata Debug] Post-normalization prompt keys: %s").msg
+                    if _debug_prompts_enabled()
+                    else "[Metadata Debug] Post-normalization prompt keys: %s",
                     [k for k in pnginfo_dict.keys() if "prompt" in k.lower()],
                 )
                 logger.debug(
-                    "[Metadata Debug] Values => Positive=%r T5=%r CLIP=%r Negative=%r",
+                    cstr("[Metadata Debug] Values => Positive=%r T5=%r CLIP=%r Negative=%r").msg
+                    if _debug_prompts_enabled()
+                    else "[Metadata Debug] Values => Positive=%r T5=%r CLIP=%r Negative=%r",
                     pnginfo_dict.get("Positive prompt"),
                     (pnginfo_dict.get("T5 Prompt") or pnginfo_dict.get("T5 prompt")),
                     (pnginfo_dict.get("CLIP Prompt") or pnginfo_dict.get("CLIP prompt")),
@@ -810,12 +845,16 @@ class Capture:
                         pnginfo_dict["CLIP Prompt"] = pos_prompt_val
                         if DEBUG_PROMPTS:
                             logger.debug(
-                                "[Metadata Debug] Dual prompt aliasing applied with clip_names=%s",
+                                cstr(
+                                    "[Metadata Debug] Dual prompt aliasing applied with clip_names=%s"
+                                ).msg,
                                 clip_names,
                             )
                     elif DEBUG_PROMPTS:
                         logger.debug(
-                            "[Metadata Debug] Dual prompt aliasing conditions not met clip_names=%s",
+                            cstr(
+                                "[Metadata Debug] Dual prompt aliasing conditions not met clip_names=%s"
+                            ).msg,
                             clip_names,
                         )
         except Exception:
@@ -834,21 +873,261 @@ class Capture:
 
         sampler_names = inputs_before_sampler_node.get(MetaField.SAMPLER_NAME, [])
         schedulers = inputs_before_sampler_node.get(MetaField.SCHEDULER, [])
+        if _debug_prompts_enabled():
+            try:
+                logger.debug(
+                    cstr("[Metadata Debug] Raw sampler_names=%r schedulers=%r (pre-fallback)").msg
+                    if _debug_prompts_enabled()
+                    else "[Metadata Debug] Raw sampler_names=%r schedulers=%r (pre-fallback)",
+                    sampler_names,
+                    schedulers,
+                )
+            except Exception:
+                pass
+
+        # Fallback: some sampler nodes may have their own inputs excluded by the "before sampler" boundary.
+        # If we missed SAMPLER_NAME upstream, attempt to recover it from the full pre-this-node capture set.
+        if not sampler_names:
+            fallback_sampler_names = inputs_before_this_node.get(
+                MetaField.SAMPLER_NAME, []
+            )
+            if fallback_sampler_names:
+                sampler_names = fallback_sampler_names
+                if _debug_prompts_enabled():
+                    try:
+                        logger.debug(
+                            cstr(
+                                "[Metadata Debug] Recovered sampler_names from inputs_before_this_node: %r"
+                            ).msg,
+                            sampler_names,
+                        )
+                    except Exception:
+                        pass
+            elif _debug_prompts_enabled():
+                try:
+                    logger.debug(
+                        cstr(
+                            "[Metadata Debug] sampler_names empty in both pre-sampler and pre-this-node "
+                            "captures; will fall back to scheduler if needed."
+                        ).msg,
+                    )
+                except Exception:
+                    pass
+
+        # Direct graph introspection fallback: look into hook.current_prompt for KSamplerSelect / SamplerCustomAdvanced
+        # nodes that expose a textual 'sampler_name' input but were not captured by rule scanning.
+        if not sampler_names:
+            try:
+                prompt_graph = getattr(hook, "current_prompt", {})
+                for nid, node_data in prompt_graph.items():
+                    if not isinstance(node_data, dict):
+                        continue
+                    ctype = str(node_data.get("class_type", ""))
+                    if "KSamplerSelect" not in ctype and "SamplerCustomAdvanced" not in ctype:
+                        continue
+                    inputs_map = node_data.get("inputs", {}) or {}
+                    raw_val = None
+                    for key in ("sampler_name", "base_sampler", "sampler"):
+                        if key in inputs_map:
+                            raw_val = inputs_map[key]
+                            break
+                    if isinstance(raw_val, list | tuple):  # noqa: UP038
+                        raw_val = raw_val[0] if raw_val else None
+                    if isinstance(raw_val, str) and raw_val.strip():
+                        sampler_names = [(nid, raw_val, "sampler_name")]  # reshape to captured tuple form
+                        if _debug_prompts_enabled():
+                            logger.debug(
+                                cstr(
+                                    "[Metadata Debug] Sampler name recovered via graph introspection from %s: %r"
+                                ).msg,
+                                ctype,
+                                sampler_names,
+                            )
+                        break
+            except Exception as e:  # pragma: no cover
+                if _debug_prompts_enabled():
+                    logger.debug(
+                        cstr("[Metadata Debug] Graph introspection for sampler_name failed: %r").msg,
+                        e,
+                    )
+
+        # Broad heuristic: if still no sampler names, scan every captured value for a known sampler token.
+        if not sampler_names:
+            KNOWN_SAMPLER_TOKENS = {
+                "euler",
+                "euler_ancestral",
+                "heun",
+                "dpm_2",
+                "dpm_2_ancestral",
+                "lms",
+                "dpm_fast",
+                "dpm_adaptive",
+                "dpmpp_2s_ancestral",
+                "dpmpp_sde",
+                "dpmpp_sde_gpu",
+                "dpmpp_2m",
+                "dpmpp_2m_sde",
+                "dpmpp_2m_sde_gpu",
+                "dpmpp_3m_sde",
+                "dpmpp_3m_sde_gpu",
+                "lcm",
+                "ddim",
+                "plms",
+                "uni_pc",
+                "uni_pc_bh2",
+            }
+            def _scan_for_token(src_dict):
+                for vals in src_dict.values():
+                    for v in Capture._iter_values(vals):
+                        try:
+                            s = str(v).strip().lower()
+                        except Exception:
+                            continue
+                        if s in KNOWN_SAMPLER_TOKENS:
+                            return [("heuristic_sampler", v)]
+                return []
+            sampler_names = _scan_for_token(inputs_before_sampler_node)
+            if not sampler_names:
+                sampler_names = _scan_for_token(inputs_before_this_node)
+            if sampler_names and _debug_prompts_enabled():
+                logger.debug(
+                    "[Metadata Debug] Heuristic sampler token recovered: %r", sampler_names
+                )
+
+        # Re-prioritize sampler_names: prefer entries whose field tag (3rd tuple element) is 'sampler_name'
+        # and whose value is a clean string, ahead of generic 'sampler' object references that stringify to
+        # '<comfy.samplers.KSAMPLER object ...>' (which we later discard), fixing cases where only scheduler survived.
+        if sampler_names:
+            preferred: list[tuple] = []
+            others: list[tuple] = []
+            for ent in sampler_names:
+                try:
+                    node_id, val, field_name = ent  # expected tuple shape
+                except Exception:
+                    others.append(ent)
+                    continue
+                # Coerce to string for inspection but do not mutate original tuple
+                sval = None
+                if isinstance(val, str):
+                    sval = val
+                else:
+                    try:
+                        sval = str(val)
+                    except Exception:
+                        sval = ""
+                if (
+                    field_name == "sampler_name"
+                    and sval
+                    and not sval.strip().startswith("<")  # skip raw object reprs
+                ):
+                    preferred.append(ent)
+                else:
+                    others.append(ent)
+            if preferred:
+                sampler_names = preferred + others
+                if _debug_prompts_enabled():
+                    logger.debug(
+                        "[Metadata Debug] Reordered sampler_names preferring textual sampler_name field: %r",
+                        sampler_names,
+                    )
+
+        # If after reordering we still don't have a clean textual sampler token (e.g., only object-like values),
+        # try to recover one and inject it at the front so both civitai/non-civitai branches use it.
+        def _first_clean_sampler_string(entries):
+            for ent in entries or []:
+                try:
+                    val = ent[1] if isinstance(ent, list | tuple) and len(ent) > 1 else ent
+                except Exception:
+                    val = ent
+                if isinstance(val, str):
+                    sv = val.strip()
+                    if not (sv.startswith("<") and ">" in sv):
+                        return val
+            return None
+
+        clean_sampler_text = _first_clean_sampler_string(sampler_names)
+        if not clean_sampler_text:
+            # Attempt graph introspection specifically for nodes that expose a textual sampler name.
+            try:
+                prompt_graph = getattr(hook, "current_prompt", {})
+                recovered = None
+                recovered_nid = None
+                recovered_field = None
+                for nid, node_data in prompt_graph.items():
+                    if not isinstance(node_data, dict):
+                        continue
+                    ctype = str(node_data.get("class_type", ""))
+                    if (
+                        "KSamplerSelect" not in ctype
+                        and "SamplerCustomAdvanced" not in ctype
+                        and "KSamplerAdvanced" not in ctype
+                        and "KSampler" not in ctype
+                    ):
+                        continue
+                    inputs_map = node_data.get("inputs", {}) or {}
+                    raw_val = None
+                    for key in ("sampler_name", "base_sampler", "sampler"):
+                        if key in inputs_map:
+                            raw_val = inputs_map[key]
+                            recovered_field = key
+                            break
+                    if isinstance(raw_val, list | tuple):
+                        raw_val = raw_val[0] if raw_val else None
+                    if isinstance(raw_val, str) and raw_val.strip():
+                        recovered = raw_val
+                        recovered_nid = nid
+                        break
+                if recovered:
+                    sampler_names = [
+                        (recovered_nid, recovered, recovered_field or "sampler_name")
+                    ] + (sampler_names or [])
+                    clean_sampler_text = recovered
+                    if _debug_prompts_enabled():
+                        logger.debug(
+                            "[Metadata Debug] Injected recovered textual sampler_name via introspection: %r",
+                            sampler_names,
+                        )
+            except Exception:
+                pass
+        # If we have a clean sampler text and it's not the leading entry, prepend it
+        try:
+            if clean_sampler_text:
+                first_val = None
+                if sampler_names:
+                    try:
+                        first_val = sampler_names[0][1]
+                    except Exception:
+                        first_val = sampler_names[0]
+                if str(first_val) != str(clean_sampler_text):
+                    sampler_names = [("derived", clean_sampler_text, "sampler_name")] + (sampler_names or [])
+                    if _debug_prompts_enabled():
+                        logger.debug(
+                            "[Metadata Debug] Prepending clean textual sampler to sampler_names: %r",
+                            sampler_names,
+                        )
+        except Exception:
+            pass
 
         if save_civitai_sampler:
             pnginfo_dict["Sampler"] = cls.get_sampler_for_civitai(sampler_names, schedulers)
         else:
             if len(sampler_names) > 0:
-                sampler_val = sampler_names[0][1]
-                if not isinstance(sampler_val, str):
+                # Prefer the clean textual sampler recovered above; otherwise fall back to first entry sanitized.
+                sampler_val = clean_sampler_text
+                if not sampler_val:
                     try:
-                        sampler_val = str(sampler_val)
+                        sampler_val = sampler_names[0][1]
                     except Exception:
+                        sampler_val = sampler_names[0]
+                    if not isinstance(sampler_val, str):
+                        try:
+                            sampler_val = str(sampler_val)
+                        except Exception:
+                            sampler_val = ""
+                    # Sanitize object-like reprs such as '<comfy.samplers.KSAMPLER object ...>'
+                    if isinstance(sampler_val, str) and sampler_val.strip().startswith("<") and ">" in sampler_val:
                         sampler_val = ""
-                # Sanitize object-like reprs such as '<comfy.samplers.KSAMPLER object ...>'
-                if sampler_val.strip().startswith("<") and ">" in sampler_val:
-                    sampler_val = ""
-                pnginfo_dict["Sampler"] = sampler_val
+                pnginfo_dict["Sampler"] = sampler_val or ""
 
                 if len(schedulers) > 0:
                     scheduler = schedulers[0][1]
@@ -858,11 +1137,23 @@ class Capture:
                         except Exception:
                             scheduler = ""
                     if scheduler:
+                        try:
+                            scheduler = scheduler.lower()
+                        except Exception:
+                            pass
                         if pnginfo_dict["Sampler"]:
                             pnginfo_dict["Sampler"] = f"{pnginfo_dict['Sampler']}_{scheduler}"
                         else:
                             # If sampler name is unusable, fall back to just scheduler (e.g., 'normal')
                             pnginfo_dict["Sampler"] = scheduler
+                if _debug_prompts_enabled():
+                    try:
+                        logger.debug(
+                            cstr("[Metadata Debug] Final non-Civitai Sampler value: %r").msg,
+                            pnginfo_dict.get("Sampler"),
+                        )
+                    except Exception:
+                        pass
 
         update_pnginfo_dict(inputs_before_sampler_node, MetaField.CFG, "CFG scale")
 
@@ -888,7 +1179,8 @@ class Capture:
 
         update_pnginfo_dict(inputs_before_sampler_node, MetaField.CLIP_SKIP, "Clip skip")
 
-        # Size handling: support discrete width/height, a single dimensions tuple, or strings like "832 x 1216  (portrait)"
+    # Size handling: support discrete width/height, a single dimensions tuple,
+    # or strings like "832 x 1216  (portrait)"
         image_widths = inputs_before_sampler_node.get(MetaField.IMAGE_WIDTH, [])
         image_heights = inputs_before_sampler_node.get(MetaField.IMAGE_HEIGHT, [])
         size_set = False
@@ -1004,7 +1296,12 @@ class Capture:
                 mdisp = pnginfo_dict["Model"]
                 mdisp_l = mdisp.lower() if isinstance(mdisp, str) else ""
                 looks_like_file = isinstance(mdisp, str) and (
-                    "\\" in mdisp or "/" in mdisp or any(mdisp_l.endswith(ext) for ext in (".safetensors", ".st", ".ckpt", ".pt", ".bin"))
+                    "\\" in mdisp
+                    or "/" in mdisp
+                    or any(
+                        mdisp_l.endswith(ext)
+                        for ext in (".safetensors", ".st", ".ckpt", ".pt", ".bin")
+                    )
                 )
                 if looks_like_file:
                     # Try UNet first (Flux et al.), then checkpoint
@@ -1118,7 +1415,9 @@ class Capture:
         pnginfo_dict.update(cls.gen_loras(inputs_before_sampler_node))
         pnginfo_dict.update(cls.gen_embeddings(inputs_before_sampler_node))
 
-        hashes_for_civitai = cls.get_hashes_for_civitai(inputs_before_sampler_node, inputs_before_this_node, pnginfo_dict)
+        hashes_for_civitai = cls.get_hashes_for_civitai(
+            inputs_before_sampler_node, inputs_before_this_node, pnginfo_dict
+        )
         if len(hashes_for_civitai) > 0:
             pnginfo_dict["Hashes"] = json.dumps(hashes_for_civitai)
 
@@ -1327,7 +1626,8 @@ class Capture:
         for k in sorted(remaining):
             ordered_items.append((k, data[k]))
 
-        # Safety pass: ensure critical legacy fields captured if they existed in original pnginfo but were somehow missed.
+    # Safety pass: ensure critical legacy fields captured if they existed in
+    # original pnginfo but were somehow missed.
         critical_fields = [
             "Steps",
             "Sampler",
@@ -1389,7 +1689,9 @@ class Capture:
             Rules:
               * Preserve original raw token casing for most samplers (keeps e.g. 'linear/euler_simple').
               * Map exactly 'euler_karras' (case-insensitive) to 'Euler Karras' for readability & test expectation.
-              * If raw contains a trailing '_karras' but not exactly euler_karras, replace only the underscore before 'karras' with a space and capitalize 'Karras'.
+              * If raw contains a trailing '_karras' but not exactly euler_karras,
+              * replace only the underscore before 'karras' with a space and
+              * capitalize 'Karras'.
             """
             rlow = raw.lower()
             if rlow == "euler_karras":
@@ -1589,7 +1891,7 @@ class Capture:
                 len(strength_models),
                 len(strength_clips),
             )
-            if len({ln, lh, lsm, lsc}) > 1 and _DEBUG_PROMPTS:
+            if len({ln, lh, lsm, lsc}) > 1 and _debug_prompts_enabled():
                 logger.debug(
                     "[Metadata Lib] LoRA list length mismatch names=%s hashes=%s smodel=%s sclip=%s",
                     ln,
@@ -1631,7 +1933,9 @@ class Capture:
 
         # Collect cleaned entries first, then deduplicate and emit
         cleaned = []
-        for model_name, model_hashe, strength_model, strength_clip in zip(model_names, model_hashes, strength_models, strength_clips):
+        for model_name, model_hashe, strength_model, strength_clip in zip(
+            model_names, model_hashes, strength_models, strength_clips
+        ):
             try:
                 mn = Capture._extract_value(model_name)
                 mh = Capture._extract_value(model_hashe)
@@ -1701,7 +2005,8 @@ class Capture:
         # Attempt to parse aggregated lora_syntax / loaded_loras text if present and add missing entries
         try:
             aggregated_text_candidates = []
-            # Inputs may have captured raw text fields under the same metafield names but we filtered earlier; search generic prompt fields
+            # Inputs may have captured raw text fields under the same metafield names
+            # but we filtered earlier; search generic prompt fields
             possible_meta_text_fields = [
                 MetaField.POSITIVE_PROMPT,
                 MetaField.NEGATIVE_PROMPT,
@@ -1828,11 +2133,48 @@ class Capture:
                 return sampler + " Karras"
             return sampler
 
+        # Choose sampler and scheduler from provided candidates
         sampler = None
         scheduler = None
+        # Try to pick the first clean textual sampler across all entries, not just the first tuple.
         if sampler_names:
+            # First, prefer any entry with field tag 'sampler_name' and a string value
+            chosen = None
+            for ent in sampler_names:
+                try:
+                    nid, val, tag = ent[:3]
+                except Exception:
+                    val = ent[1] if isinstance(ent, list | tuple) and len(ent) > 1 else ent
+                    tag = None
+                sval = None
+                if isinstance(val, str):
+                    sval = val
+                else:
+                    try:
+                        sval = str(val)
+                    except Exception:
+                        sval = None
+                if sval and not (sval.strip().startswith("<") and ">" in sval) and (tag == "sampler_name"):
+                    chosen = sval
+                    break
+            # Next, any clean string in order
+            if not chosen:
+                for ent in sampler_names:
+                    val = ent[1] if isinstance(ent, list | tuple) and len(ent) > 1 else ent
+                    if isinstance(val, str):
+                        sval = val.strip()
+                        if sval and not (sval.startswith("<") and ">" in sval):
+                            chosen = val
+                            break
             try:
-                sampler = sampler_names[0][1]
+                if chosen is not None:
+                    sampler = chosen
+                else:
+                    first = sampler_names[0]
+                    if isinstance(first, list | tuple) and len(first) > 1:
+                        sampler = first[1]
+                    else:
+                        sampler = first
             except Exception:
                 sampler = sampler_names[0]  # best-effort fallback
         if schedulers:
@@ -1841,26 +2183,132 @@ class Capture:
             except Exception:
                 scheduler = schedulers[0]
 
-        # Extract underlying primitive values if wrapped
-        try:
-            if sampler is not None and not isinstance(sampler, str):
-                sampler = getattr(sampler, "name", sampler)
-            if scheduler is not None and not isinstance(scheduler, str):
-                scheduler = getattr(scheduler, "name", scheduler)
-        except Exception:
-            pass
+        # Extract underlying primitive values if wrapped; probe several common attribute names.
+        def _unwrap(obj):
+            if obj is None:
+                return None
+            if isinstance(obj, str):
+                return obj
+            for attr in ("sampler_name", "name", "sampler", "sampler_type"):
+                try:
+                    val = getattr(obj, attr)
+                    if isinstance(val, str) and val:
+                        return val
+                except Exception:
+                    continue
+            # Last resort: repr, but we will later discard if it looks like a bare object repr
+            try:
+                return str(obj)
+            except Exception:
+                return None
 
-        # Coerce to str (avoids TypeError on concatenation when objects like KSAMPLER instances leak through)
-        sampler = str(sampler).strip() if sampler is not None else None
-        scheduler = str(scheduler).strip() if scheduler is not None else None
+        sampler = _unwrap(sampler)
+        scheduler = _unwrap(scheduler)
+        if _debug_prompts_enabled():
+            try:
+                logger.debug(
+                    cstr(
+                        "[Metadata Debug] Civitai mapper unwrapped sampler=%r scheduler=%r (pre-scan)"
+                    ).msg,
+                    sampler,
+                    scheduler,
+                )
+            except Exception:
+                pass
+
+        # Normalize & drop obvious object reprs (e.g. "<comfy.samplers.KSAMPLER object at 0x....>")
+        def _clean(s):
+            if not s:
+                return None
+            s = s.strip()
+            if s.startswith("<") and " object at 0x" in s:
+                return None
+            return s
+
+        sampler = _clean(sampler)
+        scheduler = _clean(scheduler)
+
+        # If sampler vanished (object repr discarded) try a deeper salvage pass
+        if not sampler and sampler_names:
+            raw_entry = sampler_names[0]
+            try:
+                raw_value = (
+                    raw_entry[1]
+                    if isinstance(raw_entry, list | tuple) and len(raw_entry) > 1
+                    else raw_entry
+                )
+            except Exception:
+                raw_value = raw_entry
+            # Attempt to mine known sampler tokens from attributes / __dict__
+            KNOWN_TOKENS = {
+                "euler",
+                "euler_ancestral",
+                "heun",
+                "dpm_2",
+                "dpm_2_ancestral",
+                "lms",
+                "dpm_fast",
+                "dpm_adaptive",
+                "dpmpp_2s_ancestral",
+                "dpmpp_sde",
+                "dpmpp_sde_gpu",
+                "dpmpp_2m",
+                "dpmpp_2m_sde",
+                "dpmpp_2m_sde_gpu",
+                "dpmpp_3m_sde",
+                "dpmpp_3m_sde_gpu",
+                "lcm",
+                "ddim",
+                "uni_pc",
+                "uni_pc_bh2",
+            }
+            candidate = None
+            try:
+                # Probe common attribute names first (some custom sampler wrappers expose these).
+                for attr in ("sampler_name", "name", "base_sampler", "sampler", "sampler_type"):
+                    if not candidate and hasattr(raw_value, attr):
+                        v = getattr(raw_value, attr)
+                        if isinstance(v, str) and v.lower() in KNOWN_TOKENS:
+                            candidate = v
+                # Fallback: scan __dict__ values for any known token.
+                if not candidate and hasattr(raw_value, "__dict__"):
+                    for v in raw_value.__dict__.values():
+                        if isinstance(v, str) and v.lower() in KNOWN_TOKENS:
+                            candidate = v
+                            break
+                # Last resort: parse class name from repr (e.g. '<module.KSAMPLER object ...>') – generic, so ignored.
+            except Exception:
+                candidate = None
+            if candidate:
+                sampler = candidate.strip()
+
         sampler_l = sampler.lower() if sampler else None
         scheduler_l = scheduler.lower() if scheduler else None
+        if _debug_prompts_enabled():
+            try:
+                logger.debug(
+                    cstr(
+                        "[Metadata Debug] Civitai mapper tokens sampler_l=%r scheduler_l=%r"
+                    ).msg,
+                    sampler_l,
+                    scheduler_l,
+                )
+            except Exception:
+                pass
 
-        # If we don't have a sampler at all, return an empty string
-        # so the caller can omit it gracefully.
+        # Do not fabricate a placeholder sampler when none can be determined; prefer scheduler-only fallback.
         if not sampler:
-            return ""
+            if _debug_prompts_enabled():
+                logger.debug(
+                    cstr(
+                        "[Metadata Debug] Civitai mapper: missing sampler; returning scheduler=%r"
+                    ).msg,
+                    scheduler,
+                )
+            return scheduler or ""
 
+        if _debug_prompts_enabled():
+            logger.debug(cstr("[Metadata Debug] Civitai mapper: matching sampler '%s'").msg, sampler_l)
         match sampler_l:
             case "euler" | "euler_cfg_pp":
                 return "Euler"
@@ -1892,9 +2340,21 @@ class Capture:
                 return "LCM"
             case "ddim":
                 return "DDIM"
+            case "plms":
+                return "PLMS"
             case "uni_pc" | "uni_pc_bh2":
                 return "UniPC"
 
+        # Fallback: include scheduler suffix when present and not 'normal'
         if not scheduler_l or scheduler_l == "normal":
+            if _debug_prompts_enabled():
+                logger.debug(
+                    cstr("[Metadata Debug] Civitai mapper: final result '%s'").msg,
+                    sampler or "",
+                )
             return sampler or ""
-        return f"{sampler}_{scheduler_l}"
+        # Only append scheduler if we have a real sampler string (avoid leading underscore)
+        res = f"{sampler}_{scheduler_l}" if sampler else (scheduler or "")
+        if _debug_prompts_enabled():
+            logger.debug(cstr("[Metadata Debug] Civitai mapper: final result '%s'").msg, res)
+        return res

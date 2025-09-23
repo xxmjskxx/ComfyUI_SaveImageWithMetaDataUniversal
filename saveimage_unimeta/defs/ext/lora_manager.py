@@ -12,7 +12,8 @@ logger.debug("[Meta DBG] Lora Loader (LoraManager) metadata definition file load
 # Strict pattern capturing optional separate clip strength:
 # <lora:name:model_strength> OR <lora:name:model_strength:clip_strength>
 LORA_REGEX_V2 = re.compile(r"<lora:([^:>]+):([0-9]*\.?[0-9]+)(?::([0-9]*\.?[0-9]+))?>")
-# Fallback (legacy) pattern capturing anything after the second colon (may include :clip) – used only if strict finds nothing
+# Fallback (legacy) pattern capturing anything after the second colon
+# (may include :clip) – used only if strict finds nothing
 LORA_REGEX_LEGACY = re.compile(r"<lora:([^:>]+):([^>]+)>")
 
 # Cache LoRA parse results per node_id AND text snapshot to avoid stale data.

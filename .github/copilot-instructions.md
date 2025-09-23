@@ -57,6 +57,12 @@ Document new env flags immediately (README Environment Flags + this file). Keep 
 ## Adding Metadata Fields
 Add rule in `captures.py` (or extension file). If it should survive minimal trimming, add its key to `_build_minimal_parameters` allowlist. Regenerate parameters; test with low `max_jpeg_exif_kb`.
 
+## Error Handling & Resilience
+- Metadata failures must not abort image saving: wrap risky sections in `try/except` with guarded fallback.
+- Use logging rather than silent failure; include context (node id, field name).
+- Use colored logging for visibility during debug runs (use `cstr` and message templates from `saveimage_unimeta/utils/color.py`).
+- Fallback strategy: skip field (omit) rather than emit malformed placeholder—except where placeholders signal recoverable parsing issues (`error: see log`).
+
 ## Workflow Compression (Future)
 Planned: gzip+base64 workflow JSON pre-EXIF; fallback logic unchanged; add detection marker. Leave placeholder only—don’t implement silently.
 
