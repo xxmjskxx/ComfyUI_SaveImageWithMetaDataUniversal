@@ -7,6 +7,7 @@ from datetime import datetime
 import folder_paths
 import nodes
 import numpy as np
+from ..utils.color import cstr
 try:  # Pillow EXIF helper (optional in test env)
     import piexif  # type: ignore
     import piexif.helper  # type: ignore
@@ -322,10 +323,13 @@ class SaveImageWithMetaDataUniversal:
     # print("[Metadata Loader] Using Samplers File with ...")
         if _DEBUG_VERBOSE:
             logger.info(
-                "[Metadata Loader] Using Captures File with %d entries",
+                cstr("[Metadata Loader] Using Captures File with %d entries").msg,
                 len(CAPTURE_FIELD_LIST),
             )
-            logger.info("[Metadata Loader] Using Samplers File with %d entries", len(SAMPLERS))
+            logger.info(
+                cstr("[Metadata Loader] Using Samplers File with %d entries").msg,
+                len(SAMPLERS),
+            )
         pnginfo_dict_src = self.gen_pnginfo(sampler_selection_method, sampler_selection_node_id, civitai_sampler)
         for k, v in extra_metadata.items():
             if k and v:
@@ -540,9 +544,9 @@ class SaveImageWithMetaDataUniversal:
                 # Attempt initial save; catch Pillow EXIF size error and retry with fallback.
                 try:
                     img.save(file_path, **save_kwargs)
-                    if file_format in {"jpeg", "jpg"}:
+                    if file_format in {"jpeg", "jpg"} and _DEBUG_VERBOSE:
                         logger.debug(
-                            "[SaveImageWithMetaData] JPEG save EXIF=%s size=%s fallback=%s",  # noqa: G004
+                            cstr("[SaveImageWithMetaData] JPEG save EXIF=%s size=%s fallback=%s").msg,
                             "yes" if "exif" in save_kwargs else "no",
                             exif_size if 'exif_size' in locals() else 0,
                             fallback_stage,
@@ -1524,7 +1528,7 @@ class MetadataRuleScanner:
         force_include_node_class="",
     ):
         if _DEBUG_VERBOSE:
-            logger.info("[Metadata Scanner] Starting scan...")
+            logger.info(cstr("[Metadata Scanner] Starting scan...").msg)
         import re  # local to avoid global import cost when node unused
 
         suggested_nodes, suggested_samplers = {}, {}
@@ -1543,7 +1547,9 @@ class MetadataRuleScanner:
             effective_mode = "all"
             if _DEBUG_VERBOSE:
                 logger.info(
-                    "[Metadata Scanner] include_existing=True upgraded mode from 'new_only' to 'all' (compat mode)."
+                    cstr(
+                        "[Metadata Scanner] include_existing=True upgraded mode from 'new_only' to 'all' (compat mode)."
+                    ).msg
                 )
         else:
             effective_mode = initial_mode
@@ -1596,13 +1602,13 @@ class MetadataRuleScanner:
                         if class_name in suggested_samplers:
                             if _DEBUG_VERBOSE:
                                 logger.info(
-                                    "[Metadata Scanner] Found potential sampler: %s",
+                                    cstr("[Metadata Scanner] Found potential sampler: %s").msg,
                                     class_name,
                                 )
                 except Exception as e:
                     if _DEBUG_VERBOSE:
                         logger.debug(
-                            "[Metadata Scanner] Sampler detection error for %s: %s",
+                            cstr("[Metadata Scanner] Sampler detection error for %s: %s").msg,
                             class_name,
                             e,
                         )
