@@ -1,8 +1,18 @@
 import importlib
 import re
-from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.meta import MetaField
+from saveimage_unimeta.defs.meta import MetaField
 
-MODULE_PATH = "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.capture"
+MODULE_PATH = "saveimage_unimeta.capture"
+
+# NOTE (future improvements): This test intentionally verifies only a minimal,
+# stable subset of the parameter string contract to avoid brittle full snapshots.
+# Potential safe extensions if/when we want tighter regression detection:
+#   - Assert presence/format of width/height (e.g. combined size line or separate fields).
+#   - Enforce uniqueness of core keys (Steps, Sampler, Seed) explicitly.
+#   - Add ordering check for CFG scale relative to Steps and Sampler.
+#   - Parametrize with METADATA_TEST_MODE=1 to validate multiline rendering variant.
+#   - Introduce a partial snapshot (filtered allowlist) while still permitting additive fields.
+# Keep this list updated if formatting guarantees evolve.
 
 
 def test_parameter_string_core_lines(monkeypatch):

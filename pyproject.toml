@@ -25,6 +25,7 @@ dev = [
     "coverage",  # testing
     "pip-audit",
     "pre-commit",
+    "PyYAML",  # testing
 ]
 
 [tool.ruff]
