@@ -100,10 +100,20 @@ def _load_extensions() -> None:
             logger.warning("[Metadata Loader] Failed to import extension '%s': %s", module_name, e)
             continue
         # Merge captured dicts defensively
+        # Merge CAPTURE_FIELD_LIST: deep-merge per node to avoid clobbering earlier fields
         try:
             ext_captures = getattr(module, "CAPTURE_FIELD_LIST", {})
             if isinstance(ext_captures, Mapping):  # type: ignore[arg-type]
-                CAPTURE_FIELD_LIST.update(ext_captures)  # type: ignore[arg-type]
+                for node_name, rules in ext_captures.items():
+                    # If either side is not a mapping, assign directly; otherwise merge fields
+                    if (
+                        node_name not in CAPTURE_FIELD_LIST
+                        or not isinstance(CAPTURE_FIELD_LIST.get(node_name), Mapping)
+                        or not isinstance(rules, Mapping)
+                    ):  # type: ignore[arg-type]
+                        CAPTURE_FIELD_LIST[node_name] = rules  # type: ignore[index]
+                    else:
+                        CAPTURE_FIELD_LIST[node_name].update(rules)  # type: ignore[assignment]
             else:  # pragma: no cover - defensive
                 logger.warning(
                     "[Metadata Loader] Extension '%s' CAPTURE_FIELD_LIST not a mapping",
@@ -111,10 +121,20 @@ def _load_extensions() -> None:
                 )
         except AttributeError:
             pass
+
+        # Merge SAMPLERS: deep-merge per node key similar to captures
         try:
             ext_samplers = getattr(module, "SAMPLERS", {})
             if isinstance(ext_samplers, Mapping):  # type: ignore[arg-type]
-                SAMPLERS.update(ext_samplers)  # type: ignore[arg-type]
+                for key, val in ext_samplers.items():
+                    if (
+                        key not in SAMPLERS
+                        or not isinstance(SAMPLERS.get(key), Mapping)
+                        or not isinstance(val, Mapping)
+                    ):  # type: ignore[arg-type]
+                        SAMPLERS[key] = val  # type: ignore[index]
+                    else:
+                        SAMPLERS[key].update(val)  # type: ignore[assignment]
             else:  # pragma: no cover
                 logger.warning(
                     "[Metadata Loader] Extension '%s' SAMPLERS not a mapping",
