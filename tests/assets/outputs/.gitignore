@@ -1,0 +1,8 @@
+# Ignore generated test outputs
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.json
+*.txt
+!.gitignore

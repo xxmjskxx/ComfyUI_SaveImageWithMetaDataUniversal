@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Widget Test</title>
+</head>
+<body>
+    <h1>Widget Extension Test</h1>
+    <p>This is a simple test to verify the JavaScript file loads correctly.</p>
+
+    <script>
+        // Simple test to check if the file can be loaded
+        console.log("Test page loaded");
+
+        // Test the import path
+        const script = document.createElement('script');
+        script.type = 'module';
+        script.textContent = `
+            try {
+                import('../../../../web/metadata_rule_scanner.js').then((module) => {
+                    console.log('Extension module loaded successfully:', module);
+                }).catch((error) => {
+                    console.error('Failed to load extension module:', error);
+                });
+            } catch (error) {
+                console.error('Error importing module:', error);
+            }
+        `;
+        document.head.appendChild(script);
+    </script>
+</body>
+</html>
