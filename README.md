@@ -46,14 +46,8 @@ git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
 1. Use the `Metadata Rule Scanner` + `Save Custom Metadata Rules` to create and save capture rules (see `example_workflows/scan-and-save-custom-metadata-rules.json`).
 2. Add `Save Image w/ Metadata Universal` to your workflow and connect the image + (optional) `Create Extra MetaData` input nodes to save images using your custom capture ruleset.
 3. (Optional) For full Civitai style parity enable the `civitai_sampler` and `guidance_as_cfg` toggles in the save node.
-4. Prefer PNG (or lossless WebP) when you need guaranteed full workflow embedding (JPEG has strict size limits—see tips below).
+4. Prefer PNG (or lossless WebP) when you need guaranteed full workflow embedding (JPEG has strict size limits—[see tips below](#format-&-fallback-quick-tips)).
 5. Hover any parameters on the nodes in this pack for concise tooltips (fallback stages, `max_jpeg_exif_kb`, LoRA summary toggle, guidance→CFG mapping, sampler naming, filename tokens). For further detail see: [Node UI Parameters](#node-ui-parameters-key-additions), [JPEG Metadata Size & Fallback Behavior](#jpeg-metadata-size--fallback-behavior); advanced env tuning: [Environment Flags](#environment-flags).
-
-## Format & Fallback Quick Tips
-* JPEG vs PNG/WebP: JPEG has a hard ~64KB EXIF ceiling for text data; large workflows trigger staged fallback trimming (see [detailed fallback](#jpeg-metadata-size--fallback-behavior)). Use PNG / lossless WebP for archival.
-* Control JPEG attempt size: `max_jpeg_exif_kb` (default 60, max 64) caps EXIF payload before fallback (see [Node UI Parameters](#node-ui-parameters-key-additions)). (i.e. sets max text written to JPEG) before fallback stages engage.
-* Detect fallback: If the parameters string ends with `Metadata Fallback: <stage>`, this means trimming occurred (`reduced-exif`, `minimal`, or `com-marker`) — see [Fallback Stages](#fallback-stages--indicator).
-* LoRA summary line: Toggle with `include_lora_summary`. Adds an abbreviated summary of LoRAs used. If off, only individual `Lora_*` entries remain.
 
 ## Nodes
 | Node | Purpose |
@@ -84,6 +78,12 @@ git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
   * Environment flag reference: [Environment Flags](#environment-flags)
 * Clear fallback signaling via `Metadata Fallback: <stage>` token in parameter string when JPEG trimming occurs.
 * Plays nicely with most custom node packs out‑of‑the‑box (in my somewhat limited testing).
+
+## Format & Fallback Quick Tips
+* JPEG vs PNG/WebP: JPEG has a hard ~64KB EXIF ceiling for text data; large workflows trigger staged fallback trimming (see [detailed fallback](#jpeg-metadata-size--fallback-behavior)). Use PNG / lossless WebP for archival.
+* Control JPEG attempt size: `max_jpeg_exif_kb` (default 60, max 64) caps EXIF payload before fallback (see [Node UI Parameters](#node-ui-parameters-key-additions)). (i.e. sets max text written to JPEG) before fallback stages engage.
+* Detect fallback: If the parameters string ends with `Metadata Fallback: <stage>`, this means trimming occurred (`reduced-exif`, `minimal`, or `com-marker`) — see [Fallback Stages](#fallback-stages--indicator).
+* LoRA summary line: Toggle with `include_lora_summary`. Adds an abbreviated summary of LoRAs used. If off, only individual `Lora_*` entries remain.
 
 ## Node UI Parameters (Key Additions)
 Key quality‑of‑life and compatibility controls exposed by the primary save node:
