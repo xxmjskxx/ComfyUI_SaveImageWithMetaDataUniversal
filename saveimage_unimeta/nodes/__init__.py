@@ -7,6 +7,7 @@ from .node import (  # noqa: N999 - package path inherited from external naming 
     MetadataRuleScanner,
 )
 from .show_text import ShowText  # local unimeta variant (separate file for clarity)
+from .show_any import ShowAnyToString  # new any->string display node
 from ..defs import set_forced_include
 
 class MetadataForceInclude:
@@ -105,6 +106,7 @@ NODE_CLASS_MAPPINGS = {
     "ShowGeneratedUserRules": ShowGeneratedUserRules,
     "SaveGeneratedUserRules": SaveGeneratedUserRules,
     "ShowText|unimeta": ShowText,
+    "ShowAny|unimeta": ShowAnyToString,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "SaveImageWithMetaDataUniversal": "Save Image w/ Metadata Universal",
@@ -115,4 +117,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ShowGeneratedUserRules": "Show generated_user_rules.py",
     "SaveGeneratedUserRules": "Save generated_user_rules.py",
     "ShowText|unimeta": "Show Text (UniMeta)",
+    "ShowAny|unimeta": "Show Any (Any to String)",
 }

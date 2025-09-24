@@ -7,7 +7,7 @@
 - Provides full support for saving workflows and metadata to WEBP images.
 - Supports saving workflows and metadata to JPEGs (limited to 64KB—only smaller workflows can be saved to JPEGs).
 - Stores model hashes in `.sha256` files so you only ever have to hash models once, saving lots of time.
-- Includes the nodes `Metadata Rule Scanner` and `Save Custom Metadata Rules` which scan installed nodes and generate capture rules; designed to work with most custom packs and fall back gracefully when a node lacks heuristics (I can't test with every custom node pack, but it has been working well so far).
+- Includes the nodes `Metadata Rule Scanner` and `Save Custom Metadata Rules` which scan all installed nodes and generate metadata capture rules; designed to work with most custom packs and fall back gracefully when a node lacks heuristics (I can't test with every custom node pack, but it has been working well so far).
 - Since the value extraction rules are created dynamically, values output by most custom nodes can be added to metadata.
 
 ## Table of Contents
@@ -61,12 +61,13 @@ git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
 | `Save generated_user_rules.py` | Validate and write edited rules text back to the user rules file. |
 | `Metadata Force Include` | Configure global forced node class names for capture definition loading. |
 | `Show Text (UniMeta)` | Local variant for displaying connected text outputs; based on [pythongosssss](https://github.com/pythongosssss/ComfyUI-Custom-Scripts) `Show Text 🐍` (MIT). |
+| `Show Any (Any to String)` | Display any connected value by converting it to a string; useful to wire ints/floats/etc. into `Create Extra MetaData`. |
 
 ## Feature Overview
 * Automatic1111‑style, Civitai-compatible parameter string (single‑line) with optional multi‑line deterministic test mode (`METADATA_TEST_MODE=1`).
 * Full PNG + lossless WebP workflow + metadata embedding; JPEG with staged fallback under 64KB EXIF limit.
   * See detailed fallback staging: [docs/JPEG_METADATA_FALLBACK.md](docs/JPEG_METADATA_FALLBACK.md)
-* Dynamic rule generation: `Metadata Rule Scanner` + `Save Custom Metadata Rules` save user rules, allowing broad custom node coverage.
+* Dynamic rule generation: `Metadata Rule Scanner` + `Save Custom Metadata Rules` create and save user rules, allowing broad custom node coverage.
 * LoRA handling:
   * Detects single and stack loaders & inline `<lora:name:sm[:sc]>` tags such as [ComfyUI Prompt Control](https://github.com/asagi4/comfyui-prompt-control) and [ComfyUI LoRA Manager](https://github.com/willmiao/ComfyUI-Lora-Manager).
   * Aggregated optional condensed summary line `LoRAs: name(str_model/str_clip)` plus per‑LoRA detailed entries (hashes & strengths retained even if summary hidden).

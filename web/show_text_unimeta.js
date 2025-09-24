@@ -10,7 +10,7 @@ import { ComfyWidgets } from "/scripts/widgets.js";
 app.registerExtension({
     name: "SaveImageWithMetaDataUniversal.ShowTextUniMeta",
     async beforeRegisterNodeDef(nodeType, nodeData) {
-        if (nodeData.name !== "ShowText|unimeta") return;
+        if (nodeData.name !== "ShowText|unimeta" && nodeData.name !== "ShowAny|unimeta") return;
 
         function populate(text) {
             if (this.widgets) {
@@ -43,7 +43,9 @@ app.registerExtension({
         const origExec = nodeType.prototype.onExecuted;
         nodeType.prototype.onExecuted = function(message) {
             origExec?.apply(this, arguments);
-            populate.call(this, message.text);
+            let payload = message?.text;
+            if (!payload && message?.ui?.text) payload = message.ui.text;
+            populate.call(this, payload);
         };
 
         const VALUES = Symbol("values");
