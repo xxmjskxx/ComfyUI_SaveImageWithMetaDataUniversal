@@ -2,8 +2,8 @@
 name = "SaveImageWithMetaDataUniversal"
 description = """
 Node for saving PNGs, WEBPs, and JPEGs with rich automatically captured metadata: prompts, model/VAE/LoRA names & hashes,
-sampler & scheduler (Civitai-compatible), workflow embedding, dynamic rule scanning + forced include system, deterministic ordering,
-filename tokens, and staged JPEG fallback (full → reduced-exif → minimal → com-marker) to preserve as much data as possible.
+sampler & scheduler (Civitai-compatible), optional workflow embedding, dynamic rule scanning + forced include system, deterministic
+ordering, filename tokens, and staged JPEG fallback (full → reduced-exif → minimal → com-marker) to preserve as much data as possible.
 """
 version = "1.0.0"
 license = { file = "LICENSE" }
@@ -15,7 +15,7 @@ Repository = "https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal
 [tool.comfy]
 PublisherId = "mjsk"
 DisplayName = "Save Image w/ Metadata Universal"
-Icon = ""
+Icon = "img\logo.svg"
 
 
 [project.optional-dependencies]
