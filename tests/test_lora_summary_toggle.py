@@ -40,8 +40,11 @@ def test_include_lora_summary_toggle(monkeypatch, ui_flag, env_flag, expect_summ
     params = Capture.gen_parameters_str(pnginfo, **kwargs)
 
     has_summary = "LoRAs:" in params
-    assert has_summary == expect_summary, (
-        f"Mismatch: ui_flag={ui_flag} env_flag={env_flag} expected {expect_summary} got {has_summary}\nParameters:\n{params}"
+    mismatch_msg = (
+        "Mismatch: ui_flag="
+        f"{ui_flag} env_flag={env_flag} expected {expect_summary} got {has_summary}\n"
+        f"Parameters:\n{params}"
     )
+    assert has_summary == expect_summary, mismatch_msg
     # Individual entry should never disappear
     assert "Lora_1 Model name" in params or "myLora" in params  # basic safeguard

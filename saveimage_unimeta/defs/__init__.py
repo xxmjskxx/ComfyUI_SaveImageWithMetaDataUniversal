@@ -150,7 +150,7 @@ def load_extensions_only() -> None:
     _load_extensions()
 
 
-def load_user_definitions(required_classes: set | None = None) -> None:
+def load_user_definitions(required_classes: set | None = None, suppress_missing_log: bool = False) -> None:
     """
     Merge order and conditional loading per run:
       1) Reset to defaults
@@ -181,10 +181,11 @@ def load_user_definitions(required_classes: set | None = None) -> None:
             need_user_merge = False
             logger.info("[Metadata Loader] Coverage satisfied by defaults+ext; skipping user JSON merge.")
         else:
-            logger.info(
-                "[Metadata Loader] Missing classes in defaults+ext: %s. Will attempt user JSON merge.",
-                missing,
-            )
+            if not suppress_missing_log:
+                logger.info(
+                    "[Metadata Loader] Missing classes in defaults+ext: %s. Will attempt user JSON merge.",
+                    missing,
+                )
 
     if need_user_merge:
         if os.path.exists(USER_SAMPLERS_FILE):

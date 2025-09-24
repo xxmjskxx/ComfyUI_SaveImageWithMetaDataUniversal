@@ -4,11 +4,22 @@ import types
 from pathlib import Path
 import numpy as np
 
-from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.save_image import (
-    SaveImageWithMetaDataUniversal,
-)
-from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta import hook
-from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.trace import Trace
+try:
+    from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.node import (
+        SaveImageWithMetaDataUniversal,
+    )
+    from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta import hook
+    from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.trace import Trace
+except ModuleNotFoundError:
+    # Add parent of the package directory (e.g. custom_nodes) to sys.path for test execution contexts
+    pkg_root = Path(__file__).resolve().parents[2]
+    if str(pkg_root) not in sys.path:
+        sys.path.insert(0, str(pkg_root))
+    from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.node import (
+        SaveImageWithMetaDataUniversal,
+    )
+    from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta import hook
+    from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.trace import Trace
 
 class DummyArgs:
     disable_metadata = False
@@ -71,7 +82,7 @@ def test_fallback_minimal_trigger(monkeypatch):
             @staticmethod
             def dump(d):
                 return b"x" * (5 * 1024 * 1024)  # 5MB to guarantee oversize
-    sys.modules['piexif'] = _PiexifStub()
+        sys.modules['piexif'] = _PiexifStub()
 
     images = make_dummy_image()
     # Trigger save as JPEG with tiny limit to guarantee fallback

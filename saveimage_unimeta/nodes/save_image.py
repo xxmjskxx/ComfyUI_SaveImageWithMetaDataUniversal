@@ -204,6 +204,17 @@ class SaveImageWithMetaDataUniversal:
                         ),
                     },
                 ),
+                "suppress_missing_class_log": (
+                    "BOOLEAN",
+                    {
+                        "default": True,
+                        "tooltip": (
+                            "Hide the informational log about missing classes \nthat triggers a user JSON merge "
+                            "('[Metadata Loader] Missing classes in defaults+ext ...').\nCan be useful to disable if "
+                            "debugging problematic nodes"
+                        ),
+                    },
+                ),
             },
             "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO"},
         }
@@ -239,6 +250,7 @@ class SaveImageWithMetaDataUniversal:
         save_workflow_image=True,
         include_lora_summary=True,
         guidance_as_cfg=False,
+        suppress_missing_class_log=False,
     ):
         """Persist images to disk with rich, optionally extended metadata.
 
@@ -260,6 +272,7 @@ class SaveImageWithMetaDataUniversal:
             save_workflow_image: If False, omit workflow from embedded metadata.
             include_lora_summary: Override aggregated LoRA summary line inclusion.
             force_include_node_class: Comma separated node class names to force include during rule scanning.
+            suppress_missing_class_log: Hide informational missing-class coverage log.
 
         Returns:
             Tuple containing the original `images` tensor batch (ComfyUI node contract).
@@ -279,7 +292,7 @@ class SaveImageWithMetaDataUniversal:
             required_classes.update(FORCED_INCLUDE_CLASSES)
         # Defer to node module export so tests can monkeypatch node.load_user_definitions
         from . import node as _node  # local import to avoid circular at module load
-        _node.load_user_definitions(required_classes)
+        _node.load_user_definitions(required_classes, suppress_missing_log=suppress_missing_class_log)
         # Ensure piexif references are patched via node module during tests
         piexif = _node.piexif  # noqa: F841 - used implicitly by subsequent code references
         if _DEBUG_VERBOSE:

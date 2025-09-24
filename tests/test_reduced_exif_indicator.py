@@ -1,6 +1,9 @@
 import numpy as np
 
-from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.node import SaveImageWithMetaDataUniversal
+try:
+    from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.node import SaveImageWithMetaDataUniversal  # type: ignore
+except ModuleNotFoundError:  # pragma: no cover
+    from saveimage_unimeta.nodes.node import SaveImageWithMetaDataUniversal  # type: ignore
 
 
 def make_image():
@@ -24,7 +27,16 @@ def test_reduced_exif_indicator_in_exif(monkeypatch, tmp_path):
     class PStub:
         ImageIFD = getattr(real_piexif, 'ImageIFD', type('ImageIFD', (), {'Model': 0x0110, 'Make': 0x010F}))
         ExifIFD = getattr(real_piexif, 'ExifIFD', type('ExifIFD', (), {'UserComment': 0x9286}))
-        helper = getattr(real_piexif, 'helper', type('H', (), {'UserComment': type('UC', (), {'dump': staticmethod(lambda v, encoding="unicode": v.encode('utf-8') if isinstance(v, str) else b'')})}))
+        _UserComment = type(
+            'UC',
+            (),
+            {
+                'dump': staticmethod(
+                    lambda v, encoding="unicode": v.encode('utf-8') if isinstance(v, str) else b''
+                )
+            },
+        )
+        helper = getattr(real_piexif, 'helper', type('H', (), {'UserComment': _UserComment}))
 
         @staticmethod
         def dump(d):
@@ -48,4 +60,4 @@ def test_reduced_exif_indicator_in_exif(monkeypatch, tmp_path):
     # If EXIF was used for reduced-exif, fallback indicator should be appended by later step.
     # We don't parse EXIF structure; just ensure the encoded bytes contain substring when present.
     if 'exif' in captured:
-        assert b'Metadata Fallback:' in captured['exif'] or True  # Accept if stub cannot recreate appended tag due to simplified path
+        assert b'Metadata Fallback:' in captured['exif'] or True  # simplified path acceptance

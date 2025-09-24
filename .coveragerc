@@ -1,13 +1,15 @@
 [run]
 branch = True
-source = ComfyUI_SaveImageWithMetaDataUniversal/saveimage_unimeta
-omit = 
+# Point to the actual package directory (relative to repo root)
+source = saveimage_unimeta
+omit =
     */tests/*
     */__init__.py
 
 [report]
 show_missing = True
 skip_covered = True
+fail_under = 35
 exclude_lines =
     pragma: no cover
     if __name__ == .__main__.

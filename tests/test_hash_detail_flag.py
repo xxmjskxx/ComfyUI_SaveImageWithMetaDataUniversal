@@ -1,7 +1,12 @@
 import importlib
-from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.meta import MetaField
-
-MODULE_PATH = "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.capture"
+try:
+    # Prefer full package path when installed
+    from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.meta import MetaField
+    MODULE_PATH = "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.capture"
+except ModuleNotFoundError:
+    # Fallback for running tests from repo root without installation
+    from saveimage_unimeta.defs.meta import MetaField  # type: ignore
+    MODULE_PATH = "saveimage_unimeta.capture"
 
 
 def test_hash_detail_suppressed(monkeypatch):

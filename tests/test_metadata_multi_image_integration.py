@@ -30,7 +30,7 @@ def test_multi_image_mixed_fallback(monkeypatch):
                 size = 40 * 1024
             else:
                 size = 2 * 1024
-            # Use internal counter heuristic: second call (parameters-only fallback attempt for image 1?) size small; later calls large
+            # Use internal counter heuristic: second call (parameters-only fallback attempt for image 1?) size small; later calls large  # noqa: E501
             payload = b'A' * size
             return payload
 
@@ -41,8 +41,8 @@ def test_multi_image_mixed_fallback(monkeypatch):
     monkeypatch.setattr(mod, 'piexif', PStub)
 
     images = make_dummy_images()
-    # Low limit to force fallback for full EXIF; second image we force com-marker by monkeypatching _build_minimal_parameters to identity and huge size via another stub switch
-    # Simplify: After first image processing, monkeypatch dump to always produce gigantic output so second image ends in com-marker.
+    # Low limit to force fallback for full EXIF; second image we force com-marker by monkeypatching _build_minimal_parameters to identity and huge size via another stub switch  # noqa: E501
+    # Simplify: After first image processing, monkeypatch dump to always produce gigantic output so second image ends in com-marker.  # noqa: E501
     original_dump = PStub.dump
     def selective_dump(d):
         if len(node._last_fallback_stages) == 0:

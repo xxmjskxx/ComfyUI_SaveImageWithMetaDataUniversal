@@ -120,6 +120,7 @@ git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
 * `include_lora_summary` (BOOLEAN 既定 True): 集約 `LoRAs:` 行を出力。False で個別のみ。UI が環境変数より優先。
 * `guidance_as_cfg` (BOOLEAN 既定 False): `Guidance` を `CFG scale` に転写し独立 `Guidance:` を省略（A1111 / Civitai 近似）。
 * `max_jpeg_exif_kb` (INT 既定 60 / 最小4 / 最大64): JPEG EXIF 試行上限。超過で段階的フォールバック（reduced-exif → minimal → com-marker）。大規模は PNG / 可逆 WebP 推奨。
+* `suppress_missing_class_log` (BOOLEAN 既定 False): 不足クラス一覧（ユーザ JSON 読込判定用）の情報ログを抑制。大量拡張ノード環境でのログノイズ低減に有用。
 
 ---
 ### ファイル名トークン一覧

@@ -11,5 +11,5 @@ def test_build_minimal_parameters_trims(node_instance):
     assert len(trimmed) < len(SAMPLE_PARAMS)
     assert 'Weight dtype' not in trimmed
     assert 'ExtraKey1' not in trimmed and 'ExtraKey2' not in trimmed
-    for keep in ['Steps:', 'Sampler:', 'CFG scale:', 'Seed:', 'Model:', 'Model hash:', 'VAE:', 'VAE hash:', 'Lora_A', 'Lora_B']:
+    for keep in ['Steps:', 'Sampler:', 'CFG scale:', 'Seed:', 'Model:', 'Model hash:', 'VAE:', 'VAE hash:', 'Lora_A', 'Lora_B']:  # noqa: E501
         assert keep.split(':')[0] in trimmed

@@ -3,7 +3,10 @@ import importlib
 import numpy as np
 from PIL import Image
 
-from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.node import SaveImageWithMetaDataUniversal
+try:
+    from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.node import SaveImageWithMetaDataUniversal  # type: ignore
+except ModuleNotFoundError:  # pragma: no cover
+    from saveimage_unimeta.nodes.node import SaveImageWithMetaDataUniversal  # type: ignore
 import folder_paths as real_folder_paths  # type: ignore
 
 
@@ -17,7 +20,9 @@ def test_jpeg_com_marker_contains_fallback(monkeypatch, tmp_path):
     node.output_dir = str(tmp_path)
 
     # Monkeypatch output path generator so we know exact location
-    monkeypatch.setattr(real_folder_paths, 'get_save_image_path', lambda prefix, outdir, w, h: (node.output_dir, 'test_img', 0, ''))
+    def _save_path(prefix, outdir, w, h):
+        return (node.output_dir, 'test_img', 0, '')
+    monkeypatch.setattr(real_folder_paths, 'get_save_image_path', _save_path)
 
     # Monkeypatch piexif to always produce huge EXIF to force com-marker fallback
     try:  # Standard runtime import
@@ -29,7 +34,16 @@ def test_jpeg_com_marker_contains_fallback(monkeypatch, tmp_path):
     class PStub:
         ImageIFD = getattr(real_piexif, 'ImageIFD', type('ImageIFD', (), {'Model': 0x0110, 'Make': 0x010F}))
         ExifIFD = getattr(real_piexif, 'ExifIFD', type('ExifIFD', (), {'UserComment': 0x9286}))
-        helper = getattr(real_piexif, 'helper', type('H', (), {'UserComment': type('UC', (), {'dump': staticmethod(lambda v, encoding="unicode": v.encode("utf-8") if isinstance(v, str) else b"" )})}) )
+        _UserComment = type(
+            'UC',
+            (),
+            {
+                'dump': staticmethod(
+                    lambda v, encoding="unicode": v.encode("utf-8") if isinstance(v, str) else b""
+                )
+            },
+        )
+        helper = getattr(real_piexif, 'helper', type('H', (), {'UserComment': _UserComment}))
 
         @staticmethod
         def dump(d):
@@ -53,4 +67,9 @@ def test_jpeg_com_marker_contains_fallback(monkeypatch, tmp_path):
     with Image.open(img_path) as im:
         # PIL stores comment in info.get('comment') for JPEG
         comment = im.info.get('comment', b'')
-    assert b'Metadata Fallback: com-marker' in comment or b'Metadata Fallback: minimal' in comment or b'Metadata Fallback: reduced-exif' in comment, 'Fallback indicator missing from JPEG comment'
+    fallback_markers = (
+        b'Metadata Fallback: com-marker',
+        b'Metadata Fallback: minimal',
+        b'Metadata Fallback: reduced-exif',
+    )
+    assert any(m in comment for m in fallback_markers), 'Fallback indicator missing from JPEG comment'

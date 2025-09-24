@@ -1,7 +1,11 @@
 import importlib
 import numpy as np
-from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.node import SaveImageWithMetaDataUniversal
-from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes import MetadataForceInclude
+try:
+    from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.node import SaveImageWithMetaDataUniversal  # type: ignore
+    from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes import MetadataForceInclude  # type: ignore
+except ModuleNotFoundError:  # pragma: no cover - dev editable path fallback
+    from saveimage_unimeta.nodes.node import SaveImageWithMetaDataUniversal  # type: ignore
+    from saveimage_unimeta.nodes import MetadataForceInclude  # type: ignore
 
 
 def make_dummy_image():
@@ -12,12 +16,12 @@ def test_force_include_node_class(monkeypatch):
     # Capture classes passed to load_user_definitions
     observed = {}
     # Patch the function inside the node module namespace (direct import used there)
+    # Import the legacy shim module name still referenced inside save_image for monkeypatching
     node_mod = importlib.import_module('ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.node')
     original_loader = getattr(node_mod, 'load_user_definitions')
-
-    def spy(required_classes):
+    def spy(required_classes, suppress_missing_log=False):  # accept new kwarg
         observed['value'] = required_classes.copy() if required_classes else set()
-        return original_loader(required_classes)
+        return original_loader(required_classes, suppress_missing_log=suppress_missing_log)
 
     monkeypatch.setattr(node_mod, 'load_user_definitions', spy)
 

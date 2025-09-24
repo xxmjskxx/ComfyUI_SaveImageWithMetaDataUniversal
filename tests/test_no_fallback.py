@@ -14,7 +14,16 @@ def test_no_fallback_when_under_limit(monkeypatch, node_instance, dummy_image):
     class PStub:
         ImageIFD = getattr(real_piexif, 'ImageIFD', type('ImageIFD', (), {'Model': 0x0110, 'Make': 0x010F}))
         ExifIFD = getattr(real_piexif, 'ExifIFD', type('ExifIFD', (), {'UserComment': 0x9286}))
-        helper = getattr(real_piexif, 'helper', type('H', (), {'UserComment': type('UC', (), {'dump': staticmethod(lambda v, encoding="unicode": v.encode('utf-8') if isinstance(v, str) else b'')})}))
+        _UserComment = type(
+            'UC',
+            (),
+            {
+                'dump': staticmethod(
+                    lambda v, encoding="unicode": v.encode('utf-8') if isinstance(v, str) else b''
+                )
+            },
+        )
+        helper = getattr(real_piexif, 'helper', type('H', (), {'UserComment': _UserComment}))
         @staticmethod
         def dump(d):
             return b'SMALL'

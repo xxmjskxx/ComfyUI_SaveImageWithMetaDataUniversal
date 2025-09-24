@@ -4,7 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 ### Added
+- Initial coverage threshold enforcement (fail-under 35%) with multi-version matrix (3.10–3.12).
 ### Changed
+- Consolidated dual CI workflows into single `unimeta-ci.yml` (matrix tests, coverage, strict & autofix lint jobs).
 ### Fixed
 
 ## [1.1.0] - 2025-09-24
@@ -16,6 +18,7 @@ Note: 1.0.0 was the first public registry release; this minor release formalizes
 - Frontend: Dynamic textarea sizing and node recompute to reduce overlap at small zoom levels.
 - Tests: `tests/test_show_any.py` covering `_safe_to_str`, UI/result shapes, workflow widget persistence, and wildcard `AnyType` semantics.
 - Docs: Expanded README sections (ToC sync, sampler selection, metadata list, JPEG fallback tips). Japanese README aligned to English.
+- Save node option `suppress_missing_class_log` to suppress informational missing class list log (reduces noise in large graphs).
 
 ### Changed
 - Frontend separation: `web/show_text.js` now targets base `ShowText` only to avoid double initialization with UniMeta variants.
