@@ -1,8 +1,8 @@
 {
   "id": "3b7b6305-8f6f-4ef0-afc6-95b0b48eceaf",
   "revision": 0,
-  "last_node_id": 14,
-  "last_link_id": 20,
+  "last_node_id": 17,
+  "last_link_id": 23,
   "nodes": [
     {
       "id": 1,
@@ -271,7 +271,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            18
+            22
           ]
         }
       ],
@@ -377,7 +377,7 @@
           "type": "IMAGE",
           "links": [
             17,
-            20
+            21
           ]
         }
       ],
@@ -459,7 +459,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            19
+            23
           ]
         }
       ],
@@ -515,24 +515,24 @@
       ]
     },
     {
-      "id": 14,
+      "id": 15,
       "type": "SaveImageWithMetaDataUniversal",
       "pos": [
-        1500,
-        870
+        1470,
+        -80
       ],
       "size": [
         317.0025329589844,
-        342
+        366
       ],
       "flags": {},
-      "order": 8,
+      "order": 6,
       "mode": 0,
       "inputs": [
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 19
+          "link": 21
         },
         {
           "name": "extra_metadata",
@@ -550,16 +550,17 @@
       ],
       "properties": {
         "aux_id": "xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal",
-        "ver": "c9a87453bc4257614c87d28a64a5be9c4fdccba9",
+        "ver": "0be581e31fcf9836467d69489ecad77a1eb4df27",
         "Node name for S&R": "SaveImageWithMetaDataUniversal"
       },
       "widgets_values": [
-        "eff_xl",
+        "eff-ComfyUI",
         "Farthest",
         0,
         "png",
         true,
         100,
+        60,
         false,
         true,
         false,
@@ -569,7 +570,7 @@
       ]
     },
     {
-      "id": 13,
+      "id": 16,
       "type": "SaveImageWithMetaDataUniversal",
       "pos": [
         1470,
@@ -577,7 +578,7 @@
       ],
       "size": [
         317.0025329589844,
-        342
+        366
       ],
       "flags": {},
       "order": 7,
@@ -586,7 +587,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 18
+          "link": 22
         },
         {
           "name": "extra_metadata",
@@ -604,7 +605,7 @@
       ],
       "properties": {
         "aux_id": "xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal",
-        "ver": "c9a87453bc4257614c87d28a64a5be9c4fdccba9",
+        "ver": "0be581e31fcf9836467d69489ecad77a1eb4df27",
         "Node name for S&R": "SaveImageWithMetaDataUniversal"
       },
       "widgets_values": [
@@ -614,6 +615,7 @@
         "png",
         true,
         100,
+        60,
         false,
         true,
         false,
@@ -623,24 +625,24 @@
       ]
     },
     {
-      "id": 12,
+      "id": 17,
       "type": "SaveImageWithMetaDataUniversal",
       "pos": [
-        1470,
-        -80
+        1500,
+        870
       ],
       "size": [
         317.0025329589844,
-        342
+        366
       ],
       "flags": {},
-      "order": 6,
+      "order": 8,
       "mode": 0,
       "inputs": [
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 20
+          "link": 23
         },
         {
           "name": "extra_metadata",
@@ -658,16 +660,17 @@
       ],
       "properties": {
         "aux_id": "xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal",
-        "ver": "c9a87453bc4257614c87d28a64a5be9c4fdccba9",
+        "ver": "0be581e31fcf9836467d69489ecad77a1eb4df27",
         "Node name for S&R": "SaveImageWithMetaDataUniversal"
       },
       "widgets_values": [
-        "eff",
+        "eff_xl",
         "Farthest",
         0,
         "png",
         true,
         100,
+        60,
         false,
         true,
         false,
@@ -791,26 +794,26 @@
       "IMAGE"
     ],
     [
-      18,
+      21,
+      3,
+      5,
+      15,
+      0,
+      "IMAGE"
+    ],
+    [
+      22,
       6,
       5,
-      13,
+      16,
       0,
       "IMAGE"
     ],
     [
-      19,
+      23,
       5,
       3,
-      14,
-      0,
-      "IMAGE"
-    ],
-    [
-      20,
-      3,
-      5,
-      12,
+      17,
       0,
       "IMAGE"
     ]
@@ -823,13 +826,13 @@
     },
     "groupNodes": {},
     "ds": {
-      "scale": 0.8506593152857546,
+      "scale": 0.6391129340989891,
       "offset": [
-        -1.1171423233603264,
-        149.56441759154643
+        237.2449197925369,
+        137.34754865028896
       ]
     },
-    "frontendVersion": "1.25.11",
+    "frontendVersion": "1.26.13",
     "VHS_latentpreview": false,
     "VHS_latentpreviewrate": 0,
     "VHS_MetadataImage": false,

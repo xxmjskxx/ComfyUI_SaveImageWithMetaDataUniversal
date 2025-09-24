@@ -1,15 +1,15 @@
 {
-  "id": "be522516-bc43-4789-862a-0d77f24a455a",
+  "id": "eaf61feb-1308-4d41-8ac0-caae5f5aff59",
   "revision": 0,
-  "last_node_id": 26,
-  "last_link_id": 39,
+  "last_node_id": 11,
+  "last_link_id": 15,
   "nodes": [
     {
-      "id": 10,
+      "id": 1,
       "type": "VAEDecode",
       "pos": [
-        812,
-        429
+        970,
+        480
       ],
       "size": [
         210,
@@ -22,12 +22,12 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 9
+          "link": 1
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 18
+          "link": 2
         }
       ],
       "outputs": [
@@ -35,7 +35,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            31
+            14
           ]
         }
       ],
@@ -47,11 +47,11 @@
       "widgets_values": []
     },
     {
-      "id": 24,
+      "id": 2,
       "type": "SDXLEmptyLatentSizePicker+",
       "pos": [
-        40,
-        860
+        200,
+        910
       ],
       "size": [
         279.4117126464844,
@@ -66,21 +66,21 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            34
+            13
           ]
         },
         {
           "name": "width",
           "type": "INT",
           "links": [
-            32
+            5
           ]
         },
         {
           "name": "height",
           "type": "INT",
           "links": [
-            33
+            6
           ]
         }
       ],
@@ -97,62 +97,11 @@
       ]
     },
     {
-      "id": 1,
-      "type": "CheckpointLoaderSimple",
-      "pos": [
-        -340,
-        450
-      ],
-      "size": [
-        315,
-        98
-      ],
-      "flags": {},
-      "order": 1,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "MODEL",
-          "type": "MODEL",
-          "slot_index": 0,
-          "links": [
-            17
-          ]
-        },
-        {
-          "name": "CLIP",
-          "type": "CLIP",
-          "slot_index": 1,
-          "links": [
-            13,
-            14
-          ]
-        },
-        {
-          "name": "VAE",
-          "type": "VAE",
-          "slot_index": 2,
-          "links": [
-            18
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.3.59",
-        "Node name for S&R": "CheckpointLoaderSimple"
-      },
-      "widgets_values": [
-        "animagine-xl-3.1.safetensors"
-      ]
-    },
-    {
-      "id": 14,
+      "id": 4,
       "type": "CLIPTextEncode",
       "pos": [
-        40,
-        350
+        200,
+        400
       ],
       "size": [
         340,
@@ -165,7 +114,7 @@
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 13
+          "link": 3
         }
       ],
       "outputs": [
@@ -174,7 +123,7 @@
           "type": "CONDITIONING",
           "slot_index": 0,
           "links": [
-            16
+            11
           ]
         }
       ],
@@ -190,11 +139,11 @@
       "bgcolor": "#353"
     },
     {
-      "id": 13,
+      "id": 5,
       "type": "CLIPTextEncode",
       "pos": [
-        40,
-        600
+        200,
+        650
       ],
       "size": [
         350,
@@ -207,7 +156,7 @@
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 14
+          "link": 4
         }
       ],
       "outputs": [
@@ -216,7 +165,7 @@
           "type": "CONDITIONING",
           "slot_index": 0,
           "links": [
-            15
+            12
           ]
         }
       ],
@@ -232,11 +181,11 @@
       "bgcolor": "#533"
     },
     {
-      "id": 20,
+      "id": 6,
       "type": "CR Integer To String",
       "pos": [
-        457,
-        743
+        620,
+        790
       ],
       "size": [
         210,
@@ -249,7 +198,7 @@
         {
           "name": "int_",
           "type": "INT",
-          "link": 32
+          "link": 5
         }
       ],
       "outputs": [
@@ -258,7 +207,7 @@
           "type": "STRING",
           "slot_index": 0,
           "links": [
-            35
+            8
           ]
         },
         {
@@ -275,11 +224,11 @@
       "widgets_values": []
     },
     {
-      "id": 21,
+      "id": 7,
       "type": "CR Integer To String",
       "pos": [
-        460,
-        847
+        620,
+        900
       ],
       "size": [
         210,
@@ -292,7 +241,7 @@
         {
           "name": "int_",
           "type": "INT",
-          "link": 33
+          "link": 6
         }
       ],
       "outputs": [
@@ -301,7 +250,7 @@
           "type": "STRING",
           "slot_index": 0,
           "links": [
-            36
+            9
           ]
         },
         {
@@ -318,72 +267,18 @@
       "widgets_values": []
     },
     {
-      "id": 22,
-      "type": "SaveImageWithMetaDataUniversal",
-      "pos": [
-        1100,
-        440
-      ],
-      "size": [
-        317.0025329589844,
-        342
-      ],
-      "flags": {},
-      "order": 10,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "link": 31
-        },
-        {
-          "name": "extra_metadata",
-          "shape": 7,
-          "type": "EXTRA_METADATA",
-          "link": 38
-        }
-      ],
-      "outputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "links": null
-        }
-      ],
-      "properties": {
-        "aux_id": "xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal",
-        "ver": "c9a87453bc4257614c87d28a64a5be9c4fdccba9",
-        "Node name for S&R": "SaveImageWithMetaDataUniversal"
-      },
-      "widgets_values": [
-        "extra_metadata",
-        "Farthest",
-        0,
-        "png",
-        true,
-        100,
-        false,
-        true,
-        false,
-        false,
-        true,
-        false
-      ]
-    },
-    {
-      "id": 26,
+      "id": 8,
       "type": "CreateExtraMetaDataUniversal",
       "pos": [
-        430,
-        960
+        590,
+        1010
       ],
       "size": [
         297.732421875,
         226
       ],
       "flags": {},
-      "order": 2,
+      "order": 1,
       "mode": 0,
       "inputs": [
         {
@@ -398,7 +293,7 @@
           "name": "EXTRA_METADATA",
           "type": "EXTRA_METADATA",
           "links": [
-            39
+            7
           ]
         }
       ],
@@ -419,11 +314,11 @@
       ]
     },
     {
-      "id": 25,
+      "id": 9,
       "type": "CreateExtraMetaDataUniversal",
       "pos": [
-        760,
-        960
+        920,
+        1010
       ],
       "size": [
         297.732421875,
@@ -437,7 +332,7 @@
           "name": "extra_metadata",
           "shape": 7,
           "type": "EXTRA_METADATA",
-          "link": 39
+          "link": 7
         },
         {
           "name": "value1",
@@ -445,7 +340,7 @@
           "widget": {
             "name": "value1"
           },
-          "link": 35
+          "link": 8
         },
         {
           "name": "value2",
@@ -454,7 +349,7 @@
           "widget": {
             "name": "value2"
           },
-          "link": 36
+          "link": 9
         }
       ],
       "outputs": [
@@ -462,7 +357,7 @@
           "name": "EXTRA_METADATA",
           "type": "EXTRA_METADATA",
           "links": [
-            38
+            15
           ]
         }
       ],
@@ -483,11 +378,11 @@
       ]
     },
     {
-      "id": 9,
+      "id": 10,
       "type": "KSampler",
       "pos": [
-        460,
-        390
+        620,
+        440
       ],
       "size": [
         315,
@@ -500,22 +395,22 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 17
+          "link": 10
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 16
+          "link": 11
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 15
+          "link": 12
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 34
+          "link": 13
         }
       ],
       "outputs": [
@@ -523,7 +418,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            9
+            1
           ]
         }
       ],
@@ -541,127 +436,233 @@
         "karras",
         1
       ]
+    },
+    {
+      "id": 11,
+      "type": "SaveImageWithMetaDataUniversal",
+      "pos": [
+        1260,
+        490
+      ],
+      "size": [
+        317.0025329589844,
+        366
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 14
+        },
+        {
+          "name": "extra_metadata",
+          "shape": 7,
+          "type": "EXTRA_METADATA",
+          "link": 15
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal",
+        "ver": "0be581e31fcf9836467d69489ecad77a1eb4df27",
+        "Node name for S&R": "SaveImageWithMetaDataUniversal"
+      },
+      "widgets_values": [
+        "extra_metadata",
+        "Farthest",
+        0,
+        "png",
+        true,
+        100,
+        60,
+        false,
+        true,
+        false,
+        false,
+        true,
+        false
+      ]
+    },
+    {
+      "id": 3,
+      "type": "CheckpointLoaderSimple",
+      "pos": [
+        -180,
+        500
+      ],
+      "size": [
+        315,
+        98
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            10
+          ]
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "slot_index": 1,
+          "links": [
+            3,
+            4
+          ]
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "slot_index": 2,
+          "links": [
+            2
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.59",
+        "Node name for S&R": "CheckpointLoaderSimple"
+      },
+      "widgets_values": [
+        "animagine-xl-3.1.safetensors"
+      ]
     }
   ],
   "links": [
     [
-      9,
-      9,
-      0,
+      1,
       10,
+      0,
+      1,
       0,
       "LATENT"
     ],
     [
-      13,
-      1,
-      1,
-      14,
-      0,
-      "CLIP"
-    ],
-    [
-      14,
-      1,
-      1,
-      13,
-      0,
-      "CLIP"
-    ],
-    [
-      15,
-      13,
-      0,
-      9,
       2,
-      "CONDITIONING"
-    ],
-    [
-      16,
-      14,
-      0,
-      9,
-      1,
-      "CONDITIONING"
-    ],
-    [
-      17,
-      1,
-      0,
-      9,
-      0,
-      "MODEL"
-    ],
-    [
-      18,
-      1,
+      3,
       2,
-      10,
+      1,
       1,
       "VAE"
     ],
     [
-      31,
-      10,
-      0,
-      22,
-      0,
-      "IMAGE"
-    ],
-    [
-      32,
-      24,
+      3,
+      3,
       1,
-      20,
+      4,
       0,
-      "INT"
+      "CLIP"
     ],
     [
-      33,
-      24,
+      4,
+      3,
+      1,
+      5,
+      0,
+      "CLIP"
+    ],
+    [
+      5,
       2,
-      21,
+      1,
+      6,
       0,
       "INT"
     ],
     [
-      34,
-      24,
+      6,
+      2,
+      2,
+      7,
+      0,
+      "INT"
+    ],
+    [
+      7,
+      8,
       0,
       9,
+      0,
+      "EXTRA_METADATA"
+    ],
+    [
+      8,
+      6,
+      0,
+      9,
+      1,
+      "STRING"
+    ],
+    [
+      9,
+      7,
+      0,
+      9,
+      2,
+      "STRING"
+    ],
+    [
+      10,
+      3,
+      0,
+      10,
+      0,
+      "MODEL"
+    ],
+    [
+      11,
+      4,
+      0,
+      10,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      12,
+      5,
+      0,
+      10,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      13,
+      2,
+      0,
+      10,
       3,
       "LATENT"
     ],
     [
-      35,
-      20,
-      0,
-      25,
+      14,
       1,
-      "STRING"
+      0,
+      11,
+      0,
+      "IMAGE"
     ],
     [
-      36,
-      21,
+      15,
+      9,
       0,
-      25,
-      2,
-      "STRING"
-    ],
-    [
-      38,
-      25,
-      0,
-      22,
+      11,
       1,
-      "EXTRA_METADATA"
-    ],
-    [
-      39,
-      26,
-      0,
-      25,
-      0,
       "EXTRA_METADATA"
     ]
   ],
@@ -671,15 +672,11 @@
     "ds": {
       "scale": 0.7513148009015777,
       "offset": [
-        359.325672640418,
-        -28.830995341370624
+        249.35233110808423,
+        -278.3047780259899
       ]
     },
-    "workspace_info": {
-      "id": "f8719b5c-6888-4d4a-a725-28159058fa29"
-    },
-    "groupNodes": {},
-    "frontendVersion": "1.25.11",
+    "frontendVersion": "1.26.13",
     "VHS_latentpreview": false,
     "VHS_latentpreviewrate": 0,
     "VHS_MetadataImage": false,

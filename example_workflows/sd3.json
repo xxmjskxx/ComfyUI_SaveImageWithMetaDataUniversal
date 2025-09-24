@@ -1,15 +1,15 @@
 {
-  "id": "9e65a7c6-9457-4dce-992f-d859b371d908",
+  "id": "d5c4d204-fec5-4743-9340-64c0ec88a88e",
   "revision": 0,
-  "last_node_id": 278,
-  "last_link_id": 607,
+  "last_node_id": 14,
+  "last_link_id": 16,
   "nodes": [
     {
-      "id": 266,
+      "id": 1,
       "type": "Note",
       "pos": [
-        -2352,
-        576
+        -2120,
+        760
       ],
       "size": [
         308.061279296875,
@@ -30,24 +30,24 @@
       "bgcolor": "#653"
     },
     {
-      "id": 71,
+      "id": 2,
       "type": "CLIPTextEncode",
       "pos": [
-        -1869.287109375,
-        560.07177734375
+        -1640,
+        740
       ],
       "size": [
         380.4615783691406,
         102.07693481445312
       ],
       "flags": {},
-      "order": 6,
+      "order": 5,
       "mode": 0,
       "inputs": [
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 601
+          "link": 1
         }
       ],
       "outputs": [
@@ -56,8 +56,8 @@
           "type": "CONDITIONING",
           "slot_index": 0,
           "links": [
-            93,
-            580
+            2,
+            3
           ]
         }
       ],
@@ -74,11 +74,11 @@
       "bgcolor": "#533"
     },
     {
-      "id": 272,
+      "id": 3,
       "type": "PrimitiveNode",
       "pos": [
-        -2342,
-        278
+        -2110,
+        460
       ],
       "size": [
         210,
@@ -97,7 +97,7 @@
           },
           "slot_index": 0,
           "links": [
-            597
+            11
           ]
         }
       ],
@@ -107,57 +107,15 @@
       },
       "widgets_values": [
         0,
-        "fixed"
+        "randomize"
       ]
     },
     {
-      "id": 6,
-      "type": "CLIPTextEncode",
-      "pos": [
-        -1876,
-        284
-      ],
-      "size": [
-        389.06927490234375,
-        207.84902954101562
-      ],
-      "flags": {},
-      "order": 5,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "clip",
-          "type": "CLIP",
-          "link": 600
-        }
-      ],
-      "outputs": [
-        {
-          "name": "CONDITIONING",
-          "type": "CONDITIONING",
-          "slot_index": 0,
-          "links": [
-            595
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.3.59",
-        "Node name for S&R": "CLIPTextEncode"
-      },
-      "widgets_values": [
-        "Chibi figure of a wizard girl with a big wand. She wears a wizard's hat and a blue robe. The wand is based on a clock. A magic circle is deployed on the underside."
-      ],
-      "color": "#232",
-      "bgcolor": "#353"
-    },
-    {
-      "id": 252,
+      "id": 4,
       "type": "CheckpointLoaderSimple",
       "pos": [
-        -2355.546142578125,
-        16.909067153930664
+        -2130,
+        200
       ],
       "size": [
         404.1351623535156,
@@ -173,7 +131,7 @@
           "type": "MODEL",
           "slot_index": 0,
           "links": [
-            565
+            14
           ]
         },
         {
@@ -181,8 +139,8 @@
           "type": "CLIP",
           "slot_index": 1,
           "links": [
-            600,
-            601
+            1,
+            16
           ]
         },
         {
@@ -190,7 +148,7 @@
           "type": "VAE",
           "slot_index": 2,
           "links": [
-            557
+            13
           ]
         }
       ],
@@ -204,11 +162,11 @@
       ]
     },
     {
-      "id": 70,
+      "id": 5,
       "type": "ConditioningSetTimestepRange",
       "pos": [
-        -1150,
-        610
+        -920,
+        790
       ],
       "size": [
         260,
@@ -221,7 +179,7 @@
         {
           "name": "conditioning",
           "type": "CONDITIONING",
-          "link": 93
+          "link": 2
         }
       ],
       "outputs": [
@@ -230,7 +188,7 @@
           "type": "CONDITIONING",
           "slot_index": 0,
           "links": [
-            92
+            6
           ]
         }
       ],
@@ -245,11 +203,11 @@
       ]
     },
     {
-      "id": 67,
+      "id": 6,
       "type": "ConditioningZeroOut",
       "pos": [
-        -1410,
-        520
+        -1180,
+        700
       ],
       "size": [
         211.60000610351562,
@@ -262,7 +220,7 @@
         {
           "name": "conditioning",
           "type": "CONDITIONING",
-          "link": 580
+          "link": 3
         }
       ],
       "outputs": [
@@ -271,7 +229,7 @@
           "type": "CONDITIONING",
           "slot_index": 0,
           "links": [
-            90
+            4
           ]
         }
       ],
@@ -279,15 +237,14 @@
         "cnr_id": "comfy-core",
         "ver": "0.3.59",
         "Node name for S&R": "ConditioningZeroOut"
-      },
-      "widgets_values": []
+      }
     },
     {
-      "id": 68,
+      "id": 7,
       "type": "ConditioningSetTimestepRange",
       "pos": [
-        -1160,
-        450
+        -930,
+        630
       ],
       "size": [
         260,
@@ -300,7 +257,7 @@
         {
           "name": "conditioning",
           "type": "CONDITIONING",
-          "link": 90
+          "link": 4
         }
       ],
       "outputs": [
@@ -309,7 +266,7 @@
           "type": "CONDITIONING",
           "slot_index": 0,
           "links": [
-            91
+            5
           ]
         }
       ],
@@ -324,11 +281,11 @@
       ]
     },
     {
-      "id": 69,
+      "id": 8,
       "type": "ConditioningCombine",
       "pos": [
-        -840,
-        470
+        -610,
+        650
       ],
       "size": [
         228.39999389648438,
@@ -341,12 +298,12 @@
         {
           "name": "conditioning_1",
           "type": "CONDITIONING",
-          "link": 91
+          "link": 5
         },
         {
           "name": "conditioning_2",
           "type": "CONDITIONING",
-          "link": 92
+          "link": 6
         }
       ],
       "outputs": [
@@ -355,7 +312,7 @@
           "type": "CONDITIONING",
           "slot_index": 0,
           "links": [
-            592
+            9
           ]
         }
       ],
@@ -363,15 +320,14 @@
         "cnr_id": "comfy-core",
         "ver": "0.3.59",
         "Node name for S&R": "ConditioningCombine"
-      },
-      "widgets_values": []
+      }
     },
     {
-      "id": 271,
+      "id": 9,
       "type": "KSampler",
       "pos": [
-        -530,
-        200
+        -300,
+        380
       ],
       "size": [
         301.5874938964844,
@@ -384,22 +340,22 @@
         {
           "name": "model",
           "type": "MODEL",
-          "link": 591
+          "link": 7
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 595
+          "link": 8
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 592
+          "link": 9
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 593
+          "link": 10
         },
         {
           "name": "seed",
@@ -407,7 +363,7 @@
           "widget": {
             "name": "seed"
           },
-          "link": 597
+          "link": 11
         }
       ],
       "outputs": [
@@ -416,7 +372,7 @@
           "type": "LATENT",
           "slot_index": 0,
           "links": [
-            596
+            12
           ]
         }
       ],
@@ -436,11 +392,11 @@
       ]
     },
     {
-      "id": 231,
+      "id": 10,
       "type": "VAEDecode",
       "pos": [
-        -190,
-        170
+        40,
+        350
       ],
       "size": [
         210,
@@ -453,12 +409,12 @@
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 596
+          "link": 12
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 557
+          "link": 13
         }
       ],
       "outputs": [
@@ -467,7 +423,7 @@
           "type": "IMAGE",
           "slot_index": 0,
           "links": [
-            607
+            15
           ]
         }
       ],
@@ -475,19 +431,96 @@
         "cnr_id": "comfy-core",
         "ver": "0.3.59",
         "Node name for S&R": "VAEDecode"
-      },
-      "widgets_values": []
+      }
     },
     {
-      "id": 278,
+      "id": 11,
+      "type": "EmptySD3LatentImage",
+      "pos": [
+        -2120,
+        600
+      ],
+      "size": [
+        315,
+        106
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "slot_index": 0,
+          "links": [
+            10
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.59",
+        "Node name for S&R": "EmptySD3LatentImage"
+      },
+      "widgets_values": [
+        1024,
+        1024,
+        1
+      ]
+    },
+    {
+      "id": 12,
+      "type": "ModelSamplingSD3",
+      "pos": [
+        -1550,
+        200
+      ],
+      "size": [
+        315,
+        58
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 14
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            7
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.59",
+        "Node name for S&R": "ModelSamplingSD3"
+      },
+      "widgets_values": [
+        3
+      ]
+    },
+    {
+      "id": 13,
       "type": "SaveImageWithMetaDataUniversal",
       "pos": [
-        60,
-        150
+        290,
+        330
       ],
       "size": [
         317.0025329589844,
-        342
+        366
       ],
       "flags": {},
       "order": 13,
@@ -496,7 +529,7 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 607
+          "link": 15
         },
         {
           "name": "extra_metadata",
@@ -514,231 +547,196 @@
       ],
       "properties": {
         "aux_id": "xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal",
-        "ver": "c9a87453bc4257614c87d28a64a5be9c4fdccba9",
+        "ver": "0be581e31fcf9836467d69489ecad77a1eb4df27",
         "Node name for S&R": "SaveImageWithMetaDataUniversal"
       },
       "widgets_values": [
-        "SD3",
+        "ComfyUI",
         "Farthest",
         0,
         "png",
         true,
         100,
+        60,
         false,
         true,
         false,
         false,
         true,
-        true
+        false
       ]
     },
     {
-      "id": 135,
-      "type": "EmptySD3LatentImage",
+      "id": 14,
+      "type": "CLIPTextEncode",
       "pos": [
-        -2350,
-        420
+        -1650,
+        460
       ],
       "size": [
-        315,
-        106
+        389.06927490234375,
+        207.84902954101562
       ],
       "flags": {},
-      "order": 3,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "LATENT",
-          "type": "LATENT",
-          "slot_index": 0,
-          "links": [
-            593
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.3.59",
-        "Node name for S&R": "EmptySD3LatentImage"
-      },
-      "widgets_values": [
-        1024,
-        1024,
-        1
-      ]
-    },
-    {
-      "id": 13,
-      "type": "ModelSamplingSD3",
-      "pos": [
-        -1780,
-        20
-      ],
-      "size": [
-        315,
-        58
-      ],
-      "flags": {
-        "collapsed": false
-      },
-      "order": 4,
+      "order": 6,
       "mode": 0,
       "inputs": [
         {
-          "name": "model",
-          "type": "MODEL",
-          "link": 565
+          "name": "clip",
+          "type": "CLIP",
+          "link": 16
         }
       ],
       "outputs": [
         {
-          "name": "MODEL",
-          "type": "MODEL",
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
           "slot_index": 0,
           "links": [
-            591
+            8
           ]
         }
       ],
       "properties": {
         "cnr_id": "comfy-core",
         "ver": "0.3.59",
-        "Node name for S&R": "ModelSamplingSD3"
+        "Node name for S&R": "CLIPTextEncode"
       },
       "widgets_values": [
-        3
-      ]
+        "Chibi figure of a wizard girl with a big wand. She wears a wizard's hat and a blue robe. The wand is based on a clock. A magic circle is deployed on the underside."
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
     }
   ],
   "links": [
     [
-      90,
-      67,
+      1,
+      4,
+      1,
+      2,
       0,
-      68,
+      "CLIP"
+    ],
+    [
+      2,
+      2,
+      0,
+      5,
       0,
       "CONDITIONING"
     ],
     [
-      91,
-      68,
+      3,
+      2,
       0,
-      69,
+      6,
       0,
       "CONDITIONING"
     ],
     [
-      92,
-      70,
+      4,
+      6,
       0,
-      69,
+      7,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      5,
+      7,
+      0,
+      8,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      6,
+      5,
+      0,
+      8,
       1,
       "CONDITIONING"
     ],
     [
-      93,
-      71,
+      7,
+      12,
       0,
-      70,
+      9,
       0,
-      "CONDITIONING"
+      "MODEL"
     ],
     [
-      557,
-      252,
-      2,
-      231,
+      8,
+      14,
+      0,
+      9,
       1,
-      "VAE"
-    ],
-    [
-      565,
-      252,
-      0,
-      13,
-      0,
-      "MODEL"
-    ],
-    [
-      580,
-      71,
-      0,
-      67,
-      0,
       "CONDITIONING"
     ],
     [
-      591,
-      13,
+      9,
+      8,
       0,
-      271,
-      0,
-      "MODEL"
-    ],
-    [
-      592,
-      69,
-      0,
-      271,
+      9,
       2,
       "CONDITIONING"
     ],
     [
-      593,
-      135,
+      10,
+      11,
       0,
-      271,
+      9,
       3,
       "LATENT"
     ],
     [
-      595,
-      6,
+      11,
+      3,
       0,
-      271,
-      1,
-      "CONDITIONING"
-    ],
-    [
-      596,
-      271,
-      0,
-      231,
-      0,
-      "LATENT"
-    ],
-    [
-      597,
-      272,
-      0,
-      271,
+      9,
       4,
       "INT"
     ],
     [
-      600,
-      252,
-      1,
-      6,
+      12,
+      9,
       0,
-      "CLIP"
+      10,
+      0,
+      "LATENT"
     ],
     [
-      601,
-      252,
+      13,
+      4,
+      2,
+      10,
       1,
-      71,
-      0,
-      "CLIP"
+      "VAE"
     ],
     [
-      607,
-      231,
+      14,
+      4,
       0,
-      278,
+      12,
+      0,
+      "MODEL"
+    ],
+    [
+      15,
+      10,
+      0,
+      13,
       0,
       "IMAGE"
+    ],
+    [
+      16,
+      4,
+      1,
+      14,
+      0,
+      "CLIP"
     ]
   ],
   "groups": [
@@ -746,8 +744,8 @@
       "id": 1,
       "title": "Load Models",
       "bounding": [
-        -2410,
-        -80,
+        -2180,
+        100,
         521,
         245
       ],
@@ -759,8 +757,8 @@
       "id": 2,
       "title": "Input",
       "bounding": [
-        -2410,
-        180,
+        -2180,
+        360,
         972,
         523
       ],
@@ -774,15 +772,11 @@
     "ds": {
       "scale": 0.5644739300537776,
       "offset": [
-        2459.3914109794932,
-        416.72560711274656
+        2224.800046854407,
+        249.58050223517944
       ]
     },
-    "workspace_info": {
-      "id": "d5942f34-1014-4b82-a445-4497edf66c44"
-    },
-    "groupNodes": {},
-    "frontendVersion": "1.25.11",
+    "frontendVersion": "1.26.13",
     "VHS_latentpreview": false,
     "VHS_latentpreviewrate": 0,
     "VHS_MetadataImage": false,
