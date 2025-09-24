@@ -15,7 +15,7 @@ Repository = "https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal
 [tool.comfy]
 PublisherId = "mjsk"
 DisplayName = "Save Image w/ Metadata Universal"
-Icon = "img\logo.svg"
+Icon = "img/logo.svg"
 
 
 [project.optional-dependencies]
