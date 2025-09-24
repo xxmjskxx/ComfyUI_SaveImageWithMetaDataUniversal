@@ -39,7 +39,6 @@
 ## Note
 - I'm an amateur at coding, at best. I started writing this myself, but as I began increasing the scope of the project I started using a Copilot.
 - If you have any questions, think any documentation is lacking, or experience issues with certain workflows or custom node packs, create a new issue an I'll try and see if it's something I can address.
-- Refactor notice: legacy monolithic module removed; see [Changelog](#changelog) for new direct import paths.
 
 ## Installation
 ```
@@ -280,6 +279,7 @@ Stable output characteristics to aid tooling & reproducibility:
 * JPEG fallback stage tracking aligns with documented progression (full → reduced-exif → minimal → com-marker).
 
 ### Changelog
+- Refactor notice: legacy monolithic module removed; see [Changelog](#changelog) for new direct import paths.
 See `CHANGELOG.md` for a summarized list of notable changes (e.g. JPEG fallback staging, 64KB EXIF cap enforcement, dynamic rule scanner separation, logging overhaul, documentation structure).
 
 ### Contributing (Summary)
