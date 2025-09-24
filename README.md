@@ -2,13 +2,14 @@
 ![SaveImageWithMetaData Preview](img/save_image_with_metadata_universal.png)
 > Enhanced Automatic1111‑style, Civitai-compatible metadata capture with extended support for prompt encoders, LoRA and model loaders, embeddings, samplers, clip models, guidance, shift, and more.
 
-- An extensive rework of the [ComfyUI](https://github.com/comfyanonymous/ComfyUI) custom node pack [ComfyUI-SaveImageWithMetaData](https://github.com/nkchocoai/ComfyUI-SaveImageWithMetaData/), that attempts to add universal support for all custom node packs, while also adding explicit support for a few custom nodes.
-- The `Save Image w/ Metadata Universal` node saves images with metadata extracted from the input values of any node.
+- An extensive rework of the [ComfyUI](https://github.com/comfyanonymous/ComfyUI) custom node pack [ComfyUI-SaveImageWithMetaData](https://github.com/nkchocoai/ComfyUI-SaveImageWithMetaData/), that attempts to add **universal support for all custom node packs**, while also adding explicit support for a few custom nodes.
+- The `Save Image w/ Metadata Universal` node saves images with metadata extracted automatically from the input values of any node—no manual node connecting required.
 - Provides full support for saving workflows and metadata to WEBP images.
 - Supports saving workflows and metadata to JPEGs (limited to 64KB—only smaller workflows can be saved to JPEGs).
 - Stores model hashes in `.sha256` files so you only ever have to hash models once, saving lots of time.
 - Includes the nodes `Metadata Rule Scanner` and `Save Custom Metadata Rules` which scan all installed nodes and generate metadata capture rules; designed to work with most custom packs and fall back gracefully when a node lacks heuristics (I can't test with every custom node pack, but it has been working well so far).
 - Since the value extraction rules are created dynamically, values output by most custom nodes can be added to metadata.
+- Tested with SD1.5, SDXL, FLUX, QWEN, WAN (2.1 supported); GGUF, Nunchaku
 
 ## Table of Contents
 * Getting Started
@@ -37,6 +38,7 @@
 
 ## Note
 - I'm an amateur at coding, at best. I started writing this myself, but as I began increasing the scope of the project I started using a Copilot.
+- If you have any questions, think any documentation is lacking, or experience issues with certain workflows or custom node packs, create a new issue an I'll try and see if it's something I can address.
 
 ## Installation
 ```
@@ -49,7 +51,7 @@ git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
 2. Add `Save Image w/ Metadata Universal` to your workflow and connect to the image input to save images using your custom capture ruleset.
 3. (Optional) Use `Create Extra MetaData` node(s) to manually record additional info.
 4. (Optional) For full Civitai style parity enable the `civitai_sampler` and `guidance_as_cfg` toggles in the save node.
-5. Prefer PNG (or lossless WebP) when you need guaranteed full workflow embedding (JPEG has strict size limits—[see tips below](#format--fallback-quick-tips)).
+5. Prefer PNG (or lossless WebP) when you need guaranteed full workflow embedding (JPEG has strict size limits—[see tips below](#format-&-fallback-quick-tips)).
 6. Hover any parameters on the nodes in this pack for concise tooltips (fallback stages, `max_jpeg_exif_kb`, LoRA summary toggle, guidance→CFG mapping, sampler naming, filename tokens). For further detail see: [Node UI Parameters](#node-ui-parameters-key-additions), [JPEG Metadata Size & Fallback Behavior](#jpeg-metadata-size--fallback-behavior); advanced env tuning: [Environment Flags](#environment-flags).
 
 ## Nodes
@@ -69,6 +71,7 @@ git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
 * Automatic1111‑style, Civitai-compatible parameter string (single‑line) with optional multi‑line deterministic test mode (`METADATA_TEST_MODE=1`).
 * Full PNG + lossless WebP workflow + metadata embedding; JPEG with staged fallback under 64KB EXIF limit.
   * See detailed fallback staging: [docs/JPEG_METADATA_FALLBACK.md](docs/JPEG_METADATA_FALLBACK.md)
+* Wan 2.1 example workflow is available: [example_workflows/wan21_text_to_image.json](example_workflows/wan21_text_to_image.json). It demonstrates prompt encoding, WanVideo Sampler with combined "scheduler" input (parsed into Sampler/Scheduler), VAE decode, and saving with enriched metadata.
 * Dynamic rule generation: `Metadata Rule Scanner` + `Save Custom Metadata Rules` create and save user rules, allowing broad custom node coverage.
 * LoRA handling:
   * Detects single and stack loaders & inline `<lora:name:sm[:sc]>` tags such as [ComfyUI Prompt Control](https://github.com/asagi4/comfyui-prompt-control) and [ComfyUI LoRA Manager](https://github.com/willmiao/ComfyUI-Lora-Manager).
@@ -96,7 +99,7 @@ git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
 - **Nearest** Selects the nearest KSampler node to this node.
 - **By node ID** Selects the KSampler node whose node ID is `sampler_selection_node_id`.
 
-## Metadata to be given
+## Metadata to be Captured
 - Positive prompt
 - Negative prompt
 - Steps

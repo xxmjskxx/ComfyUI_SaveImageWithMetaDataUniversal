@@ -1,0 +1,471 @@
+{
+  "id": "a3b8a6f0-1f7e-4a1c-b6a9-1f6e7b2b9e10",
+  "revision": 0,
+  "last_node_id": 12,
+  "last_link_id": 12,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "WanVideoModelLoader",
+      "pos": [
+        200,
+        220
+      ],
+      "size": [
+        260,
+        70
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            3
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WanVideoModelLoader"
+      },
+      "widgets_values": [
+        ""  
+      ]
+    },
+    {
+      "id": 2,
+      "type": "WanVideoVAELoader",
+      "pos": [
+        200,
+        320
+      ],
+      "size": [
+        260,
+        70
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            10
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WanVideoVAELoader"
+      },
+      "widgets_values": [
+        ""
+      ]
+    },
+    {
+      "id": 3,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        200,
+        30
+      ],
+      "size": [
+        280,
+        130
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            6
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PrimitiveStringMultiline"
+      },
+      "widgets_values": [
+        "a cinematic shot of a serene mountain lake at sunrise, ultra-detailed"
+      ]
+    },
+    {
+      "id": 4,
+      "type": "PrimitiveStringMultiline",
+      "pos": [
+        200,
+        170
+      ],
+      "size": [
+        280,
+        100
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            7
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PrimitiveStringMultiline"
+      },
+      "widgets_values": [
+        "(low quality, worst quality:1.4)"
+      ]
+    },
+    {
+      "id": 5,
+      "type": "WanVideoTextEncode",
+      "pos": [
+        520,
+        60
+      ],
+      "size": [
+        260,
+        140
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "positive_prompt",
+          "type": "STRING",
+          "link": 6
+        },
+        {
+          "name": "negative_prompt",
+          "type": "STRING",
+          "link": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "POSITIVE",
+          "type": "CONDITIONING",
+          "links": [
+            8
+          ]
+        },
+        {
+          "name": "NEGATIVE",
+          "type": "CONDITIONING",
+          "links": [
+            9
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WanVideoTextEncode"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 6,
+      "type": "EmptyLatentImage",
+      "pos": [
+        520,
+        240
+      ],
+      "size": [
+        270,
+        106
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            11
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptyLatentImage"
+      },
+      "widgets_values": [
+        512,
+        512,
+        1
+      ]
+    },
+    {
+      "id": 7,
+      "type": "PrimitiveString",
+      "pos": [
+        520,
+        360
+      ],
+      "size": [
+        220,
+        60
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            12
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PrimitiveString"
+      },
+      "widgets_values": [
+        "Euler a (Karras)"
+      ]
+    },
+    {
+      "id": 8,
+      "type": "WanVideo Sampler",
+      "pos": [
+        820,
+        160
+      ],
+      "size": [
+        320,
+        290
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 3
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 8
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 9
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 11
+        },
+        {
+          "name": "scheduler",
+          "type": "STRING",
+          "link": 12
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            4
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WanVideo Sampler"
+      },
+      "widgets_values": [
+        123456789,  
+        20,          
+        4.0,         
+        0.15,        
+        0.65         
+      ]
+    },
+    {
+      "id": 9,
+      "type": "VAEDecode",
+      "pos": [
+        1180,
+        220
+      ],
+      "size": [
+        210,
+        60
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 4
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 10
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            5
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 10,
+      "type": "SaveImageWithMetaDataUniversal",
+      "pos": [
+        1420,
+        220
+      ],
+      "size": [
+        480,
+        230
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 5
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "SaveImageWithMetaDataUniversal"
+      },
+      "widgets_values": [
+        "ComfyUI",
+        "Nearest",
+        0,
+        "png",
+        true,
+        100,
+        60,
+        false,
+        true,
+        false,
+        {},
+        true,
+        true
+      ]
+    }
+  ],
+  "links": [
+    [
+      3,
+      1,
+      0,
+      8,
+      0,
+      "MODEL"
+    ],
+    [
+      4,
+      8,
+      0,
+      9,
+      0,
+      "LATENT"
+    ],
+    [
+      5,
+      9,
+      0,
+      10,
+      0,
+      "IMAGE"
+    ],
+    [
+      6,
+      3,
+      0,
+      5,
+      0,
+      "STRING"
+    ],
+    [
+      7,
+      4,
+      0,
+      5,
+      1,
+      "STRING"
+    ],
+    [
+      8,
+      5,
+      0,
+      8,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      9,
+      5,
+      1,
+      8,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      10,
+      2,
+      0,
+      9,
+      1,
+      "VAE"
+    ],
+    [
+      11,
+      6,
+      0,
+      8,
+      3,
+      "LATENT"
+    ],
+    [
+      12,
+      7,
+      0,
+      8,
+      4,
+      "STRING"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {},
+  "version": 0.4
+}
