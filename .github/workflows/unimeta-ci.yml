@@ -3,10 +3,10 @@ name: SaveImageWithMetaDataUniversal CI
 on:
   push:
     paths:
-      - 'custom_nodes/ComfyUI_SaveImageWithMetaDataUniversal/**'
+      - '**'
   pull_request:
     paths:
-      - 'custom_nodes/ComfyUI_SaveImageWithMetaDataUniversal/**'
+      - '**'
 
 jobs:
   test:
@@ -22,18 +22,19 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        working-directory: custom_nodes/ComfyUI_SaveImageWithMetaDataUniversal
+        # Repository root already IS the custom node root; previous nested path was invalid in CI.
+        working-directory: .
         run: |
           python -m pip install --upgrade pip
           pip install -U pytest pillow numpy piexif ruff
 
       - name: Lint (ruff)
-        working-directory: custom_nodes/ComfyUI_SaveImageWithMetaDataUniversal
+        working-directory: .
         run: |
           ruff check --exit-zero .
 
       - name: Run tests
-        working-directory: custom_nodes/ComfyUI_SaveImageWithMetaDataUniversal
+        working-directory: .
         env:
           METADATA_TEST_MODE: '1'
         run: |
@@ -55,6 +56,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install ruff
       - name: Ruff strict (fail on issues)
-        working-directory: custom_nodes/ComfyUI_SaveImageWithMetaDataUniversal
+        working-directory: .
         run: |
           ruff check .
