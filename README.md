@@ -39,6 +39,7 @@
 ## Note
 - I'm an amateur at coding, at best. I started writing this myself, but as I began increasing the scope of the project I started using a Copilot.
 - If you have any questions, think any documentation is lacking, or experience issues with certain workflows or custom node packs, create a new issue an I'll try and see if it's something I can address.
+- Refactor notice: legacy monolithic module removed; see [Changelog](#changelog) for new direct import paths.
 
 ## Installation
 ```
@@ -140,6 +141,7 @@ Key quality‑of‑life and compatibility controls exposed by the primary save n
 * `include_lora_summary` (BOOLEAN, default True): Toggles the aggregated `LoRAs:` summary line; when False only individual `Lora_*` entries are emitted. UI setting overrides env flags.
 * `guidance_as_cfg` (BOOLEAN, default False): Substitutes the captured `Guidance` value into `CFG scale` and omits the separate `Guidance:` field for better A1111 / Civitai parity when models expose guidance separately.
 * `max_jpeg_exif_kb` (INT, default 60, min 4, max 64): UI‑enforced ceiling for attempted JPEG EXIF payload. Real-world single APP1 EXIF segment limit is ~64KB; exceeding it triggers staged fallback (reduced-exif → minimal → com-marker). For large workflows prefer PNG / lossless WebP.
+* `suppress_missing_class_log` (BOOLEAN, default False): Hide the informational log listing missing classes that would trigger a user JSON rules merge. Useful to reduce noise in large custom node environments.
 
 ---
 ### Filename Token Reference
@@ -251,7 +253,7 @@ Parse the tail of the parameters string for `Metadata Fallback:`. (A future expl
 ### Design / Future Ideas
 Deferred and exploratory concepts are documented in:
 * `docs/WORKFLOW_COMPRESSION_DESIGN.md` (workflow compression placeholder)
-* `docs/FUTURE_AND_PROTOTYPES.md` (archived prototype UI + additional speculative enhancements)
+* `docs/FUTURE_AND_PROTOTYPES.md` (archived prototype UI + additional speculative enhancements; Wan2.2 and multi-model workflow support)
 
 ### Environment Flags
 | Flag | Effect |

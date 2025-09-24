@@ -3,41 +3,50 @@ name: SaveImageWithMetaDataUniversal CI
 on:
   push:
     paths:
-      - 'custom_nodes/ComfyUI_SaveImageWithMetaDataUniversal/**'
+      - '**'
   pull_request:
     paths:
-      - 'custom_nodes/ComfyUI_SaveImageWithMetaDataUniversal/**'
+      - '**'
 
 jobs:
-  test:
+  test-and-coverage:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Set up Python
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
-
+          python-version: ${{ matrix.python-version }}
       - name: Install dependencies
-        working-directory: custom_nodes/ComfyUI_SaveImageWithMetaDataUniversal
         run: |
           python -m pip install --upgrade pip
-          pip install -U pytest pillow numpy piexif ruff
-
-      - name: Lint (ruff)
-        working-directory: custom_nodes/ComfyUI_SaveImageWithMetaDataUniversal
+          pip install -U pytest pillow numpy piexif ruff coverage
+      - name: Lint (non-blocking)
         run: |
           ruff check --exit-zero .
-
-      - name: Run tests
-        working-directory: custom_nodes/ComfyUI_SaveImageWithMetaDataUniversal
+      - name: Run tests with coverage
         env:
           METADATA_TEST_MODE: '1'
         run: |
-          pytest -q
+          coverage run -m pytest -q
+          coverage report
+          coverage xml -o coverage.xml
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.python-version }}
+          path: coverage.xml
+          if-no-files-found: ignore
+      - name: Fail if below threshold (enforced by coverage report exit code)
+        if: success()
+        run: echo "Coverage threshold met for ${{ matrix.python-version }}"
 
   lint-strict:
     if: github.event_name == 'pull_request'
@@ -55,6 +64,39 @@ jobs:
           python -m pip install --upgrade pip
           pip install ruff
       - name: Ruff strict (fail on issues)
-        working-directory: custom_nodes/ComfyUI_SaveImageWithMetaDataUniversal
+        working-directory: .
         run: |
           ruff check .
+
+  lint-autofix:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+            python-version: '3.12'
+      - name: Install ruff
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff
+      - name: Run ruff with auto-fix
+        run: |
+          ruff check --fix . || true
+      - name: Show diff after auto-fix
+        run: |
+          git diff --name-only || true
+      - name: Fail if auto-fix introduced changes (enforce local lint before PR)
+        run: |
+          if git diff --quiet; then
+            echo "No autofix changes needed.";
+          else
+            echo "Ruff auto-fix made changes. Please commit them locally.";
+            git diff --stat;
+            exit 1;
+          fi
