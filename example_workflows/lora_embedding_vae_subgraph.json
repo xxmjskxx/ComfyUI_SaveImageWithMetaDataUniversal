@@ -337,40 +337,6 @@
       "widgets_values": []
     },
     {
-      "id": 5,
-      "type": "VAELoader",
-      "pos": [
-        920,
-        750
-      ],
-      "size": [
-        323.17578125,
-        58
-      ],
-      "flags": {},
-      "order": 3,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "VAE",
-          "type": "VAE",
-          "slot_index": 0,
-          "links": [
-            4
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.3.59",
-        "Node name for S&R": "VAELoader"
-      },
-      "widgets_values": [
-        "clearvae_nanslesstest.safetensors"
-      ]
-    },
-    {
       "id": 16,
       "type": "SaveImageWithMetaDataUniversal",
       "pos": [
@@ -379,7 +345,7 @@
       ],
       "size": [
         317.0025329589844,
-        342
+        578
       ],
       "flags": {},
       "order": 12,
@@ -421,6 +387,7 @@
         false,
         false,
         true,
+        false,
         false
       ]
     },
@@ -556,6 +523,40 @@
       ]
     },
     {
+      "id": 5,
+      "type": "VAELoader",
+      "pos": [
+        950,
+        750
+      ],
+      "size": [
+        323.17578125,
+        58
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "slot_index": 0,
+          "links": [
+            4
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.59",
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "clearvae_nanslesstest.safetensors"
+      ]
+    },
+    {
       "id": 17,
       "type": "1cf69dd0-2895-41b7-b040-faa877c32d53",
       "pos": [
@@ -564,7 +565,7 @@
       ],
       "size": [
         270,
-        338
+        550
       ],
       "flags": {},
       "order": 8,
@@ -595,6 +596,7 @@
           ]
         }
       ],
+      "title": "KSampler+Latent Upscale",
       "properties": {
         "cnr_id": "comfy-core",
         "ver": "0.3.59"
@@ -774,7 +776,7 @@
         },
         "revision": 0,
         "config": {},
-        "name": "New Subgraph",
+        "name": "KSampler+Latent Upscale",
         "inputNode": {
           "id": -10,
           "bounding": [
@@ -995,7 +997,7 @@
               262
             ],
             "flags": {},
-            "order": 2,
+            "order": 1,
             "mode": 0,
             "inputs": [
               {
@@ -1115,7 +1117,7 @@
               82
             ],
             "flags": {},
-            "order": 1,
+            "order": 0,
             "mode": 0,
             "inputs": [
               {
@@ -1176,7 +1178,7 @@
               106
             ],
             "flags": {},
-            "order": 0,
+            "order": 2,
             "mode": 0,
             "inputs": [
               {
@@ -1376,13 +1378,13 @@
   "extra": {
     "groupNodes": {},
     "ds": {
-      "scale": 0.8362407046824322,
+      "scale": 0.6282800185442767,
       "offset": [
-        -830.2699250129474,
-        15.671658788120624
+        -614.4062786350885,
+        110.66511144525167
       ]
     },
-    "frontendVersion": "1.25.11",
+    "frontendVersion": "1.26.13",
     "VHS_latentpreview": false,
     "VHS_latentpreviewrate": 0,
     "VHS_MetadataImage": false,

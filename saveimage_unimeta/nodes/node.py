@@ -1448,7 +1448,7 @@ class MetadataRuleScanner:
                         "multiline": True,
                         "default": (
                             "mask,find,resize,rotate,detailer,bus,scale,vision,text to,crop,xy,plot,controlnet,save,"
-                            "trainlora,postshot,loramanager"
+                            "trainlora,postshot"
                         ),
                         "tooltip": (
                             "Comma-separated keywords to exclude nodes whose class names contain any of them."

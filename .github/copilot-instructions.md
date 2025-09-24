@@ -9,7 +9,8 @@ Concise guide for AI agents working on `ComfyUI_SaveImageWithMetaDataUniversal`.
 Forced include + rule generation handled by separate nodes; merged via `FORCED_INCLUDE_CLASSES` before capture. Hash helpers & embedding/lora utilities in `saveimage_unimeta/utils/` (hash, lora, embedding).
 
 ## External Dependencies
-Relies on ComfyUI runtime (`folder_paths`, sampler nodes), Pillow (`PIL`), optional `piexif`. Provide stubs when unavailable (tests). Avoid adding heavy deps; prefer extending formatters.
+Relies on ComfyUI runtime (`folder_paths`, sampler nodes), Pillow (`PIL`), optional `piexif`. Provide stubs when unavailable (tests).
+Avoid adding heavy deps; prefer extending formatters.
 
 ## Dev Workflows
 Run lint: `ruff check .`  (keep code style consistent).
@@ -44,7 +45,8 @@ Model / VAE / LoRA hashes via helpers in `formatters.py`; truncated sha256 (10 c
 `%seed%`, `%width%`, `%height%`, `%pprompt%[:n]`, `%nprompt%[:n]`, `%model%[:n]`, `%date%` or `%date:pattern%` (yyyy, MM, dd, hh, mm, ss).
 
 ## Conventions
-No raw `print`; use module logger. Wrap tooltips ≤ ~140 chars.
+No raw `print`; use module logger.
+Wrap tooltips ≤ ~140 chars (exclude the description field in pyproject.toml from this rule).
 Replace commas in extra metadata values with `/` to avoid downstream split issues.
 Keep ordering stable; only append new fields.
 

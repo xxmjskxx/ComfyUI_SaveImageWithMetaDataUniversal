@@ -1,9 +1,7 @@
 [project]
 name = "SaveImageWithMetaDataUniversal"
 description = """
-Node for saving PNGs, WEBPs, and JPEGs with rich automatically captured metadata: prompts, model/VAE/LoRA names & hashes,
-sampler & scheduler (Civitai-compatible), optional workflow embedding, dynamic rule scanning + forced include system, deterministic
-ordering, filename tokens, and staged JPEG fallback (full → reduced-exif → minimal → com-marker) to preserve as much data as possible.
+Node for saving PNGs, WEBPs, and JPEGs with rich automatically captured metadata from any node: prompts, model/VAE/LoRA names & hashes, sampler & scheduler (Civitai-compatible), optional workflow embedding, dynamic rule scanning + forced include system, deterministic ordering, filename tokens, and staged JPEG metadata fallback.
 """
 version = "1.0.0"
 license = { file = "LICENSE" }
@@ -14,7 +12,7 @@ Repository = "https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal
 
 [tool.comfy]
 PublisherId = "mjsk"
-DisplayName = "Save Image w/ Metadata Universal"
+DisplayName = "Save Image with Metadata Universal"
 Icon = "img/logo.svg"
 
 
@@ -31,7 +29,7 @@ dev = [
 
 [tool.ruff]
 line-length = 140
-target-version = "py312"  # Adjust based on your Python version
+target-version = "py39"  # Adjust based on your Python version
 # extend-exclude = ["static", "ci/templates"]
 src = ["src", "tests"]
 exclude = ["*cookiecutter.project_slug*"]

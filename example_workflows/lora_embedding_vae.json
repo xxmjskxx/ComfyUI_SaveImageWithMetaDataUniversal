@@ -1,8 +1,8 @@
 {
   "id": "09048226-4ff6-4485-a98d-d54a936081a8",
   "revision": 0,
-  "last_node_id": 16,
-  "last_link_id": 20,
+  "last_node_id": 17,
+  "last_link_id": 22,
   "nodes": [
     {
       "id": 9,
@@ -83,7 +83,7 @@
       ],
       "size": [
         315,
-        262
+        474
       ],
       "flags": {},
       "order": 9,
@@ -193,7 +193,7 @@
         126
       ],
       "flags": {},
-      "order": 6,
+      "order": 5,
       "mode": 0,
       "inputs": [
         {
@@ -236,62 +236,6 @@
       ]
     },
     {
-      "id": 13,
-      "type": "LoraLoader",
-      "pos": [
-        1300,
-        190
-      ],
-      "size": [
-        340.8315734863281,
-        126
-      ],
-      "flags": {},
-      "order": 7,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "link": 18
-        },
-        {
-          "name": "clip",
-          "type": "CLIP",
-          "link": 19
-        }
-      ],
-      "outputs": [
-        {
-          "name": "MODEL",
-          "type": "MODEL",
-          "slot_index": 0,
-          "links": [
-            5,
-            11
-          ]
-        },
-        {
-          "name": "CLIP",
-          "type": "CLIP",
-          "slot_index": 1,
-          "links": [
-            16
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.3.59",
-        "Node name for S&R": "LoraLoader"
-      },
-      "widgets_values": [
-        "leco\\leco_cyborg_last.safetensors",
-        -3,
-        -3
-      ]
-    },
-    {
       "id": 4,
       "type": "KSampler",
       "pos": [
@@ -300,7 +244,7 @@
       ],
       "size": [
         315,
-        262
+        474
       ],
       "flags": {},
       "order": 11,
@@ -386,7 +330,7 @@
           "type": "IMAGE",
           "links": [
             1,
-            20
+            21
           ]
         }
       ],
@@ -473,60 +417,6 @@
       ]
     },
     {
-      "id": 16,
-      "type": "SaveImageWithMetaDataUniversal",
-      "pos": [
-        2640,
-        470
-      ],
-      "size": [
-        317.0025329589844,
-        342
-      ],
-      "flags": {},
-      "order": 14,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "link": 20
-        },
-        {
-          "name": "extra_metadata",
-          "shape": 7,
-          "type": "EXTRA_METADATA",
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "links": null
-        }
-      ],
-      "properties": {
-        "aux_id": "xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal",
-        "ver": "c9a87453bc4257614c87d28a64a5be9c4fdccba9",
-        "Node name for S&R": "SaveImageWithMetaDataUniversal"
-      },
-      "widgets_values": [
-        "ComfyUI",
-        "Farthest",
-        0,
-        "png",
-        true,
-        100,
-        false,
-        true,
-        false,
-        false,
-        true,
-        false
-      ]
-    },
-    {
       "id": 1,
       "type": "SaveImage",
       "pos": [
@@ -570,7 +460,7 @@
       "flags": {
         "collapsed": false
       },
-      "order": 8,
+      "order": 7,
       "mode": 0,
       "inputs": [
         {
@@ -621,13 +511,13 @@
       "flags": {
         "collapsed": false
       },
-      "order": 5,
+      "order": 8,
       "mode": 0,
       "inputs": [
         {
           "name": "clip",
           "type": "CLIP",
-          "link": null
+          "link": 22
         },
         {
           "name": "text",
@@ -690,6 +580,118 @@
         512,
         512,
         1
+      ]
+    },
+    {
+      "id": 17,
+      "type": "SaveImageWithMetaDataUniversal",
+      "pos": [
+        2640,
+        470
+      ],
+      "size": [
+        317.0025329589844,
+        366
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 21
+        },
+        {
+          "name": "extra_metadata",
+          "shape": 7,
+          "type": "EXTRA_METADATA",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal",
+        "ver": "0be581e31fcf9836467d69489ecad77a1eb4df27",
+        "Node name for S&R": "SaveImageWithMetaDataUniversal"
+      },
+      "widgets_values": [
+        "ComfyUI",
+        "Farthest",
+        0,
+        "png",
+        true,
+        100,
+        60,
+        false,
+        true,
+        false,
+        false,
+        true,
+        false
+      ]
+    },
+    {
+      "id": 13,
+      "type": "LoraLoader",
+      "pos": [
+        1300,
+        190
+      ],
+      "size": [
+        340.8315734863281,
+        126
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 18
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 19
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            5,
+            11
+          ]
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "slot_index": 1,
+          "links": [
+            16,
+            22
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.59",
+        "Node name for S&R": "LoraLoader"
+      },
+      "widgets_values": [
+        "leco\\leco_cyborg_last.safetensors",
+        -3,
+        -3
       ]
     }
   ],
@@ -847,12 +849,20 @@
       "CLIP"
     ],
     [
-      20,
+      21,
       3,
       0,
-      16,
+      17,
       0,
       "IMAGE"
+    ],
+    [
+      22,
+      13,
+      1,
+      10,
+      0,
+      "CLIP"
     ]
   ],
   "groups": [],
@@ -862,11 +872,11 @@
     "ds": {
       "scale": 0.6911080203987038,
       "offset": [
-        -811.1845110757474,
-        154.54315756801049
+        -762.3097042451055,
+        106.95452521633689
       ]
     },
-    "frontendVersion": "1.25.11",
+    "frontendVersion": "1.26.13",
     "VHS_latentpreview": false,
     "VHS_latentpreviewrate": 0,
     "VHS_MetadataImage": false,
