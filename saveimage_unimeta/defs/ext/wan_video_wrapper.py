@@ -1,11 +1,24 @@
-# https://github.com/kijai/ComfyUI-WanVideoWrapper
+"""Capture rules for ComfyUI-WanVideoWrapper.
+
+Ref: https://github.com/kijai/ComfyUI-WanVideoWrapper
+
+Coverage summary:
+- Model/UNet: `WanVideoModelLoader` (supports up to two models; capture primary and
+    secondary when present).
+- VAE: `WanVideoVAELoader` and `WanVideoTinyVAELoader` capture VAE name and VAE hash.
+- Extra model selectors: `WanVideoVACEModelSelect`, `WanVideoExtraModelSelect` capture
+    model name and UNet hash.
+- LoRA: `WanVideoLoraSelect`, `WanVideoLoraSelectByName`, `WanVideoLoraSelectMulti`
+    capture model names, hashes, and model strengths.
+- CLIP encoders: `LoadWanVideoT5TextEncoder` and `LoadWanVideoClipTextEncoder` capture
+    CLIP model name.
+- Prompts: `WanVideoTextEncode`, `WanVideoTextEncodeCached`, `WanVideoTextEncodeSingle`
+    capture positive/negative or single prompt as appropriate.
+"""
 
 import logging
-import re
 
 from ..validators import is_negative_prompt, is_positive_prompt
-
-from ...utils.lora import find_lora_info
 from ..formatters import calc_lora_hash, calc_vae_hash, calc_unet_hash
 from ..meta import MetaField
 
@@ -13,156 +26,11 @@ logger = logging.getLogger(__name__)
 logger.debug("[Meta DBG] Wan Video Wrapper extension definitions loaded.")
 
 
-def get_lora_model_name(node_id, obj, prompt, extra_data, outputs, input_data):
-    return get_lora_data(input_data, "lora")
-
-
-def get_lora_model_hash(node_id, obj, prompt, extra_data, outputs, input_data):
-    return [calc_lora_hash(model_name, input_data) for model_name in get_lora_data(input_data, "lora")]
-
-
-def get_lora_strength(node_id, obj, prompt, extra_data, outputs, input_data):
-    return get_lora_data(input_data, "strength")
-
-
-def get_lora_data(input_data, attribute):
-    return [v[0][attribute] for k, v in input_data[0].items() if k.startswith("lora_") and v[0]["on"]]
-
-
-def get_lora_model_name_stack(node_id, obj, prompt, extra_data, outputs, input_data):
-    return get_lora_data_stack(input_data, "lora")
-
-
-def get_lora_model_hash_stack(node_id, obj, prompt, extra_data, outputs, input_data):
-    return [calc_lora_hash(model_name, input_data) for model_name in get_lora_data_stack(input_data, "lora")]
-
-
-def get_lora_strength_stack(node_id, obj, prompt, extra_data, outputs, input_data):
-    return get_lora_data_stack(input_data, "strength")
-
-
-def get_lora_data_stack(input_data, attribute):
-    return [v[0] for k, v in input_data[0].items() if k.startswith(attribute + "_") and v[0] != "None"]
-
-
-STRICT = re.compile(r"<lora:([^:>]+):([0-9]*\.?[0-9]+)(?::([0-9]*\.?[0-9]+))?>")
-LEGACY = re.compile(r"<lora:([^:>]+):([^>]+)>")
-_SYNTAX_CACHE = {}
-
-
-def _coerce_first(v):
-    if isinstance(v, list):
-        return v[0] if v else ""
-    return v if isinstance(v, str) else ""
-
-
-def _parse_syntax(text: str):
-    names, hashes, model_strengths, clip_strengths = [], [], [], []
-    if not text:
-        return names, hashes, model_strengths, clip_strengths
-    matches = STRICT.findall(text)
-    if not matches:
-        legacy = LEGACY.findall(text)
-        for name, blob in legacy:
-            try:
-                parts = blob.split(":")
-                if len(parts) == 2:
-                    ms = float(parts[0])
-                    cs = float(parts[1])
-                else:
-                    ms = float(parts[0])
-                    cs = ms
-            except Exception:
-                ms = cs = 1.0
-            info = find_lora_info(name)
-            display = info["filename"] if info else name
-            names.append(display)
-            hashes.append(calc_lora_hash(name, None))
-            model_strengths.append(ms)
-            clip_strengths.append(cs)
-        return names, hashes, model_strengths, clip_strengths
-    for name, ms_s, cs_s in matches:
-        try:
-            ms = float(ms_s)
-        except Exception:
-            ms = 1.0
-        try:
-            cs = float(cs_s) if cs_s else ms
-        except Exception:
-            cs = ms
-        info = find_lora_info(name)
-        display = info["filename"] if info else name
-        names.append(display)
-        hashes.append(calc_lora_hash(name, None))
-        model_strengths.append(ms)
-        clip_strengths.append(cs)
-    return names, hashes, model_strengths, clip_strengths
-
-
-def _get_syntax(node_id, input_data):
-    # Candidate textual fields used by WanVideo prompt/encode nodes
-    candidates = [
-        "prompt",
-        "text",
-        "positive",
-        "clip",
-        "t5",
-        "combined",
-        "positive_prompt",
-        "negative_prompt",
-    ]
-    for key in candidates:
-        raw = input_data[0].get(key)
-        if raw:
-            text = _coerce_first(raw)
-            cached = _SYNTAX_CACHE.get(node_id)
-            if cached and cached.get("text") == text:
-                return cached["data"]
-            names, hashes, ms, cs = _parse_syntax(text)
-            data = {
-                "names": names,
-                "hashes": hashes,
-                "model_strengths": ms,
-                "clip_strengths": cs,
-            }
-            _SYNTAX_CACHE[node_id] = {"text": text, "data": data}
-            return data
-    return {"names": [], "hashes": [], "model_strengths": [], "clip_strengths": []}
-
-
-def get_rgthree_syntax_names(node_id, *args):
-    return _get_syntax(node_id, args[-1])["names"]
-
-
-def get_rgthree_syntax_hashes(node_id, *args):
-    return _get_syntax(node_id, args[-1])["hashes"]
-
-
-def get_rgthree_syntax_model_strengths(node_id, *args):
-    return _get_syntax(node_id, args[-1])["model_strengths"]
-
-
-def get_rgthree_syntax_clip_strengths(node_id, *args):
-    return _get_syntax(node_id, args[-1])["clip_strengths"]
-
-# WanVideoModelLoader may load up to 2 models and both should be recorded if present.
-# Possible name formats for WanVideoLoraSelectByName:
-#   Wan2.2-Lightning_T2V-A14B-4steps-lora_HIGH_fp16
-#   wan\\turbo\\Wan2.2-Lightning_T2V-A14B-4steps-lora_HIGH_fp16
-# Wan can also use additional models like the one's loaded with the VACE and ExtraModel nodes
-# Wan lora models have no clip strengths, only model strengths.
-# WanVideoLoraSelectMulti can load up to 5 loras at once
-# LoadWanVideoT5TextEncoder and LoadWanVideoClipTextEncoder load CLIP models
-# WanVideo TextEncode has a positive_prompt and negative_prompt field
-# WanVideo TextEncode Cached has a positive_prompt and negative_prompt field,
-# and a model_name field for loading a clip model
-# WanVideo TextEncodeSingle has a prompt field
-
 CAPTURE_FIELD_LIST = {
     "WanVideoModelLoader": {
-        MetaField.MODEL_NAME: {"field_name": "model"},
-        MetaField.MODEL_HASH: {"field_name": "model", "format": calc_unet_hash},
-        # Some variants expose two models; if present, the active one is exposed via 'model'.
+        # Capture primary and optional secondary model fields if present.
+        MetaField.MODEL_NAME: {"fields": ["model", "model_b", "model2"]},
+        MetaField.MODEL_HASH: {"fields": ["model", "model_b", "model2"], "format": calc_unet_hash},
     },
     "WanVideoVAELoader": {
         MetaField.VAE_NAME: {"field_name": "vae_name"},
@@ -218,4 +86,90 @@ CAPTURE_FIELD_LIST = {
         MetaField.POSITIVE_PROMPT: {"field_name": "prompt", "validate": is_positive_prompt},
         MetaField.NEGATIVE_PROMPT: {"field_name": "prompt", "validate": is_negative_prompt},
     },
+    # Sampler: captures steps, cfg, shift, seed, denoise; splits combined scheduler field
+    # which may carry both sampler and scheduler information.
+    "WanVideo Sampler": {
+        MetaField.SEED: {"field_name": "seed"},
+        MetaField.STEPS: {"field_name": "steps"},
+        MetaField.CFG: {"field_name": "cfg"},
+        MetaField.SHIFT: {"field_name": "shift"},
+        MetaField.DENOISE: {"field_name": "denoise"},
+        MetaField.SAMPLER_NAME: {
+            "selector": (
+                lambda node_id, obj, prompt, extra_data, outputs, input_data: _wan_sampler_from_scheduler(input_data)
+            )
+        },
+        MetaField.SCHEDULER: {
+            "selector": (
+                lambda node_id, obj, prompt, extra_data, outputs, input_data: _wan_scheduler_from_scheduler(input_data)
+            )
+        },
+    },
 }
+
+
+def _wan_get_input(input_data, key):
+    try:
+        return input_data[0][key][0]
+    except Exception:
+        return None
+
+
+def _split_sampler_scheduler(value):
+    """Best-effort extraction of (sampler, scheduler) from a combined value.
+
+    Accepts dict-like (keys: sampler/scheduler), tuple/list (first, second),
+    or string forms such as "Euler a (Karras)", "Euler a / Karras", or "Euler, Karras".
+    Returns a tuple (sampler: str, scheduler: str), defaulting to empty strings when unknown.
+    """
+    sampler = ""
+    scheduler = ""
+    try:
+        # Dict-like
+        if isinstance(value, dict):
+            sampler = str(value.get("sampler") or value.get("sampler_name") or value.get("name") or "")
+            scheduler = str(value.get("scheduler") or value.get("schedule") or "")
+            return sampler, scheduler
+        # Tuple/list-like
+        if isinstance(value, list | tuple):
+            if len(value) >= 1 and value[0] is not None:
+                sampler = str(value[0])
+            if len(value) >= 2 and value[1] is not None:
+                scheduler = str(value[1])
+            return sampler, scheduler
+        # String-like
+        if value is None:
+            return sampler, scheduler
+        s = str(value)
+        # Pattern: "Sampler (Scheduler)"
+        if "(" in s and ")" in s and s.index("(") < s.index(")"):
+            pre = s[: s.index("(")].strip()
+            inside = s[s.index("(") + 1 : s.index(")")].strip()
+            return pre, inside
+        # Pattern: "Sampler / Scheduler" or "Sampler | Scheduler" or "Sampler - Scheduler"
+        for sep in [" / ", " | ", " - "]:
+            if sep in s:
+                parts = [p.strip() for p in s.split(sep, 1)]
+                if len(parts) == 2:
+                    return parts[0], parts[1]
+        # Fallback: comma separated
+        if "," in s:
+            parts = [p.strip() for p in s.split(",", 1)]
+            if len(parts) == 2:
+                return parts[0], parts[1]
+        # Unknown: treat as scheduler-only text
+        return "", s
+    except Exception:
+        return sampler, scheduler
+
+
+def _wan_sampler_from_scheduler(input_data):
+    val = _wan_get_input(input_data, "scheduler")
+    sampler, _ = _split_sampler_scheduler(val)
+    return sampler
+
+
+def _wan_scheduler_from_scheduler(input_data):
+    val = _wan_get_input(input_data, "scheduler")
+    _, scheduler = _split_sampler_scheduler(val)
+    return scheduler
