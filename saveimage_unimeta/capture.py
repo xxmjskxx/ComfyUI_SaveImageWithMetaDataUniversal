@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 from collections.abc import Iterable, Iterator
 from typing import Any
 
@@ -145,9 +146,16 @@ class Capture:
                 value = value[0]
             if not isinstance(value, str):
                 value = str(value)
-            base = os.path.basename(value)
+            # Normalize path separators first (support mixed or escaped sequences)
+            # UNC paths like \\server\share\model.ckpt should reduce to 'model' when drop_extension.
+            # On some platforms os.path.basename on a UNC may still return the full trailing component chain
+            # if trailing slashes are inconsistent; we defensively split manually after normalization.
+            norm = value.replace("\\\\", "\\")
+            # Guard against accidental leading double-backslash UNC root leaking into display.
+            # We only want the final component for display; intermediate share names are not user‑critical here.
+            parts = re.split(r"[/\\]", norm.rstrip("/\\")) if isinstance(norm, str) else [str(norm)]
+            base = parts[-1] if parts else norm
             cleaned = base.strip().strip("'").strip('"')
-            cleaned = cleaned.replace("\\\\", "\\")
             if drop_extension:
                 cleaned = os.path.splitext(cleaned)[0]
             return cleaned
