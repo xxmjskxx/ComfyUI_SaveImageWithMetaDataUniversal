@@ -151,3 +151,4 @@ How_to_Use_Ruff_Pytest_and_GitHub_CICD.md
 .ruff_cache/
 web/disabled/metadata_rule_scanner/
 ignore/
+img/alt_logo/

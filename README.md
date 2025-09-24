@@ -34,11 +34,6 @@
   * [AI Assistant Instructions](.github/copilot-instructions.md)
 
 ## Note
-  * Run lint & tests before submitting PRs:
-  ```
-  ruff check .
-  pytest -q
-  ```
 - I'm an amateur at coding, at best. I started writing this myself, but as I began increasing the scope of the project I started using a Copilot.
 
 ## Installation
@@ -65,12 +60,12 @@ git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
 | ---- | ------- |
 | `SaveImageWithMetaDataUniversal` | Save images + produce enriched metadata (PNGInfo / EXIF) & parameter string. |
 | `Create Extra MetaData` | Inject any additional custom key-value metadata pairs. |
-| `Save Custom Metadata Rules` | Persist generated rule suggestions to `generated_user_rules.py` (append or overwrite). |
 | `Metadata Rule Scanner` | Scan installed nodes to suggest metadata capture rules (options for: exclude keywords, modes, metafield forcing). |
+| `Save Custom Metadata Rules` | Save generated rule suggestions to `generated_user_rules.py` (append or overwrite). |
 | `Show generated_user_rules.py` | Display the current merged user rules file contents for review/editing. |
 | `Save generated_user_rules.py` | Validate and write edited rules text back to the user rules file. |
 | `Metadata Force Include` | Configure global forced node class names for capture definition loading. |
-| `Show Text (UniMeta)` | Local variant (key `ShowText|unimeta`) for displaying connected text outputs; based on [pythongosssss](https://github.com/pythongosssss/ComfyUI-Custom-Scripts) `Show Text 🐍` (MIT). |
+| `Show Text (UniMeta)` | Local variant for displaying connected text outputs; based on [pythongosssss](https://github.com/pythongosssss/ComfyUI-Custom-Scripts) `Show Text 🐍` (MIT). |
 
 ## Feature Overview
 * Automatic1111‑style parameter string (single‑line) with optional multi‑line deterministic test mode (`METADATA_TEST_MODE=1`).
