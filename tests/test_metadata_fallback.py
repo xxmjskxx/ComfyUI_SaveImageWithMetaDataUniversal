@@ -1,23 +1,26 @@
 import os
+import sys
 import types
 from pathlib import Path
+import numpy as np
 
-from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.node import SaveImageWithMetaDataUniversal
+from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.save_image import (
+    SaveImageWithMetaDataUniversal,
+)
+from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta import hook
+from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.trace import Trace
 
 class DummyArgs:
     disable_metadata = False
 
-# Patch comfy.cli_args.args if absent
-import sys
-if 'comfy' not in sys.modules:
-    m = types.ModuleType('comfy')
-    cli_args_mod = types.ModuleType('comfy.cli_args')
-    cli_args_mod.args = DummyArgs()
-    sys.modules['comfy'] = m
-    sys.modules['comfy.cli_args'] = cli_args_mod
+def _ensure_comfy_stub():
+    if 'comfy' not in sys.modules:
+        m = types.ModuleType('comfy')
+        cli_args_mod = types.ModuleType('comfy.cli_args')
+        cli_args_mod.args = DummyArgs()
+        sys.modules['comfy'] = m
+        sys.modules['comfy.cli_args'] = cli_args_mod
 
-# Minimal stubs
-import numpy as np
 class DummyFolderPaths:
     @staticmethod
     def get_output_directory():
@@ -29,20 +32,18 @@ class DummyFolderPaths:
     def get_save_image_path(prefix, outdir, w, h):
         return outdir, prefix, 1, '', prefix
 
-sys.modules.setdefault('folder_paths', DummyFolderPaths)
-
-# Fake hook + Trace dependencies
-from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta import hook
-hook.current_save_image_node_id = 0
-hook.current_prompt = {}
-
-from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.trace import Trace
-Trace.trace = classmethod(lambda cls, *a, **k: {})
-Trace.filter_inputs_by_trace_tree = classmethod(lambda cls, a, b: {})
-Trace.find_sampler_node_id = classmethod(lambda cls, *a, **k: -1)
+def _prepare_environment():
+    _ensure_comfy_stub()
+    sys.modules.setdefault('folder_paths', DummyFolderPaths)
+    hook.current_save_image_node_id = 0
+    hook.current_prompt = {}
+    Trace.trace = classmethod(lambda cls, *a, **k: {})
+    Trace.filter_inputs_by_trace_tree = classmethod(lambda cls, a, b: {})
+    Trace.find_sampler_node_id = classmethod(lambda cls, *a, **k: -1)
 
 # Force environment to multiline for determinism
 os.environ['METADATA_TEST_MODE'] = '1'
+_prepare_environment()
 
 
 def make_dummy_image():
@@ -70,8 +71,7 @@ def test_fallback_minimal_trigger(monkeypatch):
             @staticmethod
             def dump(d):
                 return b"x" * (5 * 1024 * 1024)  # 5MB to guarantee oversize
-        import sys as _sys
-        _sys.modules['piexif'] = _PiexifStub()
+    sys.modules['piexif'] = _PiexifStub()
 
     images = make_dummy_image()
     # Trigger save as JPEG with tiny limit to guarantee fallback

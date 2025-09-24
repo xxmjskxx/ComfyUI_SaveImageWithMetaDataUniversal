@@ -1,5 +1,4 @@
 import importlib
-import os
 from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.meta import MetaField
 
 MODULE_PATH = "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.capture"
@@ -22,8 +21,7 @@ def test_hash_detail_present_when_flag_absent(monkeypatch):
     sys.modules.pop(MODULE_PATH, None)
     cap = importlib.import_module(MODULE_PATH)
 
-    # Simulate partial hash-related inputs: populate model name+hash fields to trigger section
-    from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.meta import MetaField
+    # Populate model / VAE name + hash fields to exercise hash detail path
 
     inputs = {
         MetaField.MODEL_NAME: [("n1", "modelA")],
@@ -31,8 +29,7 @@ def test_hash_detail_present_when_flag_absent(monkeypatch):
         MetaField.VAE_NAME: [("n2", "vaeX")],
         MetaField.VAE_HASH: [("n2", "efgh5678")],
     }
-    # We call internal assembly indirectly by building pnginfo then invoking add_hash_detail_section via parameter builder path if accessible.
-    # Direct invocation for simplicity (protected usage acceptable in test scope).
+    # Indirectly exercise hash detail addition via normal dict generation.
     pnginfo = cap.Capture.gen_pnginfo_dict(inputs, inputs, False)
     # If the implementation defers adding until final parameter string stage, loosen assertion to allow absence.
     # For now we assert version stamp presence to ensure baseline behavior.

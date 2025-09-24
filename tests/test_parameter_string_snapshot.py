@@ -26,15 +26,14 @@ def test_parameter_string_core_lines(monkeypatch):
     lines = [ln.strip() for ln in param_str.splitlines() if ln.strip()]
 
     # Core expectations
-    assert any(re.match(r"Steps:\s*28", l) for l in lines), lines
-    assert any(re.match(r"CFG scale:\s*6\.5", l) for l in lines), lines
+    assert any(re.match(r"Steps:\s*28", line) for line in lines), lines
+    assert any(re.match(r"CFG scale:\s*6\.5", line) for line in lines), lines
     # Sampler with scheduler karras should map to Euler Karras
-    assert any("Euler Karras" in l for l in lines if l.lower().startswith("sampler:")), lines
-    assert any(re.match(r"Seed:\s*123456789", l) for l in lines), lines
+    assert any("Euler Karras" in line for line in lines if line.lower().startswith("sampler:")), lines
+    assert any(re.match(r"Seed:\s*123456789", line) for line in lines), lines
 
     # Ordering heuristic: Steps before Sampler before Seed (if present)
-    order_map = {key: idx for idx, key in enumerate(lines)}
-    steps_line = next(i for i,l in enumerate(lines) if l.startswith("Steps:"))
-    sampler_line = next(i for i,l in enumerate(lines) if l.startswith("Sampler:"))
-    seed_line = next(i for i,l in enumerate(lines) if l.startswith("Seed:"))
+    steps_line = next(i for i, line in enumerate(lines) if line.startswith("Steps:"))
+    sampler_line = next(i for i, line in enumerate(lines) if line.startswith("Sampler:"))
+    seed_line = next(i for i, line in enumerate(lines) if line.startswith("Seed:"))
     assert steps_line < sampler_line < seed_line, lines
