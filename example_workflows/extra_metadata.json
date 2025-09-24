@@ -1,5 +1,5 @@
 {
-  "id": "eaf61feb-1308-4d41-8ac0-caae5f5aff59",
+  "id": "7b499685-5717-4e08-9c98-af1d1cc16cca",
   "revision": 0,
   "last_node_id": 11,
   "last_link_id": 15,
@@ -8,8 +8,8 @@
       "id": 1,
       "type": "VAEDecode",
       "pos": [
-        970,
-        480
+        1080,
+        500
       ],
       "size": [
         210,
@@ -35,7 +35,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            14
+            10
           ]
         }
       ],
@@ -43,72 +43,21 @@
         "cnr_id": "comfy-core",
         "ver": "0.3.59",
         "Node name for S&R": "VAEDecode"
-      },
-      "widgets_values": []
+      }
     },
     {
-      "id": 2,
-      "type": "SDXLEmptyLatentSizePicker+",
-      "pos": [
-        200,
-        910
-      ],
-      "size": [
-        279.4117126464844,
-        170
-      ],
-      "flags": {},
-      "order": 0,
-      "mode": 0,
-      "inputs": [],
-      "outputs": [
-        {
-          "name": "LATENT",
-          "type": "LATENT",
-          "links": [
-            13
-          ]
-        },
-        {
-          "name": "width",
-          "type": "INT",
-          "links": [
-            5
-          ]
-        },
-        {
-          "name": "height",
-          "type": "INT",
-          "links": [
-            6
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfyui_essentials",
-        "ver": "9d9f4bedfc9f0321c19faf71855e228c93bd0dc9",
-        "Node name for S&R": "SDXLEmptyLatentSizePicker+"
-      },
-      "widgets_values": [
-        "832x1216 (0.68)",
-        1,
-        0,
-        0
-      ]
-    },
-    {
-      "id": 4,
+      "id": 3,
       "type": "CLIPTextEncode",
       "pos": [
-        200,
-        400
+        310,
+        420
       ],
       "size": [
         340,
         200
       ],
       "flags": {},
-      "order": 5,
+      "order": 3,
       "mode": 0,
       "inputs": [
         {
@@ -123,7 +72,7 @@
           "type": "CONDITIONING",
           "slot_index": 0,
           "links": [
-            11
+            7
           ]
         }
       ],
@@ -139,18 +88,18 @@
       "bgcolor": "#353"
     },
     {
-      "id": 5,
+      "id": 4,
       "type": "CLIPTextEncode",
       "pos": [
-        200,
-        650
+        310,
+        670
       ],
       "size": [
         350,
         220
       ],
       "flags": {},
-      "order": 6,
+      "order": 4,
       "mode": 0,
       "inputs": [
         {
@@ -165,7 +114,7 @@
           "type": "CONDITIONING",
           "slot_index": 0,
           "links": [
-            12
+            8
           ]
         }
       ],
@@ -182,157 +131,24 @@
     },
     {
       "id": 6,
-      "type": "CR Integer To String",
+      "type": "CreateExtraMetaDataUniversal",
       "pos": [
-        620,
-        790
+        1030,
+        1050
       ],
       "size": [
-        210,
-        54
+        297.732421875,
+        226
       ],
       "flags": {},
-      "order": 3,
+      "order": 8,
       "mode": 0,
       "inputs": [
         {
-          "name": "int_",
-          "type": "INT",
+          "name": "extra_metadata",
+          "shape": 7,
+          "type": "EXTRA_METADATA",
           "link": 5
-        }
-      ],
-      "outputs": [
-        {
-          "name": "STRING",
-          "type": "STRING",
-          "slot_index": 0,
-          "links": [
-            8
-          ]
-        },
-        {
-          "name": "show_help",
-          "type": "STRING",
-          "links": null
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfyroll",
-        "ver": "d78b780ae43fcf8c6b7c6505e6ffb4584281ceca",
-        "Node name for S&R": "CR Integer To String"
-      },
-      "widgets_values": []
-    },
-    {
-      "id": 7,
-      "type": "CR Integer To String",
-      "pos": [
-        620,
-        900
-      ],
-      "size": [
-        210,
-        54
-      ],
-      "flags": {},
-      "order": 4,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "int_",
-          "type": "INT",
-          "link": 6
-        }
-      ],
-      "outputs": [
-        {
-          "name": "STRING",
-          "type": "STRING",
-          "slot_index": 0,
-          "links": [
-            9
-          ]
-        },
-        {
-          "name": "show_help",
-          "type": "STRING",
-          "links": null
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfyroll",
-        "ver": "d78b780ae43fcf8c6b7c6505e6ffb4584281ceca",
-        "Node name for S&R": "CR Integer To String"
-      },
-      "widgets_values": []
-    },
-    {
-      "id": 8,
-      "type": "CreateExtraMetaDataUniversal",
-      "pos": [
-        590,
-        1010
-      ],
-      "size": [
-        297.732421875,
-        226
-      ],
-      "flags": {},
-      "order": 1,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "extra_metadata",
-          "shape": 7,
-          "type": "EXTRA_METADATA",
-          "link": null
-        }
-      ],
-      "outputs": [
-        {
-          "name": "EXTRA_METADATA",
-          "type": "EXTRA_METADATA",
-          "links": [
-            7
-          ]
-        }
-      ],
-      "properties": {
-        "aux_id": "xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal",
-        "ver": "c9a87453bc4257614c87d28a64a5be9c4fdccba9",
-        "Node name for S&R": "CreateExtraMetaDataUniversal"
-      },
-      "widgets_values": [
-        "custom_key",
-        "custom_value",
-        "hello",
-        "world",
-        "",
-        "",
-        "",
-        ""
-      ]
-    },
-    {
-      "id": 9,
-      "type": "CreateExtraMetaDataUniversal",
-      "pos": [
-        920,
-        1010
-      ],
-      "size": [
-        297.732421875,
-        226
-      ],
-      "flags": {},
-      "order": 7,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "extra_metadata",
-          "shape": 7,
-          "type": "EXTRA_METADATA",
-          "link": 7
         },
         {
           "name": "value1",
@@ -340,7 +156,7 @@
           "widget": {
             "name": "value1"
           },
-          "link": 8
+          "link": 13
         },
         {
           "name": "value2",
@@ -349,7 +165,7 @@
           "widget": {
             "name": "value2"
           },
-          "link": 9
+          "link": 15
         }
       ],
       "outputs": [
@@ -357,14 +173,15 @@
           "name": "EXTRA_METADATA",
           "type": "EXTRA_METADATA",
           "links": [
-            15
+            11
           ]
         }
       ],
       "properties": {
-        "aux_id": "xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal",
+        "cnr_id": "SaveImageWithMetaDataUniversal",
         "ver": "c9a87453bc4257614c87d28a64a5be9c4fdccba9",
-        "Node name for S&R": "CreateExtraMetaDataUniversal"
+        "Node name for S&R": "CreateExtraMetaDataUniversal",
+        "aux_id": "xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal"
       },
       "widgets_values": [
         "custom_w",
@@ -378,71 +195,11 @@
       ]
     },
     {
-      "id": 10,
-      "type": "KSampler",
-      "pos": [
-        620,
-        440
-      ],
-      "size": [
-        315,
-        262
-      ],
-      "flags": {},
-      "order": 8,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "link": 10
-        },
-        {
-          "name": "positive",
-          "type": "CONDITIONING",
-          "link": 11
-        },
-        {
-          "name": "negative",
-          "type": "CONDITIONING",
-          "link": 12
-        },
-        {
-          "name": "latent_image",
-          "type": "LATENT",
-          "link": 13
-        }
-      ],
-      "outputs": [
-        {
-          "name": "LATENT",
-          "type": "LATENT",
-          "links": [
-            1
-          ]
-        }
-      ],
-      "properties": {
-        "cnr_id": "comfy-core",
-        "ver": "0.3.59",
-        "Node name for S&R": "KSampler"
-      },
-      "widgets_values": [
-        0,
-        "fixed",
-        20,
-        8,
-        "euler_ancestral",
-        "karras",
-        1
-      ]
-    },
-    {
-      "id": 11,
+      "id": 8,
       "type": "SaveImageWithMetaDataUniversal",
       "pos": [
-        1260,
-        490
+        1370,
+        510
       ],
       "size": [
         317.0025329589844,
@@ -455,13 +212,13 @@
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 14
+          "link": 10
         },
         {
           "name": "extra_metadata",
           "shape": 7,
           "type": "EXTRA_METADATA",
-          "link": 15
+          "link": 11
         }
       ],
       "outputs": [
@@ -472,9 +229,10 @@
         }
       ],
       "properties": {
-        "aux_id": "xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal",
+        "cnr_id": "SaveImageWithMetaDataUniversal",
         "ver": "0be581e31fcf9836467d69489ecad77a1eb4df27",
-        "Node name for S&R": "SaveImageWithMetaDataUniversal"
+        "Node name for S&R": "SaveImageWithMetaDataUniversal",
+        "aux_id": "xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal"
       },
       "widgets_values": [
         "extra_metadata",
@@ -493,18 +251,18 @@
       ]
     },
     {
-      "id": 3,
+      "id": 9,
       "type": "CheckpointLoaderSimple",
       "pos": [
-        -180,
-        500
+        -70,
+        520
       ],
       "size": [
         315,
         98
       ],
       "flags": {},
-      "order": 2,
+      "order": 0,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -513,7 +271,7 @@
           "type": "MODEL",
           "slot_index": 0,
           "links": [
-            10
+            6
           ]
         },
         {
@@ -542,12 +300,248 @@
       "widgets_values": [
         "animagine-xl-3.1.safetensors"
       ]
+    },
+    {
+      "id": 2,
+      "type": "SDXLEmptyLatentSizePicker+",
+      "pos": [
+        310,
+        930
+      ],
+      "size": [
+        279.4117126464844,
+        170
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            9
+          ]
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "links": [
+            12
+          ]
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": [
+            14
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui_essentials",
+        "ver": "9d9f4bedfc9f0321c19faf71855e228c93bd0dc9",
+        "Node name for S&R": "SDXLEmptyLatentSizePicker+"
+      },
+      "widgets_values": [
+        "832x1216 (0.68)",
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "id": 5,
+      "type": "CreateExtraMetaDataUniversal",
+      "pos": [
+        700,
+        1050
+      ],
+      "size": [
+        297.732421875,
+        226
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "extra_metadata",
+          "shape": 7,
+          "type": "EXTRA_METADATA",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "EXTRA_METADATA",
+          "type": "EXTRA_METADATA",
+          "links": [
+            5
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "SaveImageWithMetaDataUniversal",
+        "ver": "c9a87453bc4257614c87d28a64a5be9c4fdccba9",
+        "Node name for S&R": "CreateExtraMetaDataUniversal",
+        "aux_id": "xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal"
+      },
+      "widgets_values": [
+        "custom_key",
+        "custom_value",
+        "hello",
+        "world",
+        "",
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "id": 11,
+      "type": "ShowAny|unimeta",
+      "pos": [
+        730,
+        920
+      ],
+      "size": [
+        210,
+        88
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "value",
+          "type": "*",
+          "link": 14
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "shape": 6,
+          "type": "STRING",
+          "links": [
+            15
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "SaveImageWithMetaDataUniversal",
+        "ver": "9c2b3ed512428c4a891bb73d0a31b5ad4d3acc27",
+        "Node name for S&R": "ShowAny|unimeta"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 10,
+      "type": "ShowAny|unimeta",
+      "pos": [
+        730,
+        770
+      ],
+      "size": [
+        210,
+        88
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "value",
+          "type": "*",
+          "link": 12
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "shape": 6,
+          "type": "STRING",
+          "links": [
+            13
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "SaveImageWithMetaDataUniversal",
+        "ver": "9c2b3ed512428c4a891bb73d0a31b5ad4d3acc27",
+        "Node name for S&R": "ShowAny|unimeta"
+      },
+      "widgets_values": [
+        ""
+      ]
+    },
+    {
+      "id": 7,
+      "type": "KSampler",
+      "pos": [
+        720,
+        450
+      ],
+      "size": [
+        315,
+        262
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 6
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 7
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 8
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 9
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            1
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.59",
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        0,
+        "fixed",
+        20,
+        8,
+        "euler_ancestral",
+        "karras",
+        1
+      ]
     }
   ],
   "links": [
     [
       1,
-      10,
+      7,
       0,
       1,
       0,
@@ -555,7 +549,7 @@
     ],
     [
       2,
-      3,
+      9,
       2,
       1,
       1,
@@ -563,117 +557,117 @@
     ],
     [
       3,
-      3,
-      1,
-      4,
-      0,
-      "CLIP"
-    ],
-    [
-      4,
-      3,
-      1,
-      5,
-      0,
-      "CLIP"
-    ],
-    [
-      5,
-      2,
-      1,
-      6,
-      0,
-      "INT"
-    ],
-    [
-      6,
-      2,
-      2,
-      7,
-      0,
-      "INT"
-    ],
-    [
-      7,
-      8,
-      0,
       9,
+      1,
+      3,
+      0,
+      "CLIP"
+    ],
+    [
+      4,
+      9,
+      1,
+      4,
+      0,
+      "CLIP"
+    ],
+    [
+      5,
+      5,
+      0,
+      6,
       0,
       "EXTRA_METADATA"
     ],
     [
-      8,
       6,
+      9,
       0,
-      9,
-      1,
-      "STRING"
-    ],
-    [
-      9,
       7,
-      0,
-      9,
-      2,
-      "STRING"
-    ],
-    [
-      10,
-      3,
-      0,
-      10,
       0,
       "MODEL"
     ],
     [
-      11,
-      4,
+      7,
+      3,
       0,
-      10,
+      7,
       1,
       "CONDITIONING"
     ],
     [
-      12,
-      5,
+      8,
+      4,
       0,
-      10,
+      7,
       2,
       "CONDITIONING"
     ],
     [
-      13,
+      9,
       2,
       0,
-      10,
+      7,
       3,
       "LATENT"
     ],
     [
-      14,
+      10,
       1,
       0,
-      11,
+      8,
       0,
       "IMAGE"
     ],
     [
-      15,
-      9,
-      0,
       11,
+      6,
+      0,
+      8,
       1,
       "EXTRA_METADATA"
+    ],
+    [
+      12,
+      2,
+      1,
+      10,
+      0,
+      "*"
+    ],
+    [
+      13,
+      10,
+      0,
+      6,
+      1,
+      "STRING"
+    ],
+    [
+      14,
+      2,
+      2,
+      11,
+      0,
+      "*"
+    ],
+    [
+      15,
+      11,
+      0,
+      6,
+      2,
+      "STRING"
     ]
   ],
   "groups": [],
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.7513148009015777,
+      "scale": 0.751314800901578,
       "offset": [
-        249.35233110808423,
-        -278.3047780259899
+        52.83265698579504,
+        -337.73893601249466
       ]
     },
     "frontendVersion": "1.26.13",
