@@ -39,6 +39,7 @@
 ## Note
 - I'm an amateur at coding, at best. I started writing this myself, but as I began increasing the scope of the project I started using a Copilot.
 - If you have any questions, think any documentation is lacking, or experience issues with certain workflows or custom node packs, create a new issue an I'll try and see if it's something I can address.
+- Refactor notice: legacy monolithic module removed; see [Changelog](#changelog) for new direct import paths.
 
 ## Installation
 ```
@@ -251,7 +252,7 @@ Parse the tail of the parameters string for `Metadata Fallback:`. (A future expl
 ### Design / Future Ideas
 Deferred and exploratory concepts are documented in:
 * `docs/WORKFLOW_COMPRESSION_DESIGN.md` (workflow compression placeholder)
-* `docs/FUTURE_AND_PROTOTYPES.md` (archived prototype UI + additional speculative enhancements)
+* `docs/FUTURE_AND_PROTOTYPES.md` (archived prototype UI + additional speculative enhancements; Wan2.2 and multi-model workflow support)
 
 ### Environment Flags
 | Flag | Effect |
