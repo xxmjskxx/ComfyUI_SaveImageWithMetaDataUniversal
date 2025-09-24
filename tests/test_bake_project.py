@@ -6,7 +6,6 @@ import sys
 from contextlib import contextmanager
 
 import pytest
-import yaml
 
 try:  # Optional dependency for template baking tests
     from cookiecutter.utils import rmtree  # type: ignore
@@ -143,6 +142,12 @@ def test_bake_with_apostrophe_and_run_tests(cookies):
 
 
 def test_bake_without_travis_pypi_setup(cookies):
+    # Lazy import to avoid hard test dependency when cookiecutter suite is skipped.
+    try:
+        import yaml  # type: ignore
+    except Exception:
+        pytest.skip("PyYAML not installed; skipping travis config bake test")
+
     with bake_in_temp_dir(
         cookies,
         extra_context={'use_pypi_deployment_with_travis': 'n'}
