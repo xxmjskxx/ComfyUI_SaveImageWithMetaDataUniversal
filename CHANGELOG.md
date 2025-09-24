@@ -3,14 +3,21 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
-- (placeholder)
-
 ### Added
-- README section detailing JPEG EXIF size limits & staged fallback behavior.
-- Enhanced tooltip for `max_jpeg_exif_kb` with recommendations and fallback stage explanation.
+- Node: `Show Any (Any to String)` — accepts any input, converts to STRING, displays on canvas; supports batching.
+- Frontend: `web/show_text_unimeta.js` extended to handle `ShowAny|unimeta` and `ShowText|unimeta` with robust payload parsing.
+- Frontend: Dynamic textarea sizing and node recompute to reduce overlap at small zoom levels.
+- Tests: `tests/test_show_any.py` covering `_safe_to_str`, UI/result shapes, workflow widget persistence, and wildcard `AnyType` semantics.
+- Docs: Expanded README sections (ToC sync, sampler selection, metadata list, JPEG fallback tips). Japanese README aligned to English.
 
 ### Changed
-- Clarified documentation for `force_include_node_class` (scanner) vs global `MetadataForceInclude` node.
+- Frontend separation: `web/show_text.js` now targets base `ShowText` only to avoid double initialization with UniMeta variants.
+- Improved truncation suffix documentation and test expectations for `_safe_to_str`.
+
+### Fixed
+- Prevented double widget injection causing textarea overlap in UniMeta nodes.
+- UI display not updating for `ShowAny|unimeta` in certain payload shapes (now reads `message.ui.text`).
+- Readme anchor correction for `Format & Fallback Quick Tips`.
 
 ## [0.2.0] - 2025-09-19
 ### Added

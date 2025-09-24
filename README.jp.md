@@ -1,101 +1,55 @@
-# ComfyUI-SaveImageWithMetaData
-![SaveImageWithMetaData Preview](img/save_image_with_metadata.png)  
-- [ComfyUI](https://github.com/comfyanonymous/ComfyUI)用のカスタムノードです。
-- 各ノードの入力値から取得したメタデータ(PNGInfo)つきの画像を保存するノードを追加します。
-- 動的に値を取得するため、色々な拡張機能のノードで出力された値をメタデータに追加することができます。
+## ComfyUI-SaveImageWithMetaDataUniversal（日本語）
+![SaveImageWithMetaData Preview](img/save_image_with_metadata_universal.png)
 
-## インストール手順
+このパックは、ComfyUI 用の拡張「Save Image w/ Metadata Universal」ノードと補助ノード群を提供し、PNG / WebP / JPEG に拡張メタデータ（プロンプト、モデル/LoRA/埋め込み、サンプラー、ガイダンス、ワークフローなど）を保存します。JPEG は EXIF の上限 (~64KB) があるため段階的フォールバックを実装しています。
+
+### インストール
 ```
-cd <ComfyUIがあるディレクトリ>/custom_nodes
-git clone https://github.com/nkchocoai/ComfyUI-SaveImageWithMetaData.git
+cd <ComfyUIディレクトリ>/custom_nodes
+git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
 ```
 
-## 追加されるノード
-### Save Image With Metadata
-- 入力として受け取った `images` をメタデータ(PNGInfo)つきの画像として保存します。
-- メタデータは `sampler_selection_method` で見つけたKSamplerノードの入力と以前に実行されたノードの入力から取得します。
-  - 対象となるKSamplerノードは[py/defs/samplers.py](py/defs/samplers.py)と[py/defs/ext/](py/defs/ext/)配下のファイルの`SAMPLERS`のキーです。
+### 追加ノード
+| ノード | 概要 |
+| ---- | ---- |
+| Save Image w/ Metadata Universal | 画像を保存し、PNGInfo / EXIF / WebP にメタデータを埋め込みます。 |
+| Create Extra MetaData | 任意のキー/値メタデータを追加します。 |
+| Metadata Rule Scanner | インストール済みノードをスキャンしてメタデータ取得ルールを提案します。 |
+| Save Custom Metadata Rules | 生成したルールをユーザルールファイルへ保存します。 |
+| Metadata Force Include | 強制対象ノードクラスを管理します。 |
+| Show generated_user_rules.py | 現在のマージ済みユーザルールを表示します。 |
+| Save generated_user_rules.py | 編集済みルールを検証して保存します。 |
+| Show Text (UniMeta) | テキスト出力を表示（ローカルバリアント）。 |
+| Show Any (Any to String) | 任意の入力を文字列化して表示し、`Create Extra MetaData` に接続可能な STRING を出力します。 |
 
-#### filename_prefix
-- `filename_prefix` で指定した文字列(Key)は取得した情報に置換されます。
+### クイックスタート
+1. `Metadata Rule Scanner` と `Save Custom Metadata Rules` を使ってルールを生成・保存します。
+2. `Save Image w/ Metadata Universal` ノードを追加し、画像入力に接続して保存します。
+3. 必要に応じて `Create Extra MetaData` で手動メタデータを追加します。
+4. Civitai 互換の表記に近づける場合は `civitai_sampler` と `guidance_as_cfg` を有効化します。
+5. フルのワークフロー埋め込みが必要な場合は PNG（または可逆 WebP）を推奨します（JPEG はサイズ制限あり）。
 
-| Key                   | 置換先の情報               |
-| --------------------- | -------------------------- |
-| %seed%                | シード値                   |
-| %width%               | 画像の幅                   |
-| %height%              | 画像の高さ                 |
-| %pprompt%             | Positive Prompt            |
-| %pprompt:<文字数n>%   | Positive Promptの先頭n文字 |
-| %nprompt%             | Negative Prompt            |
-| %nprompt:<文字数n>%   | Negative Promptの先頭n文字 |
-| %model%               | Checkpoint名               |
-| %model:<文字数n>%     | Checkpoint名の先頭n文字    |
-| %date%                | 生成日時(yyyyMMddhhmmss)   |
-| %date:<フォーマット>% | 生成日時                   |
+### サンプラー選択方法（Sampler Selection Method）
+- KSampler ノードの選択方法を指定します。
+- Farthest（最も遠い）/ Nearest（最も近い）/ By node ID（ID指定）から選択できます。
 
-- `%date:<フォーマット>%` の `<フォーマット>` で指定する識別子は以下の表を参照ください。
+### 付与される主なメタデータ
+- Positive/Negative prompt、Steps、Sampler、Scheduler、CFG、Guidance、Denoise、Shift 系
+- Seed、Clip skip、Clip model、Size
+- Model / VAE 名とハッシュ、LoRA 一覧（強度含む）、Embeddings（名前とハッシュ）
+- バッチ情報（Batch index/size）
+- ハッシュ一覧（Model / LoRA / Embeddings）
 
-| 識別子 | 説明 |
-| ------ | ---- |
-| yyyy   | 年   |
-| MM     | 月   |
-| dd     | 日   |
-| hh     | 時   |
-| mm     | 分   |
-| ss     | 秒   |
+### JPEG のメタデータサイズとフォールバック
+JPEG の EXIF は ~64KB 上限です。上限超過時は段階的に情報を削減します：
+1) full → 2) reduced-exif → 3) minimal → 4) com-marker。発生時は `Metadata Fallback: <stage>` を末尾に付与します。
 
-#### sampler_selection_method
-- このノードよりも前に実行されたKSamplerノードを選ぶ方法を指定します。
+### 環境変数フラグ（抜粋）
+| フラグ | 効果 |
+| ---- | ---- |
+| METADATA_NO_HASH_DETAIL | ハッシュ詳細 JSON を抑制 |
+| METADATA_NO_LORA_SUMMARY | LoRA の集約行を抑制（UI の設定が優先） |
+| METADATA_TEST_MODE | パラメータ文字列をテスト用の複数行モードに切替 |
+| METADATA_DEBUG_PROMPTS | プロンプト取得のデバッグログを有効化 |
 
-##### Farthest
-- このノードに最も遠いKSamplerノードを選びます。
-- 例: [everywhere_prompt_utilities.png](example_workflows/everywhere_prompt_utilities.png) において、上段のKSamplerノード(seed=12345)を選びます。
-
-##### Nearest
-- このノードに最も近いKSamplerノードを選びます。
-- 例: [everywhere_prompt_utilities.png](example_workflows/everywhere_prompt_utilities.png) において、下段のKSamplerノード(seed=67890)を選びます。
-
-##### By node ID
-- ノードIDが `sampler_selection_node_id` であるKSamplerノードを選びます。
-
-### Create Extra MetaData
-- 保存する画像に追加するメタデータを指定します。
-- 例: [extra_metadata.png](example_workflows/extra_metadata.png)。
-
-## 付与されるメタデータ
-(詳細なJPEGメタデータのフォールバック段階については `docs/JPEG_METADATA_FALLBACK.md` を参照してください。環境変数による制御フラグ一覧は英語版READMEの `Environment Flags` セクションを参照してください。)
-- Positive prompt
-- Negative prompt
-- Steps
-- Sampler
-- CFG Scale
-- Seed
-- Clip skip
-- Size
-- Model
-- Model hash
-- VAE
-  - KSamplerノードではなくSaveImageWithMetadataノードの入力から参照されます。
-- VAE hash
-  - KSamplerノードではなくSaveImageWithMetadataノードの入力から参照されます。
-- Loras
-  - Model name
-  - Model hash
-  - Strength model
-  - Strength clip
-- Embeddings
-  - Name
-  - Hash
-- batch size >= 2の場合 : 
-  - Batch index
-  - Batch size
-- Hashes
-  - Model, Loras, Embeddings
-  - [Civitai](https://civitai.com/)用
-
-## 対応しているノード・拡張機能
-- 対応しているノードは以下のファイルをご確認ください。
-  - [py/defs/captures.py](py/defs/captures.py)
-  - [py/defs/samplers.py](py/defs/samplers.py)
-- 対応している拡張機能は以下のディレクトリをご確認ください。
-  - [py/defs/ext/](py/defs/ext/)
+より詳しい情報は英語版 README と `docs/JPEG_METADATA_FALLBACK.md` を参照してください。
