@@ -19,6 +19,8 @@
   * [Nodes](#nodes)
   * [Feature Overview](#feature-overview)
   * [Node UI Parameters](#node-ui-parameters-key-additions)
+  * [Sampler Selection Method](#sampler-selection-method)
+  * [Metadata to be given](#metadata-to-be-given)
 * Metadata & Encoding
   * [JPEG Metadata Size & Fallback Behavior](#jpeg-metadata-size--fallback-behavior)
   * [Metadata Rule Tools](#metadata-rule-tools)
@@ -47,7 +49,7 @@ git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
 2. Add `Save Image w/ Metadata Universal` to your workflow and connect to the image input to save images using your custom capture ruleset.
 3. (Optional) Use `Create Extra MetaData` node(s) to manually record additional info.
 4. (Optional) For full Civitai style parity enable the `civitai_sampler` and `guidance_as_cfg` toggles in the save node.
-5. Prefer PNG (or lossless WebP) when you need guaranteed full workflow embedding (JPEG has strict size limits—[see tips below](#format-&-fallback-quick-tips)).
+5. Prefer PNG (or lossless WebP) when you need guaranteed full workflow embedding (JPEG has strict size limits—[see tips below](#format--fallback-quick-tips)).
 6. Hover any parameters on the nodes in this pack for concise tooltips (fallback stages, `max_jpeg_exif_kb`, LoRA summary toggle, guidance→CFG mapping, sampler naming, filename tokens). For further detail see: [Node UI Parameters](#node-ui-parameters-key-additions), [JPEG Metadata Size & Fallback Behavior](#jpeg-metadata-size--fallback-behavior); advanced env tuning: [Environment Flags](#environment-flags).
 
 ## Nodes
@@ -74,6 +76,7 @@ git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
 * Prompt encoder compatibility: handles multiple encoder styles (e.g. dual Flux T5 + CLIP) with aliasing and suppression of redundant unified positives.
 * Embedding resolution & hashing with safe path normalization; model hash caching via `.sha256` sidecar files for speed after first run.
 * Configurable guidance mapping (`guidance_as_cfg`) and sampler naming normalization (minimal, avoids unexpected renames).
+* `Create Extra MetaData` node specifies metadata to be added to the image to be saved. Example: In [extra_metadata.json](example_workflows/extra_metadata.json).
 * Selective verbosity: hide hash detail (`METADATA_NO_HASH_DETAIL`) and/or aggregated LoRA summary (`METADATA_NO_LORA_SUMMARY` or UI toggle).
 * Stable field ordering for reproducible diffs & tooling.
 * Runtime evaluation of env flags—restart not required for changes.
@@ -86,6 +89,47 @@ git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
 * Control JPEG attempt size: `max_jpeg_exif_kb` (default 60, max 64) caps EXIF payload before fallback (see [Node UI Parameters](#node-ui-parameters-key-additions)). (i.e. sets max text written to JPEG) before fallback stages engage.
 * Detect fallback: If the parameters string ends with `Metadata Fallback: <stage>`, this means trimming occurred (`reduced-exif`, `minimal`, or `com-marker`) — see [Fallback Stages](#fallback-stages--indicator).
 * LoRA summary line: Toggle with `include_lora_summary`. Adds an abbreviated summary of LoRAs used. If off, only individual `Lora_*` entries remain.
+
+## Sampler Selection Method
+- Specifies how to select a KSampler node that has been executed before this node.
+- **Farthest** Selects the farthest KSampler node from this node.
+- **Nearest** Selects the nearest KSampler node to this node.
+- **By node ID** Selects the KSampler node whose node ID is `sampler_selection_node_id`.
+
+## Metadata to be given
+- Positive prompt
+- Negative prompt
+- Steps
+- Sampler
+- Scheduler
+- CFG Scale
+- Guidance
+- Denoise
+- Shift, max_shift, base_shift
+- Seed
+- Clip skip
+- Clip model
+- Size
+- Model
+- Model hash
+- VAE
+  - It is referenced from the input of `Save Image w/ Metadata Universal` node, not KSampler node.
+- VAE hash
+  - It is referenced from the input of `Save Image w/ Metadata Universal` node, not KSampler node.
+- Loras
+  - Model name
+  - Model hash
+  - Strength model
+  - Strength clip
+- Embeddings
+  - Name
+  - Hash
+- If batch size >= 2 :
+  - Batch index
+  - Batch size
+- Hashes
+  - Model, Loras, Embeddings
+  - For [Civitai](https://civitai.com/)
 
 ## Node UI Parameters (Key Additions)
 Key quality‑of‑life and compatibility controls exposed by the primary save node:
@@ -177,8 +221,6 @@ Output effects:
 * `diff_report` appends a `Forced node classes=` segment.
 * If a forced class yields no heuristic suggestions, an empty object is emitted so tooling can still merge or annotate it.
 
-## Advanced / Power Users
-
 ### Troubleshooting / FAQ
 **Why is my workflow JSON missing in a JPEG?**  
 The save exceeded `max_jpeg_exif_kb` and fell back to `reduced-exif`, `minimal`, or `com-marker`. Use PNG / WebP or lower the workflow size.
@@ -200,6 +242,8 @@ Environment flag `METADATA_NO_HASH_DETAIL` suppresses the extended hash breakdow
 
 **How do I know which fallback stage occurred programmatically?**  
 Parse the tail of the parameters string for `Metadata Fallback:`. (A future explicit key may be added.)
+
+## Advanced / Power Users
 
 ### Design / Future Ideas
 Deferred and exploratory concepts are documented in:
