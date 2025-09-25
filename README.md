@@ -233,7 +233,7 @@ Output effects:
 * `diff_report` appends a `Forced node classes=` segment.
 * If a forced class yields no heuristic suggestions, an empty object is emitted so tooling can still merge or annotate it.
 
-### Reference examples (JSON/Python)
+## Reference examples (JSON/Python)
 Reference-only files you can use as a guide when customizing rules. These are never loaded by the runtime as-is:
 
 - `saveimage_unimeta/user_captures_examples.json` — JSON examples for capture rules. Copy snippets you need into `saveimage_unimeta/user_captures.json` to activate. Uses MetaField names as strings (e.g., "MODEL_HASH") and callable names as strings (e.g., "calc_model_hash").
@@ -245,28 +245,29 @@ Notes:
 - Python extensions in `saveimage_unimeta/defs/ext/` are loaded, except any module named `__*`, ending in `*_examples`, or `generated_user_rules_examples` which are intentionally skipped.
 
 ## Troubleshooting / FAQ
-**Why is my workflow JSON missing in a JPEG?**  
+### Why is my workflow JSON missing in a JPEG? 
+
 The save exceeded `max_jpeg_exif_kb` and fell back to `reduced-exif`, `minimal`, or `com-marker`. Use PNG / WebP or lower the workflow size.
 
-**I see `Metadata Fallback: minimal` — did I lose important info?**  
+### I see `Metadata Fallback: minimal` — did I lose important info?  
 Only non-core keys were trimmed. Prompts, sampler settings, LoRAs, hashes, seed, model & VAE info remain.
 
-**Forced node shows up with empty `{}` in scanner output. Bug?**  
+### Forced node shows up with empty `{}` in scanner output. Bug?  
 No—`force_include_node_class` guarantees presence even if no heuristic rules match yet; use it as an anchor for manual rules.
 
-**My LoRA summary line disappeared.**  
+### My LoRA summary line disappeared.  
 Either `include_lora_summary=False` in the node or the `METADATA_NO_LORA_SUMMARY` env flag was set (UI param takes precedence).
 
-**Parameter string suddenly multiline.**  
+### Parameter string suddenly multiline.  
 Environment variable `METADATA_TEST_MODE=1` was set (intended for tests). Unset it for production single-line mode.
 
-**Why are hashes missing detail JSON?**  
+### Why are hashes missing detail JSON?  
 Environment flag `METADATA_NO_HASH_DETAIL` suppresses the extended hash breakdown.
 
-**How do I know which fallback stage occurred programmatically?**  
+### How do I know which fallback stage occurred programmatically?  
 Parse the tail of the parameters string for `Metadata Fallback:`. (A future explicit key may be added.)
 
-## Metadata Rule Scanner doesn’t find the nodes I want to capture
+### Metadata Rule Scanner doesn’t find the nodes I want to capture
 - Check `exclude_keywords` on the scanner. If a class name or pack prefix matches, the scanner filters it out.
 - Set `mode` to the broadest scan (e.g., include new + existing) and enable `include_existing` so suggestions merge with known rules.
 - Use `force_include_node_class` (exact class names, comma/newline separated) to force discovery even if it would be filtered.
@@ -274,7 +275,7 @@ Parse the tail of the parameters string for `Metadata Fallback:`. (A future expl
 - Use the `Metadata Force Include` node and wire its `forced_classes_str` to `Show Text (UniMeta)` to verify your forced list.
 - If the node still doesn’t appear, open an issue with: node pack name, node class, your scanner inputs, and a minimal workflow.
 
-## Scanner found my nodes but the suggested rules look wrong or fields are missing
+### Scanner found my nodes but the suggested rules look wrong or fields are missing
 - Treat the scanner output as a starting point. Some nodes require manual mapping of inputs to metadata fields.
 - Open `Show generated_user_rules.py`, adjust the suggested capture paths to match your node’s sockets/fields, then `Save generated_user_rules.py`.
 - Prefer explicit hints:
