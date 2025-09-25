@@ -32,7 +32,8 @@ def _get_lora_data_from_node(node_id, input_data):
     if raw_names:
         names = resolve_lora_display_names(raw_names)
         strengths = ms_list
-    hashes = [calc_lora_hash(n, input_data) for n in raw_names] if raw_names else []
+    # Hashes must be computed from raw_names (not display names)
+    hashes = [calc_lora_hash(raw, input_data) for raw in raw_names] if raw_names else []
 
     result = {"names": names, "hashes": hashes, "strengths": strengths}
     _NODE_DATA_CACHE[node_id] = {"text": text_to_parse, "data": result}
