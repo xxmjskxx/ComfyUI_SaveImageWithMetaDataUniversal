@@ -1,173 +1,62 @@
----
-post_title: "Wan2.2 MoE Per-Sampler Metadata: Design and Prototype Plan"
-author1: "Project Maintainers"
-post_slug: "wan22-moe-per-sampler-metadata"
-microsoft_alias: "na"
-featured_image: ""
-categories:
-	- Planning
-	- ComfyUI
-	- Metadata
-tags:
-	- WanVideoWrapper
-	- MoE
-	- ComfyUI
-	- Metadata
-	- EXIF
-	- PNGInfo
-ai_note: true
-summary: >-
-	Design for capturing per-sampler details in Wan2.2 MoE workflows while preserving
-	compatibility and JPEG fallback semantics; staged rollout and tests documented.
-post_date: "2025-09-24"
----
+# Future Ideas & Archived Prototypes
 
-## Goals and Non-Goals
-- Capture complete, per-sampler metadata for Wan2.2 MoE workflows (high/low models).
-- Preserve current single-model behavior and output shape for non-MoE graphs.
-- Maintain JPEG fallback semantics and size caps; avoid regressions.
-- Non-goals: Implement CLIP hashes; change existing allowlist ordering.
+Central reference for deferred / speculative features and archived experimental UI elements. These are NOT implemented.
 
-## Background
-- Wan2.2 is a Mixture-of-Experts style setup: typical graphs have two
-	`WanVideoModelLoader` nodes (high/low) and two or more `WanVideo Sampler` nodes.
-- Each `WanVideo Sampler` includes `steps` and also `start_step` and `end_step` to
-	define a subrange of the total steps.
-- Wan2.1 workflows are single-model and are already covered by current logic.
+## Archived Prototype UI Components
 
-## Detection Strategy (MoE vs Single-Model)
-- Detect MoE conservatively to avoid disrupting stable single-model flows:
-	- True when traced subgraph contains ≥ 2 `WanVideoModelLoader` and
-		either ≥ 2 `WanVideo Sampler` or any sampler exposes `start_step`/`end_step`.
-- Add an environment override:
-	- `METADATA_WAN_MOE_FORCE=1` forces MoE path.
-	- Optional: `METADATA_WAN_MOE_DISABLE=1` disables MoE path.
+### Metadata Rule Scanner JSON Editor (Archived)
+Location: `ignore/web/disabled/metadata_rule_scanner/`
 
-## New Fields
-- Add metadata enums (to be appended without reordering existing keys):
-	- `START_STEP` (per sampler)
-	- `END_STEP` (per sampler)
-- Extend `WanVideo Sampler` capture with:
-	- `seed`, `steps`, `cfg`, `shift`, `denoise`
-	- `start_step`, `end_step`
-	- `sampler`, `scheduler` parsed from the combined `scheduler` input
-		(supports dict, list/tuple, and string formats like `Euler (Karras)`).
+A prototype auto‑populated editable JSON textarea intended to live inside the `Metadata Rule Scanner` node UI. It was archived to:
+- Reduce ongoing maintenance burden
+- Avoid layout instability from large JSON blocks
+- Encourage explicit external editing & version control of rules
 
-## Capture Rules Adjustments
-- `saveimage_unimeta/defs/ext/wan_video_wrapper.py`:
-	- Keep existing rules.
-	- Add `start_step` and `end_step` mappings for `WanVideo Sampler`.
-	- Keep the robust `scheduler` parser used to split into `sampler` and `scheduler`.
+Re‑enable Guidance (if ever adopted):
+1. Revisit front‑end form rendering
+2. Add size / collapse controls
+3. Provide validation feedback pipeline to Python side
 
-## Trace and Association (MoE Path Only)
-- Implement a new helper `collect_sampler_contexts_moe` (name tentative):
-	- Enumerate all `WanVideo Sampler` nodes in a deterministic order.
-	- For each sampler, walk upstream to find the nearest `WanVideoModelLoader`.
-	- Collect associated VAE, LoRAs (names/hashes/strengths) along the same path.
-	- Record sampler settings: `steps`, `start_step`, `end_step`, `cfg`, `shift`,
-		`seed`, `denoise`, `sampler`, `scheduler`.
-- Heuristics:
-	- If multiple model loaders are reachable, pick the closest by hop count.
-	- If LoRAs fan-in, keep those on the sampler → model path; otherwise omit.
+## Deferred / Future Feature Concepts
 
-## Output Schema
-- Backward-compatible flat fields remain unchanged for non-MoE workflows.
-- When MoE is detected:
-	- Continue emitting today’s flat fields derived from a single “primary” sampler
-		(e.g., largest `end_step` or last in order). This preserves downstream expectations.
-	- Add a structured array field `Samplers detail` (name tentative) containing objects:
-		- `node_id`, `model`, `model_hash`, `vae`, `vae_hash`
-		- `sampler`, `scheduler`, `steps`, `start_step`, `end_step`, `cfg`, `shift`, `denoise`
-		- `loras`: array of `{ name, hash, strength }`
+### Workflow Compression (Planned)
+Goal: gzip + base64 encode full workflow JSON before embedding in EXIF (esp. for JPEG) while keeping existing staged fallback logic unchanged.
+Status: Design placeholder only; not implemented.
+Key Constraints:
+- Must preserve current fallback staging semantics
+- Add a marker key so downstream tooling recognizes compressed payloads
+- No multi‑segment APPn splitting; single segment only
 
-### Example (PNGInfo JSON field)
-```json
-{
-	"Samplers detail": [
-		{
-			"node_id": 42,
-			"model": "wan2.2-high.safetensors",
-			"model_hash": "a1b2c3d4e5",
-			"vae": "wan-vae.safetensors",
-			"vae_hash": "f6g7h8i9j0",
-			"sampler": "Euler a",
-			"scheduler": "Karras",
-			"steps": 30,
-			"start_step": 0,
-			"end_step": 20,
-			"cfg": 3.5,
-			"shift": 0.0,
-			"denoise": 1.0,
-			"loras": [
-				{ "name": "detailer", "hash": "1111111111", "strength": 0.5 }
-			]
-		},
-		{
-			"node_id": 51,
-			"model": "wan2.2-low.safetensors",
-			"model_hash": "1122334455",
-			"vae": "wan-vae.safetensors",
-			"vae_hash": "f6g7h8i9j0",
-			"sampler": "DPM++ 2M",
-			"scheduler": "Exponential",
-			"steps": 30,
-			"start_step": 20,
-			"end_step": 30,
-			"cfg": 3.0,
-			"shift": 0.0,
-			"denoise": 1.0,
-			"loras": []
-		}
-	]
-}
-```
+### Wan2.2 Support (planned)
+Location: `docs/WAN22_SUPPORT.md`
+- Add support for wan2.2 and other MoE multi-model workflows. 
 
-## Parameters String Rendering
-- Normal mode: single-line summary such as `Samplers: High[0–20] Euler a/Karras; Low[20–30] DPM++ 2M/Exponential`.
-- Test/multiline mode: a readable block enumerating each sampler with key fields.
-
-## JPEG Fallback Integration
-- No changes to 64KB EXIF cap or stages. We keep the staged fallback:
-	- full → reduced-exif → minimal → com-marker.
-- The `Samplers detail` block is not added to the minimal allowlist. It will be trimmed
-	in reduced/minimal stages to protect size budgets.
-- We preserve the `Metadata Fallback: <stage>` marker semantics.
-
-## Error Handling
-- Wrap per-field extraction in `try/except`. Omit failing fields rather than injecting
-	placeholders, except where placeholders are already defined in the project.
-- Log context (node id, field name) at debug level for troubleshooting.
-
-## Tests
-- Unit tests for capture rules:
-	- `WanVideo Sampler` captures `start_step` and `end_step`.
-	- Scheduler parser variants (dict, tuple/list, string in multiple formats).
-- Integration tests for MoE graphs:
-	- Two model loaders + two samplers with distinct ranges and LoRAs.
-	- Verify per-sampler associations and that flat fields are still present.
-- JPEG fallback tests:
-	- Lower `max_jpeg_exif_kb` and verify trimming of the detailed block.
-
-## Documentation
-- README: add a short “Wan2.2 (MoE) support” section when implemented.
-- Environment Flags: document `METADATA_WAN_MOE_FORCE` and optional disable flag.
-
-## Phased Rollout
-1. Add `START_STEP`/`END_STEP` enums and extend Wan sampler rules.
-2. Implement MoE detector (no behavior change) + unit tests.
-3. Implement per-sampler collector and structured output, guarded behind detector.
-4. Add parameters rendering; update tests.
-5. Update README; validate fallback; ship.
-
-## Risks and Mitigations
-- Mis-association of models/LoRAs in complex graphs:
-	- Use nearest-upstream heuristic and path-based filtering; expand tests.
-- Output size in PNGInfo:
-	- Struct stays in PNGInfo; trimmed during JPEG fallback stages.
-- Node variants with different field names:
-	- Add small selector aliases as discovered (`start`, `end`, etc.).
-
-## Future Work
+### Possible Enhancements (Exploratory)
+- Explicit metadata fallback stage key (separate from parameter string suffix)
+- Optional sidecar `.json` with full metadata when JPEG hits `com-marker` stage
+- Selective hash detail inclusion (per hash type toggles)
+- UI affordance for minimal parameter allowlist preview
 - Optional: CLIP model hashes for Wan encoders.
 - Optional: Env flag to omit the structured block entirely.
 - Placeholder: Workflow gzip+base64 pre-EXIF. Keep detection marker and reuse fallback strategy (not implemented).
+
+### Multi‑Segment EXIF / Alternate Embedding
+Currently ruled out to avoid complexity & fragile parser expectations. Consider only if compression proves insufficient.
+
+## from https://github.com/alexopus/ComfyUI-Image-Saver
+
+### Easy-Remix
+Strip LoRAs and simplify 'embedding:path' from the prompt to make the Remix option on civitai.com more seamless.
+
+### Additional Hashes
+- User input for hashes separated by commas, optionally with names. 'Name:HASH' (e.g., 'MyLoRA:FF735FF83F98')
+- With download_civitai_data set to true, weights can be added as well. (e.g., 'HASH:Weight', 'Name:HASH:Weight')
+
+## Contribution Guidance For Future Ideas
+If implementing any item here:
+1. Open an issue referencing this document section.
+2. Keep diffs minimal; preserve ordering & fallback semantics.
+3. Update this file + README links + `.github/copilot-instructions.md` if behavior surfaces to users or AI assistants.
+
+---
+Last updated: v1.1.0

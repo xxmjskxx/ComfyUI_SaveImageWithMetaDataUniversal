@@ -7,7 +7,8 @@
 - Provides full support for saving workflows and metadata to WEBP images.
 - Supports saving workflows and metadata to JPEGs (limited to 64KB—only smaller workflows can be saved to JPEGs).
 - Stores model hashes in `.sha256` files so you only ever have to hash models once, saving lots of time.
-- Includes the nodes `Metadata Rule Scanner` and `Save Custom Metadata Rules` which scan all installed nodes and generate metadata capture rules; designed to work with most custom packs and fall back gracefully when a node lacks heuristics (I can't test with every custom node pack, but it has been working well so far).
+- Includes `Metadata Rule Scanner` and `Save Custom Metadata Rules` nodes, which scan all installed nodes and generate metadata capture rules
+- Designed to work with most custom packs and fall back gracefully when a node lacks heuristics (I can't test with every custom node pack, but it has been working well so far).
 - Since the value extraction rules are created dynamically, values output by most custom nodes can be added to metadata.
 - Tested with SD1.5, SDXL, FLUX, QWEN, WAN (2.1 supported); GGUF, Nunchaku
 
@@ -47,7 +48,7 @@ git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
 ```
 
 ## Quick Start
-1. Use the `Metadata Rule Scanner` + `Save Custom Metadata Rules` nodes to create and save capture rules (see [`example_workflows/scan-and-save-custom-metadata-rules.json`](https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/blob/docs/readme-and-assets/example_workflows/scan-and-save-custom-metadata-rules.png)).
+1. Use the `Metadata Rule Scanner` + `Save Custom Metadata Rules` nodes to create and save capture rules (see [`example_workflows/scan-and-save-custom-metadata-rules.png`](example_workflows/scan-and-save-custom-metadata-rules.png)).
 2. Add `Save Image w/ Metadata Universal` to your workflow and connect to the image input to save images using your custom capture ruleset.
 3. (Optional) Use `Create Extra MetaData` node(s) to manually record additional info.
 4. (Optional) For full Civitai style parity enable the `civitai_sampler` and `guidance_as_cfg` toggles in the save node.
@@ -61,43 +62,47 @@ git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
 | `Create Extra MetaData` | Inject any additional custom key-value metadata pairs. |
 | `Metadata Rule Scanner` | Scan installed nodes to suggest metadata capture rules (options for: exclude keywords, modes, metafield forcing). |
 | `Save Custom Metadata Rules` | Save generated rule suggestions to `generated_user_rules.py` (append or overwrite). |
-| `Show generated_user_rules.py` | Display the current merged user rules file contents for review/editing. |
-| `Save generated_user_rules.py` | Validate and write edited rules text back to the user rules file. |
-| `Metadata Force Include` | Configure global forced node class names for capture definition loading. |
+| `Show generated_user_rules.py` | Display the current merged user rules file contents for review/editing (optional). |
+| `Save generated_user_rules.py` | Validate and write edited rules text back to the user rules file (optional). |
+| `Metadata Force Include` | Configure global forced node class names for capture definition loading (optional). |
 | `Show Text (UniMeta)` | Local variant for displaying connected text outputs; based on [pythongosssss](https://github.com/pythongosssss/ComfyUI-Custom-Scripts) `Show Text 🐍` (MIT). |
 | `Show Any (Any to String)` | Display any connected value by converting it to a string; useful to wire ints/floats/etc. into `Create Extra MetaData`. |
 
 ## Feature Overview
 * Automatic1111‑style, Civitai-compatible parameter string (single‑line) with optional multi‑line deterministic test mode (`METADATA_TEST_MODE=1`).
-* Full PNG + lossless WebP workflow + metadata embedding; JPEG with staged fallback under 64KB EXIF limit.
-  * See detailed fallback staging: [docs/JPEG_METADATA_FALLBACK.md](docs/JPEG_METADATA_FALLBACK.md)
-* Wan 2.1 example workflow is available: [example_workflows/wan21_text_to_image.json](example_workflows/wan21_text_to_image.json). It demonstrates prompt encoding, WanVideo Sampler with combined "scheduler" input (parsed into Sampler/Scheduler), VAE decode, and saving with enriched metadata.
 * Dynamic rule generation: `Metadata Rule Scanner` + `Save Custom Metadata Rules` create and save user rules, allowing broad custom node coverage.
 * LoRA handling:
-  * Detects single and stack loaders & inline `<lora:name:sm[:sc]>` tags such as [ComfyUI Prompt Control](https://github.com/asagi4/comfyui-prompt-control) and [ComfyUI LoRA Manager](https://github.com/willmiao/ComfyUI-Lora-Manager).
+  * Detects single and stack loaders & inline `<lora:name:sm[:sc]>` tags such as those used in [ComfyUI Prompt Control](https://github.com/asagi4/comfyui-prompt-control) and [ComfyUI LoRA Manager](https://github.com/willmiao/ComfyUI-Lora-Manager):
+    <div style="width:60%;">
+    
+    ![A caption goes here](img/lora-loader.png) 
+    </div>
   * Aggregated optional condensed summary line `LoRAs: name(str_model/str_clip)` plus per‑LoRA detailed entries (hashes & strengths retained even if summary hidden).
 * Prompt encoder compatibility: handles multiple encoder styles (e.g. dual Flux T5 + CLIP) with aliasing and suppression of redundant unified positives.
-* Embedding resolution & hashing with safe path normalization; model hash caching via `.sha256` sidecar files for speed after first run.
-* Configurable guidance mapping (`guidance_as_cfg`) and sampler naming normalization (minimal, avoids unexpected renames).
+* Full PNG + lossless WebP workflow + metadata embedding; JPEG with staged fallback under 64KB EXIF limit.
+  * See detailed fallback staging: [docs/JPEG_METADATA_FALLBACK.md](docs/JPEG_METADATA_FALLBACK.md)
+* Embedding name resolution & hashing with safe path normalization; model hash caching via `.sha256` sidecar files for speed after first run.
+* Configurable guidance mapping (`guidance_as_cfg`) and sampler naming normalization (minimal, avoids unexpected renames) for Civitai compatibility.
 * `Create Extra MetaData` node specifies metadata to be added to the image to be saved. Example: In [extra_metadata.json](example_workflows/extra_metadata.json).
 * Selective verbosity: hide hash detail (`METADATA_NO_HASH_DETAIL`) and/or aggregated LoRA summary (`METADATA_NO_LORA_SUMMARY` or UI toggle).
 * Stable field ordering for reproducible diffs & tooling.
 * Runtime evaluation of env flags—restart not required for changes.
   * Environment flag reference: [Environment Flags](#environment-flags)
 * Clear fallback signaling via `Metadata Fallback: <stage>` token in parameter string when JPEG trimming occurs.
+* Wan 2.1 example workflow is available: [example_workflows/wan21_text_to_image.json](example_workflows/wan21_text_to_image.json). It demonstrates prompt encoding, WanVideo Sampler with combined "scheduler" input (parsed into Sampler/Scheduler), VAE decode, and saving with enriched metadata.
 * Plays nicely with most custom node packs out‑of‑the‑box (in my somewhat limited testing).
 
 ## Format & Fallback Quick Tips
 * JPEG vs PNG/WebP: JPEG has a hard ~64KB EXIF ceiling for text data; large workflows trigger staged fallback trimming (see [detailed fallback](#jpeg-metadata-size--fallback-behavior)). Use PNG / lossless WebP for archival.
-* Control JPEG attempt size: `max_jpeg_exif_kb` (default 60, max 64) caps EXIF payload before fallback (see [Node UI Parameters](#node-ui-parameters-key-additions)). (i.e. sets max text written to JPEG) before fallback stages engage.
-* Detect fallback: If the parameters string ends with `Metadata Fallback: <stage>`, this means trimming occurred (`reduced-exif`, `minimal`, or `com-marker`) — see [Fallback Stages](#fallback-stages--indicator).
+* Control JPEG attempt text data size: `max_jpeg_exif_kb` (default 60, max 64) caps EXIF payload before fallback (see [Node UI Parameters](#node-ui-parameters-key-additions)). (i.e. sets max text written to JPEG) before fallback stages engage.
+* Detect fallback: If the metadata parameters string ends with `Metadata Fallback: <stage>`, this means max JPEG text data limit was hit and trimming occurred (`reduced-exif`, `minimal`, or `com-marker`) — see [Fallback Stages](#fallback-stages--indicator).
 * LoRA summary line: Toggle with `include_lora_summary`. Adds an abbreviated summary of LoRAs used. If off, only individual `Lora_*` entries remain.
 
 ## Sampler Selection Method
 - Specifies how to select a KSampler node that has been executed before this node.
-- **Farthest** Selects the farthest KSampler node from this node.
-- **Nearest** Selects the nearest KSampler node to this node.
-- **By node ID** Selects the KSampler node whose node ID is `sampler_selection_node_id`.
+  - **Farthest** Selects the farthest KSampler node from this node.
+  - **Nearest** Selects the nearest KSampler node to this node.
+  - **By node ID** Selects the KSampler node whose node ID is set in `sampler_selection_node_id`.
 
 ## Metadata to be Captured
 - Positive prompt
@@ -134,16 +139,9 @@ git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
   - Model, Loras, Embeddings
   - For [Civitai](https://civitai.com/)
 
-## Node UI Parameters (Key Additions)
-Key quality‑of‑life and compatibility controls exposed by the primary save node:
-
-* `include_lora_summary` (BOOLEAN, default True): Toggles the aggregated `LoRAs:` summary line; when False only individual `Lora_*` entries are emitted. UI setting overrides env flags.
-* `guidance_as_cfg` (BOOLEAN, default False): Substitutes the captured `Guidance` value into `CFG scale` and omits the separate `Guidance:` field for better A1111 / Civitai parity when models expose guidance separately.
-* `max_jpeg_exif_kb` (INT, default 60, min 4, max 64): UI‑enforced ceiling for attempted JPEG EXIF payload. Real-world single APP1 EXIF segment limit is ~64KB; exceeding it triggers staged fallback (reduced-exif → minimal → com-marker). For large workflows prefer PNG / lossless WebP.
-* `suppress_missing_class_log` (BOOLEAN, default False): Hide the informational log listing missing classes that would trigger a user JSON rules merge. Useful to reduce noise in large custom node environments.
 
 ---
-### Filename Token Reference
+## Filename Token Reference
 | Token | Replaced With |
 |-------|---------------|
 | `%seed%` | Seed value |
@@ -161,7 +159,17 @@ Key quality‑of‑life and compatibility controls exposed by the primary save n
 Date pattern components:
 `yyyy` | `MM` | `dd` | `hh` | `mm` | `ss`
 
-### JPEG Metadata Size & Fallback Behavior
+---
+
+## Node UI Parameters (Key Additions)
+Key quality‑of‑life and compatibility controls exposed by the primary save node:
+
+* `include_lora_summary` (BOOLEAN, default True): Toggles the aggregated `LoRAs:` summary line; when False only individual `Lora_*` entries are emitted. UI setting overrides env flags.
+* `guidance_as_cfg` (BOOLEAN, default False): Substitutes the captured `Guidance` value into `CFG scale` and omits the separate `Guidance:` field for better A1111 / Civitai parity when models expose guidance separately.
+* `max_jpeg_exif_kb` (INT, default 60, min 4, max 64): UI‑enforced ceiling for attempted JPEG EXIF payload. Real-world single APP1 EXIF segment limit is ~64KB; exceeding it triggers staged fallback (reduced-exif → minimal → com-marker). For large workflows prefer PNG / lossless WebP.
+* `suppress_missing_class_log` (BOOLEAN, default False): Hide the informational log listing missing classes that would trigger a user JSON rules merge. Useful to reduce noise in large custom node environments.
+
+## JPEG Metadata Size & Fallback Behavior
 JPEG metadata is constrained by a single APP1 (EXIF) segment (~64KB). This repository enforces a hard UI cap of 64KB for `max_jpeg_exif_kb`; values above this provide no benefit and are rejected by Pillow or stripped by consumers. Large prompt + workflow JSON + hash detail can exceed the limit quickly.
 
 When saving JPEG, the node evaluates total EXIF size vs `max_jpeg_exif_kb` (<=64) and applies staged fallback, attempting to write as much info to the EXIF as possible:
@@ -183,7 +191,7 @@ Limitations:
 * Multi-segment APPn fragmentation (splitting across several EXIF/APP markers) is not implemented (deferred; see `docs/WORKFLOW_COMPRESSION_DESIGN.md`).
  * For more nuance on staged trimming: [docs/JPEG_METADATA_FALLBACK.md](docs/JPEG_METADATA_FALLBACK.md)
 
-#### Fallback Stages & Indicator
+### Fallback Stages & Indicator
 JPEG saves record a `Metadata Fallback:` stage when size constraints trigger progressive trimming:
 
 | Stage | Meaning |
@@ -197,16 +205,16 @@ When a fallback occurs the `Metadata Fallback: <stage>` marker is appended to th
 
 NOTE: The `force_include_node_class` input is provided by the `Metadata Rule Scanner` node.
 
-### Metadata Rule Tools
+## Metadata Rule Tools
 
 The rule tooling consists of two cooperating nodes plus an optional scanner input:
 
-#### Scanner (`Metadata Rule Scanner`)
+### Scanner (`Metadata Rule Scanner`)
 * Inputs: `exclude_keywords`, `include_existing`, `mode`, `force_include_metafields`.
 * Scans installed nodes and suggests capture rules + sampler mappings.
 * Produces JSON rule suggestions + a human‑readable diff summary.
 
-#### Force Include (`Metadata Force Include`)
+### Force Include (`Metadata Force Include`)
 * Inputs: `force_include_node_class` (multiline), `reset_forced` (bool), `dry_run` (optional bool).
 * Maintains a global set of node class names treated as required when loading user metadata definitions.
 * Output: Comma‑joined list of currently forced classes (`FORCED_CLASSES`).
@@ -215,7 +223,7 @@ You can connect the second plain `STRING` output (`forced_classes_str`) directly
 
 `SaveImageWithMetaDataUniversal` merges the forced class set before deciding whether to load user JSON definition files.
 
-#### Scanner Input: `force_include_node_class`
+### Scanner Input: `force_include_node_class`
 Optional multiline field accepted by the scanner. Provide exact class names (comma or newline separated) to forcibly include those nodes in scan results even if they:
 * Match one of the `exclude_keywords`, or
 * Would normally be omitted by `mode` (e.g. `existing_only` skipping additional nodes).
@@ -225,7 +233,7 @@ Output effects:
 * `diff_report` appends a `Forced node classes=` segment.
 * If a forced class yields no heuristic suggestions, an empty object is emitted so tooling can still merge or annotate it.
 
-### Troubleshooting / FAQ
+## Troubleshooting / FAQ
 **Why is my workflow JSON missing in a JPEG?**  
 The save exceeded `max_jpeg_exif_kb` and fell back to `reduced-exif`, `minimal`, or `com-marker`. Use PNG / WebP or lower the workflow size.
 
