@@ -28,8 +28,10 @@ class SaveCustomMetadataRules:
     def save_rules(self, rules_json_string):
         # This path needs to be consistent with the loading paths.
         PY_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # noqa: N806
-        USER_CAPTURES_FILE = os.path.join(PY_DIR, "user_captures.json")  # noqa: N806
-        USER_SAMPLERS_FILE = os.path.join(PY_DIR, "user_samplers.json")  # noqa: N806
+        PY_FILE_DIR = os.path.join(PY_DIR, "py")  # noqa: N806
+        os.makedirs(PY_FILE_DIR, exist_ok=True)
+        USER_CAPTURES_FILE = os.path.join(PY_FILE_DIR, "user_captures.json")  # noqa: N806
+        USER_SAMPLERS_FILE = os.path.join(PY_FILE_DIR, "user_samplers.json")  # noqa: N806
         EXT_DIR = os.path.join(PY_DIR, "defs", "ext")  # noqa: N806
         os.makedirs(EXT_DIR, exist_ok=True)
         GENERATED_EXT_FILE = os.path.join(EXT_DIR, "generated_user_rules.py")  # noqa: N806
