@@ -14,7 +14,7 @@ class SaveGeneratedUserRules:
                     "BOOLEAN",
                     {
                         "default": True,
-                        "tooltip": "If true, append new rules to existing file; if false, overwrite existing file.",
+                        "tooltip": "If true, append new rules to existing file;\nif false, overwrite existing file.",
                     },
                 ),
             }
