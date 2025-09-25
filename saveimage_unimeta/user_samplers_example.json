@@ -9,7 +9,7 @@
     "negative": "negative"
   },
   "MyCustomSampler": {
-    "positive": "cond",   
-    "negative": "uncond"  
+    "positive": "cond",
+    "negative": "uncond"
   }
 }

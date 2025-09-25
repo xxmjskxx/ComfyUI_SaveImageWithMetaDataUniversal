@@ -66,7 +66,7 @@ KNOWN = {
     "get_lora_strength_clip_stack": get_lora_strength_clip_stack,
 }
 
-# This file intentionally defines example registries with a distinct suffix and is never imported.
+# This file intentionally defines example registries with an '_EXAMPLES' suffix and is never imported.
 # Copy specific entries into your live generated_user_rules.py.
 
 CAPTURE_FIELD_LIST_EXAMPLES: dict[str, Mapping[MetaField, Mapping[str, Any]]] = {
