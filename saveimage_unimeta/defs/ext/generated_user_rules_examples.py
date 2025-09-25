@@ -45,12 +45,37 @@ from ..validators import (
     is_positive_prompt,
     is_negative_prompt,
 )
-from .efficiency_nodes import (
-    get_lora_model_name_stack,
-    get_lora_model_hash_stack,
-    get_lora_strength_model_stack,
-    get_lora_strength_clip_stack,
-)
+from ..selectors import select_stack_by_prefix
+
+# Self-contained LoRA stack helpers to mirror the generator output.
+# These avoid importing from other extension modules.
+def get_lora_model_name_stack(node_id, obj, prompt, extra_data, outputs, input_data):
+    return select_stack_by_prefix(input_data, "lora_name", counter_key="lora_count")
+
+
+def get_lora_model_hash_stack(node_id, obj, prompt, extra_data, outputs, input_data):
+    names = select_stack_by_prefix(input_data, "lora_name", counter_key="lora_count")
+    return [calc_lora_hash(n, input_data) for n in names]
+
+
+def get_lora_strength_model_stack(node_id, obj, prompt, extra_data, outputs, input_data):
+    # Advanced mode switches the source key to 'model_str' to match Efficiency Nodes behavior.
+    try:
+        if input_data[0].get("input_mode", [""])[0] == "advanced":
+            return select_stack_by_prefix(input_data, "model_str", counter_key="lora_count")
+    except Exception:
+        pass
+    return select_stack_by_prefix(input_data, "lora_wt", counter_key="lora_count")
+
+
+def get_lora_strength_clip_stack(node_id, obj, prompt, extra_data, outputs, input_data):
+    # Advanced mode uses 'clip_str' for clip strength.
+    try:
+        if input_data[0].get("input_mode", [""])[0] == "advanced":
+            return select_stack_by_prefix(input_data, "clip_str", counter_key="lora_count")
+    except Exception:
+        pass
+    return select_stack_by_prefix(input_data, "lora_wt", counter_key="lora_count")
 
 # This mirrors the indirection used by generated_user_rules.py
 KNOWN = {

@@ -1,31 +1,66 @@
 # https://github.com/jags111/efficiency-nodes-comfyui
+import logging
 from ..formatters import calc_lora_hash, calc_model_hash, convert_skip_clip
 from ..meta import MetaField
+from ..selectors import select_stack_by_prefix
+
+
+logger = logging.getLogger(__name__)
+# Guard to avoid repeating the same deprecation message on every call.
+_LORA_STACK_SHIM_WARNED = False
+
+
+def _is_advanced_mode(input_data) -> bool:
+    """Safely detect Efficiency Nodes 'advanced' mode from input_data."""
+    try:
+        return (
+            isinstance(input_data, list)
+            and input_data
+            and isinstance(input_data[0], dict)
+            and isinstance(input_data[0].get("input_mode"), list)
+            and input_data[0]["input_mode"]
+            and input_data[0]["input_mode"][0] == "advanced"
+        )
+    except Exception:
+        return False
 
 
 def get_lora_model_name_stack(node_id, obj, prompt, extra_data, outputs, input_data):
-    return get_lora_data_stack(input_data, "lora_name")
+    return select_stack_by_prefix(input_data, "lora_name", counter_key="lora_count")
 
 
 def get_lora_model_hash_stack(node_id, obj, prompt, extra_data, outputs, input_data):
-    return [calc_lora_hash(model_name, input_data) for model_name in get_lora_data_stack(input_data, "lora_name")]
+    names = select_stack_by_prefix(input_data, "lora_name", counter_key="lora_count")
+    return [calc_lora_hash(model_name, input_data) for model_name in names]
 
 
 def get_lora_strength_model_stack(node_id, obj, prompt, extra_data, outputs, input_data):
-    if input_data[0]["input_mode"][0] == "advanced":
-        return get_lora_data_stack(input_data, "model_str")
-    return get_lora_data_stack(input_data, "lora_wt")
+    if _is_advanced_mode(input_data):
+        return select_stack_by_prefix(input_data, "model_str", counter_key="lora_count")
+    return select_stack_by_prefix(input_data, "lora_wt", counter_key="lora_count")
 
 
 def get_lora_strength_clip_stack(node_id, obj, prompt, extra_data, outputs, input_data):
-    if input_data[0]["input_mode"][0] == "advanced":
-        return get_lora_data_stack(input_data, "clip_str")
-    return get_lora_data_stack(input_data, "lora_wt")
+    if _is_advanced_mode(input_data):
+        return select_stack_by_prefix(input_data, "clip_str", counter_key="lora_count")
+    return select_stack_by_prefix(input_data, "lora_wt", counter_key="lora_count")
 
 
 def get_lora_data_stack(input_data, attribute):
-    lora_count = input_data[0]["lora_count"][0]
-    return [v[0] for k, v in input_data[0].items() if k.startswith(attribute) and v[0] != "None"][:lora_count]
+    """Deprecated shim for older rules using get_lora_data_stack.
+
+    Prefer select_stack_by_prefix(input_data, attr, counter_key="lora_count").
+    Scheduled for removal no earlier than v1.3.0 (and at least 60 days after
+    a v1.2.0 release), pending downstream adoption.
+    """
+    global _LORA_STACK_SHIM_WARNED
+    if not _LORA_STACK_SHIM_WARNED:
+        logger.warning(
+            "get_lora_data_stack is deprecated; use select_stack_by_prefix(..., counter_key='lora_count')."
+        )
+        _LORA_STACK_SHIM_WARNED = True
+    # Backward compatibility shim; prefer select_stack_by_prefix above.
+    return select_stack_by_prefix(input_data, attribute, counter_key="lora_count")
 
 
 SAMPLERS = {

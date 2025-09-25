@@ -1,8 +1,12 @@
 # https://github.com/rgthree/rgthree-comfy
 import logging
-import re
 
-from ...utils.lora import find_lora_info
+from ...utils.lora import (
+    coerce_first,
+    parse_lora_syntax,
+    resolve_lora_display_names,
+)
+from ..selectors import select_stack_by_prefix
 from ..formatters import calc_lora_hash
 from ..meta import MetaField
 
@@ -27,73 +31,46 @@ def get_lora_data(input_data, attribute):
 
 
 def get_lora_model_name_stack(node_id, obj, prompt, extra_data, outputs, input_data):
-    return get_lora_data_stack(input_data, "lora")
+    return select_stack_by_prefix(input_data, "lora_", filter_none=True)
 
 
 def get_lora_model_hash_stack(node_id, obj, prompt, extra_data, outputs, input_data):
-    return [calc_lora_hash(model_name, input_data) for model_name in get_lora_data_stack(input_data, "lora")]
+    names = select_stack_by_prefix(input_data, "lora_", filter_none=True)
+    return [calc_lora_hash(model_name, input_data) for model_name in names]
 
 
 def get_lora_strength_stack(node_id, obj, prompt, extra_data, outputs, input_data):
-    return get_lora_data_stack(input_data, "strength")
+    return select_stack_by_prefix(input_data, "strength_", filter_none=True)
 
 
-def get_lora_data_stack(input_data, attribute):
-    return [v[0] for k, v in input_data[0].items() if k.startswith(attribute + "_") and v[0] != "None"]
+# Local stack helper removed in favor of shared selector above.
 
 
-STRICT = re.compile(r"<lora:([^:>]+):([0-9]*\.?[0-9]+)(?::([0-9]*\.?[0-9]+))?>")
-LEGACY = re.compile(r"<lora:([^:>]+):([^>]+)>")
 _SYNTAX_CACHE = {}
 
 
-def _coerce_first(v):
-    if isinstance(v, list):
-        return v[0] if v else ""
-    return v if isinstance(v, str) else ""
-
-
 def _parse_syntax(text: str):
-    names, hashes, model_strengths, clip_strengths = [], [], [], []
-    if not text:
-        return names, hashes, model_strengths, clip_strengths
-    matches = STRICT.findall(text)
-    if not matches:
-        legacy = LEGACY.findall(text)
-        for name, blob in legacy:
-            try:
-                parts = blob.split(":")
-                if len(parts) == 2:
-                    ms = float(parts[0])
-                    cs = float(parts[1])
-                else:
-                    ms = float(parts[0])
-                    cs = ms
-            except Exception:
-                ms = cs = 1.0
-            info = find_lora_info(name)
-            display = info["filename"] if info else name
-            names.append(display)
-            hashes.append(calc_lora_hash(name, None))
-            model_strengths.append(ms)
-            clip_strengths.append(cs)
-        return names, hashes, model_strengths, clip_strengths
-    for name, ms_s, cs_s in matches:
-        try:
-            ms = float(ms_s)
-        except Exception:
-            ms = 1.0
-        try:
-            cs = float(cs_s) if cs_s else ms
-        except Exception:
-            cs = ms
-        info = find_lora_info(name)
-        display = info["filename"] if info else name
-        names.append(display)
-        hashes.append(calc_lora_hash(name, None))
-        model_strengths.append(ms)
-        clip_strengths.append(cs)
-    return names, hashes, model_strengths, clip_strengths
+    """Parse LoRA syntax and return (display_names, hashes, model_strengths, clip_strengths).
+
+    Behavior preserved:
+    - Hashes are computed from the raw name (pre-resolution), as before.
+    - Display names are resolved via indexed filename when available.
+    """
+    display_names: list[str] = []
+    hashes: list[str] = []
+    model_strengths: list[float] = []
+    clip_strengths: list[float] = []
+    raw_names, ms_list, cs_list = parse_lora_syntax(text)
+    if not raw_names:
+        return display_names, hashes, model_strengths, clip_strengths
+    # Resolve display names in bulk
+    display_names = resolve_lora_display_names(raw_names)
+    # Compute hashes using the raw names (preserves original behavior)
+    for raw in raw_names:
+        hashes.append(calc_lora_hash(raw, None))
+    model_strengths = ms_list
+    clip_strengths = cs_list
+    return display_names, hashes, model_strengths, clip_strengths
 
 
 def _get_syntax(node_id, input_data):
@@ -102,7 +79,7 @@ def _get_syntax(node_id, input_data):
     for key in candidates:
         raw = input_data[0].get(key)
         if raw:
-            text = _coerce_first(raw)
+            text = coerce_first(raw)
             cached = _SYNTAX_CACHE.get(node_id)
             if cached and cached.get("text") == text:
                 return cached["data"]

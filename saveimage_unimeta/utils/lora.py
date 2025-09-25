@@ -1,11 +1,13 @@
-"""LoRA indexing and lookup utilities.
+"""LoRA indexing and parsing utilities.
 
-Builds a one-time in-memory index mapping LoRA base names to their on-disk
-locations to accelerate hash computation and metadata enrichment.
+Includes:
+* One-time index mapping LoRA base names to on-disk locations (for fast lookup).
+* Lightweight syntax parsing helpers for ``<lora:name:sm[:sc]>`` tags shared by ext modules.
 """
 
 import logging
 import os
+import re
 
 import folder_paths
 
@@ -71,4 +73,89 @@ def find_lora_info(base_name: str) -> dict[str, str] | None:
     return _LORA_INDEX.get(base_name)
 
 
-__all__ = ["build_lora_index", "find_lora_info"]
+# -----------------------------
+# Shared LoRA syntax utilities
+# -----------------------------
+
+# Strict pattern capturing optional separate clip strength:
+# <lora:name:model_strength> OR <lora:name:model_strength:clip_strength>
+STRICT = re.compile(r"<lora:([^:>]+):([0-9]*\.?[0-9]+)(?::([0-9]*\.?[0-9]+))?>")
+# Fallback (legacy) pattern capturing anything after the second colon
+LEGACY = re.compile(r"<lora:([^:>]+):([^>]+)>")
+
+
+def coerce_first(val) -> str:
+    """Return first element from list-like, or the string itself, else ''."""
+    if isinstance(val, list):
+        return val[0] if val else ""
+    return val if isinstance(val, str) else ""
+
+
+def parse_lora_syntax(text: str) -> tuple[list[str], list[float], list[float]]:
+    """Parse LoRA tags in text into (raw_names, model_strengths, clip_strengths).
+
+    - Uses STRICT first, then LEGACY fallback where clip=sm when missing or non-numeric.
+    - Names are not resolved to filenames here; call ``resolve_lora_display_names`` as needed.
+    """
+    names: list[str] = []
+    model_strengths: list[float] = []
+    clip_strengths: list[float] = []
+    if not text:
+        return names, model_strengths, clip_strengths
+
+    matches = STRICT.findall(text)
+    if not matches:
+        legacy = LEGACY.findall(text)
+        for name, blob in legacy:
+            try:
+                parts = blob.split(":")
+                if len(parts) == 2:
+                    ms = float(parts[0])
+                    cs = float(parts[1])
+                else:
+                    ms = float(parts[0])
+                    cs = ms
+            except Exception:
+                ms = cs = 1.0
+            names.append(name)
+            model_strengths.append(ms)
+            clip_strengths.append(cs)
+        return names, model_strengths, clip_strengths
+
+    for name, ms_s, cs_s in matches:
+        try:
+            ms = float(ms_s)
+        except Exception:
+            ms = 1.0
+        try:
+            cs = float(cs_s) if cs_s else ms
+        except Exception:
+            cs = ms
+        names.append(name)
+        model_strengths.append(ms)
+        clip_strengths.append(cs)
+    return names, model_strengths, clip_strengths
+
+
+def resolve_lora_display_names(raw_names: list[str]) -> list[str]:
+    """Resolve each raw base name to indexed filename for display when available."""
+    out: list[str] = []
+    for n in raw_names:
+        try:
+            info = find_lora_info(n)
+            out.append(info["filename"] if info else n)
+        except Exception:
+            out.append(n)
+    return out
+
+
+__all__ = [
+    "build_lora_index",
+    "find_lora_info",
+    # syntax helpers
+    "STRICT",
+    "LEGACY",
+    "coerce_first",
+    "parse_lora_syntax",
+    "resolve_lora_display_names",
+]

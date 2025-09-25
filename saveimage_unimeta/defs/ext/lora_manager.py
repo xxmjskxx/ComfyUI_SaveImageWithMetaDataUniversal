@@ -1,20 +1,16 @@
 # https://github.com/willmiao/ComfyUI-Lora-Manager
 import logging
-import re
 
-from ...utils.lora import find_lora_info
+from ...utils.lora import (
+    coerce_first,
+    parse_lora_syntax,
+    resolve_lora_display_names,
+)
 from ..formatters import calc_lora_hash
 from ..meta import MetaField
 
 logger = logging.getLogger(__name__)
 logger.debug("[Meta DBG] Lora Loader (LoraManager) metadata definition file loaded.")
-
-# Strict pattern capturing optional separate clip strength:
-# <lora:name:model_strength> OR <lora:name:model_strength:clip_strength>
-LORA_REGEX_V2 = re.compile(r"<lora:([^:>]+):([0-9]*\.?[0-9]+)(?::([0-9]*\.?[0-9]+))?>")
-# Fallback (legacy) pattern capturing anything after the second colon
-# (may include :clip) – used only if strict finds nothing
-LORA_REGEX_LEGACY = re.compile(r"<lora:([^:>]+):([^>]+)>")
 
 # Cache LoRA parse results per node_id AND text snapshot to avoid stale data.
 _NODE_DATA_CACHE: dict[int, dict] = {}
@@ -28,58 +24,25 @@ def _select_text_field(input_data):
         return "loaded_loras"
     return "text"
 
-
-def _coerce_first(val):
-    if isinstance(val, list):
-        return val[0] if val else ""
-    return val if isinstance(val, str) else ""
-
-
 def _parse_lora_syntax(text):
-    names, hashes, model_strengths, clip_strengths = [], [], [], []
-    if not text:
-        return names, hashes, model_strengths, clip_strengths
+    """Return (display_names, hashes, model_strengths, clip_strengths).
 
-    matches = LORA_REGEX_V2.findall(text)
-    if not matches:
-        # Try legacy pattern (will lose separate clip; treat combined as model strength if numeric)
-        legacy = LORA_REGEX_LEGACY.findall(text)
-        for name, strength_blob in legacy:
-            try:
-                # Attempt to split on ':' if user wrote extended form but regex failed (edge cases)
-                parts = strength_blob.split(":")
-                if len(parts) == 2:
-                    ms = float(parts[0])
-                    cs = float(parts[1])
-                else:
-                    ms = float(parts[0])
-                    cs = ms
-            except Exception:
-                ms = 1.0
-                cs = 1.0
-            names.append(name)
-            hashes.append(calc_lora_hash(name, None))
-            model_strengths.append(ms)
-            clip_strengths.append(cs)
-        return names, hashes, model_strengths, clip_strengths
-
-    for name, model_str, clip_str in matches:
-        try:
-            ms = float(model_str)
-        except Exception:
-            ms = 1.0
-        try:
-            cs = float(clip_str) if clip_str else ms
-        except Exception:
-            cs = ms
-        # Resolve canonical filename (if available) for display consistency
-        info = find_lora_info(name)
-        display_name = info["filename"] if info else name
-        names.append(display_name)
-        hashes.append(calc_lora_hash(name, None))
-        model_strengths.append(ms)
-        clip_strengths.append(cs)
-    return names, hashes, model_strengths, clip_strengths
+    Behavior preserved:
+    - Hashes computed from raw name (pre-resolution) with calc_lora_hash(raw, None).
+    - Display names resolved via indexed filename when available.
+    """
+    display_names: list[str] = []
+    hashes: list[str] = []
+    model_strengths: list[float] = []
+    clip_strengths: list[float] = []
+    raw_names, ms_list, cs_list = parse_lora_syntax(text)
+    if not raw_names:
+        return display_names, hashes, model_strengths, clip_strengths
+    display_names = resolve_lora_display_names(raw_names)
+    hashes = [calc_lora_hash(raw, None) for raw in raw_names]
+    model_strengths = ms_list
+    clip_strengths = cs_list
+    return display_names, hashes, model_strengths, clip_strengths
 
 
 def _get_lora_data_from_node(node_id, input_data):
@@ -87,7 +50,7 @@ def _get_lora_data_from_node(node_id, input_data):
     global _NODE_DATA_CACHE
     field_to_parse = _select_text_field(input_data)
     raw_val = input_data[0].get(field_to_parse, "")
-    text_to_parse = _coerce_first(raw_val)
+    text_to_parse = coerce_first(raw_val)
 
     cached = _NODE_DATA_CACHE.get(node_id)
     if cached and cached.get(field_to_parse) == text_to_parse:
