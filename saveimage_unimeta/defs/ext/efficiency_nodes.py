@@ -1,31 +1,33 @@
 # https://github.com/jags111/efficiency-nodes-comfyui
 from ..formatters import calc_lora_hash, calc_model_hash, convert_skip_clip
 from ..meta import MetaField
+from ..selectors import select_stack_by_prefix
 
 
 def get_lora_model_name_stack(node_id, obj, prompt, extra_data, outputs, input_data):
-    return get_lora_data_stack(input_data, "lora_name")
+    return select_stack_by_prefix(input_data, "lora_name", counter_key="lora_count")
 
 
 def get_lora_model_hash_stack(node_id, obj, prompt, extra_data, outputs, input_data):
-    return [calc_lora_hash(model_name, input_data) for model_name in get_lora_data_stack(input_data, "lora_name")]
+    names = select_stack_by_prefix(input_data, "lora_name", counter_key="lora_count")
+    return [calc_lora_hash(model_name, input_data) for model_name in names]
 
 
 def get_lora_strength_model_stack(node_id, obj, prompt, extra_data, outputs, input_data):
     if input_data[0]["input_mode"][0] == "advanced":
-        return get_lora_data_stack(input_data, "model_str")
-    return get_lora_data_stack(input_data, "lora_wt")
+        return select_stack_by_prefix(input_data, "model_str", counter_key="lora_count")
+    return select_stack_by_prefix(input_data, "lora_wt", counter_key="lora_count")
 
 
 def get_lora_strength_clip_stack(node_id, obj, prompt, extra_data, outputs, input_data):
     if input_data[0]["input_mode"][0] == "advanced":
-        return get_lora_data_stack(input_data, "clip_str")
-    return get_lora_data_stack(input_data, "lora_wt")
+        return select_stack_by_prefix(input_data, "clip_str", counter_key="lora_count")
+    return select_stack_by_prefix(input_data, "lora_wt", counter_key="lora_count")
 
 
 def get_lora_data_stack(input_data, attribute):
-    lora_count = input_data[0]["lora_count"][0]
-    return [v[0] for k, v in input_data[0].items() if k.startswith(attribute) and v[0] != "None"][:lora_count]
+    # Backward compatibility shim; prefer select_stack_by_prefix above.
+    return select_stack_by_prefix(input_data, attribute, counter_key="lora_count")
 
 
 SAMPLERS = {
