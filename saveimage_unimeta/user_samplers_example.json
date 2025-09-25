@@ -1,0 +1,15 @@
+{
+  "_note": "Reference only. Do NOT rename to user_samplers.json unless you want these mappings to be loaded.",
+  "KSampler": {
+    "positive": "positive",
+    "negative": "negative"
+  },
+  "KSamplerAdvanced": {
+    "positive": "positive",
+    "negative": "negative"
+  },
+  "MyCustomSampler": {
+    "positive": "cond",   
+    "negative": "uncond"  
+  }
+}

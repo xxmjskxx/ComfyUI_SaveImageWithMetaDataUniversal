@@ -1,0 +1,39 @@
+{
+  "_note": "Reference only. Do NOT rename to user_captures.json unless you want these rules to be loaded.",
+  "CheckpointLoaderSimple": {
+    "MODEL_NAME": {"field_name": "ckpt_name"},
+    "MODEL_HASH": {"field_name": "ckpt_name", "format": "calc_model_hash"}
+  },
+  "CLIPTextEncode": {
+    "POSITIVE_PROMPT": {"field_name": "text", "validate": "is_positive_prompt"},
+    "NEGATIVE_PROMPT": {"field_name": "text", "validate": "is_negative_prompt"}
+  },
+  "VAELoader": {
+    "VAE_NAME": {"field_name": "vae_name"},
+    "VAE_HASH": {"field_name": "vae_name", "format": "calc_vae_hash"}
+  },
+  "KSampler": {
+    "SEED": {"field_name": "seed"},
+    "STEPS": {"field_name": "steps"},
+    "CFG": {"field_name": "cfg"},
+    "SAMPLER_NAME": {"field_name": "sampler_name"},
+    "SCHEDULER": {"field_name": "scheduler"}
+  },
+  "LoraLoader": {
+    "LORA_MODEL_NAME": {"field_name": "lora_name"},
+    "LORA_MODEL_HASH": {"field_name": "lora_name", "format": "calc_lora_hash"},
+    "LORA_STRENGTH_MODEL": {"field_name": "strength_model"},
+    "LORA_STRENGTH_CLIP": {"field_name": "strength_clip"}
+  },
+  "UNETLoader": {
+    "MODEL_NAME": {"field_name": "unet_name"},
+    "MODEL_HASH": {"field_name": "unet_name", "format": "calc_unet_hash"},
+    "WEIGHT_DTYPE": {"field_name": "weight_dtype"}
+  },
+  "CLIPLoader": {
+    "CLIP_MODEL_NAME": {"prefix": "clip_name"}
+  },
+  "SomeCustomNode": {
+    "DENOISE": {"value": 1.0}
+  }
+}
