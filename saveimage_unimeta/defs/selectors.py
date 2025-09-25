@@ -51,6 +51,9 @@ def select_stack_by_prefix(input_data, prefix: str, counter_key: str | None = No
     for k, v in input_data[0].items():
         if not isinstance(k, str) or not k.startswith(prefix):
             continue
+        # Do not include the counter_key itself in the returned items
+        if counter_key and k == counter_key:
+            continue
         if not v or not isinstance(v, list):
             continue
         first = v[0]
