@@ -75,7 +75,7 @@ git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
   * Detects single and stack loaders & inline `<lora:name:sm[:sc]>` tags such as those used in [ComfyUI Prompt Control](https://github.com/asagi4/comfyui-prompt-control) and [ComfyUI LoRA Manager](https://github.com/willmiao/ComfyUI-Lora-Manager):
     <div style="width:60%;">
     
-    ![A caption goes here](img/lora-loader.png) 
+    ![Diagram illustrating LoRA loader functionality, showing a parsing-supported LoRA Manager node with inline tags](img/lora-loader.png) 
     </div>
   * Aggregated optional condensed summary line `LoRAs: name(str_model/str_clip)` plus per‑LoRA detailed entries (hashes & strengths retained even if summary hidden).
 * Prompt encoder compatibility: handles multiple encoder styles (e.g. dual Flux T5 + CLIP) with aliasing and suppression of redundant unified positives.
