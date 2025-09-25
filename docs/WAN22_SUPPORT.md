@@ -62,7 +62,7 @@ post_date: "2025-09-24"
 
 ## Trace and Association (MoE Path Only)
 - Implement a new helper `collect_sampler_contexts_moe` (name tentative):
-	- Enumerate all `WanVideo Sampler` nodes which are traced and part of the executed graph in a deterministic order.
+	- Enumerate all traced `WanVideo Sampler` nodes in a deterministic order.
 	- For each sampler, walk upstream to find the nearest `WanVideoModelLoader`.
 	- Collect associated VAE, LoRAs (names/hashes/strengths) along the same path.
 	- Record sampler settings: `steps`, `start_step`, `end_step`, `cfg`, `shift`,
