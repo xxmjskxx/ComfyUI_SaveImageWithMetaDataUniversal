@@ -1,3 +1,23 @@
+---
+post_title: "Deprecations and Migrations"
+author1: "Project Maintainers"
+post_slug: "migrations"
+microsoft_alias: "na"
+featured_image: ""
+categories:
+  - Development
+tags:
+  - Deprecation
+  - Migration
+  - LoRA
+  - ComfyUI
+ai_note: true
+summary: >-
+  Guidance for upgrading across versions. Deprecations, replacements, and
+  timelines; includes get_lora_data_stack → select_stack_by_prefix migration.
+post_date: "2025-09-25"
+---
+
 ## Deprecations and Migrations
 
 ### Deprecated: get_lora_data_stack (extensions)

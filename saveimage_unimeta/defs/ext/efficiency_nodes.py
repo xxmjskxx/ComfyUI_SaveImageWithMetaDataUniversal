@@ -1,7 +1,13 @@
 # https://github.com/jags111/efficiency-nodes-comfyui
+import logging
 from ..formatters import calc_lora_hash, calc_model_hash, convert_skip_clip
 from ..meta import MetaField
 from ..selectors import select_stack_by_prefix
+
+
+logger = logging.getLogger(__name__)
+# Guard to avoid repeating the same deprecation message on every call.
+_LORA_STACK_SHIM_WARNED = False
 
 
 def get_lora_model_name_stack(node_id, obj, prompt, extra_data, outputs, input_data):
@@ -26,6 +32,18 @@ def get_lora_strength_clip_stack(node_id, obj, prompt, extra_data, outputs, inpu
 
 
 def get_lora_data_stack(input_data, attribute):
+    """Deprecated shim for older rules using get_lora_data_stack.
+
+    Prefer select_stack_by_prefix(input_data, attr, counter_key="lora_count").
+    Scheduled for removal no earlier than v1.3.0 (and at least 60 days after
+    a v1.2.0 release), pending downstream adoption.
+    """
+    global _LORA_STACK_SHIM_WARNED
+    if not _LORA_STACK_SHIM_WARNED:
+        logger.warning(
+            "get_lora_data_stack is deprecated; use select_stack_by_prefix(..., counter_key='lora_count')."
+        )
+        _LORA_STACK_SHIM_WARNED = True
     # Backward compatibility shim; prefer select_stack_by_prefix above.
     return select_stack_by_prefix(input_data, attribute, counter_key="lora_count")
 
