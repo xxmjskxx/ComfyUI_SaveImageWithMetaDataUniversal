@@ -255,6 +255,35 @@ Environment flag `METADATA_NO_HASH_DETAIL` suppresses the extended hash breakdow
 **How do I know which fallback stage occurred programmatically?**  
 Parse the tail of the parameters string for `Metadata Fallback:`. (A future explicit key may be added.)
 
+### Metadata Rule Scanner doesn’t find the nodes I want to capture
+- Confirm the node pack is installed and loaded. Restart ComfyUI after adding new custom nodes.
+- Check `exclude_keywords` on the scanner. If a class name or pack prefix matches, the scanner filters it out.
+- Set `mode` to the broadest scan (e.g., include new + existing) and enable `include_existing` so suggestions merge with known rules.
+- Use `force_include_node_class` (exact class names, comma/newline separated) to force discovery even if it would be filtered.
+  - Tip: Find the exact class name via the node’s “type” in ComfyUI (or export workflow JSON and copy the class name).
+- Use the `Metadata Force Include` node and wire its `forced_classes_str` to `Show Text (UniMeta)` to verify your forced list.
+- If the node still doesn’t appear, open an issue with: node pack name, node class, your scanner inputs, and a minimal workflow.
+
+### Scanner found my nodes but the suggested rules look wrong or fields are missing
+- Treat the scanner output as a starting point. Some nodes require manual mapping of inputs to metadata fields.
+- Open `Show generated_user_rules.py`, adjust the suggested capture paths to match your node’s sockets/fields, then `Save generated_user_rules.py`.
+- Prefer explicit hints:
+  - Use scanner input `force_include_metafields` to bias suggestions toward specific fields you care about first.
+  - If your downstream needs Civitai-style names, enable `civitai_sampler` in the save node and `guidance_as_cfg` when appropriate.
+- Sampler/scheduler mismatches: verify the node that actually did sampling (see Sampler Selection Method) and ensure its inputs are captured.
+- LoRA/embedding not showing:
+  - Ensure those loaders exist in the graph upstream of sampling and are not bypassed.
+  - Inline tags like `<lora:name:sm[:sc]>` are detected; loader nodes may still need class forcing so they’re included in rule generation.
+- Hashes missing: make sure models/VAEs/LoRAs are readable by the process; hash sidecars (`.sha256`) are used when present, else computed.
+- Hash detail JSON absent: check that `METADATA_NO_HASH_DETAIL` is not set (UI parameter takes precedence where applicable).
+- JPEG missing fields is not a rules error: it’s a size fallback. Use PNG/WebP or increase `max_jpeg_exif_kb` within the 64KB cap.
+
+Quick checklist when metadata seems incomplete:
+- Run the save with `METADATA_TEST_MODE=1` for deterministic multiline output and easier diffing.
+- Temporarily set a small `max_jpeg_exif_kb` to exercise fallback stages and confirm minimal allowlist contents.
+- Enable `METADATA_DEBUG_PROMPTS=1` to log prompt/alias capture decisions (review logs for skipped or aliased fields).
+- Force‑include the node classes involved, rescan, and re‑save user rules; then verify with `Show generated_user_rules.py`.
+
 ## Advanced / Power Users
 
 ### Design / Future Ideas
