@@ -21,11 +21,20 @@ SELECTORS = {
 
 
 def select_stack_by_prefix(input_data, prefix: str, counter_key: str | None = None, filter_none: bool = True):
-    """Return a list of input values for keys starting with prefix.
+    """
+    Return a list of input values for keys starting with prefix.
 
-    - If counter_key is provided and exists as an int in input_data[0][counter_key][0], limit the length.
-    - When filter_none is True, entries with value "None" are skipped.
-    - Always coerce list-like values to the first element (v[0]).
+    Args:
+        input_data (list): List of dictionaries to search for keys.
+        prefix (str): The prefix to match keys against.
+        counter_key (str | None, optional): If provided and present in input_data[0], limits the number of returned items to the integer value at input_data[0][counter_key][0]. Defaults to None.
+        filter_none (bool, optional): If True, entries with value "None" are skipped. Defaults to True.
+
+    Returns:
+        list: List of first elements from values whose keys start with prefix, possibly limited by counter_key and filtered for "None".
+
+    Notes:
+        - Always coerce list-like values to the first element (v[0]).
     """
     if not input_data or not isinstance(input_data, list) or not input_data[0]:
         return []
