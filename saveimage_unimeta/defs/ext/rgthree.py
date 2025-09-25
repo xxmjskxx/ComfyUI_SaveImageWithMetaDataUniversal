@@ -6,6 +6,7 @@ from ...utils.lora import (
     parse_lora_syntax,
     resolve_lora_display_names,
 )
+from ..selectors import select_stack_by_prefix
 from ..formatters import calc_lora_hash
 from ..meta import MetaField
 
@@ -30,19 +31,19 @@ def get_lora_data(input_data, attribute):
 
 
 def get_lora_model_name_stack(node_id, obj, prompt, extra_data, outputs, input_data):
-    return get_lora_data_stack(input_data, "lora")
+    return select_stack_by_prefix(input_data, "lora_", filter_none=True)
 
 
 def get_lora_model_hash_stack(node_id, obj, prompt, extra_data, outputs, input_data):
-    return [calc_lora_hash(model_name, input_data) for model_name in get_lora_data_stack(input_data, "lora")]
+    names = select_stack_by_prefix(input_data, "lora_", filter_none=True)
+    return [calc_lora_hash(model_name, input_data) for model_name in names]
 
 
 def get_lora_strength_stack(node_id, obj, prompt, extra_data, outputs, input_data):
-    return get_lora_data_stack(input_data, "strength")
+    return select_stack_by_prefix(input_data, "strength_", filter_none=True)
 
 
-def get_lora_data_stack(input_data, attribute):
-    return [v[0] for k, v in input_data[0].items() if k.startswith(attribute + "_") and v[0] != "None"]
+# Local stack helper removed in favor of shared selector above.
 
 
 _SYNTAX_CACHE = {}
