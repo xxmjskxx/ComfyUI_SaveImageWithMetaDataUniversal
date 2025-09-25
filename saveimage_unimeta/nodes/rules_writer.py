@@ -84,6 +84,18 @@ class SaveCustomMetadataRules:
                 # so this generated file does not depend on external extension modules.
                 lines.append("from ..selectors import select_stack_by_prefix")
                 lines.append("")
+                # Shared helper to detect 'advanced' input mode safely
+                lines.append("def _is_advanced_mode(input_data):")
+                lines.append("    try:")
+                lines.append(
+                    "        return (isinstance(input_data, list) and input_data and "
+                    "isinstance(input_data[0], dict) and "
+                    "isinstance(input_data[0].get('input_mode'), list) and "
+                    "input_data[0]['input_mode'] and input_data[0]['input_mode'][0] == 'advanced')"
+                )
+                lines.append("    except Exception:")
+                lines.append("        return False")
+                lines.append("")
                 lines.append("def get_lora_model_name_stack(node_id, obj, prompt, extra_data, outputs, input_data):")
                 lines.append("    return select_stack_by_prefix(input_data, 'lora_name', counter_key='lora_count')")
                 lines.append("")
@@ -95,28 +107,22 @@ class SaveCustomMetadataRules:
                     "def get_lora_strength_model_stack(node_id, obj, prompt, extra_data, outputs, input_data):"
                 )
                 lines.append("    # Mirrors Efficiency Nodes behavior: advanced mode switches to 'model_str'.")
-                lines.append("    try:")
-                lines.append("        if input_data[0].get('input_mode', [''])[0] == 'advanced':")
+                lines.append("    if _is_advanced_mode(input_data):")
                 lines.append(
-                    "            return select_stack_by_prefix("
+                    "        return select_stack_by_prefix("
                     "input_data, 'model_str', counter_key='lora_count')"
                 )
-                lines.append("    except Exception:")
-                lines.append("        pass")
                 lines.append("    return select_stack_by_prefix(input_data, 'lora_wt', counter_key='lora_count')")
                 lines.append("")
                 lines.append(
                     "def get_lora_strength_clip_stack(node_id, obj, prompt, extra_data, outputs, input_data):"
                 )
                 lines.append("    # Mirrors Efficiency Nodes behavior: advanced mode uses 'clip_str'.")
-                lines.append("    try:")
-                lines.append("        if input_data[0].get('input_mode', [''])[0] == 'advanced':")
+                lines.append("    if _is_advanced_mode(input_data):")
                 lines.append(
-                    "            return select_stack_by_prefix("
+                    "        return select_stack_by_prefix("
                     "input_data, 'clip_str', counter_key='lora_count')"
                 )
-                lines.append("    except Exception:")
-                lines.append("        pass")
                 lines.append("    return select_stack_by_prefix(input_data, 'lora_wt', counter_key='lora_count')")
                 lines.append("")
                 # A mapping of known callable names to actual objects
