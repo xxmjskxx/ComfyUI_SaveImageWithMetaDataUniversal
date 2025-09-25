@@ -233,6 +233,17 @@ Output effects:
 * `diff_report` appends a `Forced node classes=` segment.
 * If a forced class yields no heuristic suggestions, an empty object is emitted so tooling can still merge or annotate it.
 
+### Reference examples (JSON/Python)
+Reference-only files you can use as a guide when customizing rules. These are never loaded by the runtime as-is:
+
+- `saveimage_unimeta/user_captures_examples.json` — JSON examples for capture rules. Copy snippets you need into `saveimage_unimeta/user_captures.json` to activate. Uses MetaField names as strings (e.g., "MODEL_HASH") and callable names as strings (e.g., "calc_model_hash").
+- `saveimage_unimeta/user_samplers_example.json` — JSON examples for sampler role mapping. Copy into `saveimage_unimeta/user_samplers.json` if you need to map semantic roles ("positive"/"negative") to actual input names on sampler-like nodes.
+- `saveimage_unimeta/defs/ext/generated_user_rules_examples.py` — Python examples mirroring the real `generated_user_rules.py` schema, including a `KNOWN` mapping for callables. This module is not imported by the loader and serves only as a reference.
+
+Notes:
+- Only `saveimage_unimeta/user_captures.json` and `saveimage_unimeta/user_samplers.json` are conditionally merged at runtime when needed.
+- Python extensions in `saveimage_unimeta/defs/ext/` are loaded, except any module named `__*`, ending in `*_examples`, or `generated_user_rules_examples` which are intentionally skipped.
+
 ## Troubleshooting / FAQ
 **Why is my workflow JSON missing in a JPEG?**  
 The save exceeded `max_jpeg_exif_kb` and fell back to `reduced-exif`, `minimal`, or `com-marker`. Use PNG / WebP or lower the workflow size.
@@ -254,6 +265,34 @@ Environment flag `METADATA_NO_HASH_DETAIL` suppresses the extended hash breakdow
 
 **How do I know which fallback stage occurred programmatically?**  
 Parse the tail of the parameters string for `Metadata Fallback:`. (A future explicit key may be added.)
+
+## Metadata Rule Scanner doesn’t find the nodes I want to capture
+- Check `exclude_keywords` on the scanner. If a class name or pack prefix matches, the scanner filters it out.
+- Set `mode` to the broadest scan (e.g., include new + existing) and enable `include_existing` so suggestions merge with known rules.
+- Use `force_include_node_class` (exact class names, comma/newline separated) to force discovery even if it would be filtered.
+  - Tip: Find the exact class name via the node’s “type” in ComfyUI (or export workflow JSON and copy the class name).
+- Use the `Metadata Force Include` node and wire its `forced_classes_str` to `Show Text (UniMeta)` to verify your forced list.
+- If the node still doesn’t appear, open an issue with: node pack name, node class, your scanner inputs, and a minimal workflow.
+
+## Scanner found my nodes but the suggested rules look wrong or fields are missing
+- Treat the scanner output as a starting point. Some nodes require manual mapping of inputs to metadata fields.
+- Open `Show generated_user_rules.py`, adjust the suggested capture paths to match your node’s sockets/fields, then `Save generated_user_rules.py`.
+- Prefer explicit hints:
+  - Use scanner input `force_include_metafields` to bias suggestions toward specific fields you care about first.
+  - If your downstream needs Civitai-style names, enable `civitai_sampler` in the save node and `guidance_as_cfg` when appropriate.
+- Sampler/scheduler mismatches: verify the node that actually did sampling (see Sampler Selection Method) and ensure its inputs are captured.
+- LoRA/embedding not showing:
+  - Ensure those loaders exist in the graph upstream of sampling and are not bypassed.
+  - Inline tags like `<lora:name:sm[:sc]>` are detected; loader nodes may still need class forcing so they’re included in rule generation.
+- Hashes missing: make sure models/VAEs/LoRAs are readable by the process; hash sidecars (`.sha256`) are used when present, else computed.
+- Hash detail JSON absent: check that `METADATA_NO_HASH_DETAIL` is not set (UI parameter takes precedence where applicable).
+- JPEG missing fields is not a rules error: it’s a size fallback. Use PNG/WebP or increase `max_jpeg_exif_kb` within the 64KB cap.
+
+Quick checklist when metadata seems incomplete:
+- Run the save with `METADATA_TEST_MODE=1` for deterministic multiline output and easier diffing.
+- Temporarily set a small `max_jpeg_exif_kb` to exercise fallback stages and confirm minimal allowlist contents.
+- Enable `METADATA_DEBUG_PROMPTS=1` to log prompt/alias capture decisions (review logs for skipped or aliased fields).
+- Force‑include the node classes involved, rescan, and re‑save user rules; then verify with `Show generated_user_rules.py`.
 
 ## Advanced / Power Users
 

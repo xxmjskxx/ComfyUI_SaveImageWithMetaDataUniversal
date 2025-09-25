@@ -88,7 +88,12 @@ def _load_extensions() -> None:
     dir_name = os.path.dirname(os.path.abspath(__file__))
     for module_path in glob.glob(os.path.join(dir_name, "ext", "*.py")):
         module_name = os.path.splitext(os.path.basename(module_path))[0]
-        if module_name.startswith("__"):
+        # Never import example/reference files
+        if (
+            module_name.startswith("__")
+            or module_name.endswith("_examples")
+            or module_name == "generated_user_rules_examples"
+        ):
             continue
         package_name = f"custom_nodes.ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.ext.{module_name}"
         try:
