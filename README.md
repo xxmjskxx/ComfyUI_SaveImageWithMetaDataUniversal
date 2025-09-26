@@ -12,6 +12,9 @@
 - Since the value extraction rules are created dynamically, values output by most custom nodes can be added to metadata.
 - Tested with SD1.5, SDXL, FLUX, QWEN, WAN (2.1 supported); GGUF, Nunchaku
 
+<details open>
+<summary><strong>Table of Contents</strong></summary>
+
 ## Table of Contents
 * Getting Started
   * [Quick Start](#quick-start)
@@ -37,15 +40,30 @@
   * [Contributing](#contributing-summary)
   * [AI Assistant Instructions](.github/copilot-instructions.md)
 
+\n</details>
+
+<details open>
+<summary><strong>Note</strong></summary>
+
 ## Note
 - I'm an amateur at coding, at best. I started writing this myself, but as I began increasing the scope of the project I started using a Copilot.
 - If you have any questions, think any documentation is lacking, or experience issues with certain workflows or custom node packs, create a new issue an I'll try and see if it's something I can address.
+
+\n</details>
+
+<details open>
+<summary><strong>Installation</strong></summary>
 
 ## Installation
 ```
 cd <ComfyUI directory>/custom_nodes
 git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
 ```
+
+\n</details>
+
+<details open>
+<summary><strong>Quick Start</strong></summary>
 
 ## Quick Start
 1. Use the `Metadata Rule Scanner` + `Save Custom Metadata Rules` nodes to create and save capture rules (see [`example_workflows/scan-and-save-custom-metadata-rules.png`](example_workflows/scan-and-save-custom-metadata-rules.png)).
@@ -54,6 +72,11 @@ git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
 4. (Optional) For full Civitai style parity enable the `civitai_sampler` and `guidance_as_cfg` toggles in the save node.
 5. Prefer PNG (or lossless WebP) when you need guaranteed full workflow embedding (JPEG has strict size limits—[see tips below](#format-&-fallback-quick-tips)).
 6. Hover any parameters on the nodes in this pack for concise tooltips (fallback stages, `max_jpeg_exif_kb`, LoRA summary toggle, guidance→CFG mapping, sampler naming, filename tokens). For further detail see: [Node UI Parameters](#node-ui-parameters-key-additions), [JPEG Metadata Size & Fallback Behavior](#jpeg-metadata-size--fallback-behavior); advanced env tuning: [Environment Flags](#environment-flags).
+
+</details>
+
+<details>
+<summary><strong>Nodes</strong></summary>
 
 ## Nodes
 | Node | Purpose |
@@ -67,6 +90,11 @@ git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
 | `Metadata Force Include` | Configure global forced node class names for capture definition loading (optional). |
 | `Show Text (UniMeta)` | Local variant for displaying connected text outputs; based on [pythongosssss](https://github.com/pythongosssss/ComfyUI-Custom-Scripts) `Show Text 🐍` (MIT). |
 | `Show Any (Any to String)` | Display any connected value by converting it to a string; useful to wire ints/floats/etc. into `Create Extra MetaData`. |
+
+</details>
+
+<details>
+<summary><strong>Feature Overview</strong></summary>
 
 ## Feature Overview
 * Automatic1111‑style, Civitai-compatible parameter string (single‑line) with optional multi‑line deterministic test mode (`METADATA_TEST_MODE=1`).
@@ -92,17 +120,32 @@ git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
 * Wan 2.1 example workflow is available: [example_workflows/wan21_text_to_image.json](example_workflows/wan21_text_to_image.json). It demonstrates prompt encoding, WanVideo Sampler with combined "scheduler" input (parsed into Sampler/Scheduler), VAE decode, and saving with enriched metadata.
 * Plays nicely with most custom node packs out‑of‑the‑box (in my somewhat limited testing).
 
+</details>
+
+<details>
+<summary><strong>Format & Fallback Quick Tips</strong></summary>
+
 ## Format & Fallback Quick Tips
 * JPEG vs PNG/WebP: JPEG has a hard ~64KB EXIF ceiling for text data; large workflows trigger staged fallback trimming (see [detailed fallback](#jpeg-metadata-size--fallback-behavior)). Use PNG / lossless WebP for archival.
 * Control JPEG attempt text data size: `max_jpeg_exif_kb` (default 60, max 64) caps EXIF payload before fallback (see [Node UI Parameters](#node-ui-parameters-key-additions)). (i.e. sets max text written to JPEG) before fallback stages engage.
 * Detect fallback: If the metadata parameters string ends with `Metadata Fallback: <stage>`, this means max JPEG text data limit was hit and trimming occurred (`reduced-exif`, `minimal`, or `com-marker`) — see [Fallback Stages](#fallback-stages--indicator).
 * LoRA summary line: Toggle with `include_lora_summary`. Adds an abbreviated summary of LoRAs used. If off, only individual `Lora_*` entries remain.
 
+</details>
+
+<details>
+<summary><strong>Sampler Selection Method</strong></summary>
+
 ## Sampler Selection Method
 - Specifies how to select a KSampler node that has been executed before this node.
   - **Farthest** Selects the farthest KSampler node from this node.
   - **Nearest** Selects the nearest KSampler node to this node.
   - **By node ID** Selects the KSampler node whose node ID is set in `sampler_selection_node_id`.
+
+</details>
+
+<details>
+<summary><strong>Metadata to be Captured</strong></summary>
 
 ## Metadata to be Captured
 - Positive prompt
@@ -141,6 +184,11 @@ git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
 
 
 ---
+</details>
+
+<details>
+<summary><strong>Filename Token Reference</strong></summary>
+
 ## Filename Token Reference
 | Token | Replaced With |
 |-------|---------------|
@@ -161,6 +209,11 @@ Date pattern components:
 
 ---
 
+</details>
+
+<details>
+<summary><strong>Node UI Parameters (Key Additions)</strong></summary>
+
 ## Node UI Parameters (Key Additions)
 Key quality‑of‑life and compatibility controls exposed by the primary save node:
 
@@ -168,6 +221,11 @@ Key quality‑of‑life and compatibility controls exposed by the primary save n
 * `guidance_as_cfg` (BOOLEAN, default False): Substitutes the captured `Guidance` value into `CFG scale` and omits the separate `Guidance:` field for better A1111 / Civitai parity when models expose guidance separately.
 * `max_jpeg_exif_kb` (INT, default 60, min 4, max 64): UI‑enforced ceiling for attempted JPEG EXIF payload. Real-world single APP1 EXIF segment limit is ~64KB; exceeding it triggers staged fallback (reduced-exif → minimal → com-marker). For large workflows prefer PNG / lossless WebP.
 * `suppress_missing_class_log` (BOOLEAN, default False): Hide the informational log listing missing classes that would trigger a user JSON rules merge. Useful to reduce noise in large custom node environments.
+
+</details>
+
+<details>
+<summary><strong>JPEG Metadata Size & Fallback Behavior</strong></summary>
 
 ## JPEG Metadata Size & Fallback Behavior
 JPEG metadata is constrained by a single APP1 (EXIF) segment (~64KB). This repository enforces a hard UI cap of 64KB for `max_jpeg_exif_kb`; values above this provide no benefit and are rejected by Pillow or stripped by consumers. Large prompt + workflow JSON + hash detail can exceed the limit quickly.
@@ -205,6 +263,11 @@ When a fallback occurs the `Metadata Fallback: <stage>` marker is appended to th
 
 NOTE: The `force_include_node_class` input is provided by the `Metadata Rule Scanner` node.
 
+</details>
+
+<details>
+<summary><strong>Metadata Rule Tools</strong></summary>
+
 ## Metadata Rule Tools
 
 The rule tooling consists of two cooperating nodes plus an optional scanner input:
@@ -233,6 +296,11 @@ Output effects:
 * `diff_report` appends a `Forced node classes=` segment.
 * If a forced class yields no heuristic suggestions, an empty object is emitted so tooling can still merge or annotate it.
 
+</details>
+
+<details>
+<summary><strong>Reference examples (JSON/Python)</strong></summary>
+
 ## Reference examples (JSON/Python)
 Reference-only files you can use as a guide when customizing rules. These are never loaded by the runtime as-is:
 
@@ -243,6 +311,11 @@ Reference-only files you can use as a guide when customizing rules. These are ne
 Notes:
 - Only `saveimage_unimeta/user_captures.json` and `saveimage_unimeta/user_samplers.json` are conditionally merged at runtime when needed.
 - Python extensions in `saveimage_unimeta/defs/ext/` are loaded, except any module named `__*`, ending in `*_examples`, or `generated_user_rules_examples` which are intentionally skipped.
+
+</details>
+
+<details>
+<summary><strong>Troubleshooting / FAQ</strong></summary>
 
 ## Troubleshooting / FAQ
 ### Why is my workflow JSON missing in a JPEG? 
@@ -295,6 +368,11 @@ Quick checklist when metadata seems incomplete:
 - Enable `METADATA_DEBUG_PROMPTS=1` to log prompt/alias capture decisions (review logs for skipped or aliased fields).
 - Force‑include the node classes involved, rescan, and re‑save user rules; then verify with `Show generated_user_rules.py`.
 
+</details>
+
+<details>
+<summary><strong>Advanced / Power Users</strong></summary>
+
 ## Advanced / Power Users
 
 ### Design / Future Ideas
@@ -342,6 +420,8 @@ AI assistants / contributors: see `.github/copilot-instructions.md` for architec
 
 ---
 For extended sampler selection details and advanced capture behavior, refer to the in-code docstrings (`Trace`, `Capture`) or open an issue if external docs would help.
+
+</details>
 
 日本語版READMEは[こちら](README.jp.md)。
 
