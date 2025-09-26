@@ -119,3 +119,38 @@ class TestLoaderMergeBehavior:
             load_user_definitions(required_classes={"Definitely.Missing.Node"}, suppress_missing_log=True)
         assert dict(SAMPLERS) == before
         _cleanup(bad_json)
+
+    def test_malformed_capture_rules_skipped_for_existing_class(self):
+        base = _node_pack_py_dir()
+        user_caps = os.path.join(base, "user_captures.json")
+
+        load_extensions_only()
+        if not CAPTURE_FIELD_LIST:
+            pytest.skip("No baseline captures available to test against")
+        existing_class = next(iter(CAPTURE_FIELD_LIST.keys()))
+        before_fields = dict(CAPTURE_FIELD_LIST.get(existing_class, {}))
+
+        # Provide a non-mapping for rules (invalid shape): should be skipped without crashing
+        _write_json(user_caps, {existing_class: ["bad", "shape"]})
+
+        load_user_definitions(required_classes={existing_class}, suppress_missing_log=True)
+
+        after_fields = CAPTURE_FIELD_LIST.get(existing_class, {})
+        assert isinstance(after_fields, dict)
+        assert after_fields == before_fields, "Existing class fields must remain unchanged on invalid user shape"
+        _cleanup(user_caps)
+
+    def test_malformed_capture_rules_for_new_class_create_empty_entry(self):
+        base = _node_pack_py_dir()
+        user_caps = os.path.join(base, "user_captures.json")
+
+        load_extensions_only()
+        user_only_class = "BadShape.Node"
+        # Non-mapping rules should not populate fields; loader creates empty dict for the class
+        _write_json(user_caps, {user_only_class: "not-a-mapping"})
+
+        load_user_definitions(required_classes={user_only_class}, suppress_missing_log=True)
+
+        assert user_only_class in CAPTURE_FIELD_LIST
+        assert CAPTURE_FIELD_LIST[user_only_class] == {}, "New class with invalid rules should remain empty"
+        _cleanup(user_caps)
