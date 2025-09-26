@@ -13,6 +13,9 @@
 - Tested with SD1.5, SDXL, FLUX, QWEN, WAN (2.1 supported); GGUF, Nunchaku
 
 ## Table of Contents
+<details open>
+<summary><strong></strong></summary>
+
 * Getting Started
   * [Quick Start](#quick-start)
   * [Format & Fallback Quick Tips](#format--fallback-quick-tips)
@@ -37,17 +40,34 @@
   * [Contributing](#contributing-summary)
   * [AI Assistant Instructions](.github/copilot-instructions.md)
 
+  </details>
+
 ## Note
+<details open>
+<summary><strong></strong></summary>
+
 - I'm an amateur at coding, at best. I started writing this myself, but as I began increasing the scope of the project I started using a Copilot.
 - If you have any questions, think any documentation is lacking, or experience issues with certain workflows or custom node packs, create a new issue an I'll try and see if it's something I can address.
 
+</details>
+
 ## Installation
-```
-cd <ComfyUI directory>/custom_nodes
-git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
-```
+<details open>
+<summary><strong></strong></summary>
+
+1. Install [ComfyUi](https://github.com/comfyanonymous/ComfyUI).
+2. Clone this repo into `custom_nodes`:
+    ```
+    cd <ComfyUI directory>/custom_nodes
+    git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
+    ```
+
+</details>
 
 ## Quick Start
+<details open>
+<summary><strong></strong></summary>
+
 1. Use the `Metadata Rule Scanner` + `Save Custom Metadata Rules` nodes to create and save capture rules (see [`example_workflows/scan-and-save-custom-metadata-rules.png`](example_workflows/scan-and-save-custom-metadata-rules.png)).
 2. Add `Save Image w/ Metadata Universal` to your workflow and connect to the image input to save images using your custom capture ruleset.
 3. (Optional) Use `Create Extra MetaData` node(s) to manually record additional info.
@@ -55,7 +75,12 @@ git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
 5. Prefer PNG (or lossless WebP) when you need guaranteed full workflow embedding (JPEG has strict size limits—[see tips below](#format-&-fallback-quick-tips)).
 6. Hover any parameters on the nodes in this pack for concise tooltips (fallback stages, `max_jpeg_exif_kb`, LoRA summary toggle, guidance→CFG mapping, sampler naming, filename tokens). For further detail see: [Node UI Parameters](#node-ui-parameters-key-additions), [JPEG Metadata Size & Fallback Behavior](#jpeg-metadata-size--fallback-behavior); advanced env tuning: [Environment Flags](#environment-flags).
 
+</details>
+
 ## Nodes
+<details>
+<summary><strong>More:</strong></summary>
+
 | Node | Purpose |
 | ---- | ------- |
 | `SaveImageWithMetaDataUniversal` | Save images + produce enriched metadata (PNGInfo / EXIF) & parameter string. |
@@ -68,7 +93,12 @@ git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
 | `Show Text (UniMeta)` | Local variant for displaying connected text outputs; based on [pythongosssss](https://github.com/pythongosssss/ComfyUI-Custom-Scripts) `Show Text 🐍` (MIT). |
 | `Show Any (Any to String)` | Display any connected value by converting it to a string; useful to wire ints/floats/etc. into `Create Extra MetaData`. |
 
+</details>
+
 ## Feature Overview
+<details>
+<summary><strong>More:</strong></summary>
+
 * Automatic1111‑style, Civitai-compatible parameter string (single‑line) with optional multi‑line deterministic test mode (`METADATA_TEST_MODE=1`).
 * Dynamic rule generation: `Metadata Rule Scanner` + `Save Custom Metadata Rules` create and save user rules, allowing broad custom node coverage.
 * LoRA handling:
@@ -92,19 +122,34 @@ git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
 * Wan 2.1 example workflow is available: [example_workflows/wan21_text_to_image.json](example_workflows/wan21_text_to_image.json). It demonstrates prompt encoding, WanVideo Sampler with combined "scheduler" input (parsed into Sampler/Scheduler), VAE decode, and saving with enriched metadata.
 * Plays nicely with most custom node packs out‑of‑the‑box (in my somewhat limited testing).
 
+</details>
+
 ## Format & Fallback Quick Tips
+<details>
+<summary><strong>More:</strong></summary>
+
 * JPEG vs PNG/WebP: JPEG has a hard ~64KB EXIF ceiling for text data; large workflows trigger staged fallback trimming (see [detailed fallback](#jpeg-metadata-size--fallback-behavior)). Use PNG / lossless WebP for archival.
 * Control JPEG attempt text data size: `max_jpeg_exif_kb` (default 60, max 64) caps EXIF payload before fallback (see [Node UI Parameters](#node-ui-parameters-key-additions)). (i.e. sets max text written to JPEG) before fallback stages engage.
 * Detect fallback: If the metadata parameters string ends with `Metadata Fallback: <stage>`, this means max JPEG text data limit was hit and trimming occurred (`reduced-exif`, `minimal`, or `com-marker`) — see [Fallback Stages](#fallback-stages--indicator).
 * LoRA summary line: Toggle with `include_lora_summary`. Adds an abbreviated summary of LoRAs used. If off, only individual `Lora_*` entries remain.
 
+</details>
+
 ## Sampler Selection Method
+<details>
+<summary><strong>More:</strong></summary>
+
 - Specifies how to select a KSampler node that has been executed before this node.
   - **Farthest** Selects the farthest KSampler node from this node.
   - **Nearest** Selects the nearest KSampler node to this node.
   - **By node ID** Selects the KSampler node whose node ID is set in `sampler_selection_node_id`.
 
+</details>
+
 ## Metadata to be Captured
+<details>
+<summary><strong>More:</strong></summary>
+
 - Positive prompt
 - Negative prompt
 - Steps
@@ -141,7 +186,12 @@ git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
 
 
 ---
+</details>
+
 ## Filename Token Reference
+<details>
+<summary><strong>More:</strong></summary>
+
 | Token | Replaced With |
 |-------|---------------|
 | `%seed%` | Seed value |
@@ -161,7 +211,12 @@ Date pattern components:
 
 ---
 
+</details>
+
 ## Node UI Parameters (Key Additions)
+<details>
+<summary><strong>More:</strong></summary>
+
 Key quality‑of‑life and compatibility controls exposed by the primary save node:
 
 * `include_lora_summary` (BOOLEAN, default True): Toggles the aggregated `LoRAs:` summary line; when False only individual `Lora_*` entries are emitted. UI setting overrides env flags.
@@ -169,7 +224,12 @@ Key quality‑of‑life and compatibility controls exposed by the primary save n
 * `max_jpeg_exif_kb` (INT, default 60, min 4, max 64): UI‑enforced ceiling for attempted JPEG EXIF payload. Real-world single APP1 EXIF segment limit is ~64KB; exceeding it triggers staged fallback (reduced-exif → minimal → com-marker). For large workflows prefer PNG / lossless WebP.
 * `suppress_missing_class_log` (BOOLEAN, default False): Hide the informational log listing missing classes that would trigger a user JSON rules merge. Useful to reduce noise in large custom node environments.
 
+</details>
+
 ## JPEG Metadata Size & Fallback Behavior
+<details>
+<summary><strong>More:</strong></summary>
+
 JPEG metadata is constrained by a single APP1 (EXIF) segment (~64KB). This repository enforces a hard UI cap of 64KB for `max_jpeg_exif_kb`; values above this provide no benefit and are rejected by Pillow or stripped by consumers. Large prompt + workflow JSON + hash detail can exceed the limit quickly.
 
 When saving JPEG, the node evaluates total EXIF size vs `max_jpeg_exif_kb` (<=64) and applies staged fallback, attempting to write as much info to the EXIF as possible:
@@ -205,7 +265,11 @@ When a fallback occurs the `Metadata Fallback: <stage>` marker is appended to th
 
 NOTE: The `force_include_node_class` input is provided by the `Metadata Rule Scanner` node.
 
+</details>
+
 ## Metadata Rule Tools
+<details>
+<summary><strong>More:</strong></summary>
 
 The rule tooling consists of two cooperating nodes plus an optional scanner input:
 
@@ -233,18 +297,41 @@ Output effects:
 * `diff_report` appends a `Forced node classes=` segment.
 * If a forced class yields no heuristic suggestions, an empty object is emitted so tooling can still merge or annotate it.
 
-## Reference examples (JSON/Python)
-Reference-only files you can use as a guide when customizing rules. These are never loaded by the runtime as-is:
-
-- `saveimage_unimeta/user_captures_examples.json` — JSON examples for capture rules. Copy snippets you need into `saveimage_unimeta/user_captures.json` to activate. Uses MetaField names as strings (e.g., "MODEL_HASH") and callable names as strings (e.g., "calc_model_hash").
-- `saveimage_unimeta/user_samplers_example.json` — JSON examples for sampler role mapping. Copy into `saveimage_unimeta/user_samplers.json` if you need to map semantic roles ("positive"/"negative") to actual input names on sampler-like nodes.
-- `saveimage_unimeta/defs/ext/generated_user_rules_examples.py` — Python examples mirroring the real `generated_user_rules.py` schema, including a `KNOWN` mapping for callables. This module is not imported by the loader and serves only as a reference.
-
-Notes:
-- Only `saveimage_unimeta/user_captures.json` and `saveimage_unimeta/user_samplers.json` are conditionally merged at runtime when needed.
-- Python extensions in `saveimage_unimeta/defs/ext/` are loaded, except any module named `__*`, ending in `*_examples`, or `generated_user_rules_examples` which are intentionally skipped.
+</details>
 
 ## Troubleshooting / FAQ
+<details>
+<summary><strong>More:</strong></summary>
+
+### Metadata Rule Scanner doesn’t find the nodes I want to capture
+- Check `exclude_keywords` on the scanner. If a class name or pack prefix matches, the scanner filters it out.
+- Set `mode` to the broadest scan (e.g., include new + existing) and enable `include_existing` so suggestions merge with known rules.
+- Use `force_include_node_class` (exact class names, comma/newline separated) to force discovery even if it would be filtered.
+  - Tip: Find the exact class name via the node’s “type” in ComfyUI (or export workflow JSON and copy the class name).
+- Use the `Metadata Force Include` node and wire its `forced_classes_str` to `Show Text (UniMeta)` to verify your forced list.
+- If the node still doesn’t appear, open an issue with: node pack name, node class, your scanner inputs, and a minimal workflow.
+
+### Scanner found my nodes but the suggested rules look wrong or fields are missing
+- Treat the scanner output as a starting point. Some nodes require manual mapping of inputs to metadata fields.
+- Check the outputs from the `Metadata Rule Scanner` and `Show generated_user_rules.py` nodes, reference the files mentioned in [reference examples](#reference-examples-jsonpython), make any necessary changes, and then save the adjusted rules with `Save Custom Metadata Rules` or `Save generated_user_rules.py`, respectively
+- Use the `Show generated_user_rules.py` node, adjust the suggested capture paths to match your node’s sockets/fields, then save with `Save generated_user_rules.py`.
+- Prefer explicit hints:
+  - Use scanner input `force_include_metafields` to bias suggestions toward specific fields you care about first.
+  - If your downstream needs Civitai-style names, enable `civitai_sampler` in the save node and `guidance_as_cfg` when appropriate.
+- Sampler/scheduler mismatches: verify the node that actually did sampling (see Sampler Selection Method) and ensure its inputs are captured.
+- LoRA/embedding not showing:
+  - Ensure those loaders exist in the graph upstream of sampling and are not bypassed.
+  - Inline tags like `<lora:name:sm[:sc]>` are detected; loader nodes may still need class forcing so they’re included in rule generation.
+- Hashes missing: make sure models/VAEs/LoRAs are readable by the process; hash sidecars (`.sha256`) are used when present, else computed.
+- Hash detail JSON absent: check that `METADATA_NO_HASH_DETAIL` is not set (UI parameter takes precedence where applicable).
+- JPEG missing fields is not a rules error: it’s a size fallback. Use PNG/WebP or increase `max_jpeg_exif_kb` within the 64KB cap.
+
+Quick checklist when metadata seems incomplete:
+- Run the save with `METADATA_TEST_MODE=1` for deterministic multiline output and easier diffing.
+- Temporarily set a small `max_jpeg_exif_kb` to exercise fallback stages and confirm minimal allowlist contents.
+- Enable `METADATA_DEBUG_PROMPTS=1` to log prompt/alias capture decisions (review logs for skipped or aliased fields).
+- Force‑include the node classes involved, rescan, and re‑save user rules; then verify with `Show generated_user_rules.py`.
+
 ### Why is my workflow JSON missing in a JPEG? 
 
 The save exceeded `max_jpeg_exif_kb` and fell back to `reduced-exif`, `minimal`, or `com-marker`. Use PNG / WebP or lower the workflow size.
@@ -267,35 +354,27 @@ Environment flag `METADATA_NO_HASH_DETAIL` suppresses the extended hash breakdow
 ### How do I know which fallback stage occurred programmatically?  
 Parse the tail of the parameters string for `Metadata Fallback:`. (A future explicit key may be added.)
 
-### Metadata Rule Scanner doesn’t find the nodes I want to capture
-- Check `exclude_keywords` on the scanner. If a class name or pack prefix matches, the scanner filters it out.
-- Set `mode` to the broadest scan (e.g., include new + existing) and enable `include_existing` so suggestions merge with known rules.
-- Use `force_include_node_class` (exact class names, comma/newline separated) to force discovery even if it would be filtered.
-  - Tip: Find the exact class name via the node’s “type” in ComfyUI (or export workflow JSON and copy the class name).
-- Use the `Metadata Force Include` node and wire its `forced_classes_str` to `Show Text (UniMeta)` to verify your forced list.
-- If the node still doesn’t appear, open an issue with: node pack name, node class, your scanner inputs, and a minimal workflow.
+</details>
 
-### Scanner found my nodes but the suggested rules look wrong or fields are missing
-- Treat the scanner output as a starting point. Some nodes require manual mapping of inputs to metadata fields.
-- Open `Show generated_user_rules.py`, adjust the suggested capture paths to match your node’s sockets/fields, then `Save generated_user_rules.py`.
-- Prefer explicit hints:
-  - Use scanner input `force_include_metafields` to bias suggestions toward specific fields you care about first.
-  - If your downstream needs Civitai-style names, enable `civitai_sampler` in the save node and `guidance_as_cfg` when appropriate.
-- Sampler/scheduler mismatches: verify the node that actually did sampling (see Sampler Selection Method) and ensure its inputs are captured.
-- LoRA/embedding not showing:
-  - Ensure those loaders exist in the graph upstream of sampling and are not bypassed.
-  - Inline tags like `<lora:name:sm[:sc]>` are detected; loader nodes may still need class forcing so they’re included in rule generation.
-- Hashes missing: make sure models/VAEs/LoRAs are readable by the process; hash sidecars (`.sha256`) are used when present, else computed.
-- Hash detail JSON absent: check that `METADATA_NO_HASH_DETAIL` is not set (UI parameter takes precedence where applicable).
-- JPEG missing fields is not a rules error: it’s a size fallback. Use PNG/WebP or increase `max_jpeg_exif_kb` within the 64KB cap.
+## Reference examples (JSON/Python)
+<details>
+<summary><strong>More:</strong></summary>
 
-Quick checklist when metadata seems incomplete:
-- Run the save with `METADATA_TEST_MODE=1` for deterministic multiline output and easier diffing.
-- Temporarily set a small `max_jpeg_exif_kb` to exercise fallback stages and confirm minimal allowlist contents.
-- Enable `METADATA_DEBUG_PROMPTS=1` to log prompt/alias capture decisions (review logs for skipped or aliased fields).
-- Force‑include the node classes involved, rescan, and re‑save user rules; then verify with `Show generated_user_rules.py`.
+Reference-only files you can use as a guide when customizing rules. These are never loaded by the runtime as-is:
+
+- `saveimage_unimeta/user_captures_examples.json` — JSON examples for capture rules. Copy snippets you need into `saveimage_unimeta/user_captures.json` to activate. Uses MetaField names as strings (e.g., "MODEL_HASH") and callable names as strings (e.g., "calc_model_hash").
+- `saveimage_unimeta/user_samplers_example.json` — JSON examples for sampler role mapping. Copy into `saveimage_unimeta/user_samplers.json` if you need to map semantic roles ("positive"/"negative") to actual input names on sampler-like nodes.
+- `saveimage_unimeta/defs/ext/generated_user_rules_examples.py` — Python examples mirroring the real `generated_user_rules.py` schema, including a `KNOWN` mapping for callables. This module is not imported by the loader and serves only as a reference.
+
+Notes:
+- All Python extensions in `saveimage_unimeta/defs/ext/` are loaded, except any module named `__*`, ending in `*_examples`, or `generated_user_rules_examples` which are intentionally skipped.
+- The only JSONs conditionally merged at runtime when needed are `saveimage_unimeta/user_captures.json` and `saveimage_unimeta/user_samplers.json`.
+
+</details>
 
 ## Advanced / Power Users
+<details>
+<summary><strong>More:</strong></summary>
 
 ### Design / Future Ideas
 Deferred and exploratory concepts are documented in:
@@ -342,6 +421,8 @@ AI assistants / contributors: see `.github/copilot-instructions.md` for architec
 
 ---
 For extended sampler selection details and advanced capture behavior, refer to the in-code docstrings (`Trace`, `Capture`) or open an issue if external docs would help.
+
+</details>
 
 日本語版READMEは[こちら](README.jp.md)。
 
