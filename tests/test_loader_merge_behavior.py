@@ -154,3 +154,53 @@ class TestLoaderMergeBehavior:
         assert user_only_class in CAPTURE_FIELD_LIST
         assert CAPTURE_FIELD_LIST[user_only_class] == {}, "New class with invalid rules should remain empty"
         _cleanup(user_caps)
+
+    def test_malformed_samplers_shape_is_skipped(self, caplog):
+        base = _node_pack_py_dir()
+        user_samplers = os.path.join(base, "user_samplers.json")
+
+        load_extensions_only()
+        before = dict(SAMPLERS)
+
+        # Non-mapping value for a sampler entry should be ignored
+        _write_json(user_samplers, {"Weird.Sampler.Node": "not-a-mapping"})
+
+        with caplog.at_level("WARNING"):
+            load_user_definitions(required_classes={"Weird.Sampler.Node"}, suppress_missing_log=True)
+
+        after = dict(SAMPLERS)
+        assert after == before, "Invalid sampler value should not modify SAMPLERS"
+        _cleanup(user_samplers)
+
+    def test_malformed_samplers_partial_merge_preserves_existing(self):
+        base = _node_pack_py_dir()
+        user_samplers = os.path.join(base, "user_samplers.json")
+
+        load_extensions_only()
+        # Pick an existing key to simulate a partial merge
+        if not SAMPLERS:
+            pytest.skip("No baseline samplers to test against")
+        existing_key = next(iter(SAMPLERS.keys()))
+        before_map = dict(SAMPLERS.get(existing_key, {}))
+
+        # Mixed shapes: existing key gets mapping merged; invalid key is skipped
+        _write_json(
+            user_samplers,
+            {
+                existing_key: {"new": "val"},
+                "Invalid.Key": [1, 2, 3],
+            },
+        )
+
+        load_user_definitions(required_classes={existing_key, "Invalid.Key"}, suppress_missing_log=True)
+
+        # Existing key merged
+        after_map = SAMPLERS.get(existing_key, {})
+        assert isinstance(after_map, dict)
+        for k, v in before_map.items():
+            assert after_map.get(k) == v
+        assert after_map.get("new") == "val"
+
+        # Invalid key was not added
+        assert "Invalid.Key" not in SAMPLERS
+        _cleanup(user_samplers)

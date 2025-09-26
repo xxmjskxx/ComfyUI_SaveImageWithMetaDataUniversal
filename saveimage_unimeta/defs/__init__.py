@@ -198,7 +198,21 @@ def load_user_definitions(required_classes: set | None = None, suppress_missing_
                 with open(USER_SAMPLERS_FILE, encoding="utf-8") as f:
                     data = json.load(f)
                 if isinstance(data, Mapping):  # type: ignore[arg-type]
-                    SAMPLERS.update(data)  # type: ignore[arg-type]
+                    # Per-key validation: only merge mapping values; skip invalid shapes
+                    for key, val in data.items():
+                        if isinstance(val, Mapping):  # type: ignore[arg-type]
+                            if (
+                                key not in SAMPLERS
+                                or not isinstance(SAMPLERS.get(key), Mapping)
+                            ):  # type: ignore[arg-type]
+                                SAMPLERS[key] = val  # type: ignore[index]
+                            else:
+                                SAMPLERS[key].update(val)  # type: ignore[assignment]
+                        else:
+                            logger.warning(
+                                "[Metadata Loader] user_samplers key '%s' is not a mapping; skipping",
+                                key,
+                            )
                 else:  # pragma: no cover - defensive
                     logger.warning("[Metadata Loader] user_samplers.json did not contain a mapping; ignoring")
             except FileNotFoundError:  # pragma: no cover - race
