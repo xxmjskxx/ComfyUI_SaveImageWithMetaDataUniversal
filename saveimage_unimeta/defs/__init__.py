@@ -22,7 +22,8 @@ from logging import getLogger
 # from ..utils.color import cstr
 from ..utils.deserialize import deserialize_input
 
-_TEST_MODE = bool(_os.environ.get("METADATA_TEST_MODE"))
+# Test mode is enabled only for explicit truthy tokens, not any non-empty string ("0" should be false)
+_TEST_MODE = _os.environ.get("METADATA_TEST_MODE", "").strip().lower() in {"1", "true", "yes", "on"}
 if not _TEST_MODE:
     from .captures import CAPTURE_FIELD_LIST  # type: ignore
     from .samplers import SAMPLERS  # type: ignore
