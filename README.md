@@ -14,7 +14,8 @@
 
 ## Table of Contents
 <details open>
-<summary><strong>More:</strong></summary>
+<summary><strong></strong></summary>
+
 * Getting Started
   * [Quick Start](#quick-start)
   * [Format & Fallback Quick Tips](#format--fallback-quick-tips)
@@ -44,6 +45,7 @@
 ## Note
 <details open>
 <summary><strong>More:</strong></summary>
+
 - I'm an amateur at coding, at best. I started writing this myself, but as I began increasing the scope of the project I started using a Copilot.
 - If you have any questions, think any documentation is lacking, or experience issues with certain workflows or custom node packs, create a new issue an I'll try and see if it's something I can address.
 
@@ -52,6 +54,7 @@
 ## Installation
 <details open>
 <summary><strong>More:</strong></summary>
+
 ```
 cd <ComfyUI directory>/custom_nodes
 git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
@@ -75,6 +78,7 @@ git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
 ## Nodes
 <details>
 <summary><strong>More:</strong></summary>
+
 | Node | Purpose |
 | ---- | ------- |
 | `SaveImageWithMetaDataUniversal` | Save images + produce enriched metadata (PNGInfo / EXIF) & parameter string. |
@@ -92,6 +96,7 @@ git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
 ## Feature Overview
 <details>
 <summary><strong>More:</strong></summary>
+
 * Automatic1111‑style, Civitai-compatible parameter string (single‑line) with optional multi‑line deterministic test mode (`METADATA_TEST_MODE=1`).
 * Dynamic rule generation: `Metadata Rule Scanner` + `Save Custom Metadata Rules` create and save user rules, allowing broad custom node coverage.
 * LoRA handling:
@@ -120,6 +125,7 @@ git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
 ## Format & Fallback Quick Tips
 <details>
 <summary><strong>More:</strong></summary>
+
 * JPEG vs PNG/WebP: JPEG has a hard ~64KB EXIF ceiling for text data; large workflows trigger staged fallback trimming (see [detailed fallback](#jpeg-metadata-size--fallback-behavior)). Use PNG / lossless WebP for archival.
 * Control JPEG attempt text data size: `max_jpeg_exif_kb` (default 60, max 64) caps EXIF payload before fallback (see [Node UI Parameters](#node-ui-parameters-key-additions)). (i.e. sets max text written to JPEG) before fallback stages engage.
 * Detect fallback: If the metadata parameters string ends with `Metadata Fallback: <stage>`, this means max JPEG text data limit was hit and trimming occurred (`reduced-exif`, `minimal`, or `com-marker`) — see [Fallback Stages](#fallback-stages--indicator).
@@ -130,6 +136,7 @@ git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
 ## Sampler Selection Method
 <details>
 <summary><strong>More:</strong></summary>
+
 - Specifies how to select a KSampler node that has been executed before this node.
   - **Farthest** Selects the farthest KSampler node from this node.
   - **Nearest** Selects the nearest KSampler node to this node.
@@ -140,6 +147,7 @@ git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
 ## Metadata to be Captured
 <details>
 <summary><strong>More:</strong></summary>
+
 - Positive prompt
 - Negative prompt
 - Steps
@@ -181,6 +189,7 @@ git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
 ## Filename Token Reference
 <details>
 <summary><strong>More:</strong></summary>
+
 | Token | Replaced With |
 |-------|---------------|
 | `%seed%` | Seed value |
@@ -205,6 +214,7 @@ Date pattern components:
 ## Node UI Parameters (Key Additions)
 <details>
 <summary><strong>More:</strong></summary>
+
 Key quality‑of‑life and compatibility controls exposed by the primary save node:
 
 * `include_lora_summary` (BOOLEAN, default True): Toggles the aggregated `LoRAs:` summary line; when False only individual `Lora_*` entries are emitted. UI setting overrides env flags.
@@ -217,6 +227,7 @@ Key quality‑of‑life and compatibility controls exposed by the primary save n
 ## JPEG Metadata Size & Fallback Behavior
 <details>
 <summary><strong>More:</strong></summary>
+
 JPEG metadata is constrained by a single APP1 (EXIF) segment (~64KB). This repository enforces a hard UI cap of 64KB for `max_jpeg_exif_kb`; values above this provide no benefit and are rejected by Pillow or stripped by consumers. Large prompt + workflow JSON + hash detail can exceed the limit quickly.
 
 When saving JPEG, the node evaluates total EXIF size vs `max_jpeg_exif_kb` (<=64) and applies staged fallback, attempting to write as much info to the EXIF as possible:
@@ -289,6 +300,7 @@ Output effects:
 ## Reference examples (JSON/Python)
 <details>
 <summary><strong>More:</strong></summary>
+
 Reference-only files you can use as a guide when customizing rules. These are never loaded by the runtime as-is:
 
 - `saveimage_unimeta/user_captures_examples.json` — JSON examples for capture rules. Copy snippets you need into `saveimage_unimeta/user_captures.json` to activate. Uses MetaField names as strings (e.g., "MODEL_HASH") and callable names as strings (e.g., "calc_model_hash").
@@ -304,6 +316,7 @@ Notes:
 ## Troubleshooting / FAQ
 <details>
 <summary><strong>More:</strong></summary>
+
 ### Why is my workflow JSON missing in a JPEG? 
 
 The save exceeded `max_jpeg_exif_kb` and fell back to `reduced-exif`, `minimal`, or `com-marker`. Use PNG / WebP or lower the workflow size.
