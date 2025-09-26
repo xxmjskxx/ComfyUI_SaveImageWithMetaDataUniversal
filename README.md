@@ -313,7 +313,7 @@ Output effects:
 
 ### Scanner found my nodes but the suggested rules look wrong or fields are missing
 - Treat the scanner output as a starting point. Some nodes require manual mapping of inputs to metadata fields.
-- Check the outputs from the `Metadata Rule Scanner` and `Show generated_user_rules.py` nodes, reference the files mentioned in [reference examples](#reference-examples), make any necessary changes, and then save the adjusted rules with `Save Custom Metadata Rules` or `Save generated_user_rules.py`, respectively
+- Check the outputs from the `Metadata Rule Scanner` and `Show generated_user_rules.py` nodes, reference the files mentioned in [reference examples](#reference-examples-jsonpython), make any necessary changes, and then save the adjusted rules with `Save Custom Metadata Rules` or `Save generated_user_rules.py`, respectively
 - Use the `Show generated_user_rules.py` node, adjust the suggested capture paths to match your node’s sockets/fields, then save with `Save generated_user_rules.py`.
 - Prefer explicit hints:
   - Use scanner input `force_include_metafields` to bias suggestions toward specific fields you care about first.
