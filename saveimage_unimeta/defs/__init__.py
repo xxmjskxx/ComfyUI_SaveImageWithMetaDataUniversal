@@ -111,15 +111,7 @@ def _load_extensions() -> None:
             ext_captures = getattr(module, "CAPTURE_FIELD_LIST", {})
             if isinstance(ext_captures, Mapping):  # type: ignore[arg-type]
                 for node_name, rules in ext_captures.items():
-                    # If either side is not a mapping, assign directly; otherwise merge fields
-                    if (
-                        node_name not in CAPTURE_FIELD_LIST
-                        or not isinstance(CAPTURE_FIELD_LIST.get(node_name), Mapping)
-                        or not isinstance(rules, Mapping)
-                    ):  # type: ignore[arg-type]
-                        CAPTURE_FIELD_LIST[node_name] = rules  # type: ignore[index]
-                    else:
-                        CAPTURE_FIELD_LIST[node_name].update(rules)  # type: ignore[assignment]
+                    _merge_extension_capture_entry(node_name, rules)
             else:  # pragma: no cover - defensive
                 logger.warning(
                     "[Metadata Loader] Extension '%s' CAPTURE_FIELD_LIST not a mapping",
@@ -154,6 +146,35 @@ def load_extensions_only() -> None:
     """Public helper to reset and load only defaults + extensions."""
     _reset_to_defaults()
     _load_extensions()
+
+def _merge_extension_capture_entry(node_name: str, rules) -> None:
+    """Merge a capture entry coming from an extension.
+
+    Semantics (must match original inline logic):
+      * If the existing entry or new value isn't a mapping, assign directly.
+      * If both are mappings, shallow-update the existing mapping.
+    """
+    existing = CAPTURE_FIELD_LIST.get(node_name)
+    if (
+        node_name not in CAPTURE_FIELD_LIST
+        or not isinstance(existing, Mapping)  # type: ignore[arg-type]
+        or not isinstance(rules, Mapping)  # type: ignore[arg-type]
+    ):
+        CAPTURE_FIELD_LIST[node_name] = rules  # type: ignore[index]
+    else:
+        existing.update(rules)  # type: ignore[assignment]
+
+def _merge_user_capture_entry(node_name: str, rules) -> None:
+    """Merge a capture entry provided via user JSON.
+
+    Semantics (must match original inline logic):
+      * Ensure a dict container exists for the node name.
+      * Only update when the provided rules value is a mapping; otherwise skip.
+    """
+    if node_name not in CAPTURE_FIELD_LIST:
+        CAPTURE_FIELD_LIST[node_name] = {}
+    if isinstance(rules, Mapping):  # type: ignore[arg-type]
+        CAPTURE_FIELD_LIST[node_name].update(rules)  # type: ignore[arg-type]
 
 def _merge_user_sampler_entry(key: str, val) -> None:
     """Merge a single user-provided sampler mapping into ``SAMPLERS``.
@@ -235,11 +256,7 @@ def load_user_definitions(required_classes: set | None = None, suppress_missing_
                 deserialized_rules = deserialize_input(USER_CAPTURES_FILE)
                 if isinstance(deserialized_rules, Mapping):  # type: ignore[arg-type]
                     for node_name, rules in deserialized_rules.items():
-                        if node_name not in CAPTURE_FIELD_LIST:
-                            CAPTURE_FIELD_LIST[node_name] = {}
-                        # Each rules object should be a mapping
-                        if isinstance(rules, Mapping):  # type: ignore[arg-type]
-                            CAPTURE_FIELD_LIST[node_name].update(rules)  # type: ignore[arg-type]
+                        _merge_user_capture_entry(node_name, rules)
                 else:  # pragma: no cover
                     logger.warning("[Metadata Loader] user_captures did not deserialize to mapping; ignoring")
             except FileNotFoundError:  # pragma: no cover
