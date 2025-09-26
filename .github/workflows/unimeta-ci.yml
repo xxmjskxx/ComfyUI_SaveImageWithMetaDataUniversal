@@ -16,6 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.10", "3.11", "3.12"]
+        metadata-test-mode: ["0", "1"]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,9 +31,9 @@ jobs:
       - name: Lint (non-blocking)
         run: |
           ruff check --exit-zero .
-      - name: Run tests with coverage
+      - name: Run tests with coverage (mode=${{ matrix.metadata-test-mode }})
         env:
-          METADATA_TEST_MODE: '1'
+          METADATA_TEST_MODE: ${{ matrix.metadata-test-mode }}
         run: |
           coverage run -m pytest -q
           coverage report
@@ -41,7 +42,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-${{ matrix.python-version }}
+          name: coverage-${{ matrix.python-version }}-mode-${{ matrix.metadata-test-mode }}
           path: coverage.xml
           if-no-files-found: ignore
       - name: Fail if below threshold (enforced by coverage report exit code)

@@ -176,3 +176,40 @@ if "nodes" not in sys.modules:  # pragma: no cover
     nodes_mod.NODE_CLASS_MAPPINGS = {}
     nodes_mod.checkpoint_nodes = {}
     sys.modules["nodes"] = nodes_mod
+
+
+# Fixture to save/restore environment flags used by the metadata loader
+@pytest.fixture()
+def reset_env_flags():
+    keys = [
+        "METADATA_TEST_MODE",
+        "METADATA_NO_HASH_DETAIL",
+        "METADATA_NO_LORA_SUMMARY",
+        "METADATA_DEBUG_PROMPTS",
+    ]
+    saved = {k: os.environ.get(k) for k in keys}
+    try:
+        yield
+    finally:
+        for k, v in saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+# -----------------------------
+# Test mode detection utilities
+# -----------------------------
+_TEST_MODE_TRUTHY = {"1", "true", "yes", "on"}
+
+def metadata_test_mode_enabled() -> bool:
+    """Return True if METADATA_TEST_MODE is explicitly enabled.
+
+    Mirrors runtime parsing logic in saveimage_unimeta.defs.__init__ so tests
+    use identical truthiness semantics.
+    """
+    return os.environ.get("METADATA_TEST_MODE", "").strip().lower() in _TEST_MODE_TRUTHY
+
+@pytest.fixture()
+def metadata_test_mode():  # pragma: no cover - trivial accessor
+    return metadata_test_mode_enabled()
