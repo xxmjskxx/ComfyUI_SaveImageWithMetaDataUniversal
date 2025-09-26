@@ -6,6 +6,7 @@ This is intentionally lightweight and not part of pytest.
 from __future__ import annotations
 
 import json
+import os
 import random
 import statistics
 import time
@@ -79,10 +80,10 @@ def main():
     helper_avg = time_fn(helper_merge, "helper-func")
     diff = helper_avg - legacy_avg
     pct = (diff / legacy_avg * 100.0) if legacy_avg else 0.0
-    verdict = "OK (<=5% overhead)" if pct <= 5 else "Check: >5% overhead" 
+    verdict = "OK (<=5% overhead)" if pct <= 5 else "Check: >5% overhead"
     result = {
-    "legacy_avg_s": legacy_avg,
-    "helper_avg_s": helper_avg,
+        "legacy_avg_s": legacy_avg,
+        "helper_avg_s": helper_avg,
         "delta_s": diff,
         "delta_pct": pct,
         "verdict": verdict,
@@ -93,6 +94,8 @@ def main():
         },
     }
     print(f"Delta: {diff:.6f}s ({pct:.2f}%) -> {verdict}")
+    # Ensure output directory exists before writing results
+    os.makedirs("_test_outputs", exist_ok=True)
     with open("_test_outputs/merge_bench.json", "w", encoding="utf-8") as f:
         json.dump(result, f, indent=2)
     print("Wrote _test_outputs/merge_bench.json")
