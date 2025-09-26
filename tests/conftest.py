@@ -196,3 +196,20 @@ def reset_env_flags():
                 os.environ.pop(k, None)
             else:
                 os.environ[k] = v
+
+# -----------------------------
+# Test mode detection utilities
+# -----------------------------
+_TEST_MODE_TRUTHY = {"1", "true", "yes", "on"}
+
+def metadata_test_mode_enabled() -> bool:
+    """Return True if METADATA_TEST_MODE is explicitly enabled.
+
+    Mirrors runtime parsing logic in saveimage_unimeta.defs.__init__ so tests
+    use identical truthiness semantics.
+    """
+    return os.environ.get("METADATA_TEST_MODE", "").strip().lower() in _TEST_MODE_TRUTHY
+
+@pytest.fixture()
+def metadata_test_mode():  # pragma: no cover - trivial accessor
+    return metadata_test_mode_enabled()

@@ -48,7 +48,7 @@ class TestLoaderMergeBehavior:
         _cleanup(os.path.join(base, "user_samplers.json"))
         load_extensions_only()
 
-    def test_skip_user_json_when_coverage_satisfied(self):
+    def test_skip_user_json_when_coverage_satisfied(self, metadata_test_mode):
         base = _node_pack_py_dir()
         user_caps = os.path.join(base, "user_captures.json")
         # Create user JSON with a class that does NOT exist in defaults/ext
@@ -59,13 +59,11 @@ class TestLoaderMergeBehavior:
         load_extensions_only()
         cover = set(CAPTURE_FIELD_LIST.keys()) | set(SAMPLERS.keys())
         if not cover:
-            # In CI with METADATA_TEST_MODE=1 defaults may intentionally be empty; skip.
-            import os as _os
-            if _os.environ.get("METADATA_TEST_MODE", "").strip().lower() in {"1", "true", "yes", "on"}:
+            # In CI with METADATA_TEST_MODE enabled defaults may intentionally be empty; skip.
+            if metadata_test_mode:
                 import pytest as _pytest
                 _pytest.skip("Baseline empty under test mode; skip coverage satisfied scenario.")
-            else:
-                raise AssertionError("Expected defaults/ext to provide some coverage")
+            raise AssertionError("Expected defaults/ext to provide some coverage")
         covered_subset = set(list(cover)[: min(3, len(cover))])
 
         # Because all required classes are covered, user JSON should be skipped
@@ -73,7 +71,7 @@ class TestLoaderMergeBehavior:
         assert user_only_class not in CAPTURE_FIELD_LIST
         assert user_only_class not in SAMPLERS
 
-    def test_merge_user_json_when_missing_classes(self):
+    def test_merge_user_json_when_missing_classes(self, metadata_test_mode):
         base = _node_pack_py_dir()
         user_caps = os.path.join(base, "user_captures.json")
         user_samplers = os.path.join(base, "user_samplers.json")
@@ -81,12 +79,10 @@ class TestLoaderMergeBehavior:
         # Pick an existing class from defaults/ext to test deep-merge behavior
         load_extensions_only()
         if not CAPTURE_FIELD_LIST:
-            import os as _os
-            if _os.environ.get("METADATA_TEST_MODE", "").strip().lower() in {"1", "true", "yes", "on"}:
+            if metadata_test_mode:
                 import pytest as _pytest
                 _pytest.skip("Baseline empty under test mode; skip merge test.")
-            else:
-                raise AssertionError("Expected baseline captures to be non-empty")
+            raise AssertionError("Expected baseline captures to be non-empty")
         existing_class = next(iter(CAPTURE_FIELD_LIST.keys()))
 
         # Seed: verify a known field map type (or fallback to empty mapping)
