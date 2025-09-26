@@ -155,6 +155,26 @@ def load_extensions_only() -> None:
     _reset_to_defaults()
     _load_extensions()
 
+def _merge_user_sampler_entry(key: str, val) -> None:
+    """Merge a single user-provided sampler mapping into ``SAMPLERS``.
+
+    Rules:
+      * Non-mapping values are skipped with a warning.
+      * If the existing entry is absent or not a mapping, the value is assigned.
+      * If both sides are mappings, perform an in-place update (shallow merge).
+    """
+    if not isinstance(val, Mapping):  # type: ignore[arg-type]
+        logger.warning(
+            "[Metadata Loader] user_samplers key '%s' is not a mapping; skipping",
+            key,
+        )
+        return
+    existing_sampler = SAMPLERS.get(key)
+    if not isinstance(existing_sampler, Mapping):  # type: ignore[arg-type]
+        SAMPLERS[key] = val  # type: ignore[index]
+    else:
+        existing_sampler.update(val)  # type: ignore[assignment]
+
 
 def load_user_definitions(required_classes: set | None = None, suppress_missing_log: bool = False) -> None:
     """
@@ -199,21 +219,8 @@ def load_user_definitions(required_classes: set | None = None, suppress_missing_
                 with open(USER_SAMPLERS_FILE, encoding="utf-8") as f:
                     data = json.load(f)
                 if isinstance(data, Mapping):  # type: ignore[arg-type]
-                    # Per-key validation: only merge mapping values; skip invalid shapes
                     for key, val in data.items():
-                        if isinstance(val, Mapping):  # type: ignore[arg-type]
-                            if (
-                                key not in SAMPLERS
-                                or not isinstance(SAMPLERS.get(key), Mapping)
-                            ):  # type: ignore[arg-type]
-                                SAMPLERS[key] = val  # type: ignore[index]
-                            else:
-                                SAMPLERS[key].update(val)  # type: ignore[assignment]
-                        else:
-                            logger.warning(
-                                "[Metadata Loader] user_samplers key '%s' is not a mapping; skipping",
-                                key,
-                            )
+                        _merge_user_sampler_entry(key, val)
                 else:  # pragma: no cover - defensive
                     logger.warning("[Metadata Loader] user_samplers.json did not contain a mapping; ignoring")
             except FileNotFoundError:  # pragma: no cover - race
