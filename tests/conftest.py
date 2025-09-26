@@ -176,3 +176,23 @@ if "nodes" not in sys.modules:  # pragma: no cover
     nodes_mod.NODE_CLASS_MAPPINGS = {}
     nodes_mod.checkpoint_nodes = {}
     sys.modules["nodes"] = nodes_mod
+
+
+# Fixture to save/restore environment flags used by the metadata loader
+@pytest.fixture()
+def reset_env_flags():
+    keys = [
+        "METADATA_TEST_MODE",
+        "METADATA_NO_HASH_DETAIL",
+        "METADATA_NO_LORA_SUMMARY",
+        "METADATA_DEBUG_PROMPTS",
+    ]
+    saved = {k: os.environ.get(k) for k in keys}
+    try:
+        yield
+    finally:
+        for k, v in saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
