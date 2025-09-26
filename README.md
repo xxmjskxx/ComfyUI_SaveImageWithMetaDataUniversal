@@ -62,10 +62,10 @@ git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
 
 \n</details>
 
-<details open>
-<summary><strong>Quick Start</strong></summary>
-
 ## Quick Start
+<details open>
+<summary><strong>More:</strong></summary>
+
 1. Use the `Metadata Rule Scanner` + `Save Custom Metadata Rules` nodes to create and save capture rules (see [`example_workflows/scan-and-save-custom-metadata-rules.png`](example_workflows/scan-and-save-custom-metadata-rules.png)).
 2. Add `Save Image w/ Metadata Universal` to your workflow and connect to the image input to save images using your custom capture ruleset.
 3. (Optional) Use `Create Extra MetaData` node(s) to manually record additional info.
