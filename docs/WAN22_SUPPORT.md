@@ -39,29 +39,6 @@ post_date: "2025-09-24"
 - Detect MoE conservatively to avoid disrupting stable single-model flows:
   - True when traced subgraph contains ≥ 2 `WanVideoModelLoader` and
     either ≥ 2 `WanVideo Sampler` or any sampler exposes `start_step`/`end_step`.
-    - Should use something more future-proof and adaptable to other workflows and models than just `WanVideoModelLoader` or `WanVideo Sampler`
-    - Something more general like when traced subgraph contains ≥ 2 Samplers; or when traced subgraph contains ≥ 2 model loaders
-    - Maybe something like, when saving image with `Save Image w/ Metadata Universal`:
-      - Trace up to x samplers, set in UI widget (default 1), but fallback to as few as 1 if trace fails to detect multiple samplers (or to 0 with an error log message, if no samplers are found)
-      - If samplers is set to 1 use current behaviour
-      - Run trace as usual
-      - If a second sampler is found, workflow has at least 2 samplers, else fallback to current behaviour
-      - If workflow has at least 2 samplers, continue trace (if samplers is set to > 2), and if an additional sampler is hit workflow has at least 3 samplers
-      - Continue for up to x samplers
-      - Multi-sampler metadata will have sections (e.g. 'Sampler_1:\n') for each sampler.
-      - Sampler numbers will be set to reverse order of proximity to `Save Image w/ Metadata Universal` node (so, 3 is closest, 1 is furthest).
-      - Multi-sampler trace should write parameters from nodes connected directly or indirectly to each sampler to that sampler's section in the metadata (similar to current behaviour).
-      - Exceptions: any node(s) connected indirectly through another sampler; any node(s) which are executed after a sampler.
-        - Example 1: node_1⟶node_2⟶sampler_1⟶sampler_2
-          - node_1 and node_2 are recorded to sampler_1's metadata (if they contain relevant captured information), but they are not recorded to sampler_2's metadata because they are connected to sampler_2 indirectly through sampler_1
-        - Example 2: node_1⟶sampler_1⟶node_2⟶sampler_2⟶node_3⟶sampler_3
-          - node_1 is recorded to sampler_1's metadata (if it contains relevant captured information), but it is not recorded to sampler_2's or sampler_3's metadata because they are both connected to node_1 indirectly through 1 or more samplers.
-          - node_2 is recorded to sampler_2's metadata (if it contains relevant captured information); node_2 is not recorded to sampler_1's metadata because it is executed after sampler_1; node_2 is not recorded to sampler_3's metadata because it is connected to node_2 indirectly through sampler_2. 
-          - node_3 is recorded to sampler_3's metadata (if it contains relevant captured information), but it is not recorded to sampler_1's or sampler_2's metadata because node_3 is executed after both sampler_1 and sampler_2
-        - Example 3: node_1⟶sampler_1⟶node_2⟶sampler_2 and node_1⟶sampler_2
-          - node_1 is recorded to both sampler_1's and sampler_2's metadata (if it contains relevant captured information) because they are both connected to it directly
-          - node_2 is recorded to sampler_2's metadata (if it contains relevant captured information), but it is not recorded to sampler_1's metadata because it it occurs after sampler_1's execution in the graph
-      - As the multi-sampler trace is run, it should follow the above pathing logic to attribute the extracted metadata to the correct sampler(s).
 - Add an environment override:
   - `METADATA_WAN_MOE_FORCE=1` forces MoE path.
   - Optional: `METADATA_WAN_MOE_DISABLE=1` disables MoE path.
@@ -194,9 +171,10 @@ post_date: "2025-09-24"
 - Should implement multi-model / multi-sampler strategy adaptable to other workflows and models than just `WanVideoModelLoader` or `WanVideo Sampler`
 - Something more general like when traced subgraph contains ≥ 2 Samplers; or when traced subgraph contains ≥ 2 model loaders. (of the two options, ≥ 2 Samplers is probably the only thing we need to consider).
 - Should still add [new fields](#new-fields), but may have some additional fields from other samplers to add.
+- Much of the rest will likely be similar and what follows below may have already been mentioned above.
 - Maybe something like, when saving image with `Save Image w/ Metadata Universal`:
-  - Trace up to x samplers, set in a new UI widget (default 1), but fallback to as few as 1 (and current behaviour) if trace fails to detect multiple samplers (or to 0 with an error log message, if no samplers are found)
-  - If samplers is set to 1 use current behaviour
+  - Trace up to x samplers, set in a new UI widget (default 1), but fallback to as few as 1 if trace fails to detect multiple samplers (or to 0 with an error log message, if no samplers are found)
+  - If samplers is set to 1 or fallback to 1 use current behaviour
   - If samplers >1, run multi-sampler trace
   - If a second sampler is found, workflow has at least 2 samplers, else fallback to current behaviour
   - If workflow has at least 2 samplers, continue trace (if samplers is set to > 2), and if an additional sampler is hit workflow has at least 3 samplers
