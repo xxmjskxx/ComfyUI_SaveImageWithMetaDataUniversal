@@ -85,6 +85,15 @@ def test_save_custom_rules_generates_valid_ext_and_jsons():
     gen_mod = importlib.import_module(pkg)
     assert hasattr(gen_mod, "CAPTURE_FIELD_LIST") and isinstance(gen_mod.CAPTURE_FIELD_LIST, dict)
     assert hasattr(gen_mod, "SAMPLERS") and isinstance(gen_mod.SAMPLERS, dict)
+    # KNOWN mapping should exist with core callables
+    assert hasattr(gen_mod, "KNOWN") and isinstance(gen_mod.KNOWN, dict)
+    for k in [
+        "calc_model_hash",
+        "convert_skip_clip",
+        "get_lora_model_name_stack",
+        "get_lora_strength_clip_stack",
+    ]:
+        assert k in gen_mod.KNOWN
 
     # Confirm our node appears with MetaField keys
     meta_mod = importlib.import_module(
