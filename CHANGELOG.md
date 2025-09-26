@@ -9,6 +9,17 @@ All notable changes to this project will be documented in this file.
 - Consolidated dual CI workflows into single `unimeta-ci.yml` (matrix tests, coverage, strict & autofix lint jobs).
 ### Fixed
 
+## [1.1.2] - 2025-09-26
+### Added
+- Collapsible README section pattern unified ("More:" details blocks) for improved scanability.
+- Migration guide relocated to `docs/MIGRATIONS.md` (clearer docs structure).
+### Changed
+- README Quick Start simplified (heading outside collapsible + consistent details styling).
+- Refined documentation anchors & internal links for fallback tips and parameters.
+### Fixed
+- Benchmark script now ensures `_test_outputs` directory exists before writing JSON output.
+- Eliminated duplicated `METADATA_TEST_MODE` parsing in tests via new `metadata_test_mode` fixture (reduces drift risk).
+
 ## [1.1.1] - 2025-09-25
 ### Added
 - Benchmark script `bench_merge_performance.py` (verifies sampler merge helper adds <5% overhead; ~4.8% in synthetic test).
