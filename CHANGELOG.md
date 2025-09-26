@@ -9,6 +9,20 @@ All notable changes to this project will be documented in this file.
 - Consolidated dual CI workflows into single `unimeta-ci.yml` (matrix tests, coverage, strict & autofix lint jobs).
 ### Fixed
 
+## [1.1.1] - 2025-09-25
+### Added
+- Benchmark script `bench_merge_performance.py` (verifies sampler merge helper adds <5% overhead; ~4.8% in synthetic test).
+- Negative tests for malformed capture and sampler user JSON structures (ignored safely without clobbering).
+- CI matrix expanded to run with and without `METADATA_TEST_MODE` across supported Python versions.
+### Changed
+- Refactored loader merge logic: extracted `_merge_user_sampler_entry`, `_merge_extension_capture_entry`, `_merge_user_capture_entry` for clarity & maintainability.
+- Simplified sampler per-key merge with validation and shallow update semantics encapsulated in helper.
+- Clarified `METADATA_TEST_MODE` parsing (only explicit truthy tokens enable test mode; "0" no longer truthy).
+- Improved readability of selector utilities (updated `selectors.py`).
+### Fixed
+- Loader now skips non-mapping sampler entries instead of overwriting with invalid data.
+- Conditional tests now skip gracefully when baseline definitions intentionally empty under test mode.
+
 ## [1.1.0] - 2025-09-24
 Note: 1.0.0 was the first public registry release; this minor release formalizes post‑1.0 refactor cleanup (shim removal) and new UI/node enhancements.
 
