@@ -97,13 +97,14 @@ def test_migration_from_legacy_py(monkeypatch):
     if not os.path.exists(captures) and os.path.exists(legacy_caps):
         try:
             shutil.move(legacy_caps, captures)
-        except OSError:  # pragma: no cover - best effort fallback
-            pass
+        except OSError as e:  # pragma: no cover - best effort fallback
+            # Log to stdout for visibility in CI without failing test.
+            print(f"[migration-fallback] Failed moving legacy captures: {e}")
     if not os.path.exists(samplers) and os.path.exists(legacy_sams):
         try:
             shutil.move(legacy_sams, samplers)
-        except OSError:  # pragma: no cover
-            pass
+        except OSError as e:  # pragma: no cover
+            print(f"[migration-fallback] Failed moving legacy samplers: {e}")
 
     assert os.path.exists(captures), "Legacy user_captures.json not migrated (direct or fallback)"
     assert os.path.exists(samplers), "Legacy user_samplers.json not migrated (direct or fallback)"

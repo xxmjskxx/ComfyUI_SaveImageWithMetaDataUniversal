@@ -40,7 +40,7 @@ Notes
 
 ### Related helpers
 - `select_by_prefix(input_data, prefix)`: simpler selector without stack limiting or filtering.
-- `select_stack_by_prefix(input_data, prefix, counter_key=None, filter_none=True)`: preferred stack-aware helper.---
+- `select_stack_by_prefix(input_data, prefix, counter_key=None, filter_none=True)`: preferred stack-aware helper.
 post_title: "Deprecations and Migrations"
 author1: "Project Maintainers"
 post_slug: "migrations"

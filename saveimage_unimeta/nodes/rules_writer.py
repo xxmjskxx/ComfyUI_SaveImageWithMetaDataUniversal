@@ -597,7 +597,7 @@ class SaveCustomMetadataRules:
 
 def _timestamp() -> str:
     return time.strftime("%Y%m%d-%H%M%S", time.localtime())
-
+_TIMESTAMP_BASE_LENGTH = 15  # len('YYYYMMDD-HHMMSS')
 
 def _looks_like_timestamp(name: str) -> bool:
     """Return True for 'YYYYMMDD-HHMMSS' optionally followed by '-N' numeric suffix.
@@ -607,17 +607,17 @@ def _looks_like_timestamp(name: str) -> bool:
       20250101-123045-1 -> True
       20250101-1230 -> False (too short)
     """
-    if len(name) < 15:
+    if len(name) < _TIMESTAMP_BASE_LENGTH:
         return False
-    base = name[:15]
+    base = name[:_TIMESTAMP_BASE_LENGTH]
     try:
         time.strptime(base, "%Y%m%d-%H%M%S")
     except ValueError:
         return False
     # Allow optional -N suffix after the validated base
-    if len(name) == 15:
+    if len(name) == _TIMESTAMP_BASE_LENGTH:
         return True
-    if name[15] != "-":  # next char must be '-'
+    if name[_TIMESTAMP_BASE_LENGTH] != "-":  # next char must be '-'
         return False
-    suffix = name[16:]
+    suffix = name[_TIMESTAMP_BASE_LENGTH + 1 :]
     return suffix.isdigit() and len(suffix) > 0

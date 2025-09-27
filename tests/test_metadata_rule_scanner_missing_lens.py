@@ -79,7 +79,8 @@ def test_missing_lens_filters_sampler_roles(monkeypatch):
     try:  # pragma: no cover - registration glue
         import nodes as _global_nodes  # type: ignore
         _global_nodes.NODE_CLASS_MAPPINGS["RoleSamplerNode"] = DummySampler  # type: ignore
-    except Exception:
+    except (ImportError, AttributeError):  # environment may not expose global nodes
+        # Swallow only expected import/attr errors; other exceptions should surface.
         pass
     try:
         # Inject baseline sampler role 'positive'
@@ -89,7 +90,8 @@ def test_missing_lens_filters_sampler_roles(monkeypatch):
             import ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.scanner as scan_mod  # type: ignore
             if hasattr(scan_mod, "_BASELINE_CACHE"):
                 delattr(scan_mod, "_BASELINE_CACHE")
-        except Exception:
+        except (ImportError, AttributeError):
+            # Accept absence of scanner module or attribute in constrained test env.
             pass
         scanner = MetadataRuleScanner()
         off_json, off_diff = scanner.scan_for_rules(
