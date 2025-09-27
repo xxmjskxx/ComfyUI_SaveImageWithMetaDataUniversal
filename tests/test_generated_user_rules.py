@@ -11,8 +11,8 @@ def _paths_for_generated_files():
         "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.rules_writer"
     )
     base_py = os.path.dirname(os.path.dirname(os.path.abspath(mod.__file__)))
-    user_captures = os.path.join(base_py, "py", "user_captures.json")
-    user_samplers = os.path.join(base_py, "py", "user_samplers.json")
+    user_captures = os.path.join(base_py, "user_rules", "user_captures.json")
+    user_samplers = os.path.join(base_py, "user_rules", "user_samplers.json")
     ext_dir = os.path.join(base_py, "defs", "ext")
     gen_py = os.path.join(ext_dir, "generated_user_rules.py")
     return base_py, user_captures, user_samplers, gen_py, ext_dir
