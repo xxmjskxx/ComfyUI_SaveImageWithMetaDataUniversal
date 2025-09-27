@@ -23,7 +23,14 @@ from logging import getLogger
 from ..utils.deserialize import deserialize_input
 
 # Test mode is enabled only for explicit truthy tokens, not any non-empty string ("0" should be false)
+# NOTE: Test mode is captured at import time for baseline import shaping, but
+# path selection for user rules must be resilient to late environment flag
+# injection (e.g. coverage run import ordering). We therefore also provide a
+# runtime checker used inside loaders to avoid missing test-isolated files.
 _TEST_MODE = _os.environ.get("METADATA_TEST_MODE", "").strip().lower() in {"1", "true", "yes", "on"}
+
+def _is_test_mode() -> bool:  # pragma: no cover - trivial logic
+    return _os.environ.get("METADATA_TEST_MODE", "").strip().lower() in {"1", "true", "yes", "on"}
 if not _TEST_MODE:
     from .captures import CAPTURE_FIELD_LIST  # type: ignore
     from .samplers import SAMPLERS  # type: ignore
@@ -220,7 +227,10 @@ def load_user_definitions(required_classes: set | None = None, suppress_missing_
     # User rule directory relocation: legacy was 'py/'. New directory 'user_rules/'.
     # In test mode, prefer an isolated _test_outputs/user_rules directory if present to avoid polluting repo root.
     TEST_OUTPUTS_DIR = os.path.join(NODE_PACK_DIR, "_test_outputs")
-    preferred_user_rules = os.path.join(TEST_OUTPUTS_DIR, "user_rules") if _TEST_MODE else None
+    # Re-evaluate test mode at runtime so late env mutation still enables
+    # isolation (coverage run import ordering can differ from local pytest).
+    runtime_test_mode = _is_test_mode()
+    preferred_user_rules = os.path.join(TEST_OUTPUTS_DIR, "user_rules") if runtime_test_mode else None
     if preferred_user_rules and os.path.isdir(preferred_user_rules):
         USER_RULES_DIR = preferred_user_rules  # noqa: N806
     else:
