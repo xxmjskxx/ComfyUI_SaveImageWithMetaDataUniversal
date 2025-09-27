@@ -5,6 +5,7 @@ source = saveimage_unimeta
 omit =
     */tests/*
     */__init__.py
+    saveimage_unimeta/defs/ext/generated_user_rules.py
 
 [report]
 show_missing = True

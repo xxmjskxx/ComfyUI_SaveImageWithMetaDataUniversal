@@ -32,6 +32,17 @@ def _cleanup_generated_files():
                 os.remove(p)
         except OSError:
             pass
+    # Recreate a placeholder generated_user_rules.py so coverage can always
+    # resolve the source file even if tests delete the real generated module.
+    try:
+        if not os.path.exists(gen_py):
+            with open(gen_py, "w", encoding="utf-8") as f:
+                f.write(
+                    "# Placeholder generated_user_rules.py (test coverage stability)\n"
+                    "CAPTURE_FIELD_LIST = {}\nSAMPLERS = {}\nKNOWN = {}\n"
+                )
+    except OSError:
+        pass
     # Best-effort: remove compiled cache for generated module to avoid bleed between tests
     try:
         cache_dir = os.path.join(ext_dir, "__pycache__")
