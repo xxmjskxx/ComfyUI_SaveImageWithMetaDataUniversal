@@ -217,8 +217,31 @@ def load_user_definitions(required_classes: set | None = None, suppress_missing_
     NODE_PACK_DIR = os.path.dirname(  # noqa: N806
         os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     )
-    USER_CAPTURES_FILE = os.path.join(NODE_PACK_DIR, "py", "user_captures.json")  # noqa: N806
-    USER_SAMPLERS_FILE = os.path.join(NODE_PACK_DIR, "py", "user_samplers.json")  # noqa: N806
+    # User rule directory relocation: legacy was 'py/'. New directory 'user_rules/'.
+    USER_RULES_DIR = os.path.join(NODE_PACK_DIR, "user_rules")  # noqa: N806
+    os.makedirs(USER_RULES_DIR, exist_ok=True)
+    USER_CAPTURES_FILE = os.path.join(USER_RULES_DIR, "user_captures.json")  # noqa: N806
+    USER_SAMPLERS_FILE = os.path.join(USER_RULES_DIR, "user_samplers.json")  # noqa: N806
+    # Migration shim: if new files absent but legacy exist, migrate once.
+    LEGACY_PY_DIR = os.path.join(NODE_PACK_DIR, "py")  # noqa: N806
+    if not os.path.exists(USER_CAPTURES_FILE):
+        legacy_caps = os.path.join(LEGACY_PY_DIR, "user_captures.json")
+        if os.path.exists(legacy_caps):
+            try:
+                import shutil as _shutil
+                _shutil.move(legacy_caps, USER_CAPTURES_FILE)
+                logger.info("[Metadata Loader] Migrated legacy user_captures.json to user_rules/.")
+            except Exception as e:  # pragma: no cover - non critical
+                logger.warning("[Metadata Loader] Failed migrating user_captures.json: %s", e)
+    if not os.path.exists(USER_SAMPLERS_FILE):
+        legacy_samplers = os.path.join(LEGACY_PY_DIR, "user_samplers.json")
+        if os.path.exists(legacy_samplers):
+            try:
+                import shutil as _shutil
+                _shutil.move(legacy_samplers, USER_SAMPLERS_FILE)
+                logger.info("[Metadata Loader] Migrated legacy user_samplers.json to user_rules/.")
+            except Exception as e:  # pragma: no cover
+                logger.warning("[Metadata Loader] Failed migrating user_samplers.json: %s", e)
 
     need_user_merge = True
     if required_classes:
