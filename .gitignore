@@ -157,5 +157,7 @@ saveimage_unimeta/py/
 saveimage_unimeta/user_rules/backups/
 saveimage_unimeta/user_rules/user_captures.json
 saveimage_unimeta/user_rules/user_samplers.json
-RELEASE_NOTES_*.md
-PR_DRAFT_*.md
+
+# Ephemeral local drafting files (root only). Keep actual published notes in docs/.
+/RELEASE_NOTES_*.md
+/PR_DRAFT_*.md
