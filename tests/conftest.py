@@ -29,6 +29,25 @@ if _ROOT not in sys.path:
 _TEST_OUTPUT_DIR = os.path.join(_ROOT, "_test_outputs")
 os.makedirs(_TEST_OUTPUT_DIR, exist_ok=True)
 
+# Coverage helper: create an empty placeholder generated_user_rules.py so that
+# if tests import the module then delete/regenerate it, coverage still has a
+# source file to attribute (prevents 'No source for code' error in CI when the
+# file is momentarily absent at report time). The real writer will overwrite.
+_ext_dir = os.path.join(_ROOT, 'saveimage_unimeta', 'defs', 'ext')
+try:
+    os.makedirs(_ext_dir, exist_ok=True)
+    _placeholder = os.path.join(_ext_dir, 'generated_user_rules.py')
+    if not os.path.exists(_placeholder):
+        with open(_placeholder, 'w', encoding='utf-8') as _f:
+            _f.write(
+                "# Placeholder generated_user_rules.py for test coverage stability.\n"
+                "CAPTURE_FIELD_LIST = {}\n"
+                "SAMPLERS = {}\n"
+                "KNOWN = {}\n"
+            )
+except OSError:
+    pass
+
 # Provide lightweight stubs for ComfyUI runtime modules if absent.
 if "folder_paths" not in sys.modules:  # pragma: no cover - only for test env
     fp_mod = types.ModuleType("folder_paths")
