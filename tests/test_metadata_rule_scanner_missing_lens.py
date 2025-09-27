@@ -81,11 +81,6 @@ def test_missing_lens_filters_sampler_roles(monkeypatch):
         _global_nodes.NODE_CLASS_MAPPINGS["RoleSamplerNode"] = DummySampler  # type: ignore
     except Exception:
         pass
-    try:  # pragma: no cover - mirror registration
-        import nodes as _global_nodes  # type: ignore
-        _global_nodes.NODE_CLASS_MAPPINGS["RoleSamplerNode"] = DummySampler  # type: ignore
-    except Exception:
-        pass
     try:
         # Inject baseline sampler role 'positive'
         defs_mod.SAMPLERS.setdefault("RoleSamplerNode", {})["positive"] = "positive"

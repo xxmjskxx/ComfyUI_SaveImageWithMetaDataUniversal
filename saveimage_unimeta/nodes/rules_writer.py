@@ -600,16 +600,24 @@ def _timestamp() -> str:
 
 
 def _looks_like_timestamp(name: str) -> bool:
-    # Accept patterns YYYYMMDD-HHMMSS optionally with -N suffix
+    """Return True for 'YYYYMMDD-HHMMSS' optionally followed by '-N' numeric suffix.
+
+    Examples:
+      20250101-123045 -> True
+      20250101-123045-1 -> True
+      20250101-1230 -> False (too short)
+    """
     if len(name) < 15:
         return False
-    core = name.split("-")
-    if len(core) < 2:
-        return False
-    # First part YYYYMMDD
-    ts = name[:15]
+    base = name[:15]
     try:
-        time.strptime(ts, "%Y%m%d-%H%M%S")
-        return True
+        time.strptime(base, "%Y%m%d-%H%M%S")
     except ValueError:
         return False
+    # Allow optional -N suffix after the validated base
+    if len(name) == 15:
+        return True
+    if name[15] != "-":  # next char must be '-'
+        return False
+    suffix = name[16:]
+    return suffix.isdigit() and len(suffix) > 0

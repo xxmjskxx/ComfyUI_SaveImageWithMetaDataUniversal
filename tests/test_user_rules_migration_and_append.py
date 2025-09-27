@@ -96,15 +96,13 @@ def test_migration_from_legacy_py(monkeypatch):
     legacy_sams = os.path.join(legacy_py, "user_samplers.json")
     if not os.path.exists(captures) and os.path.exists(legacy_caps):
         try:
-            import shutil as _sh
-            _sh.move(legacy_caps, captures)
-        except Exception:
+            shutil.move(legacy_caps, captures)
+        except OSError:  # pragma: no cover - best effort fallback
             pass
     if not os.path.exists(samplers) and os.path.exists(legacy_sams):
         try:
-            import shutil as _sh
-            _sh.move(legacy_sams, samplers)
-        except Exception:
+            shutil.move(legacy_sams, samplers)
+        except OSError:  # pragma: no cover
             pass
 
     assert os.path.exists(captures), "Legacy user_captures.json not migrated (direct or fallback)"

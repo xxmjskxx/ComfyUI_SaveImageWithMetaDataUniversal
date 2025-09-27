@@ -305,7 +305,7 @@ class MetadataRuleScanner:
                 "include_existing": (
                     "BOOLEAN",
                     {
-                        "default": True,
+                        "default": False,  # Reverted to original default (missing-only lens ON by default)
                         "tooltip": (
                             "Include existing metafields / sampler roles from baseline (defaults+ext+user).\n"
                             "Set False for 'missing-only lens' (only fields/roles not yet captured).\n"
