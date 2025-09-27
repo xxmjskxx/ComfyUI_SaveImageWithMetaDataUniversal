@@ -11,6 +11,7 @@ from ..utils.color import cstr
 from ..defs.captures import CAPTURE_FIELD_LIST
 from ..defs.samplers import SAMPLERS
 from ..defs.meta import MetaField
+from .. import defs as defs_mod
 
 logger = logging.getLogger(__name__)
 _DEBUG_VERBOSE = os.environ.get("METADATA_DEBUG", "0") not in ("0", "false", "False", None, "")
@@ -304,10 +305,14 @@ class MetadataRuleScanner:
                 "include_existing": (
                     "BOOLEAN",
                     {
-                        "default": False,
+                        "default": True,
                         "tooltip": (
-                            "If true, also rescan nodes already present in current capture definitions "
-                            "(useful after runtime changes)."
+                            "Include existing metafields / sampler roles from baseline (defaults+ext+user).\n"
+                            "Set False for 'missing-only lens' (only fields/roles not yet captured).\n"
+                            "Mode interactions when include_existing=False (lens ON):\n"
+                            "  new_only: unchanged (only new fields by definition)\n"
+                            "  all: global missing-only filter\n"
+                            "  existing_only: only baseline nodes, but only their missing fields"
                         ),
                     },
                 ),
@@ -375,6 +380,61 @@ class MetadataRuleScanner:
             logger.info(cstr("[Metadata Scanner] Starting scan...").msg)
         import re  # local to avoid global import cost when node unused
 
+        # Ensure we have up-to-date union including user JSON & extensions for missing-only lens baseline.
+        # Introduce lightweight caching keyed by user_rules file mtimes so repeated scans in UI are faster.
+        global _BASELINE_CACHE  # type: ignore
+        try:
+            _BASELINE_CACHE
+        except NameError:  # first init
+            _BASELINE_CACHE = {
+                "captures": {},
+                "samplers": {},
+                "mtimes": (),
+                "hits": 0,
+                "misses": 0,
+            }  # type: ignore
+
+        def _current_rule_mtimes():
+            """Return mtimes for user rule JSON files.
+
+            Mirrors path preference logic of loader/writer: in METADATA_TEST_MODE, if an
+            existing _test_outputs/user_rules directory is present, prefer it. This keeps
+            scanner cache invalidation coherent during isolated tests.
+            """
+            try:
+                pack_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                test_mode = os.environ.get("METADATA_TEST_MODE", "").strip().lower() in {"1", "true", "yes", "on"}
+                preferred = os.path.join(pack_dir, "_test_outputs", "user_rules")
+                if test_mode and os.path.isdir(preferred):
+                    user_dir = preferred
+                else:
+                    user_dir = os.path.join(pack_dir, "user_rules")
+                cap = os.path.join(user_dir, "user_captures.json")
+                sam = os.path.join(user_dir, "user_samplers.json")
+                mt_cap = os.path.getmtime(cap) if os.path.exists(cap) else None
+                mt_sam = os.path.getmtime(sam) if os.path.exists(sam) else None
+                return (mt_cap, mt_sam)
+            except Exception:
+                return (None, None)
+
+        mtimes_now = _current_rule_mtimes()
+        cache_valid = mtimes_now == _BASELINE_CACHE.get("mtimes")
+        if not cache_valid:
+            # Refresh definitions (full reload) then snapshot for cache
+            try:
+                defs_mod.load_user_definitions()
+            except Exception as e:  # pragma: no cover - fallback if load fails
+                logger.warning("[Metadata Scanner] Could not refresh definitions for missing lens: %s", e)
+            _BASELINE_CACHE["captures"] = defs_mod.CAPTURE_FIELD_LIST.copy()
+            _BASELINE_CACHE["samplers"] = defs_mod.SAMPLERS.copy()
+            _BASELINE_CACHE["mtimes"] = mtimes_now
+            _BASELINE_CACHE["misses"] = _BASELINE_CACHE.get("misses", 0) + 1
+        else:
+            _BASELINE_CACHE["hits"] = _BASELINE_CACHE.get("hits", 0) + 1
+
+        baseline_captures = _BASELINE_CACHE.get("captures", defs_mod.CAPTURE_FIELD_LIST)
+        baseline_samplers = _BASELINE_CACHE.get("samplers", defs_mod.SAMPLERS)
+
         suggested_nodes, suggested_samplers = {}, {}
         forced_node_names = {
             cls.strip()
@@ -385,14 +445,28 @@ class MetadataRuleScanner:
         all_nodes = {k: v for k, v in nodes.NODE_CLASS_MAPPINGS.items() if hasattr(v, "INPUT_TYPES")}
 
         initial_mode = mode or "new_only"
-        if include_existing and initial_mode == "new_only":
-            effective_mode = "all"
-            if _DEBUG_VERBOSE:
+        # Inverted semantics (2025-09): missing-only lens now active when include_existing is False
+        missing_lens = not bool(include_existing)
+        # Emit one-time informational log on first activation under new semantics
+        global _SCANNER_LENS_NOTICE_EMITTED  # type: ignore
+        try:
+            if missing_lens and not _SCANNER_LENS_NOTICE_EMITTED:
                 logger.info(
-                    cstr(
-                        "[Metadata Scanner] include_existing=True upgraded mode from 'new_only' to 'all' (compat mode)."
-                    ).msg
+                    "[Metadata Scanner] Missing-only lens active (include_existing=False). "
+                    "Set include_existing=True for previous inclusive behavior."
                 )
+                _SCANNER_LENS_NOTICE_EMITTED = True
+        except NameError:  # first use
+            _SCANNER_LENS_NOTICE_EMITTED = True if missing_lens else False  # type: ignore
+            if missing_lens:
+                logger.info(
+                    "[Metadata Scanner] Missing-only lens active (include_existing=False). "
+                    "Set include_existing=True for previous inclusive behavior."
+                )
+
+        if missing_lens:
+            # Mode meaning changes only for 'all' (global missing) and 'existing_only' (limit nodes to baseline)
+            effective_mode = initial_mode
         else:
             effective_mode = initial_mode
         force_include_set = {tok.strip().upper() for tok in force_include_metafields.split(",") if tok.strip()}
@@ -754,6 +828,24 @@ class MetadataRuleScanner:
                                     "existing" if mf in existing_rules else "new",
                                 )
                                 final_map[mf] = tagged
+                        # Missing-lens: drop fields already in union baseline (defaults+ext+user JSON)
+                        if missing_lens and final_map:
+                            # Preserve forced metafields even if already in baseline; filter others.
+                            baseline_for_class = (baseline_captures.get(class_name, {}) or {})
+                            kept = {}
+                            skipped_ct = 0
+                            for mf, data in final_map.items():
+                                if mf.name in force_include_set:
+                                    tagged = dict(data)
+                                    tagged.setdefault("forced", True)
+                                    kept[mf] = tagged
+                                elif mf.name not in baseline_for_class:
+                                    kept[mf] = data
+                                else:
+                                    skipped_ct += 1
+                            final_map = kept
+                            if skipped_ct:
+                                total_skipped_fields += skipped_ct
                         if final_map:
                             suggested_nodes[class_name] = final_map
                             new_here = sum(1 for mf in final_map if final_map[mf].get("status") == "new")
@@ -772,6 +864,17 @@ class MetadataRuleScanner:
                                 tagged = dict(data)
                                 tagged.setdefault("status", "new")
                                 tagged_map[mf] = tagged
+                            if missing_lens and tagged_map:
+                                baseline_for_class = (baseline_captures.get(class_name, {}) or {})
+                                filtered = {}
+                                for mf, data in tagged_map.items():
+                                    if mf.name in force_include_set:
+                                        tagged = dict(data)
+                                        tagged.setdefault("forced", True)
+                                        filtered[mf] = tagged
+                                    elif mf.name not in baseline_for_class:
+                                        filtered[mf] = data
+                                tagged_map = filtered
                             suggested_nodes[class_name] = tagged_map
                             new_nodes_count += 1
                             total_new_fields += len(tagged_map)
@@ -780,15 +883,38 @@ class MetadataRuleScanner:
 
         sampler_status = {}
         if suggested_samplers:
-            for s_name, mapping in suggested_samplers.items():
+            for s_name, mapping in list(suggested_samplers.items()):
                 existing_map = SAMPLERS.get(s_name, {})
-                sampler_status[s_name] = {
-                    k: {
+                if missing_lens:
+                    baseline_roles = set((baseline_samplers.get(s_name, {}) or {}).keys())
+                    kept_roles = {}
+                    for role, inp in mapping.items():
+                        role_upper = role.upper()
+                        if role_upper in force_include_set:
+                            kept_roles[role] = inp
+                        elif role not in baseline_roles:
+                            kept_roles[role] = inp
+                    # If no roles survived but a forced role name was requested and existed in baseline,
+                    # synthesize an entry so the forced role appears (parity with forced metafields logic).
+                    if not kept_roles and force_include_set:
+                        for forced_role in force_include_set:
+                            # Only synthesize if the role existed previously (baseline) for this sampler.
+                            if forced_role.lower() in {r.lower() for r in baseline_roles}:
+                                kept_roles[forced_role.lower()] = forced_role.lower()
+                    if kept_roles:
+                        suggested_samplers[s_name] = kept_roles
+                    else:
+                        del suggested_samplers[s_name]
+                        continue
+                sampler_status[s_name] = {}
+                for k, v in suggested_samplers.get(s_name, {}).items():
+                    entry = {
                         "value": v,
                         "status": ("existing" if k in existing_map else "new"),
                     }
-                    for k, v in mapping.items()
-                }
+                    if k.upper() in force_include_set:
+                        entry["forced"] = True
+                    sampler_status[s_name][k] = entry
 
         final_output = {
             "nodes": {},
@@ -806,8 +932,25 @@ class MetadataRuleScanner:
                 final_output["nodes"][forced] = {}
         if suggested_samplers:
             final_output["samplers"] = suggested_samplers
+        # If missing-lens removed a sampler entirely but user forced a role present in its baseline
+        # (baseline_samplers) synthesize an entry so role exposure matches forced metafield semantics.
+        if missing_lens and force_include_set:
+            for sampler_name, baseline_roles in baseline_samplers.items():
+                upper_baseline = {r.upper(): r for r in (baseline_roles or {}).keys()}
+                if sampler_name not in final_output["samplers"]:
+                    forced_kept = {}
+                    for forced_role in force_include_set:
+                        if forced_role in upper_baseline:
+                            role_lower = upper_baseline[forced_role]
+                            forced_kept[role_lower] = baseline_roles[role_lower]
+                    if forced_kept:
+                        final_output["samplers"][sampler_name] = forced_kept
+                        sampler_status.setdefault(sampler_name, {})
+                        for k, v in forced_kept.items():
+                            sampler_status[sampler_name][k] = {"value": v, "status": "existing", "forced": True}
         final_output["summary"] = {
             "mode": effective_mode,
+            "missing_lens": missing_lens,
             "new_nodes": new_nodes_count,
             "existing_nodes_with_new_fields": existing_nodes_with_new,
             "total_new_fields": total_new_fields,
@@ -817,13 +960,23 @@ class MetadataRuleScanner:
             "forced_node_classes": sorted(list(forced_node_names)) if forced_node_names else [],
         }
 
+        cache_hits = 0
+        cache_misses = 0
+        try:  # gather cache stats if present
+            cache_hits = int(_BASELINE_CACHE.get("hits", 0))  # type: ignore[arg-type]
+            cache_misses = int(_BASELINE_CACHE.get("misses", 0))  # type: ignore[arg-type]
+        except Exception:
+            pass
+
         diff_chunks = [
             f"Mode={effective_mode}",
+            f"MissingLens={'on' if missing_lens else 'off'}",
             f"New nodes={new_nodes_count}",
             f"Existing nodes w/ new fields={existing_nodes_with_new}",
             f"New fields={total_new_fields}",
             f"Existing fields included={total_existing_fields_included}",
             f"Skipped fields={total_skipped_fields}",
+            f"BaselineCache=hit:{cache_hits}|miss:{cache_misses}",
             "Force metafields="
             + (
                 ",".join(sorted(force_include_set))

@@ -1,6 +1,23 @@
 import os
 import sys
 import types
+
+# Early stub for folder_paths (must precede any package imports that expect it)
+if "folder_paths" not in sys.modules:  # pragma: no cover - test bootstrap
+    fp_mod = types.ModuleType("folder_paths")
+    _DEF_OUT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "_test_outputs"))
+    try:
+        os.makedirs(_DEF_OUT, exist_ok=True)
+    except OSError:
+        pass
+    fp_mod.get_output_directory = lambda: _DEF_OUT  # type: ignore
+    fp_mod.get_save_image_path = lambda prefix, output_dir, *a, **k: (output_dir or _DEF_OUT, prefix, 0, "", prefix)  # type: ignore
+    fp_mod.get_folder_paths = lambda kind: []  # type: ignore
+    fp_mod.get_full_path = lambda kind, name: name  # type: ignore
+    sys.modules["folder_paths"] = fp_mod
+
+# Force test mode before any package import so saveimage_unimeta avoids heavy runtime deps
+os.environ.setdefault("METADATA_TEST_MODE", "1")
 import numpy as np
 import pytest
 

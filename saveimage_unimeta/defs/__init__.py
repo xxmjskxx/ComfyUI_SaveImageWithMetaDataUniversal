@@ -218,12 +218,23 @@ def load_user_definitions(required_classes: set | None = None, suppress_missing_
         os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     )
     # User rule directory relocation: legacy was 'py/'. New directory 'user_rules/'.
-    USER_RULES_DIR = os.path.join(NODE_PACK_DIR, "user_rules")  # noqa: N806
+    # In test mode, prefer an isolated _test_outputs/user_rules directory if present to avoid polluting repo root.
+    TEST_OUTPUTS_DIR = os.path.join(NODE_PACK_DIR, "_test_outputs")
+    preferred_user_rules = os.path.join(TEST_OUTPUTS_DIR, "user_rules") if _TEST_MODE else None
+    if preferred_user_rules and os.path.isdir(preferred_user_rules):
+        USER_RULES_DIR = preferred_user_rules  # noqa: N806
+    else:
+        USER_RULES_DIR = os.path.join(NODE_PACK_DIR, "user_rules")  # noqa: N806
     os.makedirs(USER_RULES_DIR, exist_ok=True)
     USER_CAPTURES_FILE = os.path.join(USER_RULES_DIR, "user_captures.json")  # noqa: N806
     USER_SAMPLERS_FILE = os.path.join(USER_RULES_DIR, "user_samplers.json")  # noqa: N806
     # Migration shim: if new files absent but legacy exist, migrate once.
     LEGACY_PY_DIR = os.path.join(NODE_PACK_DIR, "py")  # noqa: N806
+    # Test isolation: allow legacy files placed in _test_outputs/py to migrate too.
+    if _TEST_MODE:
+        test_legacy = os.path.join(NODE_PACK_DIR, "_test_outputs", "py")
+        if os.path.isdir(test_legacy):  # prefer test-scoped legacy if present
+            LEGACY_PY_DIR = test_legacy  # type: ignore
     if not os.path.exists(USER_CAPTURES_FILE):
         legacy_caps = os.path.join(LEGACY_PY_DIR, "user_captures.json")
         if os.path.exists(legacy_caps):

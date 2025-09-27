@@ -5,9 +5,16 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 ### Added
 - Initial coverage threshold enforcement (fail-under 35%) with multi-version matrix (3.10–3.12).
+- Baseline rule cache in `Metadata Rule Scanner` (diff report: `BaselineCache=hit:X|miss:Y`).
+- Dropdown backup restore selector for `Save Custom Metadata Rules` (`restore_backup_set`).
+- Central diff parsing helper (`tests/diff_utils.parse_diff_report`).
+- Scanner tests for forced metafield retention and cache hit accounting.
 ### Changed
 - Consolidated dual CI workflows into single `unimeta-ci.yml` (matrix tests, coverage, strict & autofix lint jobs).
+- Clarified scanner `include_existing` tooltip (explicit include vs missing-only lens when disabled).
+- Expanded `rules_json_string` tooltip (schema guidance, allowed rule keys).
 ### Fixed
+- Minor tooltip long-line wrapping & consistency adjustments across nodes.
 
 ## [1.1.2] - 2025-09-26
 ### Added

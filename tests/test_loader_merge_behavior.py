@@ -12,11 +12,10 @@ from saveimage_unimeta.defs import (
 
 
 def _node_pack_py_dir() -> str:
-    # saveimage_unimeta/defs/__init__.py is two levels deeper than package root
+    # Place test user rule artifacts under _test_outputs/user_rules to avoid polluting real tree.
     here = os.path.dirname(__file__)
-    # tests/ -> package root is parent of 'tests'
     pack_root = os.path.abspath(os.path.join(here, os.pardir))
-    return os.path.join(pack_root, "py")
+    return os.path.join(pack_root, "_test_outputs", "user_rules")
 
 
 def _write_json(path: str, data) -> None:
