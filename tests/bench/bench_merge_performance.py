@@ -1,7 +1,12 @@
 """Ad-hoc benchmark to compare legacy inline merge logic vs helper functions.
 
-Run directly: python bench_merge_performance.py
-This is intentionally lightweight and not part of pytest.
+Relocated under tests/ so it is clearly a developer utility and not part of
+runtime distribution. Still runnable directly:
+
+    python -m tests.bench.bench_merge_performance
+
+Outputs JSON summary to _test_outputs/merge_bench.json (consistent with other
+test artifacts) and prints a human-readable verdict.
 """
 from __future__ import annotations
 
@@ -13,12 +18,10 @@ import time
 from collections.abc import Mapping, Callable
 from typing import Any
 
-# Synthetic sampler structures
 SAMPLES = 2_000  # number of keys
-MERGE_ITERS = 200  # number of merge operations per run
+MERGE_ITERS = 200  # merge operations per run
 REPEAT = 5  # repetitions for timing stability
 
-# Prepare synthetic data
 random.seed(42)
 BASE = {f"Node{i}": {"a": i, "b": i * 2} for i in range(SAMPLES)}
 USER_OK = {f"Node{i}": {"c": i + 1} for i in range(0, SAMPLES, 2)}
@@ -30,16 +33,12 @@ def legacy_merge(base: dict[str, Any], user: dict[str, Any]) -> dict[str, Any]:
     target = {k: (v.copy() if isinstance(v, dict) else v) for k, v in base.items()}
     for key, val in user.items():
         if isinstance(val, Mapping):
-            if (
-                key not in target
-                or not isinstance(target.get(key), Mapping)
-            ):
+            if key not in target or not isinstance(target.get(key), Mapping):
                 target[key] = val
             else:
                 target[key].update(val)  # type: ignore[assignment]
         else:
-            # simulate warning skip
-            pass
+            pass  # simulate skip
     return target
 
 
@@ -94,12 +93,16 @@ def main():
         },
     }
     print(f"Delta: {diff:.6f}s ({pct:.2f}%) -> {verdict}")
-    # Ensure output directory exists before writing results
-    os.makedirs("_test_outputs", exist_ok=True)
-    with open("_test_outputs/merge_bench.json", "w", encoding="utf-8") as f:
+    # Use unified test outputs directory
+    out_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "_test_outputs"))
+    # Fallback: project root _test_outputs if relative path doesn't exist
+    if not os.path.isdir(out_dir):
+        out_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "_test_outputs"))
+    os.makedirs(out_dir, exist_ok=True)
+    with open(os.path.join(out_dir, "merge_bench.json"), "w", encoding="utf-8") as f:
         json.dump(result, f, indent=2)
-    print("Wrote _test_outputs/merge_bench.json")
+    print(f"Wrote {os.path.join(out_dir, 'merge_bench.json')}")
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover - manual utility
     main()

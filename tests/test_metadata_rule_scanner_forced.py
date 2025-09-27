@@ -2,6 +2,7 @@ import json
 import pytest
 
 from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes import MetadataRuleScanner
+from .diff_utils import parse_diff_report
 
 
 class DummyNode:
@@ -30,8 +31,12 @@ def test_forced_inclusion_overrides_exclusion():
         )
         payload = json.loads(result_json)
         assert "MaskAnalysisNode" in payload["nodes"]
+        # Validate via JSON summary and parsed diff report
         assert "forced_node_classes" in payload["summary"]
         assert "MaskAnalysisNode" in payload["summary"]["forced_node_classes"], diff
+        diff_parsed = parse_diff_report(diff)
+        if diff_parsed.get("forced_node_classes"):
+            assert "MaskAnalysisNode" in diff_parsed["forced_node_classes"]
     finally:
         undo()
 
@@ -42,7 +47,7 @@ def test_forced_inclusion_existing_only_mode():
     undo = _register_temp(nodes_pkg.NODE_CLASS_MAPPINGS, "TransientDummyNode", DummyNode)
     try:
         scanner = MetadataRuleScanner()
-        result_json, _ = scanner.scan_for_rules(
+        result_json, diff = scanner.scan_for_rules(
             exclude_keywords="",
             include_existing=False,
             mode="existing_only",
@@ -51,6 +56,8 @@ def test_forced_inclusion_existing_only_mode():
         )
         payload = json.loads(result_json)
         assert "TransientDummyNode" in payload["nodes"]
+        # diff parsing smoke
+        parse_diff_report(diff)
     finally:
         undo()
 
@@ -65,7 +72,7 @@ def test_multiple_forced_variants(value):
     u2 = _register_temp(nodes_pkg.NODE_CLASS_MAPPINGS, "ClassTwo", DummyNode)
     try:
         scanner = MetadataRuleScanner()
-        result_json, _ = scanner.scan_for_rules(
+        result_json, diff = scanner.scan_for_rules(
             exclude_keywords="irrelevant",
             include_existing=False,
             mode="existing_only",
@@ -77,6 +84,10 @@ def test_multiple_forced_variants(value):
         assert {"ClassOne", "ClassTwo"}.issubset(forced)
         # Both nodes should appear even though mode would normally exclude them
         assert "ClassOne" in payload["nodes"] and "ClassTwo" in payload["nodes"]
+        diff_parsed = parse_diff_report(diff)
+        # Ensure at least one forced class appears in diff structured form if present
+        if diff_parsed.get("forced_node_classes"):
+            assert {"ClassOne", "ClassTwo"}.intersection(diff_parsed["forced_node_classes"])  # non-empty
     finally:
         u1()
         u2()
@@ -88,7 +99,7 @@ def test_forced_node_empty_object_emitted():
     undo = _register_temp(nodes_pkg.NODE_CLASS_MAPPINGS, "UnmatchedNode", DummyNode)
     try:
         scanner = MetadataRuleScanner()
-        result_json, _ = scanner.scan_for_rules(
+        result_json, diff = scanner.scan_for_rules(
             exclude_keywords="unmatched",
             include_existing=False,
             mode="new_only",
@@ -98,5 +109,6 @@ def test_forced_node_empty_object_emitted():
         payload = json.loads(result_json)
         assert "UnmatchedNode" in payload["nodes"]
         assert payload["nodes"]["UnmatchedNode"] == {}, "Expected empty object for unmatched forced node"
+        parse_diff_report(diff)
     finally:
         undo()

@@ -271,31 +271,41 @@ NOTE: The `force_include_node_class` input is provided by the `Metadata Rule Sca
 <details>
 <summary><strong>More:</strong></summary>
 
-The rule tooling consists of two cooperating nodes plus an optional scanner input:
+Two cooperating nodes plus optional force inputs help build and refine your capture rules:
 
 ### Scanner (`Metadata Rule Scanner`)
-* Inputs: `exclude_keywords`, `include_existing`, `mode`, `force_include_metafields`.
-* Scans installed nodes and suggests capture rules + sampler mappings.
-* Produces JSON rule suggestions + a human‑readable diff summary.
+Inputs:
+
+| Input | Purpose |
+|-------|---------|
+| `exclude_keywords` | Comma keywords to skip noisy class names (case-insensitive substring). |
+| `mode` | `new_only` (only new fields per existing node + all fields for brand new nodes), `all`, `existing_only`. |
+| `include_existing` | When True show both existing & new fields. When False activates the missing-only lens (only fields/roles not yet captured in baseline). |
+| `force_include_metafields` | Always show specified metafields (MetaField constant names) even if already present. |
+| `force_include_node_class` | Always include certain node classes (comma or newline separated). Emits empty object if no suggestions. |
+
+Outputs:
+* JSON suggestions (nodes + samplers + status tags for tooling).
+* Diff summary string; includes `BaselineCache=hit:X|miss:Y` and forced class listing.
+
+Caching:
+* Baseline (defaults + extensions + user rules) cached across scans using file mtimes. Re-run scanner repeatedly for quick iteration; hits/misses visible in `diff_report`.
+
+Missing-only Lens (include_existing=False):
+* Filters out metafields and sampler roles already captured in the baseline union so you can focus on gaps.
+* `force_include_metafields` overrides filtering for the specified field names.
 
 ### Force Include (`Metadata Force Include`)
-* Inputs: `force_include_node_class` (multiline), `reset_forced` (bool), `dry_run` (optional bool).
-* Maintains a global set of node class names treated as required when loading user metadata definitions.
-* Output: Comma‑joined list of currently forced classes (`FORCED_CLASSES`).
+Maintains a global set of node class names guaranteed to be treated as required when loading user definitions.
 
-You can connect the second plain `STRING` output (`forced_classes_str`) directly to `Show Text (UniMeta)` to display the active forced class list for auditing.
+Inputs: `force_include_node_class` (multiline), `reset_forced`, optional `dry_run`.
+Outputs: Updated forced class list (string + list form) for display/auditing.
 
-`SaveImageWithMetaDataUniversal` merges the forced class set before deciding whether to load user JSON definition files.
-
-### Scanner Input: `force_include_node_class`
-Optional multiline field accepted by the scanner. Provide exact class names (comma or newline separated) to forcibly include those nodes in scan results even if they:
-* Match one of the `exclude_keywords`, or
-* Would normally be omitted by `mode` (e.g. `existing_only` skipping additional nodes).
-
-Output effects:
-* `summary.forced_node_classes` lists them.
-* `diff_report` appends a `Forced node classes=` segment.
-* If a forced class yields no heuristic suggestions, an empty object is emitted so tooling can still merge or annotate it.
+### Saving Rules (`Save Custom Metadata Rules`)
+* Modes: `overwrite` (replace) or `append_new` (add only missing; optional conflict replacement).
+* Automatic timestamped backups (limit retained sets) + dropdown restore (`restore_backup_set`).
+* Generates deterministic `generated_user_rules.py` (disable via `rebuild_python_rules` toggle for speed while iterating).
+* Rules JSON field tooltip documents required schema (top-level `nodes` & `samplers`). `status` keys from scanner are ignored when saving.
 
 </details>
 

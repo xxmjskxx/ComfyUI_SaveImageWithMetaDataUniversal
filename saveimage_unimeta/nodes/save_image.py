@@ -4,7 +4,36 @@ import os
 import re
 from datetime import datetime
 
-import folder_paths
+# Attempt to import ComfyUI's folder_paths; provide a lightweight fallback stub when
+# running in isolated unit tests where the real module is absent. This mirrors the
+# early stubbing done in tests/conftest.py but adds in-file resilience so that
+# importing this module never hard-fails just because the test harness executed
+# imports in a different order.
+try:  # pragma: no cover - normal runtime path
+    import folder_paths  # type: ignore
+except ModuleNotFoundError:  # pragma: no cover - isolated test fallback
+    class _FolderPathsStub:  # minimal surface used by this module
+        def __init__(self):
+            import os as _os
+            self._out = _os.path.abspath("_test_outputs")
+            try:
+                _os.makedirs(self._out, exist_ok=True)
+            except OSError:
+                pass
+
+        def get_output_directory(self):  # noqa: D401
+            return self._out
+
+        def get_save_image_path(self, prefix, output_dir, *_, **__):
+            return (output_dir or self._out, prefix, 0, "", prefix)
+
+        def get_folder_paths(self, kind):  # noqa: D401
+            return []
+
+        def get_full_path(self, kind, name):  # noqa: D401
+            return name
+
+    folder_paths = _FolderPathsStub()  # type: ignore
 import numpy as np
 from ..utils.color import cstr
 try:  # Comfy runtime provides this; tests may not

@@ -23,7 +23,14 @@ from logging import getLogger
 from ..utils.deserialize import deserialize_input
 
 # Test mode is enabled only for explicit truthy tokens, not any non-empty string ("0" should be false)
+# NOTE: Test mode is captured at import time for baseline import shaping, but
+# path selection for user rules must be resilient to late environment flag
+# injection (e.g. coverage run import ordering). We therefore also provide a
+# runtime checker used inside loaders to avoid missing test-isolated files.
 _TEST_MODE = _os.environ.get("METADATA_TEST_MODE", "").strip().lower() in {"1", "true", "yes", "on"}
+
+def _is_test_mode() -> bool:  # pragma: no cover - trivial logic
+    return _os.environ.get("METADATA_TEST_MODE", "").strip().lower() in {"1", "true", "yes", "on"}
 if not _TEST_MODE:
     from .captures import CAPTURE_FIELD_LIST  # type: ignore
     from .samplers import SAMPLERS  # type: ignore
@@ -217,21 +224,63 @@ def load_user_definitions(required_classes: set | None = None, suppress_missing_
     NODE_PACK_DIR = os.path.dirname(  # noqa: N806
         os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     )
-    USER_CAPTURES_FILE = os.path.join(NODE_PACK_DIR, "py", "user_captures.json")  # noqa: N806
-    USER_SAMPLERS_FILE = os.path.join(NODE_PACK_DIR, "py", "user_samplers.json")  # noqa: N806
+    # User rule directory relocation: legacy was 'py/'. New directory 'user_rules/'.
+    # In test mode, prefer an isolated _test_outputs/user_rules directory if present to avoid polluting repo root.
+    TEST_OUTPUTS_DIR = os.path.join(NODE_PACK_DIR, "_test_outputs")
+    # Re-evaluate test mode at runtime so late env mutation still enables
+    # isolation (coverage run import ordering can differ from local pytest).
+    runtime_test_mode = _is_test_mode()
+    preferred_user_rules = os.path.join(TEST_OUTPUTS_DIR, "user_rules") if runtime_test_mode else None
+    if preferred_user_rules and os.path.isdir(preferred_user_rules):
+        USER_RULES_DIR = preferred_user_rules  # noqa: N806
+    else:
+        USER_RULES_DIR = os.path.join(NODE_PACK_DIR, "user_rules")  # noqa: N806
+    os.makedirs(USER_RULES_DIR, exist_ok=True)
+    USER_CAPTURES_FILE = os.path.join(USER_RULES_DIR, "user_captures.json")  # noqa: N806
+    USER_SAMPLERS_FILE = os.path.join(USER_RULES_DIR, "user_samplers.json")  # noqa: N806
+    # Migration shim: if new files absent but legacy exist, migrate once.
+    LEGACY_PY_DIR = os.path.join(NODE_PACK_DIR, "py")  # noqa: N806
+    # Test isolation: allow legacy files placed in _test_outputs/py to migrate too.
+    if _TEST_MODE:
+        test_legacy = os.path.join(NODE_PACK_DIR, "_test_outputs", "py")
+        if os.path.isdir(test_legacy):  # prefer test-scoped legacy if present
+            LEGACY_PY_DIR = test_legacy  # type: ignore
+    if not os.path.exists(USER_CAPTURES_FILE):
+        legacy_caps = os.path.join(LEGACY_PY_DIR, "user_captures.json")
+        if os.path.exists(legacy_caps):
+            try:
+                import shutil as _shutil
+                _shutil.move(legacy_caps, USER_CAPTURES_FILE)
+                logger.info("[Metadata Loader] Migrated legacy user_captures.json to user_rules/.")
+            except Exception as e:  # pragma: no cover - non critical
+                logger.warning("[Metadata Loader] Failed migrating user_captures.json: %s", e)
+    if not os.path.exists(USER_SAMPLERS_FILE):
+        legacy_samplers = os.path.join(LEGACY_PY_DIR, "user_samplers.json")
+        if os.path.exists(legacy_samplers):
+            try:
+                import shutil as _shutil
+                _shutil.move(legacy_samplers, USER_SAMPLERS_FILE)
+                logger.info("[Metadata Loader] Migrated legacy user_samplers.json to user_rules/.")
+            except Exception as e:  # pragma: no cover
+                logger.warning("[Metadata Loader] Failed migrating user_samplers.json: %s", e)
 
+    # Decide whether to attempt user JSON merge.
+    # Previous logic skipped user JSON when all required classes already covered by defaults/ext.
+    # However tests rely on merging user JSON when requesting *only* missing classes (none covered yet)
+    # and when extending existing classes. To keep behavior intuitive while preserving skip optimization:
+    #   * If required_classes provided and every class is already covered, skip (fast path).
+    #   * Otherwise (some missing OR no required_classes specified), perform merge.
     need_user_merge = True
     if required_classes:
-        # If every required class is already covered by ext/defaults, we can skip user merge
-        missing = [ct for ct in required_classes if ct not in cover_set]
-        if not missing:
+        all_covered = all(ct in cover_set for ct in required_classes)
+        if all_covered:
             need_user_merge = False
             logger.info("[Metadata Loader] Coverage satisfied by defaults+ext; skipping user JSON merge.")
         else:
             if not suppress_missing_log:
+                missing = [ct for ct in required_classes if ct not in cover_set]
                 logger.info(
-                    "[Metadata Loader] Missing classes in defaults+ext: %s. Will attempt user JSON merge.",
-                    missing,
+                    "[Metadata Loader] Missing classes in defaults+ext: %s. Will merge user JSON.", missing
                 )
 
     if need_user_merge:

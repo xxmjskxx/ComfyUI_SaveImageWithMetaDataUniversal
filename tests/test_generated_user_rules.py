@@ -11,8 +11,14 @@ def _paths_for_generated_files():
         "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.rules_writer"
     )
     base_py = os.path.dirname(os.path.dirname(os.path.abspath(mod.__file__)))
-    user_captures = os.path.join(base_py, "py", "user_captures.json")
-    user_samplers = os.path.join(base_py, "py", "user_samplers.json")
+    # Respect test-mode isolated directory if present (writer prefers it only if it already exists)
+    test_isolated = os.path.join(base_py, "_test_outputs", "user_rules")
+    if os.environ.get("METADATA_TEST_MODE") and os.path.isdir(test_isolated):
+        user_dir = test_isolated
+    else:
+        user_dir = os.path.join(base_py, "user_rules")
+    user_captures = os.path.join(user_dir, "user_captures.json")
+    user_samplers = os.path.join(user_dir, "user_samplers.json")
     ext_dir = os.path.join(base_py, "defs", "ext")
     gen_py = os.path.join(ext_dir, "generated_user_rules.py")
     return base_py, user_captures, user_samplers, gen_py, ext_dir
@@ -26,6 +32,17 @@ def _cleanup_generated_files():
                 os.remove(p)
         except OSError:
             pass
+    # Recreate a placeholder generated_user_rules.py so coverage can always
+    # resolve the source file even if tests delete the real generated module.
+    try:
+        if not os.path.exists(gen_py):
+            with open(gen_py, "w", encoding="utf-8") as f:
+                f.write(
+                    "# Placeholder generated_user_rules.py (test coverage stability)\n"
+                    "CAPTURE_FIELD_LIST = {}\nSAMPLERS = {}\nKNOWN = {}\n"
+                )
+    except OSError:
+        pass
     # Best-effort: remove compiled cache for generated module to avoid bleed between tests
     try:
         cache_dir = os.path.join(ext_dir, "__pycache__")
@@ -70,10 +87,8 @@ def test_save_custom_rules_generates_valid_ext_and_jsons():
     }
 
     status, = writer.save_rules(json.dumps(rules))
-    # Verify status mentions saved files
-    assert "user_captures.json" in status
-    assert "user_samplers.json" in status
-    assert "generated_user_rules.py" in status
+    # New writer returns metrics summary; assert key metrics present
+    assert status.startswith("mode=overwrite"), status
 
     base_py, user_captures, user_samplers, gen_py, _ = _paths_for_generated_files()
     assert os.path.exists(user_captures)
@@ -151,7 +166,7 @@ def test_scanner_roundtrip_generates_importable_module(monkeypatch):
         # Save via writer
         writer = nodes_pkg.SaveCustomMetadataRules()
         status, = writer.save_rules(result_json)
-        assert "generated_user_rules.py" in status
+        assert status.startswith("mode=overwrite"), status
 
         # Import generated module to ensure it compiles
         pkg = (
