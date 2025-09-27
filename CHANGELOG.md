@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 _No changes yet._
 
-## [1.2.0] - 2025-09-26 (Unreleased tag prep)
+## [1.2.0] - 2025-09-26
 ### Added
 - Tests: missing-only lens behavior, forced sampler role retention, scanner cache path parity.
 - Dummy `KSampler` test shim for stable sampler detection under test mode.
@@ -105,6 +105,9 @@ Note: 1.0.0 was the first public registry release; this minor release formalizes
 - Remaining long lines in `node.py` are legacy and will be incrementally cleaned.
 
 ---
+
+[Unreleased]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.1.2...v1.2.0
 
 ## [0.1.0] - 2025-09-20 (Initial Internal Release)
 Baseline derived from upstream [`nkchocoai/ComfyUI-SaveImageWithMetaData`](https://github.com/nkchocoai/ComfyUI-SaveImageWithMetaData/) with extensive architectural and feature expansion aggregated prior to release.
