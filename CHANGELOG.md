@@ -3,38 +3,40 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+_No changes yet._
+
+## [1.2.0] - 2025-09-26 (Unreleased tag prep)
 ### Added
+- Tests: missing-only lens behavior, forced sampler role retention, scanner cache path parity.
+- Dummy `KSampler` test shim for stable sampler detection under test mode.
+- Benchmark relocated to `tests/bench/bench_merge_performance.py` (no runtime surface impact).
 - Initial coverage threshold enforcement (fail-under 35%) with multi-version matrix (3.10–3.12).
 - Baseline rule cache in `Metadata Rule Scanner` (diff report: `BaselineCache=hit:X|miss:Y`).
 - Dropdown backup restore selector for `Save Custom Metadata Rules` (`restore_backup_set`).
 - Central diff parsing helper (`tests/diff_utils.parse_diff_report`).
 - Scanner tests for forced metafield retention and cache hit accounting.
-### Changed
-- Consolidated dual CI workflows into single `unimeta-ci.yml` (matrix tests, coverage, strict & autofix lint jobs).
-- Clarified scanner `include_existing` tooltip (explicit include vs missing-only lens when disabled).
-- Expanded `rules_json_string` tooltip (schema guidance, allowed rule keys).
-### Fixed
-- Minor tooltip long-line wrapping & consistency adjustments across nodes.
-
-## [1.2.0] - 2025-09-26
-### Added
-- Tests: missing-only lens behavior, forced sampler role retention, scanner cache path parity.
-- Dummy `KSampler` test shim for stable sampler detection under test mode.
-- Benchmark relocated to `tests/bench/bench_merge_performance.py` (no runtime surface impact).
 
 ### Changed
-- Scanner semantics clarified: `include_existing=False` now explicitly activates missing-only lens (documentation + logs).
+- Scanner semantics clarified: `include_existing=False` activates missing-only lens (documentation + logs). (Interim experiment to default True was reverted before release; final default remains False — no breaking change to prior public behavior.)
 - Unified test artifact isolation: writer, loader, and scanner prefer `_test_outputs/user_rules` in `METADATA_TEST_MODE`.
 - Path parity updates for user rule JSON (writer + scanner mtime cache logic).
 - Moved `MIGRATIONS.md` to `docs/`.
+- Consolidated dual CI workflows into single `unimeta-ci.yml` (matrix tests, coverage, strict & autofix lint jobs).
+- Clarified scanner `include_existing` tooltip (explicit include vs missing-only lens when disabled) and expanded `rules_json_string` tooltip (schema guidance, allowed rule keys).
 
 ### Removed
 - Root `folder_paths.py` test stub (tests supply their own stub early).
 - Legacy example user rule JSON files and obsolete design scratch file.
 
 ### Fixed
+- Loader runtime test-mode path detection (ensures user JSON merges correctly under coverage import order).
+- Coverage “No source for code” error: placeholder `generated_user_rules.py` + coverage omit.
+- Timestamp helper now validates optional `-N` suffix correctly.
 - Failing append placeholder test due to path mismatch after isolation changes.
 - Potential stale baseline in scanner cache when isolated test directory used.
+- Narrowed broad `Exception` catches in migration fallback to `OSError` (reduces risk of swallowing logic errors).
+- Removed duplicate registration block in missing-lens sampler roles test.
+- Minor tooltip long-line wrapping & consistency adjustments across nodes.
 
 ## [1.1.2] - 2025-09-26
 ### Added
