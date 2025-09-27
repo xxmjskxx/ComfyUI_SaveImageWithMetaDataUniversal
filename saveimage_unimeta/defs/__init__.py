@@ -254,18 +254,23 @@ def load_user_definitions(required_classes: set | None = None, suppress_missing_
             except Exception as e:  # pragma: no cover
                 logger.warning("[Metadata Loader] Failed migrating user_samplers.json: %s", e)
 
+    # Decide whether to attempt user JSON merge.
+    # Previous logic skipped user JSON when all required classes already covered by defaults/ext.
+    # However tests rely on merging user JSON when requesting *only* missing classes (none covered yet)
+    # and when extending existing classes. To keep behavior intuitive while preserving skip optimization:
+    #   * If required_classes provided and every class is already covered, skip (fast path).
+    #   * Otherwise (some missing OR no required_classes specified), perform merge.
     need_user_merge = True
     if required_classes:
-        # If every required class is already covered by ext/defaults, we can skip user merge
-        missing = [ct for ct in required_classes if ct not in cover_set]
-        if not missing:
+        all_covered = all(ct in cover_set for ct in required_classes)
+        if all_covered:
             need_user_merge = False
             logger.info("[Metadata Loader] Coverage satisfied by defaults+ext; skipping user JSON merge.")
         else:
             if not suppress_missing_log:
+                missing = [ct for ct in required_classes if ct not in cover_set]
                 logger.info(
-                    "[Metadata Loader] Missing classes in defaults+ext: %s. Will attempt user JSON merge.",
-                    missing,
+                    "[Metadata Loader] Missing classes in defaults+ext: %s. Will merge user JSON.", missing
                 )
 
     if need_user_merge:
