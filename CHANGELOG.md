@@ -16,6 +16,26 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - Minor tooltip long-line wrapping & consistency adjustments across nodes.
 
+## [1.2.0] - 2025-09-26
+### Added
+- Tests: missing-only lens behavior, forced sampler role retention, scanner cache path parity.
+- Dummy `KSampler` test shim for stable sampler detection under test mode.
+- Benchmark relocated to `tests/bench/bench_merge_performance.py` (no runtime surface impact).
+
+### Changed
+- Scanner semantics clarified: `include_existing=False` now explicitly activates missing-only lens (documentation + logs).
+- Unified test artifact isolation: writer, loader, and scanner prefer `_test_outputs/user_rules` in `METADATA_TEST_MODE`.
+- Path parity updates for user rule JSON (writer + scanner mtime cache logic).
+- Moved `MIGRATIONS.md` to `docs/`.
+
+### Removed
+- Root `folder_paths.py` test stub (tests supply their own stub early).
+- Legacy example user rule JSON files and obsolete design scratch file.
+
+### Fixed
+- Failing append placeholder test due to path mismatch after isolation changes.
+- Potential stale baseline in scanner cache when isolated test directory used.
+
 ## [1.1.2] - 2025-09-26
 ### Added
 - Collapsible README section pattern unified ("More:" details blocks) for improved scanability.
