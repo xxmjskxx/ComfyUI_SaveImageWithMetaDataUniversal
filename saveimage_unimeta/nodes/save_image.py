@@ -59,6 +59,7 @@ from ..defs import FORCED_INCLUDE_CLASSES
 from ..defs.captures import CAPTURE_FIELD_LIST
 from ..defs.combo import SAMPLER_SELECTION_METHOD
 from ..defs.samplers import SAMPLERS
+from ..defs.meta import MetaField
 from ..trace import Trace
 
 logger = logging.getLogger(__name__)
@@ -733,6 +734,96 @@ class SaveImageWithMetaDataUniversal:
             inputs_before_this_node,
             save_civitai_sampler,
         )
+        # Multi-sampler enrichment (Tier A + B only). We enumerate upstream from the SaveImage node.
+        try:
+            multi_candidates = Trace.enumerate_samplers(trace_tree_from_this_node)
+        except Exception:
+            multi_candidates = []
+        if len(multi_candidates) > 1:
+            # Populate sampler names / steps from captured inputs mapping for richer detail
+            # Build index of captured values for lookup (prefer closest occurrence per node)
+            name_field = MetaField.SAMPLER_NAME if hasattr(MetaField, 'SAMPLER_NAME') else None  # type: ignore
+            steps_field = MetaField.STEPS if hasattr(MetaField, 'STEPS') else None  # type: ignore
+            start_field = MetaField.START_STEP if hasattr(MetaField, 'START_STEP') else None  # type: ignore
+            end_field = MetaField.END_STEP if hasattr(MetaField, 'END_STEP') else None  # type: ignore
+            def _first_for(meta, node_id: str):
+                vals = inputs.get(meta) or []
+                for tup in vals:
+                    try:
+                        if str(tup[0]) == str(node_id):
+                            return tup[1]
+                    except Exception:
+                        continue
+                return None
+            for entry in multi_candidates:
+                nid = entry['node_id']
+                try:
+                    if name_field:
+                        entry['sampler_name'] = _first_for(name_field, nid)
+                    if steps_field:
+                        v = _first_for(steps_field, nid)
+                        if isinstance(v, int):
+                            entry['steps'] = v
+                    if start_field and end_field:
+                        sv = _first_for(start_field, nid)
+                        ev = _first_for(end_field, nid)
+                        if isinstance(sv, int) and isinstance(ev, int):
+                            entry['start_step'] = sv
+                            entry['end_step'] = ev
+                            entry['is_segment'] = True
+                            entry['range_len'] = (ev - sv + 1) if ev >= sv else 0
+                        else:
+                            # Derive range len from steps if full sampler
+                            if entry.get('steps') and not entry.get('range_len'):
+                                entry['range_len'] = entry['steps']
+                except Exception:
+                    continue
+            # Primary (first element by enumerate_samplers contract)
+            # primary retained implicitly as first element; selection already encoded in enumeration ordering
+            # Build structured detail list
+            structured_items = []
+            for e in multi_candidates:
+                parts = []
+                if e.get('sampler_name'):
+                    parts.append(f"Name: {e['sampler_name']}")
+                if e.get('start_step') is not None and e.get('end_step') is not None:
+                    parts.append(f"Start: {e['start_step']}")
+                    parts.append(f"End: {e['end_step']}")
+                elif e.get('steps') is not None:
+                    parts.append(f"Steps: {e['steps']}")
+                structured_items.append('{'+', '.join(parts)+'}')
+            pnginfo_dict['Samplers detail'] = '[ ' + ', '.join(structured_items) + ' ]'
+            # Overlap diagnostics: detect intersecting segment ranges
+            try:
+                segments = [
+                    (e['sampler_name'] or e['class_type'], e.get('start_step'), e.get('end_step'))
+                    for e in multi_candidates
+                    if e.get('start_step') is not None and e.get('end_step') is not None
+                ]
+                # naive O(n^2) small n<=4 so fine
+                for i in range(len(segments)):
+                    for j in range(i + 1, len(segments)):
+                        n1, s1, e1 = segments[i]
+                        n2, s2, e2 = segments[j]
+                        if s1 is None or s2 is None:
+                            continue
+                        if e1 is None or e2 is None:
+                            continue
+                        if s1 <= e2 and s2 <= e1:  # overlap condition
+                            logger.warning(
+                                "[MultiSampler] Overlapping segment ranges detected: %s(%s-%s) vs %s(%s-%s)",
+                                n1,
+                                s1,
+                                e1,
+                                n2,
+                                s2,
+                                e2,
+                            )
+            except Exception:
+                pass
+            # Append tail to parameters later via Capture.gen_parameters_str consumer: stash in dict for now
+            # Use a reserved internal key to signal later augmentation. We choose a key unlikely to clash.
+            pnginfo_dict['__multi_sampler_entries'] = multi_candidates
         return pnginfo_dict
 
     @classmethod

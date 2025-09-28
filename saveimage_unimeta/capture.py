@@ -1530,6 +1530,12 @@ class Capture:
             if k.lower() in {"t5 prompt", "clip prompt"}:
                 exclude_keys.add(k)
         data = {k: v for k, v in pnginfo_dict.items() if k not in exclude_keys}
+        multi_entries = []
+        if "__multi_sampler_entries" in data:
+            try:
+                multi_entries = data.pop("__multi_sampler_entries") or []
+            except Exception:
+                multi_entries = []
 
         # Guidance-as-CFG override: when enabled and Guidance present, overwrite CFG scale with Guidance value
         # Then remove the original Guidance key.
@@ -1733,11 +1739,38 @@ class Capture:
                 s = _format_sampler(s)
             parts.append(f"{k}: {s}")
 
+        # Multi-sampler tail augmentation: only if >1 sampler candidate
+        tail = ""
+        if multi_entries and isinstance(multi_entries, list) and len(multi_entries) > 1:
+            try:
+                segs = []
+                for e in multi_entries:
+                    name = e.get("sampler_name") or e.get("class_type") or "?"
+                    if e.get("start_step") is not None and e.get("end_step") is not None:
+                        segs.append(f"{name} ({e['start_step']}-{e['end_step']})")
+                    elif e.get("steps") is not None:
+                        # Represent full-run steps as 0-(steps-1) only if there are segment samplers too
+                        any_segments = any(x.get("start_step") is not None for x in multi_entries)
+                        if any_segments and isinstance(e.get("steps"), int):
+                            rng = f"0-{int(e['steps'])-1}" if int(e['steps']) > 0 else "0-0"
+                            segs.append(f"{name} ({rng})")
+                        else:
+                            segs.append(f"{name}")
+                    else:
+                        segs.append(str(name))
+                tail_core = " | ".join(segs)
+                if multiline:
+                    tail = f"\nSamplers: {tail_core}"
+                else:
+                    tail = f", Samplers: {tail_core}"
+            except Exception:
+                tail = ""
+
         if multiline:
-            return result + "\n".join(parts)
+            return result + "\n".join(parts) + tail
         else:
             # Legacy Automatic1111-style: single parameter line (after prompts / negative)
-            return result + ", ".join(parts)
+            return result + ", ".join(parts) + tail
 
     @classmethod
     def add_hash_detail_section(cls, pnginfo_dict):
