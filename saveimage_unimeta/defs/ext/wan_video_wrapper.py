@@ -94,6 +94,8 @@ CAPTURE_FIELD_LIST = {
         MetaField.CFG: {"field_name": "cfg"},
         MetaField.SHIFT: {"field_name": "shift"},
         MetaField.DENOISE: {"field_name": "denoise"},
+        MetaField.START_STEP: {"field_name": "start_step"},
+        MetaField.END_STEP: {"field_name": "end_step"},
         MetaField.SAMPLER_NAME: {
             "selector": (
                 lambda node_id, obj, prompt, extra_data, outputs, input_data: _wan_sampler_from_scheduler(input_data)

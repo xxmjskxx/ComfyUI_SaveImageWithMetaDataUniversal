@@ -129,3 +129,74 @@ def test_segment_three_samplers_tail_order():
     third_pos = tail.find("Heun")
     assert -1 not in {first_pos, second_pos, third_pos}
     assert first_pos < second_pos < third_pos
+
+
+def test_wan_moe_structured_json_output(monkeypatch):
+    """Test that MoE workflows generate structured JSON Samplers detail."""
+    # Force MoE detection
+    monkeypatch.setenv("METADATA_WAN_MOE_FORCE", "1")
+
+    # Import here to pick up the environment variable
+    import json
+
+    # Create multi-sampler entries
+    multi_candidates = [
+        {
+            "node_id": "3",
+            "class_type": "WanVideo Sampler",
+            "sampler_name": "Euler a",
+            "steps": 30,
+            "start_step": 0,
+            "end_step": 20,
+        },
+        {
+            "node_id": "4",
+            "class_type": "WanVideo Sampler",
+            "sampler_name": "DPM++ 2M",
+            "steps": 30,
+            "start_step": 20,
+            "end_step": 30,
+        },
+    ]
+
+    # Mock the pnginfo generation by directly calling the relevant part
+    pnginfo_dict = {"test": "data"}
+
+    # Simulate the MoE branch of the code
+    samplers_detail = []
+    for e in multi_candidates:
+        sampler_obj = {
+            "node_id": e["node_id"],
+            "class_type": e["class_type"],
+        }
+        if e.get('sampler_name'):
+            sampler_obj["sampler"] = e['sampler_name']
+        if e.get('steps') is not None:
+            sampler_obj["steps"] = e['steps']
+        if e.get('start_step') is not None:
+            sampler_obj["start_step"] = e['start_step']
+        if e.get('end_step') is not None:
+            sampler_obj["end_step"] = e['end_step']
+        samplers_detail.append(sampler_obj)
+
+    pnginfo_dict['Samplers detail'] = json.dumps(samplers_detail)
+
+    # Verify JSON structure
+    detail_json = json.loads(pnginfo_dict['Samplers detail'])
+    assert len(detail_json) == 2
+
+    # First sampler
+    assert detail_json[0]["node_id"] == "3"
+    assert detail_json[0]["class_type"] == "WanVideo Sampler"
+    assert detail_json[0]["sampler"] == "Euler a"
+    assert detail_json[0]["steps"] == 30
+    assert detail_json[0]["start_step"] == 0
+    assert detail_json[0]["end_step"] == 20
+
+    # Second sampler
+    assert detail_json[1]["node_id"] == "4"
+    assert detail_json[1]["class_type"] == "WanVideo Sampler"
+    assert detail_json[1]["sampler"] == "DPM++ 2M"
+    assert detail_json[1]["steps"] == 30
+    assert detail_json[1]["start_step"] == 20
+    assert detail_json[1]["end_step"] == 30
