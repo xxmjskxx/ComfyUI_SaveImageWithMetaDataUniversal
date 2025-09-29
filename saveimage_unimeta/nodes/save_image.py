@@ -59,6 +59,7 @@ from ..defs import FORCED_INCLUDE_CLASSES
 from ..defs.captures import CAPTURE_FIELD_LIST
 from ..defs.combo import SAMPLER_SELECTION_METHOD
 from ..defs.samplers import SAMPLERS
+from ..defs.meta import MetaField
 from ..trace import Trace
 
 logger = logging.getLogger(__name__)
@@ -69,6 +70,52 @@ _DEBUG_VERBOSE = os.environ.get("METADATA_DEBUG", "0") not in (
     None,
     "",
 )
+
+
+def _is_wan_moe_workflow(trace_tree: dict) -> bool:
+    """Detect Wan2.2 MoE (Mixture-of-Experts) workflow pattern.
+
+    Returns True when traced subgraph contains ≥2 WanVideoModelLoader and
+    either ≥2 WanVideo Sampler or any sampler exposes start_step/end_step.
+
+    Environment overrides:
+    - METADATA_WAN_MOE_FORCE=1 forces MoE path
+    - METADATA_WAN_MOE_DISABLE=1 disables MoE path
+    """
+    # Check environment overrides first
+    if os.environ.get("METADATA_WAN_MOE_FORCE", "").strip() == "1":
+        return True
+    if os.environ.get("METADATA_WAN_MOE_DISABLE", "").strip() == "1":
+        return False
+
+    try:
+        # Count WanVideoModelLoader nodes
+        model_loaders = sum(
+            1 for _, (_, class_type) in trace_tree.items()
+            if class_type == "WanVideoModelLoader"
+        )
+
+        # Count WanVideo Sampler nodes
+        wan_samplers = [
+            node_id for node_id, (_, class_type) in trace_tree.items()
+            if class_type == "WanVideo Sampler"
+        ]
+
+        # MoE requires ≥2 model loaders
+        if model_loaders < 2:
+            return False
+
+        # And either ≥2 samplers OR any sampler with segment ranges
+        if len(wan_samplers) >= 2:
+            return True
+
+        # Check if any single sampler has start_step/end_step (segment sampler)
+        # Note: This would require checking the actual node inputs, but for now
+        # we use the conservative heuristic of ≥2 samplers OR ≥2 models
+        return False
+
+    except Exception:
+        return False
 
 
 class SaveImageWithMetaDataUniversal:
@@ -733,6 +780,154 @@ class SaveImageWithMetaDataUniversal:
             inputs_before_this_node,
             save_civitai_sampler,
         )
+        # Multi-sampler enrichment (Tier A + B only). We enumerate upstream from the SaveImage node.
+        try:
+            multi_candidates = Trace.enumerate_samplers(trace_tree_from_this_node)
+        except Exception:
+            multi_candidates = []
+        if len(multi_candidates) > 1:
+            # Populate sampler names / steps from captured inputs mapping for richer detail
+            # Build index of captured values for lookup (prefer closest occurrence per node)
+            name_field = MetaField.SAMPLER_NAME if hasattr(MetaField, 'SAMPLER_NAME') else None  # type: ignore
+            steps_field = MetaField.STEPS if hasattr(MetaField, 'STEPS') else None  # type: ignore
+            start_field = MetaField.START_STEP if hasattr(MetaField, 'START_STEP') else None  # type: ignore
+            end_field = MetaField.END_STEP if hasattr(MetaField, 'END_STEP') else None  # type: ignore
+            scheduler_field = MetaField.SCHEDULER if hasattr(MetaField, 'SCHEDULER') else None  # type: ignore
+            cfg_field = MetaField.CFG if hasattr(MetaField, 'CFG') else None  # type: ignore
+            shift_field = MetaField.SHIFT if hasattr(MetaField, 'SHIFT') else None  # type: ignore
+            denoise_field = MetaField.DENOISE if hasattr(MetaField, 'DENOISE') else None  # type: ignore
+            def _first_for(meta, node_id: str):
+                vals = inputs.get(meta) or []
+                for tup in vals:
+                    try:
+                        if str(tup[0]) == str(node_id):
+                            return tup[1]
+                    except Exception:
+                        continue
+                return None
+            for entry in multi_candidates:
+                nid = entry['node_id']
+                try:
+                    if name_field:
+                        entry['sampler_name'] = _first_for(name_field, nid)
+                    if steps_field:
+                        v = _first_for(steps_field, nid)
+                        if isinstance(v, int):
+                            entry['steps'] = v
+                    if start_field and end_field:
+                        sv = _first_for(start_field, nid)
+                        ev = _first_for(end_field, nid)
+                        if isinstance(sv, int) and isinstance(ev, int):
+                            entry['start_step'] = sv
+                            entry['end_step'] = ev
+                            entry['is_segment'] = True
+                            entry['range_len'] = (ev - sv + 1) if ev >= sv else 0
+                        else:
+                            # Derive range len from steps if full sampler
+                            if entry.get('steps') and not entry.get('range_len'):
+                                entry['range_len'] = entry['steps']
+                    # Capture additional sampler fields
+                    if scheduler_field:
+                        entry['scheduler'] = _first_for(scheduler_field, nid)
+                    if cfg_field:
+                        v = _first_for(cfg_field, nid)
+                        if v is not None:
+                            entry['cfg'] = v
+                    if shift_field:
+                        v = _first_for(shift_field, nid)
+                        if v is not None:
+                            entry['shift'] = v
+                    if denoise_field:
+                        v = _first_for(denoise_field, nid)
+                        if v is not None:
+                            entry['denoise'] = v
+                except Exception:
+                    continue
+            # Primary (first element by enumerate_samplers contract)
+            # primary retained implicitly as first element; selection already encoded in enumeration ordering
+
+            # Check if this is a Wan MoE workflow to determine output format
+            is_moe = _is_wan_moe_workflow(trace_tree_from_this_node)
+
+            if is_moe:
+                # Build structured JSON detail for MoE workflows as per WAN22 plan
+                samplers_detail = []
+                for e in multi_candidates:
+                    sampler_obj = {
+                        "node_id": e["node_id"],
+                        "class_type": e["class_type"],
+                    }
+
+                    # Add sampler fields if present
+                    if e.get('sampler_name'):
+                        sampler_obj["sampler"] = e['sampler_name']
+                    if e.get('scheduler'):
+                        sampler_obj["scheduler"] = e['scheduler']
+                    if e.get('steps') is not None:
+                        sampler_obj["steps"] = e['steps']
+                    if e.get('start_step') is not None:
+                        sampler_obj["start_step"] = e['start_step']
+                    if e.get('end_step') is not None:
+                        sampler_obj["end_step"] = e['end_step']
+                    if e.get('cfg') is not None:
+                        sampler_obj["cfg"] = e['cfg']
+                    if e.get('shift') is not None:
+                        sampler_obj["shift"] = e['shift']
+                    if e.get('denoise') is not None:
+                        sampler_obj["denoise"] = e['denoise']
+
+                    # TODO: Add model, model_hash, vae, vae_hash, loras
+                    # This requires implementing per-sampler model/VAE/LoRA association logic
+
+                    samplers_detail.append(sampler_obj)
+
+                # Store as JSON for MoE workflows
+                pnginfo_dict['Samplers detail'] = json.dumps(samplers_detail)
+            else:
+                # Build simple string format for non-MoE workflows (backward compatibility)
+                structured_items = []
+                for e in multi_candidates:
+                    parts = []
+                    if e.get('sampler_name'):
+                        parts.append(f"Name: {e['sampler_name']}")
+                    if e.get('start_step') is not None and e.get('end_step') is not None:
+                        parts.append(f"Start: {e['start_step']}")
+                        parts.append(f"End: {e['end_step']}")
+                    elif e.get('steps') is not None:
+                        parts.append(f"Steps: {e['steps']}")
+                    structured_items.append('{'+', '.join(parts)+'}')
+                pnginfo_dict['Samplers detail'] = '[ ' + ', '.join(structured_items) + ' ]'
+            # Overlap diagnostics: detect intersecting segment ranges
+            try:
+                segments = [
+                    (e['sampler_name'] or e['class_type'], e.get('start_step'), e.get('end_step'))
+                    for e in multi_candidates
+                    if e.get('start_step') is not None and e.get('end_step') is not None
+                ]
+                # naive O(n^2) small n<=4 so fine
+                for i in range(len(segments)):
+                    for j in range(i + 1, len(segments)):
+                        n1, s1, e1 = segments[i]
+                        n2, s2, e2 = segments[j]
+                        if s1 is None or s2 is None:
+                            continue
+                        if e1 is None or e2 is None:
+                            continue
+                        if s1 <= e2 and s2 <= e1:  # overlap condition
+                            logger.warning(
+                                "[MultiSampler] Overlapping segment ranges detected: %s(%s-%s) vs %s(%s-%s)",
+                                n1,
+                                s1,
+                                e1,
+                                n2,
+                                s2,
+                                e2,
+                            )
+            except Exception:
+                pass
+            # Append tail to parameters later via Capture.gen_parameters_str consumer: stash in dict for now
+            # Use a reserved internal key to signal later augmentation. We choose a key unlikely to clash.
+            pnginfo_dict['__multi_sampler_entries'] = multi_candidates
         return pnginfo_dict
 
     @classmethod
