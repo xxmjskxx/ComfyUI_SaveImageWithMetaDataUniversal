@@ -10,7 +10,7 @@
 - Includes `Metadata Rule Scanner` and `Save Custom Metadata Rules` nodes, which scan all installed nodes and generate metadata capture rules
 - Designed to work with most custom packs and fall back gracefully when a node lacks heuristics (I can't test with every custom node pack, but it has been working well so far).
 - Since the value extraction rules are created dynamically, values output by most custom nodes can be added to metadata.
-- Tested with SD1.5, SDXL, FLUX, QWEN, WAN (2.1 supported); GGUF, Nunchaku
+- Tested with SD1.5, SDXL, FLUX, QWEN, WAN (2.1 & 2.2 MoE supported); GGUF, Nunchaku
 
 ## Table of Contents
 <details open>
@@ -398,6 +398,8 @@ Deferred and exploratory concepts are documented in:
 | `METADATA_NO_LORA_SUMMARY` | Suppress aggregated `LoRAs:` summary (UI `include_lora_summary` overrides). |
 | `METADATA_TEST_MODE` | Switch parameter string to multiline deterministic format for tests. |
 | `METADATA_DEBUG_PROMPTS` | Enable verbose prompt capture / aliasing debug logs. |
+| `METADATA_WAN_MOE_FORCE` | Force Wan2.2 MoE (Mixture-of-Experts) detection for structured multi-sampler output. |
+| `METADATA_WAN_MOE_DISABLE` | Disable Wan2.2 MoE detection (use legacy multi-sampler format). |
 
 Additional Support:
 * LoRA / model file extension recognition includes `.st` wherever `.safetensors` is accepted (hashing, detection, index building).

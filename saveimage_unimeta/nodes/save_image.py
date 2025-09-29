@@ -792,6 +792,10 @@ class SaveImageWithMetaDataUniversal:
             steps_field = MetaField.STEPS if hasattr(MetaField, 'STEPS') else None  # type: ignore
             start_field = MetaField.START_STEP if hasattr(MetaField, 'START_STEP') else None  # type: ignore
             end_field = MetaField.END_STEP if hasattr(MetaField, 'END_STEP') else None  # type: ignore
+            scheduler_field = MetaField.SCHEDULER if hasattr(MetaField, 'SCHEDULER') else None  # type: ignore
+            cfg_field = MetaField.CFG if hasattr(MetaField, 'CFG') else None  # type: ignore
+            shift_field = MetaField.SHIFT if hasattr(MetaField, 'SHIFT') else None  # type: ignore
+            denoise_field = MetaField.DENOISE if hasattr(MetaField, 'DENOISE') else None  # type: ignore
             def _first_for(meta, node_id: str):
                 vals = inputs.get(meta) or []
                 for tup in vals:
@@ -822,6 +826,21 @@ class SaveImageWithMetaDataUniversal:
                             # Derive range len from steps if full sampler
                             if entry.get('steps') and not entry.get('range_len'):
                                 entry['range_len'] = entry['steps']
+                    # Capture additional sampler fields
+                    if scheduler_field:
+                        entry['scheduler'] = _first_for(scheduler_field, nid)
+                    if cfg_field:
+                        v = _first_for(cfg_field, nid)
+                        if v is not None:
+                            entry['cfg'] = v
+                    if shift_field:
+                        v = _first_for(shift_field, nid)
+                        if v is not None:
+                            entry['shift'] = v
+                    if denoise_field:
+                        v = _first_for(denoise_field, nid)
+                        if v is not None:
+                            entry['denoise'] = v
                 except Exception:
                     continue
             # Primary (first element by enumerate_samplers contract)
@@ -842,14 +861,22 @@ class SaveImageWithMetaDataUniversal:
                     # Add sampler fields if present
                     if e.get('sampler_name'):
                         sampler_obj["sampler"] = e['sampler_name']
+                    if e.get('scheduler'):
+                        sampler_obj["scheduler"] = e['scheduler']
                     if e.get('steps') is not None:
                         sampler_obj["steps"] = e['steps']
                     if e.get('start_step') is not None:
                         sampler_obj["start_step"] = e['start_step']
                     if e.get('end_step') is not None:
                         sampler_obj["end_step"] = e['end_step']
+                    if e.get('cfg') is not None:
+                        sampler_obj["cfg"] = e['cfg']
+                    if e.get('shift') is not None:
+                        sampler_obj["shift"] = e['shift']
+                    if e.get('denoise') is not None:
+                        sampler_obj["denoise"] = e['denoise']
 
-                    # TODO: Add model, model_hash, vae, vae_hash, scheduler, cfg, shift, denoise, loras
+                    # TODO: Add model, model_hash, vae, vae_hash, loras
                     # This requires implementing per-sampler model/VAE/LoRA association logic
 
                     samplers_detail.append(sampler_obj)
