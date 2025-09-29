@@ -4,6 +4,7 @@ import os
 import re
 from collections.abc import Iterable, Iterator
 from typing import Any
+import importlib.metadata
 
 from .defs.captures import CAPTURE_FIELD_LIST
 from .defs.formatters import (
@@ -53,7 +54,36 @@ except ImportError:  # Fallback stubs allow linting/tests outside ComfyUI runtim
 
 
 # Versioning and feature flags
-CAPTURE_VERSION = "1.0.0"
+# Primary: use installed distribution metadata (fast, authoritative when packaged).
+# Fallback: if running from a cloned repo (not installed), parse nearest pyproject.toml.
+try:
+    CAPTURE_VERSION = importlib.metadata.version("SaveImageWithMetaDataUniversal")
+except importlib.metadata.PackageNotFoundError:
+    CAPTURE_VERSION = "unknown"
+    try:  # Lazy import inside fallback to avoid hard dependency on tomli for 3.10
+        try:
+            import tomllib as _toml_loader  # Python 3.11+
+        except ModuleNotFoundError:  # pragma: no cover - legacy Python
+            import tomli as _toml_loader  # type: ignore
+    except Exception:  # No TOML loader available
+        _toml_loader = None  # type: ignore
+    if _toml_loader:  # type: ignore
+        try:
+            import pathlib
+            here = pathlib.Path(__file__).resolve()
+            for parent in here.parents:
+                pyproject = parent / "pyproject.toml"
+                if pyproject.is_file():
+                    with pyproject.open("rb") as f:
+                        data = _toml_loader.load(f)  # type: ignore[arg-type]
+                    CAPTURE_VERSION = (
+                        data.get("project", {}).get("version")
+                        or data.get("tool", {}).get("poetry", {}).get("version")
+                        or "unknown"
+                    )
+                    break
+        except Exception:  # pragma: no cover - non‑critical fallback failure
+            pass
 
 
 # Dynamic flag function so tests can toggle at runtime instead of snapshot at import
