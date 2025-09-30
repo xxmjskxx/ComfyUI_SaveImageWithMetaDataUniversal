@@ -742,13 +742,14 @@ class SaveImageWithMetaDataUniversal:
         if len(multi_candidates) > 1:
             # Populate sampler names / steps from captured inputs mapping for richer detail
             # Build index of captured values for lookup (prefer closest occurrence per node)
-            name_field = MetaField.SAMPLER_NAME if hasattr(MetaField, 'SAMPLER_NAME') else None  # type: ignore
-            steps_field = MetaField.STEPS if hasattr(MetaField, 'STEPS') else None  # type: ignore
-            start_field = MetaField.START_STEP if hasattr(MetaField, 'START_STEP') else None  # type: ignore
-            end_field = MetaField.END_STEP if hasattr(MetaField, 'END_STEP') else None  # type: ignore
+            # MetaField attributes are defined in defs.meta; direct access is safe and clearer.
+            name_field = MetaField.SAMPLER_NAME
+            steps_field = MetaField.STEPS
+            start_field = MetaField.START_STEP
+            end_field = MetaField.END_STEP
             # Newly added always-per-sampler fields per policy
-            scheduler_field = MetaField.SCHEDULER if hasattr(MetaField, 'SCHEDULER') else None  # type: ignore
-            denoise_field = MetaField.DENOISE if hasattr(MetaField, 'DENOISE') else None  # type: ignore
+            scheduler_field = MetaField.SCHEDULER
+            denoise_field = MetaField.DENOISE
             def _first_for(meta, node_id: str):
                 vals = inputs.get(meta) or []
                 for tup in vals:
@@ -773,9 +774,7 @@ class SaveImageWithMetaDataUniversal:
                             entry['scheduler'] = sched_val
                     if denoise_field:
                         d_val = _first_for(denoise_field, nid)
-                        if isinstance(d_val, int | float):  # noqa: UP038
-                            entry['denoise'] = d_val
-                        elif d_val is not None:  # keep string / other scalar if provided
+                        if d_val is not None:
                             entry['denoise'] = d_val
                     if start_field and end_field:
                         sv = _first_for(start_field, nid)
@@ -833,8 +832,8 @@ class SaveImageWithMetaDataUniversal:
                         if node_id not in {e['node_id'] for e in multi_candidates}:
                             continue
                         # Normalize list-y singletons
-                        if isinstance(value, list | tuple) and len(value) == 1:  # noqa: UP038
-                            value = value[0]
+                        from ..utils.misc import unwrap_singleton  # local import (tiny util)
+                        value = unwrap_singleton(value)
                         by_node[node_id] = value
                     except Exception:
                         continue

@@ -101,6 +101,21 @@ def _inject_runtime_values(monkeypatch):
 
     def fake_get_input_data(node_inputs, obj_class, node_id, *a, **k):  # noqa: D401
         # Return a mapping of all known fields for that node id merged with its inputs
+        """Test stub for get_input_data.
+
+        Simulates sampler-like node input retrieval by returning a merged
+        mapping of supplied node_inputs and synthetic values for meta rule
+        evaluation. Only the (mapping,) tuple shape is required by Capture.
+
+        Args:
+            node_inputs (dict): Input fields for the node.
+            obj_class: Node class (unused here).
+            node_id: Graph node identifier.
+            *a: Additional positional args ignored.
+            **k: Additional keyword args ignored.
+        Returns:
+            tuple[dict]: Single element tuple containing merged inputs.
+        """
         base = values.get(str(node_id), {}).copy()
         # Include any fields already present (like graph wiring) if necessary
         for k2, v2 in (node_inputs or {}).items():
@@ -262,6 +277,34 @@ def test_jpeg_fallback_trims_multi_sampler_tail(monkeypatch, tmp_path):
     if not params:
         raw = jpg_path.read_bytes().decode('utf-8', 'ignore')
         params = raw.split('Metadata Fallback:', 1)[0]
+        # Attempt COM marker extraction for robustness
+        def _extract_jpeg_com(path):  # minimal COM parser
+            data = path.read_bytes()
+            i = 0
+            while i < len(data) - 1:
+                if data[i] == 0xFF and data[i+1] == 0xFE:  # COM
+                    if i + 4 > len(data):
+                        break
+                    seg_len = int.from_bytes(data[i+2:i+4], 'big')
+                    start = i + 4
+                    end = start + seg_len - 2
+                    seg = data[start:end]
+                    try:
+                        return seg.decode('utf-8', 'ignore')
+                    except Exception:
+                        return ''
+                if data[i] == 0xFF and data[i+1] not in (0x00, 0xFE):
+                    # Skip other segment types
+                    if i + 4 > len(data):
+                        break
+                    seg_len = int.from_bytes(data[i+2:i+4], 'big')
+                    i += 2 + seg_len
+                else:
+                    i += 1
+            return ''
+        com_comment = _extract_jpeg_com(jpg_path)
+        if com_comment and not params:
+            params = com_comment
     assert "Samplers:" not in params  # tail trimmed
     assert "Samplers detail" not in params  # detail trimmed by minimal allowlist
 
