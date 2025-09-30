@@ -273,9 +273,83 @@ def test_integration_unique_field_enrichment(monkeypatch, tmp_path):
         },
     )
     img = ImgType()
-    node.save_images([img], include_lora_summary=False)
-    # Recompute pnginfo dict to inspect Samplers detail formatting
-    pnginfo = node.gen_pnginfo("Farthest", 0, False)
+    node.save_images([img], include_lora_summary=False, set_max_samplers=4)
+    # Recompute pnginfo dict to inspect Samplers detail formatting (force multi enumeration)
+    pnginfo = node.gen_pnginfo("Farthest", 0, False, 4)
     detail = pnginfo.get("Samplers detail", "")
     assert "Seed:" in detail and "CFG:" in detail  # unique fields appear
     assert "Model:" not in detail  # identical model omitted
+
+
+def test_set_max_samplers_one_disables_multi_detail(monkeypatch, tmp_path):
+    """When set_max_samplers=1 multi-sampler enrichment detail should be suppressed."""
+    from saveimage_unimeta import hook as global_hook
+    prompt = {
+        "1": {"class_type": "KSampler", "inputs": {}},
+        "2": {"class_type": "KSampler", "inputs": {}},
+        "100": {"class_type": "SaveImageWithMetaDataUniversal", "inputs": {"a": ["1", 0], "b": ["2", 0]}},
+    }
+    global_hook.current_prompt = prompt
+    global_hook.current_save_image_node_id = "100"
+    import saveimage_unimeta.capture as capture_mod
+    from saveimage_unimeta.defs.meta import MetaField as MF
+    def fake_get_inputs():
+        return {
+            MF.SAMPLER_NAME: [("1", "Euler a"), ("2", "DPM++ 2M")],
+            MF.STEPS: [("1", 30), ("2", 40)],
+        }
+    monkeypatch.setattr(capture_mod.Capture, "get_inputs", classmethod(lambda cls: fake_get_inputs()))
+    import nodes as nodes_pkg  # type: ignore
+    nodes_pkg.NODE_CLASS_MAPPINGS.setdefault("KSampler", type("_DummyKSampler", (), {}))  # type: ignore
+    from saveimage_unimeta.nodes.save_image import SaveImageWithMetaDataUniversal
+    node = SaveImageWithMetaDataUniversal()
+    node.output_dir = str(tmp_path)
+    ImgType = type(
+        "Img",
+        (),
+        {
+            "cpu": lambda self: self,
+            "numpy": lambda self: __import__("numpy").zeros((4, 4, 3), dtype="float32"),
+        },
+    )
+    img = ImgType()
+    node.save_images([img], include_lora_summary=False, set_max_samplers=1)
+    pnginfo = node.gen_pnginfo("Farthest", 0, False, 1)
+    assert "Samplers detail" not in pnginfo  # suppressed
+
+
+def test_set_max_samplers_allows_multi_detail(monkeypatch, tmp_path):
+    """When set_max_samplers>1 multi-sampler enrichment detail should appear."""
+    from saveimage_unimeta import hook as global_hook
+    prompt = {
+        "1": {"class_type": "KSampler", "inputs": {}},
+        "2": {"class_type": "KSampler", "inputs": {}},
+        "100": {"class_type": "SaveImageWithMetaDataUniversal", "inputs": {"a": ["1", 0], "b": ["2", 0]}},
+    }
+    global_hook.current_prompt = prompt
+    global_hook.current_save_image_node_id = "100"
+    import saveimage_unimeta.capture as capture_mod
+    from saveimage_unimeta.defs.meta import MetaField as MF
+    def fake_get_inputs():
+        return {
+            MF.SAMPLER_NAME: [("1", "Euler a"), ("2", "DPM++ 2M")],
+            MF.STEPS: [("1", 30), ("2", 25)],
+        }
+    monkeypatch.setattr(capture_mod.Capture, "get_inputs", classmethod(lambda cls: fake_get_inputs()))
+    import nodes as nodes_pkg  # type: ignore
+    nodes_pkg.NODE_CLASS_MAPPINGS.setdefault("KSampler", type("_DummyKSampler", (), {}))  # type: ignore
+    from saveimage_unimeta.nodes.save_image import SaveImageWithMetaDataUniversal
+    node = SaveImageWithMetaDataUniversal()
+    node.output_dir = str(tmp_path)
+    ImgType = type(
+        "Img",
+        (),
+        {
+            "cpu": lambda self: self,
+            "numpy": lambda self: __import__("numpy").zeros((4, 4, 3), dtype="float32"),
+        },
+    )
+    img = ImgType()
+    node.save_images([img], include_lora_summary=False, set_max_samplers=3)
+    pnginfo = node.gen_pnginfo("Farthest", 0, False, 3)
+    assert "Samplers detail" in pnginfo

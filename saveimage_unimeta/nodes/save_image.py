@@ -245,6 +245,21 @@ class SaveImageWithMetaDataUniversal:
                         ),
                     },
                 ),
+                "set_max_samplers": (
+                    "INT",
+                    {
+                        "default": 1,
+                        "min": 1,
+                        "max": 8,
+                        "step": 1,
+                        "tooltip": (
+                            "Maximum number of upstream sampler nodes to enumerate for multi-sampler metadata.\n"
+                            "Set to 1 to use legacy single-sampler metadata output. Higher values (2-8) enable "
+                            "structured 'Samplers detail' enrichment (truncated if more are found).\nKeep value at one "
+                            "for single sampler workflows."
+                        ),
+                    },
+                ),
             },
             "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO"},
         }
@@ -281,6 +296,7 @@ class SaveImageWithMetaDataUniversal:
         include_lora_summary=True,
         guidance_as_cfg=False,
         suppress_missing_class_log=False,
+        set_max_samplers=1,
     ):
         """Persist images to disk with rich, optionally extended metadata.
 
@@ -334,7 +350,20 @@ class SaveImageWithMetaDataUniversal:
                 cstr("[Metadata Loader] Using Samplers File with %d entries").msg,
                 len(SAMPLERS),
             )
-        pnginfo_dict_src = self.gen_pnginfo(sampler_selection_method, sampler_selection_node_id, civitai_sampler)
+        try:
+            pnginfo_dict_src = self.gen_pnginfo(
+                sampler_selection_method,
+                sampler_selection_node_id,
+                civitai_sampler,
+                set_max_samplers,
+            )
+        except TypeError:
+            # Backward compatibility with monkeypatched tests expecting older signature
+            pnginfo_dict_src = self.gen_pnginfo(
+                sampler_selection_method,
+                sampler_selection_node_id,
+                civitai_sampler,
+            )
         for k, v in extra_metadata.items():
             if k and v:
                 pnginfo_dict_src[k] = v.replace(",", "/")
@@ -696,7 +725,7 @@ class SaveImageWithMetaDataUniversal:
         return "\n".join(line for line in out_lines if line) + ("\n" if out_lines else "")
 
     @classmethod
-    def gen_pnginfo(cls, sampler_selection_method, sampler_selection_node_id, save_civitai_sampler):
+    def gen_pnginfo(cls, sampler_selection_method, sampler_selection_node_id, save_civitai_sampler, set_max_samplers=1):
         # get all node inputs
         inputs = Capture.get_inputs()
 
@@ -736,10 +765,14 @@ class SaveImageWithMetaDataUniversal:
         )
         # Multi-sampler enrichment (Tier A + B only). We enumerate upstream from the SaveImage node.
         try:
-            multi_candidates = Trace.enumerate_samplers(trace_tree_from_this_node)
+            multi_candidates = Trace.enumerate_samplers(
+                trace_tree_from_this_node,
+                max_multi=max(1, int(set_max_samplers) if set_max_samplers else 1),
+            )
         except Exception:
             multi_candidates = []
-        if len(multi_candidates) > 1:
+        # If user constrained to single sampler, suppress multi detail enrichment.
+        if len(multi_candidates) > 1 and (set_max_samplers or 1) > 1:
             # Populate sampler names / steps from captured inputs mapping for richer detail
             # Build index of captured values for lookup (prefer closest occurrence per node)
             # MetaField attributes are defined in defs.meta; direct access is safe and clearer.
@@ -764,6 +797,13 @@ class SaveImageWithMetaDataUniversal:
                 try:
                     if name_field:
                         entry['sampler_name'] = _first_for(name_field, nid)
+                        # Sanitize object-like reprs to avoid leaking internal class objects
+                        try:
+                            s = str(entry['sampler_name']) if entry.get('sampler_name') is not None else None
+                            if s and s.startswith('<') and '>' in s:
+                                entry['sampler_name'] = None  # defer to class_type fallback
+                        except Exception:
+                            entry['sampler_name'] = None
                     if steps_field:
                         v = _first_for(steps_field, nid)
                         if isinstance(v, int):
@@ -790,6 +830,34 @@ class SaveImageWithMetaDataUniversal:
                                 entry['range_len'] = entry['steps']
                 except Exception:
                     continue
+            # Attempt per-sampler positive prompt resolution via graph traversal (maps sampler -> upstream prompt node)
+            try:
+                prompt_graph = getattr(hook, 'current_prompt', {}) or {}
+                pos_meta_vals = inputs.get(getattr(MetaField, 'POSITIVE_PROMPT', None), []) if inputs else []
+                # Build mapping of prompt node id -> prompt text
+                _prompt_text_by_node = {}
+                for tup in pos_meta_vals:
+                    try:
+                        if len(tup) >= 2:
+                            _prompt_text_by_node[str(tup[0])] = tup[1]
+                    except Exception:
+                        continue
+                for e in multi_candidates:
+                    ctype = e.get('class_type')
+                    sampler_inputs = (prompt_graph.get(e['node_id'], {}) or {}).get('inputs', {})
+                    pos_key = SAMPLERS.get(ctype, {}).get('positive') if isinstance(ctype, str) else None
+                    if pos_key and pos_key in sampler_inputs:
+                        try:
+                            ref = sampler_inputs[pos_key]
+                            if isinstance(ref, list) and ref:
+                                ref_id = str(ref[0])
+                                pp = _prompt_text_by_node.get(ref_id)
+                                if pp:
+                                    e['positive_prompt'] = pp
+                        except Exception:
+                            continue
+            except Exception:
+                pass
             # --- Conditional per-sampler fields (only include when unique across samplers) ---
             # Ordered list of optional fields to consider.
             conditional_meta_fields: list[tuple] = [
@@ -851,7 +919,19 @@ class SaveImageWithMetaDataUniversal:
             structured_items = []
             for e in multi_candidates:
                 parts = []
-                if e.get('sampler_name'):
+                # Compose unified sampler token (sampler_name + '_' + scheduler) mirroring single-sampler style
+                sampler_token = None
+                sname = e.get('sampler_name')
+                sched = e.get('scheduler')
+                if sname and sched:
+                    sampler_token = f"{sname}_{sched}"
+                elif sname:
+                    sampler_token = sname
+                elif sched:
+                    sampler_token = sched
+                if sampler_token:
+                    parts.append(f"Sampler: {sampler_token}")
+                elif e.get('sampler_name'):
                     parts.append(f"Name: {e['sampler_name']}")
                 # Always-per-sampler scheduler / denoise if available
                 if e.get('scheduler') is not None:
@@ -863,6 +943,9 @@ class SaveImageWithMetaDataUniversal:
                     parts.append(f"End: {e['end_step']}")
                 elif e.get('steps') is not None:
                     parts.append(f"Steps: {e['steps']}")
+                # Include per-sampler positive prompt when available & prompts differ
+                if e.get('positive_prompt') is not None:
+                    parts.append(f"Prompt: {e['positive_prompt']}")
                 # Append conditional unique fields in declared order
                 for meta, label in conditional_meta_fields:
                     if not meta or meta not in unique_enabled:

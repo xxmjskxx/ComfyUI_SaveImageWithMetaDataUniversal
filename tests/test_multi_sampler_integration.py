@@ -160,6 +160,7 @@ def test_save_images_multi_sampler_enrichment(restore_capture_definitions, monke
         sampler_selection_method=os.environ.get("TEST_SAMPLER_METHOD", "Farthest"),
         sampler_selection_node_id=0,
         save_civitai_sampler=False,
+        set_max_samplers=4,
     )
 
     # Assertions: multi-sampler detail enriched
@@ -200,7 +201,7 @@ def test_full_save_images_writes_parameters_with_multi_sampler_tail(monkeypatch,
     node = SaveNode()
     node.output_dir = str(tmp_path)
     img = _DummyImage()
-    result = node.save_images([img], include_lora_summary=False)
+    result = node.save_images([img], include_lora_summary=False, set_max_samplers=4)
     saved_file = result["ui"]["images"][0]["filename"]
     png_path = tmp_path / saved_file
     assert png_path.is_file(), f"Expected file not found: {png_path}"
@@ -218,7 +219,7 @@ def test_full_save_images_writes_parameters_with_multi_sampler_tail(monkeypatch,
     assert "Scheduler: normal" in params and "Scheduler: karras" in params
     assert "Denoise: 0.75" in params and "Denoise: 0.5" in params
     # The in-memory pnginfo at generation time had Samplers detail (check node.gen_pnginfo output)
-    pnginfo_dict = node.gen_pnginfo("Farthest", 0, False)
+    pnginfo_dict = node.gen_pnginfo("Farthest", 0, False, 4)
     assert "Samplers detail" in pnginfo_dict
     detail = pnginfo_dict["Samplers detail"]
     assert "Scheduler: normal" in detail and "Scheduler: karras" in detail
@@ -359,7 +360,7 @@ def test_jpeg_reduced_exif_stage_with_multi_sampler(monkeypatch, tmp_path):
     assert node._last_fallback_stages[0] == "reduced-exif"
     # Regenerate parameters (reduced-exif keeps full parameter string, no trimming)
     from saveimage_unimeta.capture import Capture  # local import to avoid circular in test collection
-    pnginfo = node.gen_pnginfo("Farthest", 0, False)
+    pnginfo = node.gen_pnginfo("Farthest", 0, False, 4)
     params = Capture.gen_parameters_str(pnginfo)
     # Ensure multi-sampler artifacts present in original parameters set
     assert "Samplers detail" in params
@@ -397,6 +398,6 @@ def test_jpeg_reduced_exif_fallback_marker_and_detail(monkeypatch, tmp_path):
     # We cannot reliably parse EXIF user comment with stub; fallback stage already asserted.
     # Re-generate parameters to confirm detail present pre-trim under reduced-exif semantics.
     from saveimage_unimeta.capture import Capture  # local import to avoid circular issues at collection
-    pnginfo = node.gen_pnginfo("Farthest", 0, False)
+    pnginfo = node.gen_pnginfo("Farthest", 0, False, 4)
     params = Capture.gen_parameters_str(pnginfo)
     assert "Samplers detail" in params and "Samplers:" in params
