@@ -279,6 +279,23 @@ HEURISTIC_RULES = [
         "type": "FLOAT",
         "sort_numeric": True,
     },
+    # --- New multi-sampler subrange support ---
+    # These heuristics capture per-sampler step subranges (e.g. Wan / segmented samplers).
+    # Conservative: only trigger on class names containing sampler/wan/range to avoid
+    # generic 'start'/'end' fields on unrelated nodes.
+    {
+        "metafield": MetaField.START_STEP,
+        "keywords": ("start_step", "range_start", "start", "start_at_step"),
+        "required_class_keywords": ["sampler"],
+        "type": ("INT",),
+        "excluded_keywords": ("restart",),  # avoid picking up fields like 'restart_step'
+    },
+    {
+        "metafield": MetaField.END_STEP,
+        "keywords": ("end_step", "range_end", "end", "end_at_step"),
+        "required_class_keywords": ["sampler"],
+        "type": ("INT",),
+    },
 ]
 
 

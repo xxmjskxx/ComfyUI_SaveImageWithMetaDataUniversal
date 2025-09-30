@@ -746,6 +746,9 @@ class SaveImageWithMetaDataUniversal:
             steps_field = MetaField.STEPS if hasattr(MetaField, 'STEPS') else None  # type: ignore
             start_field = MetaField.START_STEP if hasattr(MetaField, 'START_STEP') else None  # type: ignore
             end_field = MetaField.END_STEP if hasattr(MetaField, 'END_STEP') else None  # type: ignore
+            # Newly added always-per-sampler fields per policy
+            scheduler_field = MetaField.SCHEDULER if hasattr(MetaField, 'SCHEDULER') else None  # type: ignore
+            denoise_field = MetaField.DENOISE if hasattr(MetaField, 'DENOISE') else None  # type: ignore
             def _first_for(meta, node_id: str):
                 vals = inputs.get(meta) or []
                 for tup in vals:
@@ -764,6 +767,16 @@ class SaveImageWithMetaDataUniversal:
                         v = _first_for(steps_field, nid)
                         if isinstance(v, int):
                             entry['steps'] = v
+                    if scheduler_field:
+                        sched_val = _first_for(scheduler_field, nid)
+                        if sched_val is not None:
+                            entry['scheduler'] = sched_val
+                    if denoise_field:
+                        d_val = _first_for(denoise_field, nid)
+                        if isinstance(d_val, int | float):  # noqa: UP038
+                            entry['denoise'] = d_val
+                        elif d_val is not None:  # keep string / other scalar if provided
+                            entry['denoise'] = d_val
                     if start_field and end_field:
                         sv = _first_for(start_field, nid)
                         ev = _first_for(end_field, nid)
@@ -778,6 +791,61 @@ class SaveImageWithMetaDataUniversal:
                                 entry['range_len'] = entry['steps']
                 except Exception:
                     continue
+            # --- Conditional per-sampler fields (only include when unique across samplers) ---
+            # Ordered list of optional fields to consider.
+            conditional_meta_fields: list[tuple] = [
+                # (MetaField, display label)
+                (getattr(MetaField, 'MODEL_NAME', None), 'Model'),
+                (getattr(MetaField, 'MODEL_HASH', None), 'Model hash'),
+                (getattr(MetaField, 'POSITIVE_PROMPT', None), 'Positive prompt'),
+                (getattr(MetaField, 'NEGATIVE_PROMPT', None), 'Negative prompt'),
+                (getattr(MetaField, 'CLIP_SKIP', None), 'CLIP skip'),
+                (getattr(MetaField, 'SEED', None), 'Seed'),
+                (getattr(MetaField, 'CFG', None), 'CFG'),  # short label
+                (getattr(MetaField, 'GUIDANCE', None), 'Guidance'),
+                (getattr(MetaField, 'CLIP_MODEL_NAME', None), 'CLIP model'),
+                (getattr(MetaField, 'WEIGHT_DTYPE', None), 'Weight dtype'),
+                (getattr(MetaField, 'MAX_SHIFT', None), 'Max shift'),
+                (getattr(MetaField, 'BASE_SHIFT', None), 'Base shift'),
+                (getattr(MetaField, 'T5_PROMPT', None), 'T5 prompt'),
+                (getattr(MetaField, 'CLIP_PROMPT', None), 'CLIP prompt'),
+                (getattr(MetaField, 'SHIFT', None), 'Shift'),
+                (getattr(MetaField, 'EMBEDDING_NAME', None), 'Embedding'),
+                (getattr(MetaField, 'EMBEDDING_HASH', None), 'Embedding hash'),
+                (getattr(MetaField, 'LORA_MODEL_NAME', None), 'LoRA model'),
+                (getattr(MetaField, 'LORA_MODEL_HASH', None), 'LoRA hash'),
+                (getattr(MetaField, 'LORA_STRENGTH_MODEL', None), 'LoRA strength model'),
+                (getattr(MetaField, 'LORA_STRENGTH_CLIP', None), 'LoRA strength clip'),
+            ]
+            # Build mapping meta -> {sampler_node_id: value}
+            meta_values: dict = {}
+            for meta, _label in conditional_meta_fields:
+                if not meta:
+                    continue
+                vals = inputs.get(meta) or []
+                by_node = {}
+                for tup in vals:
+                    try:
+                        if len(tup) < 2:
+                            continue
+                        node_id = str(tup[0])
+                        value = tup[1]
+                        if node_id not in {e['node_id'] for e in multi_candidates}:
+                            continue
+                        # Normalize list-y singletons
+                        if isinstance(value, list | tuple) and len(value) == 1:  # noqa: UP038
+                            value = value[0]
+                        by_node[node_id] = value
+                    except Exception:
+                        continue
+                if by_node:
+                    meta_values[meta] = by_node
+            # Determine which meta fields have >1 distinct values (exclude None)
+            unique_enabled: dict = {}
+            for meta, node_map in meta_values.items():
+                uniq = {repr(v) for v in node_map.values() if v is not None}
+                if len(uniq) > 1:
+                    unique_enabled[meta] = True
             # Primary (first element by enumerate_samplers contract)
             # primary retained implicitly as first element; selection already encoded in enumeration ordering
             # Build structured detail list
@@ -786,11 +854,29 @@ class SaveImageWithMetaDataUniversal:
                 parts = []
                 if e.get('sampler_name'):
                     parts.append(f"Name: {e['sampler_name']}")
+                # Always-per-sampler scheduler / denoise if available
+                if e.get('scheduler') is not None:
+                    parts.append(f"Scheduler: {e['scheduler']}")
+                if e.get('denoise') is not None:
+                    parts.append(f"Denoise: {e['denoise']}")
                 if e.get('start_step') is not None and e.get('end_step') is not None:
                     parts.append(f"Start: {e['start_step']}")
                     parts.append(f"End: {e['end_step']}")
                 elif e.get('steps') is not None:
                     parts.append(f"Steps: {e['steps']}")
+                # Append conditional unique fields in declared order
+                for meta, label in conditional_meta_fields:
+                    if not meta or meta not in unique_enabled:
+                        continue
+                    mv = meta_values.get(meta, {})
+                    if e['node_id'] in mv:
+                        val = mv[e['node_id']]
+                        try:
+                            if isinstance(val, list | tuple):  # noqa: UP038
+                                val = ';'.join(str(x) for x in val)
+                        except Exception:
+                            pass
+                        parts.append(f"{label}: {val}")
                 structured_items.append('{'+', '.join(parts)+'}')
             pnginfo_dict['Samplers detail'] = '[ ' + ', '.join(structured_items) + ' ]'
             # Overlap diagnostics: detect intersecting segment ranges
