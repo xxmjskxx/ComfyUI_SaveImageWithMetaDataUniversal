@@ -954,7 +954,7 @@ class SaveImageWithMetaDataUniversal:
                     if e['node_id'] in mv:
                         val = mv[e['node_id']]
                         try:
-                            if isinstance(val, list | tuple):  # noqa: UP038
+                            if isinstance(val, list | tuple):
                                 val = ';'.join(str(x) for x in val)
                         except Exception:
                             pass

@@ -219,7 +219,7 @@ def test_samplers_detail_includes_unique_seed_and_cfg(monkeypatch):
     # Monkeypatch Capture.get_inputs to feed seed & cfg per node for enrichment uniqueness detection.
     import saveimage_unimeta.capture as capture_mod
     from saveimage_unimeta.defs.meta import MetaField as MF
-    def fake_get_inputs():  # noqa: D401
+    def fake_get_inputs():
         return {
             MF.SAMPLER_NAME: [("1", "Euler a"), ("2", "DPM++ 2M")],
             MF.STEPS: [("1", 40), ("2", 20)],

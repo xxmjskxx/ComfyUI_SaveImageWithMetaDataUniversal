@@ -182,7 +182,7 @@ def test_full_save_images_writes_parameters_with_multi_sampler_tail(monkeypatch,
     global_hook.current_save_image_node_id = "100"
     # Patch Capture.get_inputs to simulate two samplers
     import saveimage_unimeta.capture as capture_mod
-    def fake_get_inputs():  # noqa: D401
+    def fake_get_inputs():
         return {
             MetaField.SAMPLER_NAME: [("1", "Euler a"), ("2", "DPM++ 2M")],
             MetaField.STEPS: [("1", 30), ("2", 20)],
@@ -213,7 +213,7 @@ def test_full_save_images_writes_parameters_with_multi_sampler_tail(monkeypatch,
     assert "Samplers:" in params  # tail present
     assert "Euler a" in params and "DPM++ 2M" in params
     # Range formatting for second sampler
-    assert "(30-49)" in params or "(30-49)" in params
+    assert "(30-49)" in params
     # Verify structured detail block present (scheduler/denoise appear there)
     assert "Samplers detail" in params
     assert "Scheduler: normal" in params and "Scheduler: karras" in params
@@ -274,38 +274,36 @@ def test_jpeg_fallback_trims_multi_sampler_tail(monkeypatch, tmp_path):
     with _PILImage.open(jpg_path) as im:
         info = getattr(im, 'text', {}) or {}
     params = info.get("parameters", "")
-    # If COM marker path used, Pillow may not expose comment; fallback: read raw bytes
+    # If COM marker path used, Pillow may not expose comment; fallback: robust COM extraction
     if not params:
-        raw = jpg_path.read_bytes().decode('utf-8', 'ignore')
-        params = raw.split('Metadata Fallback:', 1)[0]
-        # Attempt COM marker extraction for robustness
-        def _extract_jpeg_com(path):  # minimal COM parser
-            data = path.read_bytes()
+        # Robustly extract the COM marker (0xFFFE) from the JPEG file
+        def extract_jpeg_com_marker(path):
+            with open(path, "rb") as f:
+                data = f.read()
             i = 0
             while i < len(data) - 1:
-                if data[i] == 0xFF and data[i+1] == 0xFE:  # COM
-                    if i + 4 > len(data):
+                if data[i] == 0xFF and data[i+1] == 0xFE:
+                    # Found COM marker
+                    if i+4 > len(data):
                         break
-                    seg_len = int.from_bytes(data[i+2:i+4], 'big')
+                    length = int.from_bytes(data[i+2:i+4], "big")
                     start = i + 4
-                    end = start + seg_len - 2
-                    seg = data[start:end]
+                    end = start + length - 2
+                    comment_bytes = data[start:end]
                     try:
-                        return seg.decode('utf-8', 'ignore')
+                        return comment_bytes.decode("utf-8", "ignore")
                     except Exception:
-                        return ''
-                if data[i] == 0xFF and data[i+1] not in (0x00, 0xFE):
-                    # Skip other segment types
-                    if i + 4 > len(data):
+                        return ""
+                elif data[i] == 0xFF and data[i+1] != 0x00:
+                    # Skip marker segment
+                    if i+4 > len(data):
                         break
-                    seg_len = int.from_bytes(data[i+2:i+4], 'big')
-                    i += 2 + seg_len
+                    length = int.from_bytes(data[i+2:i+4], "big")
+                    i += 2 + length
                 else:
                     i += 1
-            return ''
-        com_comment = _extract_jpeg_com(jpg_path)
-        if com_comment and not params:
-            params = com_comment
+            return ""
+        params = extract_jpeg_com_marker(jpg_path)
     assert "Samplers:" not in params  # tail trimmed
     assert "Samplers detail" not in params  # detail trimmed by minimal allowlist
 

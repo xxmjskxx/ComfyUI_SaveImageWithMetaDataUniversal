@@ -13,7 +13,7 @@ def unwrap_singleton(value: Any) -> Any:
     longer sequences are returned unchanged.
     """
     try:
-        if isinstance(value, list | tuple) and len(value) == 1:  # noqa: UP038 explicit union
+        if isinstance(value, list | tuple) and len(value) == 1:
             return value[0]
     except Exception:
         return value

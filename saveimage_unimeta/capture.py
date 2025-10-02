@@ -60,15 +60,18 @@ try:
     CAPTURE_VERSION = importlib.metadata.version("SaveImageWithMetaDataUniversal")
 except importlib.metadata.PackageNotFoundError:
     CAPTURE_VERSION = "unknown"
-    # Attempt tomllib first (3.11+), else tomli for earlier runtimes. Ignore any other failures.
+    # TOML loader detection: tomllib (3.11+) or fallback to tomli for 3.10
     _toml_loader = None  # type: ignore
-    try:  # pragma: no cover - runtime dependent
+    try:
         import tomllib as _toml_loader  # type: ignore[attr-defined]
-    except ModuleNotFoundError:  # pragma: no cover - legacy Python
+    except ModuleNotFoundError:  # pragma: no cover
+        _toml_loader = None  # type: ignore
+    if _toml_loader is None:
         try:
             import tomli as _toml_loader  # type: ignore
         except ModuleNotFoundError:  # pragma: no cover
             _toml_loader = None  # type: ignore
+
     if _toml_loader:  # type: ignore
         try:
             import pathlib
