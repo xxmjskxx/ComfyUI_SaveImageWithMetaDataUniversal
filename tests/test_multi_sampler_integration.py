@@ -135,7 +135,7 @@ def test_save_images_multi_sampler_enrichment(restore_capture_definitions, monke
     global_hook.current_save_image_node_id = "100"
     # Monkeypatch Capture.get_inputs to bypass full graph extraction complexity
     import saveimage_unimeta.capture as capture_mod
-    def fake_get_inputs():  # noqa: D401
+    def fake_get_inputs():
         return {
             MetaField.SAMPLER_NAME: [("1", "Euler a"), ("2", "DPM++ 2M")],
             MetaField.STEPS: [("1", 30), ("2", 20)],
