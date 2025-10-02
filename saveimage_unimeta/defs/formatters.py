@@ -99,11 +99,19 @@ def _ckpt_name_to_path(name_like: Any) -> tuple[str, str | None]:
     if isinstance(name_like, str):
         full = None
         try:
+            # First try exact name (in case it includes extension)
             full = folder_paths.get_full_path("checkpoints", name_like)
-        except Exception:  # pragma: no cover - folder_paths internal failures
-            full = None
-    return name_like, full
+        except Exception:
+            # If that fails, try adding common model extensions
+            for ext in [".safetensors", ".st", ".pt", ".bin", ".ckpt"]:
+                try:
+                    full = folder_paths.get_full_path("checkpoints", name_like + ext)
+                    break
+                except Exception:
+                    continue
+        return name_like, full
 
+    # Fallback: stringify
     return str(name_like), None
 
 
@@ -200,10 +208,18 @@ def _vae_name_to_path(model_name: Any) -> tuple[str, str | None]:
 
     # String case
     if isinstance(model_name, str):
+        full = None
         try:
+            # First try exact name (in case it includes extension)
             full = folder_paths.get_full_path("vae", model_name)
-        except Exception:  # pragma: no cover
-            full = None
+        except Exception:
+            # If that fails, try adding common VAE extensions
+            for ext in [".safetensors", ".st", ".pt", ".bin", ".ckpt"]:
+                try:
+                    full = folder_paths.get_full_path("vae", model_name + ext)
+                    break
+                except Exception:
+                    continue
         return model_name, full
 
     # Fallback
@@ -317,9 +333,16 @@ def calc_lora_hash(model_name: Any, input_data: list) -> str:
         if isinstance(name_like, str):
             full = None
             try:
+                # First try exact name (in case it includes extension)
                 full = folder_paths.get_full_path("loras", name_like)
-            except Exception:  # pragma: no cover
-                full = None
+            except Exception:
+                # If that fails, try adding common LoRA extensions
+                for ext in [".safetensors", ".st", ".pt", ".bin", ".ckpt"]:
+                    try:
+                        full = folder_paths.get_full_path("loras", name_like + ext)
+                        break
+                    except Exception:
+                        continue
             return name_like, full
 
         # Fallback: stringify
@@ -435,9 +458,16 @@ def calc_unet_hash(model_name: Any, input_data: list) -> str:
         if isinstance(name_like, str):
             full = None
             try:
+                # First try exact name (in case it includes extension)
                 full = folder_paths.get_full_path("unet", name_like)
-            except Exception:  # pragma: no cover
-                full = None
+            except Exception:
+                # If that fails, try adding common UNet extensions
+                for ext in [".safetensors", ".st", ".pt", ".bin", ".ckpt"]:
+                    try:
+                        full = folder_paths.get_full_path("unet", name_like + ext)
+                        break
+                    except Exception:
+                        continue
             return name_like, full
 
         # Fallback
