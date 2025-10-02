@@ -1,84 +1,80 @@
 # AI Assistant Project Instructions
-Concise guide for AI agents working on `ComfyUI_SaveImageWithMetaDataUniversal`. Fadiffs, reference concrete files, avoid speculative refactors.
+ComfyUI extension for saving images with metadata. Focus on tested patterns, minimal diffs.
 
-## Architecture (What Lives Where)
-**Core Pipeline**: `Trace.trace()` → `Capture.get_inputs()` → `Capture.gen_pnginfo_dict()` → `Capture.gen_parameters_str()` → `SaveImageWithMetaDataUniversal.save_images()`
+## Core Architecture
+**Pipeline**: `Trace.trace()` → `Capture.get_inputs()` → `Capture.gen_pnginfo_dict()` → `Capture.gen_parameters_str()` → `SaveImageWithMetaDataUniversal.save_images()`
 
-**Key Modules**:
-- `saveimage_unimeta/nodes/save_image.py`: Main save node + JPEG fallback handling + filename tokens
-- `saveimage_unimeta/capture.py`: Metadata extraction engine + parameter string formatting
-- `saveimage_unimeta/trace.py`: BFS graph traversal + sampler node detection heuristics
-- `saveimage_unimeta/defs/`: Rule definitions (`captures.py`, `meta.py`, `samplers.py`, `formatters.py`)
-- `saveimage_unimeta/nodes/scanner.py`: Dynamic rule discovery from installed nodes
+**Key Files**:
+- `saveimage_unimeta/capture.py`: Metadata extraction + parameter formatting
+- `saveimage_unimeta/trace.py`: Graph traversal + sampler detection  
+- `saveimage_unimeta/nodes/save_image.py`: Main save node + JPEG fallback
+- `saveimage_unimeta/defs/meta.py`: MetaField enum + field definitions
+- `saveimage_unimeta/nodes/scanner.py`: Dynamic rule discovery
 
-**Rule System**: `CAPTURE_FIELD_LIST` (defaults + extensions + user JSON) merged at runtime. Scanner generates `generated_user_rules.py` from heuristic analysis.
-
-## Critical Workflows
-
-### Development Commands
+## Development Workflow
 ```bash
-# Lint (required before commits)
-ruff check .
+# Lint before commits
 ruff check . --fix
 
-# Test with proper environment
+# Test with deterministic output
 set METADATA_TEST_MODE=1
 pytest -q
 ```
 
-### Debug Modes (Runtime Environment Flags)
-```bash
-set METADATA_DEBUG_PROMPTS=1  # Verbose trace/sampler logging
-set METADATA_TEST_MODE=1      # Multiline deterministic parameters
-set METADATA_NO_HASH_DETAIL=1 # Suppress structured JSON hash blocks
-```
+## JPEG Fallback System (Critical)
+**4 Stages**: `full` → `reduced-exif` → `minimal` → `com-marker`
+- Trigger: EXIF size > `max_jpeg_exif_kb` (UI capped at 64KB)
+- **Always append** `, Metadata Fallback: <stage>` exactly once to parameter string
+- Minimal stage keeps: prompts + core generation + LoRAs + hashes only
+- Implementation: `saveimage_unimeta/nodes/save_image.py` → `save_images()`
 
-### Testing Patterns
-- Always use `METADATA_TEST_MODE=1` for deterministic multiline parameters
-- Mock ComfyUI runtime: `conftest.py` provides stubs for `folder_paths`, `nodes`
-- Test isolation: `generated_user_rules.py` uses `_test_outputs/user_rules/` directory in test mode
-- JPEG fallback tests: Mock `piexif.dump()` to return oversized bytes to trigger stages
-
-## Project-Specific Conventions
-
-### JPEG Metadata Fallback (Critical Business Logic)
-**4-Stage System**: `full` → `reduced-exif` → `minimal` → `com-marker`
-- Controlled by `max_jpeg_exif_kb` (UI hard cap: 64KB)
-- Stage progression triggered by EXIF size vs limit
-- **Minimal allowlist** in `_build_minimal_parameters()`: prompts + core generation + LoRAs + hashes only
-- Always append `, Metadata Fallback: <stage>` **exactly once** to parameter string
-- Store per-image stages in `_last_fallback_stages` for testing/diagnostics
-
-### Rule Definition Patterns
+## Rule System Patterns
 ```python
-# In captures.py or generated_user_rules.py
+# Single field capture
 MetaField.MODEL_NAME: {
-    "field_name": "ckpt_name",           # Single field
-    "format": "calc_model_hash",         # Post-processor
-    "validate": "lambda x: x is not None" # Skip condition
+    "field_name": "ckpt_name",
+    "format": "calc_model_hash"
 }
+
+# Multi-field pattern  
 MetaField.LORA_MODEL_NAME: {
-    "prefix": "lora_name",               # Multi-field pattern (lora_name1, lora_name2...)
+    "prefix": "lora_name",  # matches lora_name1, lora_name2...
     "format": "calc_lora_hash"
 }
 ```
 
-### Environment Flag Precedence
-UI params > environment flags > defaults (e.g., `include_lora_summary` UI param overrides `METADATA_NO_LORA_SUMMARY`)
+## Environment Flags (Debug/Test)
+```bash
+set METADATA_TEST_MODE=1      # Multiline deterministic parameters
+set METADATA_DEBUG_PROMPTS=1  # Verbose trace logging
+set METADATA_NO_HASH_DETAIL=1 # Hide JSON hash blocks
+```
 
-### Error Handling Philosophy
-- **Metadata failures must never abort image saving**
-- Wrap risky capture operations in `try/except` with graceful degradation
-- Use `logger.warning()` with context rather than silent failures
-- Emit `"error: see log"` placeholders for recoverable parsing issues
+## Testing Conventions
+- Use `METADATA_TEST_MODE=1` for reproducible output
+- Mock ComfyUI: `conftest.py` provides stubs for `folder_paths`, `nodes`
+- JPEG tests: Mock `piexif.dump()` returning oversized bytes triggers fallback stages
+- Test isolation: `generated_user_rules.py` uses `_test_outputs/user_rules/` in test mode
 
-## External Dependencies & Integration
+## Error Handling Rules
+- **Metadata failures never abort image saving**
+- Wrap risky operations in `try/except` with graceful degradation
+- Use `logger.warning()` with context (node ID, field name)
+- Skip malformed fields rather than emit placeholders (except `"error: see log"` for recoverable issues)
 
-### ComfyUI Runtime Boundaries
-- `folder_paths.get_output_directory()` / `get_save_image_path()` for file operations
-- `nodes.NODE_CLASS_MAPPINGS` for scanner discovery
-- Global `hook.current_prompt` / `hook.current_save_image_node_id` for graph context
-- Tests provide stubs; production requires ComfyUI runtime
+## Common Tasks
+- **Add MetaField**: Edit `saveimage_unimeta/defs/meta.py`
+- **Modify sampler detection**: Edit `saveimage_unimeta/trace.py` → `is_sampler_like()`
+- **Change parameter format**: Edit `saveimage_unimeta/capture.py` → `gen_parameters_str()`
+- **Update JPEG fallback**: Edit `saveimage_unimeta/nodes/save_image.py` → `save_images()`
+
+## Critical DON'Ts
+- Never reorder stable metadata keys (breaks downstream parsers)
+- Never duplicate `Metadata Fallback:` markers
+- Never modify `CAPTURE_FIELD_LIST` directly (use rule loading system)
+- Never use `print()` (use module logger)
+
+Always return minimal diffs; maintain stable field ordering; test with `METADATA_TEST_MODE=1`.
 
 ### Conditional Imports (Testing)
 ```python
