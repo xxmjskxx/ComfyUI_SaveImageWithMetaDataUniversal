@@ -38,3 +38,5 @@ class MetaField(IntEnum):
     LORA_MODEL_HASH = 51
     LORA_STRENGTH_MODEL = 52
     LORA_STRENGTH_CLIP = 53
+    START_STEP = 54  # per-sampler subrange start (Wan / multi-sampler support)
+    END_STEP = 55    # per-sampler subrange end (Wan / multi-sampler support)

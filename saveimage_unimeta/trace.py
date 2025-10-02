@@ -132,6 +132,157 @@ class Trace:
                 return nid
         return -1
 
+    # --- Multi-sampler (Tier A + B) enumeration helpers ---
+    @classmethod
+    def enumerate_samplers(cls, trace_tree: dict, max_multi: int = 4) -> list[dict]:
+        """Return ordered sampler candidate entries (Tier A explicit + Tier B rule-backed).
+
+        Each entry structure:
+            {
+              'node_id': <str>,
+              'tier': 'A' | 'B',
+              'class_type': <str>,
+              'sampler_name': <str|None>,
+              'steps': <int|None>,
+              'start_step': <int|None>,
+              'end_step': <int|None>,
+              'range_len': <int>,
+              'is_segment': <bool>,
+            }
+
+        Ordering rules applied after collection:
+            1. Primary first (tier priority A over B, then widest range_len, then steps, then farthest distance).
+            2. Remaining by (range_len desc, original farthest distance, node id asc).
+
+        Note: trace_tree values are (distance, class_type). Distance larger => farther upstream.
+        """
+        try:
+            # Build distance-sorted list (farthest-first) for deterministic ordering base.
+            nodes = [
+                (nid, info[0], info[1])
+                for nid, info in trace_tree.items()
+                if isinstance(info, tuple) and len(info) >= 2
+            ]
+        except Exception:
+            return []
+        # Sort farthest-first (higher distance earlier)
+        nodes.sort(key=lambda x: x[1], reverse=True)
+
+        candidates: list[dict] = []
+        seen_ids: set[str] = set()
+
+        for nid, dist, class_type in nodes:
+            if class_type in SAMPLERS and nid not in seen_ids:
+                entry = cls._build_sampler_entry(nid, class_type, tier="A")
+                candidates.append(entry)
+                seen_ids.add(nid)
+                continue
+            # Tier B evaluation: rule-backed (must have sampler name + (steps or start+end))
+            rules = CAPTURE_FIELD_LIST.get(class_type)
+            if not rules or nid in seen_ids:
+                continue
+            meta_keys = {getattr(m, "name", "") for m in rules.keys() if hasattr(m, "name")}
+            has_name = MetaField.SAMPLER_NAME.name in meta_keys
+            has_steps = MetaField.STEPS.name in meta_keys
+            has_start = MetaField.START_STEP.name in meta_keys
+            has_end = MetaField.END_STEP.name in meta_keys
+            segment_ok = has_start and has_end
+            if has_start != has_end:  # mismatched segment definitions
+                try:
+                    logger.warning(
+                        cstr("[Trace] Incomplete segment rule for class %s (start=%s end=%s) - ignoring segment").msg,
+                        class_type,
+                        has_start,
+                        has_end,
+                    )
+                except Exception:
+                    pass
+            if has_name and (has_steps or segment_ok):
+                entry = cls._build_sampler_entry(nid, class_type, tier="B", segment=segment_ok)
+                candidates.append(entry)
+                seen_ids.add(nid)
+
+        if not candidates:
+            return []
+
+        # Compute primary
+        primary = cls._select_primary(candidates, trace_tree)
+        # Order remaining
+        ordered: list[dict] = []
+        if primary:
+            ordered.append(primary)
+        for c in candidates:
+            if primary and c["node_id"] == primary["node_id"]:
+                continue
+            ordered.append(c)
+        # Secondary ordering for non-primary
+        if len(ordered) > 1:
+            head, tail = ordered[0], ordered[1:]
+            tail.sort(
+                key=lambda e: (
+                    -(e.get("range_len", 0) or 0),  # desc range
+                    -trace_tree.get(e["node_id"], (0, ""))[0],  # farther distance first
+                    e["node_id"],
+                )
+            )
+            ordered = [head] + tail
+
+        if len(ordered) > max_multi:
+            if _trace_debug_enabled():
+                logger.debug(cstr("[Trace] Truncating multi-sampler list %d -> %d").msg, len(ordered), max_multi)
+            ordered = ordered[:max_multi]
+        if _trace_debug_enabled():
+            try:
+                logger.debug(
+                    cstr("[Trace] Multi-sampler candidates: %s").msg,
+                    [f"{e['tier']}:{e['class_type']}#{e['node_id']}" for e in ordered],
+                )
+            except Exception:
+                pass
+        return ordered
+
+    @classmethod
+    def _build_sampler_entry(cls, node_id: str, class_type: str, tier: str, segment: bool = False) -> dict:
+        # We only know start/end placeholders later once capture dictionary is built; store None now.
+        entry = {
+            "node_id": node_id,
+            "tier": tier,
+            "class_type": class_type,
+            "sampler_name": None,
+            "steps": None,
+            "start_step": None,
+            "end_step": None,
+            "range_len": 0,
+            "is_segment": segment,
+        }
+        return entry
+
+    @classmethod
+    def _select_primary(cls, candidates: list[dict], trace_tree: dict):
+        # Separate by tier
+        tierA = [c for c in candidates if c.get("tier") == "A"]
+        tierB = [c for c in candidates if c.get("tier") == "B"]
+        for group in (tierA, tierB):
+            if not group:
+                continue
+            # Choose by widest range_len then steps then farthest distance then node id
+            def _nid_sort_key(nid: str):
+                s = str(nid)
+                if s.isdigit():
+                    return (0, -int(s))  # numeric ids: invert for descending when reversed
+                return (1, s)  # non-numeric ordered after numeric, lexicographically
+            group.sort(
+                key=lambda e: (
+                    e.get("range_len", 0) or 0,
+                    e.get("steps", 0) or 0,
+                    trace_tree.get(e["node_id"], (0, ""))[0],
+                    _nid_sort_key(e["node_id"]),
+                ),
+                reverse=True,
+            )
+            return group[0]
+        return None
+
     @classmethod
     def filter_inputs_by_trace_tree(cls, inputs, trace_tree):
         filtered_inputs = {}
