@@ -25,10 +25,10 @@ def build_lora_index() -> None:
         * Enumerates every directory in ``folder_paths.get_folder_paths('loras')``.
         * Recursively walks subdirectories.
         * Records the FIRST occurrence of each base filename (stem) only.
-        * Supported extensions: ``.safetensors``, ``.pt``, ``.bin``, ``.ckpt``.
+        * Supported extensions: ``.safetensors``, ``.st``, ``.pt``, ``.bin``, ``.ckpt``.
 
     Idempotence:
-        Subsequent calls short‑circuit once the index has been built (``_LORA_INDEX_BUILT`` flag).
+        Subsequent calls short-circuit once the index has been built (``_LORA_INDEX_BUILT`` flag).
 
     Side Effects:
         Mutates module-level caches ``_LORA_INDEX`` and ``_LORA_INDEX_BUILT``.

@@ -15,6 +15,8 @@ Avoid adding heavy deps; prefer extending formatters.
 ## Dev Workflows
 Run lint: `ruff check .`  (keep code style consistent).
 Run tests (if present): `pytest -q` (multiline parameter mode via `METADATA_TEST_MODE=1`).
+Keep all test scripts in 'tests'.
+Write any test file outputs to '_test_outputs'.
 Manual debug: set `METADATA_DEBUG_PROMPTS=1` or temporarily raise logger level for module.
 Validate JPEG fallback: lower `max_jpeg_exif_kb` (e.g. 8) and confirm staged marker progression.
 
