@@ -345,9 +345,11 @@ class TestSpecialCharacterFilenames(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    print("Running comprehensive filename handling tests...")
-    print("Testing Windows-valid characters (excluding reserved: < > : \" / \\ | ? *)")
-    print()
+    logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+    logger = logging.getLogger(__name__)
+
+    logger.info("Running comprehensive filename handling tests...")
+    logger.info("Testing Windows-valid characters (excluding reserved: < > : \" / \\ | ? *)")
 
     # Run the tests
     unittest.main(verbosity=2)

@@ -182,6 +182,9 @@ class TestLoraDotsIssue(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    print("Testing LoRA dots issue fix...")
-    print("=" * 50)
+    logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+    logger = logging.getLogger(__name__)
+
+    logger.info("Testing LoRA dots issue fix...")
+    logger.info("=" * 50)
     unittest.main(verbosity=2)
