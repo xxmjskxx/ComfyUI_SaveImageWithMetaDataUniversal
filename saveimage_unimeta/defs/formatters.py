@@ -293,7 +293,7 @@ def calc_vae_hash(model_name: Any, input_data: list) -> str:
 # This new version of calc_lora_hash replaces the old one.
 # It's now much more powerful, using the index to find files and
 # checking for pre-computed .sha256 files before hashing manually.
-def calc_lora_hash(model_name: Any, input_data: list) -> str:
+def calc_lora_hash(model_name: Any, input_data: list | None = None) -> str:
     """Return truncated (10 char) sha256 hash for a LoRA.
 
     Accepts names/paths plus nested container / object forms. Utilizes cached `.sha256`
@@ -301,7 +301,7 @@ def calc_lora_hash(model_name: Any, input_data: list) -> str:
 
     Args:
         model_name: LoRA identifier (string / list / dict / object).
-        input_data: Unused (legacy signature compatibility).
+        input_data: Unused (legacy signature compatibility). Can be None.
 
     Returns:
         10-character truncated hex hash or 'N/A' if unresolved.
