@@ -73,4 +73,3 @@ def _maybe_log_startup():  # pragma: no cover
 _ENV = __import__("os").environ
 if "PYTEST_CURRENT_TEST" not in _ENV and "METADATA_TEST_MODE" not in _ENV:
     _lazy_load_nodes()
-    _maybe_log_startup()
