@@ -95,14 +95,15 @@ def _ckpt_name_to_path(name_like: Any) -> tuple[str, str | None]:
             if val:
                 return _ckpt_name_to_path(val)
 
-    # String: resolve via folder_paths
+    # String: resolve via folder_paths with extension fallback
     if isinstance(name_like, str):
         full = None
         try:
             full = folder_paths.get_full_path("checkpoints", name_like)
         except Exception:  # pragma: no cover - folder_paths internal failures
-            full = None
-    return name_like, full
+            # Try extension fallback if direct lookup fails
+            full = _resolve_model_path_with_extensions("checkpoints", name_like)
+        return name_like, full
 
     return str(name_like), None
 
@@ -160,7 +161,11 @@ def calc_model_hash(model_name: Any, input_data: list) -> str:
             display_name,
             filename,
         )
-        full_hash = calc_hash(filename)
+        try:
+            full_hash = calc_hash(filename)
+        except OSError as e:  # pragma: no cover
+            logger.debug("[Metadata Lib] Could not calculate hash for model '%s': %s", filename, e)
+            return "N/A"
         try:
             with open(sha_path, "w", encoding="utf-8") as f:
                 f.write(str(full_hash))
@@ -193,7 +198,8 @@ def _vae_name_to_path(model_name: Any) -> tuple[str, str | None]:
                 try:
                     full = folder_paths.get_full_path("vae", val)
                 except Exception:  # pragma: no cover
-                    full = None
+                    # Try extension fallback if direct lookup fails
+                    full = _resolve_model_path_with_extensions("vae", val)
                 if full and os.path.exists(full):
                     return display_name or val, full
         return display_name or str(model_name), None
@@ -203,7 +209,8 @@ def _vae_name_to_path(model_name: Any) -> tuple[str, str | None]:
         try:
             full = folder_paths.get_full_path("vae", model_name)
         except Exception:  # pragma: no cover
-            full = None
+            # Try extension fallback if direct lookup fails
+            full = _resolve_model_path_with_extensions("vae", model_name)
         return model_name, full
 
     # Fallback
@@ -253,13 +260,44 @@ def calc_vae_hash(model_name: Any, input_data: list) -> str:
         except OSError as e:  # pragma: no cover
             logger.debug("[Metadata Lib] Failed reading VAE sha256 sidecar '%s': %s", sha_path, e)
     if not full_hash:
-        full_hash = calc_hash(filename)
+        try:
+            full_hash = calc_hash(filename)
+        except OSError as e:  # pragma: no cover
+            logger.debug("[Metadata Lib] Could not calculate hash for VAE '%s': %s", filename, e)
+            return "N/A"
         try:
             with open(sha_path, "w", encoding="utf-8") as f:
                 f.write(str(full_hash))
         except OSError as e:  # pragma: no cover
             logger.debug("[Metadata Lib] Could not write VAE sidecar '%s': %s", sha_path, e)
     return full_hash[:10] if isinstance(full_hash, str) else full_hash
+
+
+def _resolve_model_path_with_extensions(folder_type: str, model_name: str) -> str | None:
+    """Try to resolve a model path by testing common file extensions.
+
+    This provides a fallback when folder_paths.get_full_path fails because
+    the model_name doesn't include the file extension.
+
+    Args:
+        folder_type: The folder type for folder_paths ("loras", "checkpoints", etc.)
+        model_name: The base model name without extension
+
+    Returns:
+        Full path if found, None otherwise
+    """
+    # Common model file extensions in order of preference
+    extensions = [".safetensors", ".st", ".pt", ".bin", ".ckpt"]
+
+    for ext in extensions:
+        try:
+            full_path = folder_paths.get_full_path(folder_type, model_name + ext)
+            if full_path and os.path.exists(full_path):  # Verify the path actually exists
+                return full_path
+        except Exception:  # pragma: no cover
+            continue
+
+    return None
 
 
 # This new version of calc_lora_hash replaces the old one.
@@ -313,13 +351,14 @@ def calc_lora_hash(model_name: Any, input_data: list) -> str:
                 if val:
                     return _lora_name_to_path(val)
 
-        # String: resolve via folder_paths
+        # String: resolve via folder_paths with extension fallback
         if isinstance(name_like, str):
             full = None
             try:
                 full = folder_paths.get_full_path("loras", name_like)
             except Exception:  # pragma: no cover
-                full = None
+                # If direct lookup fails, try with common LoRA extensions
+                full = _resolve_model_path_with_extensions("loras", name_like)
             return name_like, full
 
         # Fallback: stringify
@@ -335,19 +374,26 @@ def calc_lora_hash(model_name: Any, input_data: list) -> str:
     except Exception:
         pass
 
-    # If not resolved, try lookup by base name (dynamic index)
+    # If not resolved, try extension fallback first, then LoRA index as secondary fallback
     if not full_path or not os.path.exists(full_path):
-        try:
-            if isinstance(display_name, str):
-                info = find_lora_info(display_name)
-            else:
+        # First, try extension fallback which works like folder_paths but with extensions
+        if isinstance(display_name, str):
+            full_path = _resolve_model_path_with_extensions("loras", display_name)
+
+        # If extension fallback fails, try the LoRA index as secondary fallback
+        if not full_path:
+            try:
+                if isinstance(display_name, str):
+                    info = find_lora_info(display_name)
+                else:
+                    info = None
+            except Exception:
                 info = None
-        except Exception:
-            info = None
-        if info:
-            full_path = info.get("abspath")
-        else:
-            # Quietly return N/A when unresolved (avoid noisy logs for empty loaders)
+            if info:
+                full_path = info.get("abspath")
+
+        # If both fallbacks fail, return N/A
+        if not full_path:
             return "N/A"
 
     # Now we have the absolute path, so we can check for a .sha256 file or hash it.
@@ -372,7 +418,11 @@ def calc_lora_hash(model_name: Any, input_data: list) -> str:
             display_name,
             full_path,
         )
-        full_hash = calc_hash(full_path)
+        try:
+            full_hash = calc_hash(full_path)
+        except OSError as e:  # pragma: no cover
+            logger.debug("[Metadata Lib] Could not calculate hash for LoRA '%s': %s", full_path, e)
+            return "N/A"
         # Persist full hash for future runs
         try:
             with open(hash_filepath, "w", encoding="utf-8") as f:
@@ -428,13 +478,14 @@ def calc_unet_hash(model_name: Any, input_data: list) -> str:
                 if val:
                     return _unet_name_to_path(val)
 
-        # Direct string: resolve via folder_paths
+        # Direct string: resolve via folder_paths with extension fallback
         if isinstance(name_like, str):
             full = None
             try:
                 full = folder_paths.get_full_path("unet", name_like)
             except Exception:  # pragma: no cover
-                full = None
+                # Try extension fallback if direct lookup fails
+                full = _resolve_model_path_with_extensions("unet", name_like)
             return name_like, full
 
         # Fallback
@@ -467,7 +518,11 @@ def calc_unet_hash(model_name: Any, input_data: list) -> str:
             display_name,
             filename,
         )
-        full_hash = calc_hash(filename)
+        try:
+            full_hash = calc_hash(filename)
+        except OSError as e:  # pragma: no cover
+            logger.debug("[Metadata Lib] Could not calculate hash for UNet '%s': %s", filename, e)
+            return "N/A"
         try:
             with open(sha_path, "w", encoding="utf-8") as f:
                 f.write(str(full_hash))
