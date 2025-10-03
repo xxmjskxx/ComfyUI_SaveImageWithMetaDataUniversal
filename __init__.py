@@ -8,6 +8,7 @@ Runtime (ComfyUI) does not require this, but test isolation does.
 """
 
 import os
+import sys
 
 __all__ = [
     # Populated lazily; left for static analyzers
@@ -18,7 +19,7 @@ __all__ = [
 
 NODE_CLASS_MAPPINGS = {}
 NODE_DISPLAY_NAME_MAPPINGS = {}
-_STARTUP_LOGGED = False
+
 
 WEB_DIRECTORY = os.path.join(os.path.dirname(os.path.realpath(__file__)), "web")
 
@@ -44,20 +45,45 @@ def _lazy_load_nodes():  # pragma: no cover - side-effect only
 
 
 def _maybe_log_startup():  # pragma: no cover
-    global _STARTUP_LOGGED
-    if _STARTUP_LOGGED:  # already logged
-        return
-    _STARTUP_LOGGED = True
-
+    """Log startup message exactly once per Python session."""
     import logging
 
-    from .saveimage_unimeta.utils.color import cstr  # local import to avoid heavy deps early
+    # Use a module-level registry that persists across reimports
+    # Store the marker in sys.modules to survive module reloads
+    startup_key = f"_startup_logged_{__name__}"
+
+    # Check if we've already logged startup for this module in this Python session
+    if startup_key in sys.modules:
+        return
+
+    # Mark that we've logged startup for this module
+    sys.modules[startup_key] = True
 
     logger = logging.getLogger(__name__)
+
+    try:
+        from .saveimage_unimeta.utils.color import cstr  # local import to avoid heavy deps early
+    except ImportError:
+        # Fallback for test environments without full dependencies
+        class MockCstr:
+            def __init__(self, text):
+                self.text = str(text)
+            @property
+            def msg_o(self):
+                return self.text
+            @property
+            def lightviolet(self):
+                return self.text
+            @property
+            def end(self):
+                return self.text
+        cstr = MockCstr
+
     try:
         count = len(NODE_CLASS_MAPPINGS.keys())
     except Exception:  # noqa: BLE001
         count = 0
+
     logger.info(
         " ".join(
             [
@@ -73,3 +99,4 @@ def _maybe_log_startup():  # pragma: no cover
 _ENV = __import__("os").environ
 if "PYTEST_CURRENT_TEST" not in _ENV and "METADATA_TEST_MODE" not in _ENV:
     _lazy_load_nodes()
+    _maybe_log_startup()
