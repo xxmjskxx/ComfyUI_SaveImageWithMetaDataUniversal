@@ -25,7 +25,7 @@ def build_lora_index() -> None:
         * Enumerates every directory in ``folder_paths.get_folder_paths('loras')``.
         * Recursively walks subdirectories.
         * Records the FIRST occurrence of each base filename (stem) only.
-        * Supported extensions: ``.safetensors``, ``.pt``, ``.bin``, ``.ckpt``.
+        * Supported extensions: ``.safetensors``, ``.st``, ``.pt``, ``.bin``, ``.ckpt``.
 
     Idempotence:
         Subsequent calls short-circuit once the index has been built (``_LORA_INDEX_BUILT`` flag).
@@ -48,12 +48,10 @@ def build_lora_index() -> None:
                 file_base, file_ext = os.path.splitext(file)
                 # Use the base name as the key for easy lookup
                 if file_ext in extensions and file_base not in _LORA_INDEX:
-                    file_info = {
+                    _LORA_INDEX[file_base] = {
                         "filename": file,
                         "abspath": os.path.join(root, file),
                     }
-
-                    _LORA_INDEX[file_base] = file_info
 
     _LORA_INDEX_BUILT = True
     logger.info("[Metadata Lib] LoRA index built with %d entries.", len(_LORA_INDEX))
@@ -63,11 +61,11 @@ def find_lora_info(base_name: str) -> dict[str, str] | None:
     """Return indexed metadata for a given LoRA base name.
 
     Args:
-        base_name: Stem of the LoRA file (without extension).
-            Case sensitivity matches on-disk enumeration.
+        base_name: Stem of the LoRA file (without extension). Case sensitivity matches on-disk enumeration;
+            callers should normalize (e.g. lowercase) if performing broad matching.
 
     Returns:
-        Mapping with keys ``filename`` and ``abspath`` or ``None`` when no match found.
+        Mapping with keys ``filename`` and ``abspath`` or ``None`` when the stem was not indexed.
     """
     build_lora_index()
     if _LORA_INDEX is None:
