@@ -18,6 +18,7 @@ __all__ = [
 
 NODE_CLASS_MAPPINGS = {}
 NODE_DISPLAY_NAME_MAPPINGS = {}
+_STARTUP_LOGGED = False
 
 WEB_DIRECTORY = os.path.join(os.path.dirname(os.path.realpath(__file__)), "web")
 
@@ -43,6 +44,11 @@ def _lazy_load_nodes():  # pragma: no cover - side-effect only
 
 
 def _maybe_log_startup():  # pragma: no cover
+    global _STARTUP_LOGGED
+    if _STARTUP_LOGGED:  # already logged
+        return
+    _STARTUP_LOGGED = True
+
     import logging
 
     from .saveimage_unimeta.utils.color import cstr  # local import to avoid heavy deps early
