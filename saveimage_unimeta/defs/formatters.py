@@ -45,6 +45,40 @@ cache_model_hash = {}
 logger = logging.getLogger(__name__)
 
 
+def _resolve_model_path_with_extensions(
+    folder_type: str,
+    name_like: str,
+    extensions: list[str] | None = None
+) -> str | None:
+    """Try to resolve a model name to full path, with extension fallback.
+
+    Args:
+        folder_type: The folder type for folder_paths.get_full_path (e.g., "loras", "checkpoints")
+        name_like: The model name to resolve
+        extensions: List of extensions to try. Defaults to common model extensions.
+
+    Returns:
+        Resolved absolute path or None if not found
+    """
+    if extensions is None:
+        extensions = [".safetensors", ".st", ".pt", ".bin", ".ckpt"]
+
+    # First try exact name (in case it includes extension)
+    try:
+        return folder_paths.get_full_path(folder_type, name_like)
+    except Exception:
+        pass
+
+    # If that fails, try adding common extensions
+    for ext in extensions:
+        try:
+            return folder_paths.get_full_path(folder_type, name_like + ext)
+        except Exception:
+            continue
+
+    return None
+
+
 def _ckpt_name_to_path(name_like: Any) -> tuple[str, str | None]:
     """
     Resolve checkpoint/model identifier to a file path.
@@ -97,18 +131,7 @@ def _ckpt_name_to_path(name_like: Any) -> tuple[str, str | None]:
 
     # String: resolve via folder_paths
     if isinstance(name_like, str):
-        full = None
-        try:
-            # First try exact name (in case it includes extension)
-            full = folder_paths.get_full_path("checkpoints", name_like)
-        except Exception:
-            # If that fails, try adding common model extensions
-            for ext in [".safetensors", ".st", ".pt", ".bin", ".ckpt"]:
-                try:
-                    full = folder_paths.get_full_path("checkpoints", name_like + ext)
-                    break
-                except Exception:
-                    continue
+        full = _resolve_model_path_with_extensions("checkpoints", name_like)
         return name_like, full
 
     # Fallback: stringify
@@ -146,7 +169,7 @@ def calc_model_hash(model_name: Any, input_data: list) -> str:
         if isinstance(model_name, str) and os.path.exists(model_name):
             filename = model_name
         else:
-            # print(f"[Metadata Lib] Model '{display_name}' could not be resolved to a file. Skipping hash.")
+            logger.debug("Model '%s' could not be resolved to a file. Skipping hash.", display_name)
             return "N/A"
     # Prefer precomputed sibling .sha256 file
     base, _ = os.path.splitext(filename)
@@ -208,18 +231,7 @@ def _vae_name_to_path(model_name: Any) -> tuple[str, str | None]:
 
     # String case
     if isinstance(model_name, str):
-        full = None
-        try:
-            # First try exact name (in case it includes extension)
-            full = folder_paths.get_full_path("vae", model_name)
-        except Exception:
-            # If that fails, try adding common VAE extensions
-            for ext in [".safetensors", ".st", ".pt", ".bin", ".ckpt"]:
-                try:
-                    full = folder_paths.get_full_path("vae", model_name + ext)
-                    break
-                except Exception:
-                    continue
+        full = _resolve_model_path_with_extensions("vae", model_name)
         return model_name, full
 
     # Fallback
@@ -331,18 +343,7 @@ def calc_lora_hash(model_name: Any, input_data: list) -> str:
 
         # String: resolve via folder_paths
         if isinstance(name_like, str):
-            full = None
-            try:
-                # First try exact name (in case it includes extension)
-                full = folder_paths.get_full_path("loras", name_like)
-            except Exception:
-                # If that fails, try adding common LoRA extensions
-                for ext in [".safetensors", ".st", ".pt", ".bin", ".ckpt"]:
-                    try:
-                        full = folder_paths.get_full_path("loras", name_like + ext)
-                        break
-                    except Exception:
-                        continue
+            full = _resolve_model_path_with_extensions("loras", name_like)
             return name_like, full
 
         # Fallback: stringify
@@ -456,18 +457,7 @@ def calc_unet_hash(model_name: Any, input_data: list) -> str:
 
         # Direct string: resolve via folder_paths
         if isinstance(name_like, str):
-            full = None
-            try:
-                # First try exact name (in case it includes extension)
-                full = folder_paths.get_full_path("unet", name_like)
-            except Exception:
-                # If that fails, try adding common UNet extensions
-                for ext in [".safetensors", ".st", ".pt", ".bin", ".ckpt"]:
-                    try:
-                        full = folder_paths.get_full_path("unet", name_like + ext)
-                        break
-                    except Exception:
-                        continue
+            full = _resolve_model_path_with_extensions("unet", name_like)
             return name_like, full
 
         # Fallback
@@ -479,7 +469,7 @@ def calc_unet_hash(model_name: Any, input_data: list) -> str:
         if isinstance(model_name, str) and os.path.exists(model_name):
             filename = model_name
         else:
-            # print(f"[Metadata Lib] UNet '{display_name}' could not be resolved to a file. Skipping hash.")
+            logger.debug("UNet '%s' could not be resolved to a file. Skipping hash.", display_name)
             return "N/A"
     base, _ = os.path.splitext(filename)
     sha_path = base + ".sha256"

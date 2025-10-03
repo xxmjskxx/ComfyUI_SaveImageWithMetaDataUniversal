@@ -18,6 +18,7 @@ Tests include:
 import os
 import tempfile
 import unittest
+import logging
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -39,7 +40,7 @@ try:
     from saveimage_unimeta.utils.embedding import get_embedding_file_path
     formatters_available = True
 except ImportError as e:
-    print(f"Could not import formatters: {e}")
+    logging.warning("Could not import formatters: %s", e)
     formatters_available = False
 
 

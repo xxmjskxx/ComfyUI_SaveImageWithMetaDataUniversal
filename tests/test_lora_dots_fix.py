@@ -8,6 +8,7 @@ os.path.splitext treats incorrectly.
 import os
 import tempfile
 import unittest
+import logging
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -20,7 +21,7 @@ try:
     from saveimage_unimeta.defs.formatters import calc_lora_hash, calc_model_hash, calc_vae_hash, calc_unet_hash
     formatters_available = True
 except ImportError as e:
-    print(f"Could not import formatters: {e}")
+    logging.warning("Could not import formatters: %s", e)
     formatters_available = False
 
 
