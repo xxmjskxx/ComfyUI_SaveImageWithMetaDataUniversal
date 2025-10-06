@@ -8,13 +8,14 @@ Runtime (ComfyUI) does not require this, but test isolation does.
 """
 
 import os
-import sys
+
 
 __all__ = [
     # Populated lazily; left for static analyzers
     "NODE_CLASS_MAPPINGS",
     "NODE_DISPLAY_NAME_MAPPINGS",
     "WEB_DIRECTORY",
+    "saveimage_unimeta",  # exposed via __getattr__ for lazy import
 ]
 
 NODE_CLASS_MAPPINGS = {}
@@ -48,18 +49,18 @@ def _maybe_log_startup():  # pragma: no cover
     """Log startup message exactly once per Python session."""
     import logging
 
-    # Use a module-level registry that persists across reimports
-    # Store the marker in sys.modules to survive module reloads
-    startup_key = f"_startup_logged_{__name__}"
+    # Use logging module's internal registry as persistent storage
+    # This survives module reloads and reimports within the same Python session
+    logger = logging.getLogger(__name__)
+    startup_registry = logging.getLogger("_startup_registry")
+    startup_marker = f"{__name__}_logged"
 
-    # Check if we've already logged startup for this module in this Python session
-    if startup_key in sys.modules:
+    # Check if we've already logged startup for this module
+    if hasattr(startup_registry, startup_marker):
         return
 
     # Mark that we've logged startup for this module
-    sys.modules[startup_key] = True
-
-    logger = logging.getLogger(__name__)
+    setattr(startup_registry, startup_marker, True)
 
     try:
         from .saveimage_unimeta.utils.color import cstr  # local import to avoid heavy deps early
@@ -68,15 +69,19 @@ def _maybe_log_startup():  # pragma: no cover
         class MockCstr:
             def __init__(self, text):
                 self.text = str(text)
+
             @property
             def msg_o(self):
                 return self.text
+
             @property
             def lightviolet(self):
                 return self.text
+
             @property
             def end(self):
                 return self.text
+
         cstr = MockCstr
 
     try:
@@ -94,6 +99,21 @@ def _maybe_log_startup():  # pragma: no cover
             ]
         )
     )
+
+
+# --- Lazy attribute access -------------------------------------------------
+# Some tests (and potentially user code) attempt to patch or access
+# 'ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.*'. When the top
+# level package is imported using a custom loader (as done in tests with
+# importlib.util.module_from_spec), Python's usual automatic addition of
+# submodules to the parent package's namespace can be bypassed. Implement
+# PEP 562 style module __getattr__ so attribute resolution triggers a lazy
+# import of the subpackage.
+def __getattr__(name):  # pragma: no cover - simple passthrough
+    if name == "saveimage_unimeta":
+        import importlib
+        return importlib.import_module(f"{__name__}.saveimage_unimeta")
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 
 _ENV = __import__("os").environ

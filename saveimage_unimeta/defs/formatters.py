@@ -276,6 +276,8 @@ def calc_vae_hash(model_name: Any, input_data: list) -> str:
 def _resolve_model_path_with_extensions(folder_type: str, model_name: str) -> str | None:
     """Try to resolve a model path by testing common file extensions.
 
+    Extensions are tried in order of preference, and the first match found is returned.
+
     This provides a fallback when folder_paths.get_full_path fails because
     the model_name doesn't include the file extension.
 

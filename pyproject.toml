@@ -31,10 +31,6 @@ dev = [
     "pip-audit",  # security auditing
     "pre-commit",  # git hooks
     "PyYAML",  # YAML parsing for configs
-    # Runtime dependencies needed for testing
-    "pillow>=10.0.0",
-    "numpy>=1.21.0", 
-    "piexif>=1.1.0",
 ]
 
 [tool.ruff]
