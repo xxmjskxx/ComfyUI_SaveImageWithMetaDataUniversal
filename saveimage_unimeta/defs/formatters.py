@@ -59,7 +59,7 @@ def _ckpt_name_to_path(name_like: Any) -> tuple[str, str | None]:
         full: str | None = None
         # First attempt sanitized/original candidate
         try:
-            full = folder_paths.get_full_path("checkpoints", candidate)
+                full = folder_paths.get_full_path("checkpoints", candidate)
         except Exception:  # pragma: no cover
             full = None
         # If direct lookup failed OR produced non-existent path, probe extensions
@@ -90,7 +90,7 @@ def display_model_name(name_like: Any) -> str:
         pass
     if isinstance(fp, str) and fp:
         try:
-            return os.path.basename(fp)
+                return os.path.basename(fp)
         except Exception:
             return fp
     return str(name_like)
@@ -132,7 +132,7 @@ def _vae_name_to_path(model_name: Any) -> tuple[str, str | None]:
         candidate = sanitized or original
         full: str | None = None
         try:
-            full = folder_paths.get_full_path("vae", candidate)
+                full = folder_paths.get_full_path("vae", candidate)
         except Exception:  # pragma: no cover
             full = None
         if not full or not os.path.exists(full):
@@ -160,7 +160,7 @@ def display_vae_name(name_like: Any) -> str:
         pass
     if isinstance(fp, str) and fp:
         try:
-            return os.path.basename(fp)
+                return os.path.basename(fp)
         except Exception:
             return fp
     return str(name_like)
@@ -212,7 +212,7 @@ def _resolve_model_path_with_extensions(folder_type: str, model_name: str) -> st
             full_path = folder_paths.get_full_path(folder_type, model_name + ext)
             if full_path and os.path.exists(full_path):  # Verify the path actually exists
                 return full_path
-        except Exception:  # pragma: no cover
+        except OSError:  # pragma: no cover
             continue
 
     return None

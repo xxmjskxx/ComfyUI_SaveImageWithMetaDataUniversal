@@ -32,7 +32,7 @@ try:  # runtime import (skip gracefully if minimal env)
     )
     from saveimage_unimeta.utils.embedding import get_embedding_file_path
     FORMATTERS_AVAILABLE = True
-except Exception as e:  # noqa: BLE001
+except (ImportError, ModuleNotFoundError) as e:  # narrow expected import failures
     logging.warning("Could not import formatters: %s", e)
     FORMATTERS_AVAILABLE = False
 

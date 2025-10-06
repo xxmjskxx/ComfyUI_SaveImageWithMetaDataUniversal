@@ -8,6 +8,7 @@ Runtime (ComfyUI) does not require this, but test isolation does.
 """
 
 import os
+import importlib  # moved to module scope to avoid repeated import in __getattr__
 
 
 __all__ = [
@@ -111,7 +112,6 @@ def _maybe_log_startup():  # pragma: no cover
 # import of the subpackage.
 def __getattr__(name):  # pragma: no cover - simple passthrough
     if name == "saveimage_unimeta":
-        import importlib
         return importlib.import_module(f"{__name__}.saveimage_unimeta")
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 

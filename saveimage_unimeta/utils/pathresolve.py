@@ -31,7 +31,7 @@ import folder_paths  # type: ignore
 
 try:  # local import guarded for tests (calc_hash optional patch)
     from .hash import calc_hash  # type: ignore
-except Exception:  # pragma: no cover - test fallback
+except (ImportError, ModuleNotFoundError):  # pragma: no cover - test fallback
     def calc_hash(path: str) -> str:  # type: ignore
         import hashlib
         with open(path, 'rb') as f:
