@@ -40,7 +40,7 @@ except Exception:  # noqa: BLE001 - provide minimal stubs for tests
 from ..utils.embedding import get_embedding_file_path
 from ..utils.hash import calc_hash
 from ..utils.lora import find_lora_info
-from ..utils.pathresolve import try_resolve_artifact, load_or_calc_hash
+from ..utils.pathresolve import try_resolve_artifact, load_or_calc_hash, sanitize_candidate
 
 cache_model_hash = {}
 logger = logging.getLogger(__name__)
@@ -53,11 +53,30 @@ def _ckpt_name_to_path(name_like: Any) -> tuple[str, str | None]:
         return res.display_name, res.full_path
     # Legacy fallback (ensures test patches to this module's folder_paths still work)
     if isinstance(name_like, str):
+        original = name_like
+        sanitized = sanitize_candidate(original)
+        candidate = sanitized or original
+        full: str | None = None
+        # First attempt sanitized/original candidate
         try:
-            full = folder_paths.get_full_path("checkpoints", name_like)
+            full = folder_paths.get_full_path("checkpoints", candidate)
         except Exception:  # pragma: no cover
-            full = _resolve_model_path_with_extensions("checkpoints", name_like)
-        return name_like, full
+            full = None
+        # If direct lookup failed OR produced non-existent path, probe extensions
+        if not full or not os.path.exists(full):
+            full = _resolve_model_path_with_extensions("checkpoints", candidate)
+        # If still unresolved and we altered the name, try original form
+        if (not full or not os.path.exists(full)) and candidate != original:
+            try:
+                full = folder_paths.get_full_path("checkpoints", original)
+            except Exception:  # pragma: no cover
+                full = None
+            if not full or not os.path.exists(full):
+                full = _resolve_model_path_with_extensions("checkpoints", original)
+        # Final guard: ensure path exists
+        if full and not os.path.exists(full):
+            full = None
+        return candidate, full
     return res.display_name, None
 
 
@@ -108,11 +127,26 @@ def _vae_name_to_path(model_name: Any) -> tuple[str, str | None]:
         return res.display_name, res.full_path
     # Legacy fallback for test-mocked folder_paths
     if isinstance(model_name, str):
+        original = model_name
+        sanitized = sanitize_candidate(original)
+        candidate = sanitized or original
+        full: str | None = None
         try:
-            full = folder_paths.get_full_path("vae", model_name)
+            full = folder_paths.get_full_path("vae", candidate)
         except Exception:  # pragma: no cover
-            full = _resolve_model_path_with_extensions("vae", model_name)
-        return model_name, full
+            full = None
+        if not full or not os.path.exists(full):
+            full = _resolve_model_path_with_extensions("vae", candidate)
+        if (not full or not os.path.exists(full)) and candidate != original:
+            try:
+                full = folder_paths.get_full_path("vae", original)
+            except Exception:  # pragma: no cover
+                full = None
+            if not full or not os.path.exists(full):
+                full = _resolve_model_path_with_extensions("vae", original)
+        if full and not os.path.exists(full):
+            full = None
+        return candidate, full
     return res.display_name, None
 
 
@@ -212,18 +246,31 @@ def calc_lora_hash(model_name: Any, input_data: list) -> str:
     res = try_resolve_artifact("loras", model_name, post_resolvers=[_index_resolver])
     display_name, full_path = res.display_name, res.full_path
     if not full_path and isinstance(model_name, str):  # legacy fallback using patched folder_paths
+        original = model_name
+        candidate = sanitize_candidate(original) or original
+        fp: str | None = None
         try:
-            full_path = folder_paths.get_full_path("loras", model_name)
+            fp = folder_paths.get_full_path("loras", candidate)
         except Exception:  # pragma: no cover
-            full_path = _resolve_model_path_with_extensions("loras", model_name)
-        if not full_path:
-            # Try index explicitly
+            fp = None
+        if not fp or not os.path.exists(fp):
+            fp = _resolve_model_path_with_extensions("loras", candidate)
+        if (not fp or not os.path.exists(fp)) and candidate != original:
             try:
-                info = find_lora_info(model_name)
-                if info:
-                    full_path = info.get("abspath")
+                fp = folder_paths.get_full_path("loras", original)
+            except Exception:  # pragma: no cover
+                fp = None
+            if not fp or not os.path.exists(fp):
+                fp = _resolve_model_path_with_extensions("loras", original)
+        # Index lookup as final fallback
+        if (not fp or not os.path.exists(fp)):
+            try:
+                info = find_lora_info(candidate)
+                if info and os.path.exists(info.get("abspath", "")):
+                    fp = info.get("abspath")
             except Exception:  # pragma: no cover
                 pass
+        full_path = fp if fp and os.path.exists(fp) else None
 
     # If no meaningful name was provided, skip with N/A quietly
     try:
@@ -275,18 +322,31 @@ def calc_unet_hash(model_name: Any, input_data: list) -> str:
 
     # Unified attempt
     res = try_resolve_artifact("unet", model_name)
-    display_name, filename = res.display_name, res.full_path
+    filename = res.full_path
     if not filename and isinstance(model_name, str):  # legacy fallback for tests
+        original = model_name
+        candidate = sanitize_candidate(original) or original
+        fp: str | None = None
         try:
-            filename = folder_paths.get_full_path("unet", model_name)
+            fp = folder_paths.get_full_path("unet", candidate)
         except Exception:  # pragma: no cover
-            filename = _resolve_model_path_with_extensions("unet", model_name)
+            fp = None
+        if not fp or not os.path.exists(fp):
+            fp = _resolve_model_path_with_extensions("unet", candidate)
+        if (not fp or not os.path.exists(fp)) and candidate != original:
+            try:
+                fp = folder_paths.get_full_path("unet", original)
+            except Exception:  # pragma: no cover
+                fp = None
+            if not fp or not os.path.exists(fp):
+                fp = _resolve_model_path_with_extensions("unet", original)
+        filename = fp if fp and os.path.exists(fp) else None
     if not filename:
         # Best effort: if it's a direct path string
         if isinstance(model_name, str) and os.path.exists(model_name):
             filename = model_name
         else:
-            # print(f"[Metadata Lib] UNet '{display_name}' could not be resolved to a file. Skipping hash.")
+            # print(f"[Metadata Lib] UNet '{model_name}' could not be resolved to a file. Skipping hash.")
             return "N/A"
     if isinstance(model_name, str) and any(c in model_name for c in '<>:"/\\|?*'):
         return "N/A"
