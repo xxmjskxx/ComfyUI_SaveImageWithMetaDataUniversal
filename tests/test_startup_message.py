@@ -8,6 +8,12 @@ import sys
 from io import StringIO
 from unittest.mock import patch
 
+# Constants to avoid hardcoding full attribute patch paths inline
+PKG_ROOT = "ComfyUI_SaveImageWithMetaDataUniversal"
+NODES_MOD = f"{PKG_ROOT}.saveimage_unimeta.nodes"
+NCM_ATTR_PATH = f"{NODES_MOD}.NODE_CLASS_MAPPINGS"
+NDNM_ATTR_PATH = f"{NODES_MOD}.NODE_DISPLAY_NAME_MAPPINGS"
+
 
 def test_startup_message_only_once():
     """Test that startup message is only logged once even with multiple imports."""
@@ -30,11 +36,8 @@ def test_startup_message_only_once():
         if "METADATA_TEST_MODE" in os.environ:
             del os.environ["METADATA_TEST_MODE"]
         # Import the module multiple times
-        ncm_path = 'ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.NODE_CLASS_MAPPINGS'
-        ndnm_path = 'ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.NODE_DISPLAY_NAME_MAPPINGS'
-
-        with patch(ncm_path, {'TestNode': 'TestClass'}):
-            with patch(ndnm_path, {'TestNode': 'Test Node'}):
+        with patch(NCM_ATTR_PATH, {'TestNode': 'TestClass'}):
+            with patch(NDNM_ATTR_PATH, {'TestNode': 'Test Node'}):
                 # First import
                 spec = importlib.util.find_spec(module_name)
                 module1 = importlib.util.module_from_spec(spec)
