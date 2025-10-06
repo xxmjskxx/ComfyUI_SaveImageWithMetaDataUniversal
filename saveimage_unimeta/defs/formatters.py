@@ -94,51 +94,26 @@ def calc_model_hash(model_name: Any, input_data: list) -> str:
         else:
             # print(f"[Metadata Lib] Model '{display_name}' could not be resolved to a file. Skipping hash.")
             return "N/A"
+    # Reject obviously invalid filename tokens containing reserved characters
+    if isinstance(model_name, str) and any(c in model_name for c in '<>:"/\\|?*'):
+        return "N/A"
     hashed = load_or_calc_hash(filename)
-    return hashed if isinstance(hashed, str) else hashed
+    return hashed if isinstance(hashed, str) else "N/A"
 
 
 def _vae_name_to_path(model_name: Any) -> tuple[str, str | None]:
-    """Resolve a VAE identifier (object / name / path) to a filesystem path.
-
-    Returns (display_name, full_path_or_None). Tries common attributes on objects,
-    then falls back to direct folder_paths resolution when a string is provided.
-    """
-    # Object-like case: attempt attribute-based resolution
-    if any(hasattr(model_name, attr) for attr in ("filename", "name", "ckpt", "ckpt_name", "model")):
-        display_name = (
-            getattr(model_name, "name", None)
-            or getattr(model_name, "ckpt_name", None)
-            or getattr(model_name, "filename", None)
-            or str(model_name)
-        )
-        fp = getattr(model_name, "filename", None)
-        if isinstance(fp, str) and os.path.exists(fp):
-            return display_name, fp
-        # Try a series of name-like attributes via folder_paths
-        for attr in ("name", "ckpt_name", "filename", "model"):
-            val = getattr(model_name, attr, None)
-            if isinstance(val, str):
-                try:
-                    full = folder_paths.get_full_path("vae", val)
-                except Exception:  # pragma: no cover
-                    # Try extension fallback if direct lookup fails
-                    full = _resolve_model_path_with_extensions("vae", val)
-                if full and os.path.exists(full):
-                    return display_name or val, full
-        return display_name or str(model_name), None
-
-    # String case
+    # Unified attempt
+    res = try_resolve_artifact("vae", model_name)
+    if res.full_path:
+        return res.display_name, res.full_path
+    # Legacy fallback for test-mocked folder_paths
     if isinstance(model_name, str):
         try:
             full = folder_paths.get_full_path("vae", model_name)
         except Exception:  # pragma: no cover
-            # Try extension fallback if direct lookup fails
             full = _resolve_model_path_with_extensions("vae", model_name)
         return model_name, full
-
-    # Fallback
-    return str(model_name), None
+    return res.display_name, None
 
 
 def display_vae_name(name_like: Any) -> str:
@@ -174,27 +149,10 @@ def calc_vae_hash(model_name: Any, input_data: list) -> str:
             filename = model_name
         else:
             return "N/A"
-    base, _ = os.path.splitext(filename)
-    sha_path = base + ".sha256"
-    full_hash: str | None = None
-    if os.path.exists(sha_path):
-        try:
-            with open(sha_path, encoding="utf-8") as f:
-                full_hash = f.read().strip() or None
-        except OSError as e:  # pragma: no cover
-            logger.debug("[Metadata Lib] Failed reading VAE sha256 sidecar '%s': %s", sha_path, e)
-    if not full_hash:
-        try:
-            full_hash = calc_hash(filename)
-        except OSError as e:  # pragma: no cover
-            logger.debug("[Metadata Lib] Could not calculate hash for VAE '%s': %s", filename, e)
-            return "N/A"
-        try:
-            with open(sha_path, "w", encoding="utf-8") as f:
-                f.write(str(full_hash))
-        except OSError as e:  # pragma: no cover
-            logger.debug("[Metadata Lib] Could not write VAE sidecar '%s': %s", sha_path, e)
-    return full_hash[:10] if isinstance(full_hash, str) else full_hash
+    if isinstance(model_name, str) and any(c in model_name for c in '<>:"/\\|?*'):
+        return "N/A"
+    hashed = load_or_calc_hash(filename)
+    return hashed if isinstance(hashed, str) else "N/A"
 
 
 def _resolve_model_path_with_extensions(folder_type: str, model_name: str) -> str | None:
@@ -243,54 +201,29 @@ def calc_lora_hash(model_name: Any, input_data: list) -> str:
         10-character truncated hex hash or 'N/A' if unresolved.
     """
 
-    def _lora_name_to_path(name_like: Any) -> tuple[str, str | None]:
-        """Attempt to resolve a LoRA reference of varied shape to a filesystem path.
+    # Unified resolver + index fallback + legacy fallback for tests
+    def _index_resolver(display: str) -> str | None:
+        try:
+            info = find_lora_info(display)
+            return info.get("abspath") if info else None
+        except Exception:  # pragma: no cover
+            return None
 
-        Supports nested containers, dicts, and attribute-bearing objects. Returns
-        a tuple (display_name, absolute_path_or_None).
-        """
-        # If list/tuple, try each candidate in order
-        if isinstance(name_like, list | tuple):  # noqa: UP038
-            display = None
-            for item in name_like:
-                dn, fp = _lora_name_to_path(item)
-                if dn and display is None:
-                    display = dn
-                if fp:  # first resolvable path wins
-                    return dn, fp
-            return display or str(name_like), None
-
-        # If dict, try common keys
-        if isinstance(name_like, dict):
-            for key in ("lora_name", "name", "filename", "path", "model", "model_path"):
-                if key in name_like and name_like[key]:
-                    return _lora_name_to_path(name_like[key])
-            return str(name_like), None
-
-        # If object, try attributes
-        for attr in ("lora_name", "name", "filename", "path", "model", "model_path"):
-            if hasattr(name_like, attr):
-                try:
-                    val = getattr(name_like, attr)
-                except Exception:  # pragma: no cover
-                    continue
-                if val:
-                    return _lora_name_to_path(val)
-
-        # String: resolve via folder_paths with extension fallback
-        if isinstance(name_like, str):
-            full = None
+    res = try_resolve_artifact("loras", model_name, post_resolvers=[_index_resolver])
+    display_name, full_path = res.display_name, res.full_path
+    if not full_path and isinstance(model_name, str):  # legacy fallback using patched folder_paths
+        try:
+            full_path = folder_paths.get_full_path("loras", model_name)
+        except Exception:  # pragma: no cover
+            full_path = _resolve_model_path_with_extensions("loras", model_name)
+        if not full_path:
+            # Try index explicitly
             try:
-                full = folder_paths.get_full_path("loras", name_like)
+                info = find_lora_info(model_name)
+                if info:
+                    full_path = info.get("abspath")
             except Exception:  # pragma: no cover
-                # If direct lookup fails, try with common LoRA extensions
-                full = _resolve_model_path_with_extensions("loras", name_like)
-            return name_like, full
-
-        # Fallback: stringify
-        return str(name_like), None
-
-    display_name, full_path = _lora_name_to_path(model_name)
+                pass
 
     # If no meaningful name was provided, skip with N/A quietly
     try:
@@ -323,40 +256,10 @@ def calc_lora_hash(model_name: Any, input_data: list) -> str:
             return "N/A"
 
     # Now we have the absolute path, so we can check for a .sha256 file or hash it.
-    base, _ = os.path.splitext(full_path)
-    hash_filepath = base + ".sha256"
-    full_hash = None
-
-    if os.path.exists(hash_filepath):
-        try:
-            with open(hash_filepath, encoding="utf-8") as f:
-                full_hash = f.read().strip() or None
-        except OSError as e:  # pragma: no cover
-            logger.debug(
-                "[Metadata Lib] Failed reading LoRA sha256 sidecar '%s': %s",
-                hash_filepath,
-                e,
-            )
-
-    if not full_hash:
-        logger.debug(
-            "[Metadata Lib] Calculating hash for LoRA '%s' at '%s'...",
-            display_name,
-            full_path,
-        )
-        try:
-            full_hash = calc_hash(full_path)
-        except OSError as e:  # pragma: no cover
-            logger.debug("[Metadata Lib] Could not calculate hash for LoRA '%s': %s", full_path, e)
-            return "N/A"
-        # Persist full hash for future runs
-        try:
-            with open(hash_filepath, "w", encoding="utf-8") as f:
-                f.write(str(full_hash))
-        except OSError as e:  # pragma: no cover
-            logger.debug("[Metadata Lib] Could not write LoRA sidecar '%s': %s", hash_filepath, e)
-
-    return full_hash[:10] if isinstance(full_hash, str) else full_hash
+    if isinstance(model_name, str) and any(c in model_name for c in '<>:"/\\|?*'):
+        return "N/A"
+    hashed = load_or_calc_hash(full_path)
+    return hashed if isinstance(hashed, str) else "N/A"
 
 
 def calc_unet_hash(model_name: Any, input_data: list) -> str:
@@ -370,54 +273,14 @@ def calc_unet_hash(model_name: Any, input_data: list) -> str:
         10-character truncated hex hash or 'N/A'.
     """
 
-    def _unet_name_to_path(name_like: Any) -> tuple[str, str | None]:
-        """Resolve a UNet reference (varied container/object forms) to a path.
-
-        Returns (display_name, path_or_None). Tries nested containers, dict keys,
-        and object attributes in a resilient manner.
-        """
-        # If list/tuple, evaluate candidates in order
-        if isinstance(name_like, list | tuple):  # noqa: UP038
-            display = None
-            for item in name_like:
-                dn, fp = _unet_name_to_path(item)
-                if dn and display is None:
-                    display = dn
-                if fp:
-                    return dn, fp
-            return display or str(name_like), None
-
-        # If dict, inspect common keys
-        if isinstance(name_like, dict):
-            for key in ("unet_name", "model_name", "model", "filename", "path", "model_path"):
-                if key in name_like and name_like[key]:
-                    return _unet_name_to_path(name_like[key])
-            return str(name_like), None
-
-        # If object, inspect attributes
-        for attr in ("unet_name", "model_name", "model", "filename", "path", "model_path"):
-            if hasattr(name_like, attr):
-                try:
-                    val = getattr(name_like, attr)
-                except Exception:  # pragma: no cover
-                    continue
-                if val:
-                    return _unet_name_to_path(val)
-
-        # Direct string: resolve via folder_paths with extension fallback
-        if isinstance(name_like, str):
-            full = None
-            try:
-                full = folder_paths.get_full_path("unet", name_like)
-            except Exception:  # pragma: no cover
-                # Try extension fallback if direct lookup fails
-                full = _resolve_model_path_with_extensions("unet", name_like)
-            return name_like, full
-
-        # Fallback
-        return str(name_like), None
-
-    display_name, filename = _unet_name_to_path(model_name)
+    # Unified attempt
+    res = try_resolve_artifact("unet", model_name)
+    display_name, filename = res.display_name, res.full_path
+    if not filename and isinstance(model_name, str):  # legacy fallback for tests
+        try:
+            filename = folder_paths.get_full_path("unet", model_name)
+        except Exception:  # pragma: no cover
+            filename = _resolve_model_path_with_extensions("unet", model_name)
     if not filename:
         # Best effort: if it's a direct path string
         if isinstance(model_name, str) and os.path.exists(model_name):
@@ -425,36 +288,10 @@ def calc_unet_hash(model_name: Any, input_data: list) -> str:
         else:
             # print(f"[Metadata Lib] UNet '{display_name}' could not be resolved to a file. Skipping hash.")
             return "N/A"
-    base, _ = os.path.splitext(filename)
-    sha_path = base + ".sha256"
-    full_hash: str | None = None
-    if os.path.exists(sha_path):
-        try:
-            with open(sha_path, encoding="utf-8") as f:
-                full_hash = f.read().strip() or None
-        except OSError as e:  # pragma: no cover
-            logger.debug(
-                "[Metadata Lib] Failed reading UNet sha256 sidecar '%s': %s",
-                sha_path,
-                e,
-            )
-    if not full_hash:
-        logger.debug(
-            "[Metadata Lib] Calculating hash for UNet '%s' at '%s'...",
-            display_name,
-            filename,
-        )
-        try:
-            full_hash = calc_hash(filename)
-        except OSError as e:  # pragma: no cover
-            logger.debug("[Metadata Lib] Could not calculate hash for UNet '%s': %s", filename, e)
-            return "N/A"
-        try:
-            with open(sha_path, "w", encoding="utf-8") as f:
-                f.write(str(full_hash))
-        except OSError as e:  # pragma: no cover
-            logger.debug("[Metadata Lib] Could not write UNet sidecar '%s': %s", sha_path, e)
-    return full_hash[:10] if isinstance(full_hash, str) else full_hash
+    if isinstance(model_name, str) and any(c in model_name for c in '<>:"/\\|?*'):
+        return "N/A"
+    hashed = load_or_calc_hash(filename)
+    return hashed if isinstance(hashed, str) else "N/A"
 
 
 def convert_skip_clip(stop_at_clip_layer, input_data):
