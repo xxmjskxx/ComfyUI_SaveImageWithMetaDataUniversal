@@ -9,7 +9,7 @@ import pytest
 
 try:  # Optional dependency for template baking tests
     from cookiecutter.utils import rmtree  # type: ignore
-except Exception:  # pragma: no cover - skip entire module when missing
+except (ImportError, ModuleNotFoundError):  # pragma: no cover - skip entire module when missing
     pytest.skip(
         "cookiecutter not installed; skipping template bake tests", allow_module_level=True
     )

@@ -17,7 +17,7 @@ def test_reduced_exif_indicator_in_exif(monkeypatch, tmp_path):
     # Spy to capture final inserted EXIF (simulate pillow saving path). We monkeypatch piexif.insert and dump.
     try:
         import piexif as real_piexif
-    except Exception:
+    except (ImportError, ModuleNotFoundError):
         import importlib
         mod = importlib.import_module('ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.node')
         real_piexif = getattr(mod, 'piexif')

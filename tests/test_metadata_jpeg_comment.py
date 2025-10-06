@@ -27,7 +27,7 @@ def test_jpeg_com_marker_contains_fallback(monkeypatch, tmp_path):
     # Monkeypatch piexif to always produce huge EXIF to force com-marker fallback
     try:  # Standard runtime import
         import piexif as real_piexif  # type: ignore
-    except Exception:  # Access stubbed instance from module if real piexif unavailable
+    except (ImportError, ModuleNotFoundError):  # Access stubbed instance from module if real piexif unavailable
         mod = importlib.import_module('ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.node')
         real_piexif = getattr(mod, 'piexif')
 

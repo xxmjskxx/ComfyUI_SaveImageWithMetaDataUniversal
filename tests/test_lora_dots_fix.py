@@ -12,6 +12,8 @@ import logging
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from saveimage_unimeta.utils.pathresolve import EXTENSION_ORDER  # single source of truth
+
 # Test requires the project modules
 import sys
 project_root = Path(__file__).parent.parent
@@ -64,18 +66,13 @@ class TestLoraDotsIssue(unittest.TestCase):
             def mock_get_full_path(folder_type, filename):
                 """Mock that implements the extension fallback we added."""
                 base_path = os.path.join(temp_dir, folder_type)
-
-                # Try exact filename first
-                full_path = os.path.join(base_path, filename)
-                if os.path.exists(full_path):
-                    return full_path
-
-                # Try with extensions (the fix we implemented)
-                for ext in [".safetensors", ".st", ".pt", ".bin", ".ckpt"]:
-                    full_path = os.path.join(base_path, filename + ext)
-                    if os.path.exists(full_path):
-                        return full_path
-
+                direct = os.path.join(base_path, filename)
+                if os.path.exists(direct):
+                    return direct
+                for ext in EXTENSION_ORDER:
+                    cand = os.path.join(base_path, filename + ext)
+                    if os.path.exists(cand):
+                        return cand
                 raise FileNotFoundError(f"Could not find {filename} in {folder_type}")
 
             mock_folder_paths.get_full_path = mock_get_full_path
@@ -129,18 +126,13 @@ class TestLoraDotsIssue(unittest.TestCase):
 
             def mock_get_full_path(folder_type, filename):
                 base_path = os.path.join(temp_dir, folder_type)
-
-                # Try exact filename first
-                full_path = os.path.join(base_path, filename)
-                if os.path.exists(full_path):
-                    return full_path
-
-                # Try with extensions
-                for ext in [".safetensors", ".st", ".pt", ".bin", ".ckpt"]:
-                    full_path = os.path.join(base_path, filename + ext)
-                    if os.path.exists(full_path):
-                        return full_path
-
+                direct = os.path.join(base_path, filename)
+                if os.path.exists(direct):
+                    return direct
+                for ext in EXTENSION_ORDER:
+                    cand = os.path.join(base_path, filename + ext)
+                    if os.path.exists(cand):
+                        return cand
                 raise FileNotFoundError(f"Could not find {filename} in {folder_type}")
 
             mock_folder_paths.get_full_path = mock_get_full_path
