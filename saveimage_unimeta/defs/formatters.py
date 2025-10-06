@@ -40,72 +40,25 @@ except Exception:  # noqa: BLE001 - provide minimal stubs for tests
 from ..utils.embedding import get_embedding_file_path
 from ..utils.hash import calc_hash
 from ..utils.lora import find_lora_info
+from ..utils.pathresolve import try_resolve_artifact, load_or_calc_hash
 
 cache_model_hash = {}
 logger = logging.getLogger(__name__)
 
 
 def _ckpt_name_to_path(name_like: Any) -> tuple[str, str | None]:
-    """
-    Resolve checkpoint/model identifier to a file path.
-    Accepts strings, lists/tuples (tries each), dicts/objects with common keys/attrs.
-    Returns (display_name, full_path or None).
-    """
-    # If list/tuple, try entries
-    if isinstance(name_like, list | tuple):  # noqa: UP038
-        display = None
-        for item in name_like:
-            dn, fp = _ckpt_name_to_path(item)
-            if dn and display is None:
-                display = dn
-            if fp:
-                return dn, fp
-        return display or str(name_like), None
-
-    # If dict, check keys
-    if isinstance(name_like, dict):
-        for key in (
-            "ckpt_name",
-            "model_name",
-            "model",
-            "name",
-            "filename",
-            "path",
-            "model_path",
-        ):
-            if key in name_like and name_like[key]:
-                return _ckpt_name_to_path(name_like[key])
-        return str(name_like), None
-
-    # If object, check attrs
-    for attr in (
-        "ckpt_name",
-        "model_name",
-        "model",
-        "name",
-        "filename",
-        "path",
-        "model_path",
-    ):
-        if hasattr(name_like, attr):
-            try:
-                val = getattr(name_like, attr)
-            except Exception:  # pragma: no cover - very unlikely attribute access error
-                continue
-            if val:
-                return _ckpt_name_to_path(val)
-
-    # String: resolve via folder_paths with extension fallback
+    """Unified resolver wrapper for backward compatibility."""
+    res = try_resolve_artifact("checkpoints", name_like)
+    if res.full_path:
+        return res.display_name, res.full_path
+    # Legacy fallback (ensures test patches to this module's folder_paths still work)
     if isinstance(name_like, str):
-        full = None
         try:
             full = folder_paths.get_full_path("checkpoints", name_like)
-        except Exception:  # pragma: no cover - folder_paths internal failures
-            # Try extension fallback if direct lookup fails
+        except Exception:  # pragma: no cover
             full = _resolve_model_path_with_extensions("checkpoints", name_like)
         return name_like, full
-
-    return str(name_like), None
+    return res.display_name, None
 
 
 def display_model_name(name_like: Any) -> str:
@@ -141,37 +94,8 @@ def calc_model_hash(model_name: Any, input_data: list) -> str:
         else:
             # print(f"[Metadata Lib] Model '{display_name}' could not be resolved to a file. Skipping hash.")
             return "N/A"
-    # Prefer precomputed sibling .sha256 file
-    base, _ = os.path.splitext(filename)
-    sha_path = base + ".sha256"
-    full_hash: str | None = None
-    if os.path.exists(sha_path):
-        try:
-            with open(sha_path, encoding="utf-8") as f:
-                full_hash = f.read().strip() or None
-        except OSError as e:  # pragma: no cover - log & continue
-            logger.debug(
-                "[Metadata Lib] Failed reading model sha256 sidecar '%s': %s",
-                sha_path,
-                e,
-            )
-    if not full_hash:
-        logger.debug(
-            "[Metadata Lib] Calculating hash for model '%s' at '%s'...",
-            display_name,
-            filename,
-        )
-        try:
-            full_hash = calc_hash(filename)
-        except OSError as e:  # pragma: no cover
-            logger.debug("[Metadata Lib] Could not calculate hash for model '%s': %s", filename, e)
-            return "N/A"
-        try:
-            with open(sha_path, "w", encoding="utf-8") as f:
-                f.write(str(full_hash))
-        except OSError as e:  # pragma: no cover - ignore cache write issues
-            logger.debug("[Metadata Lib] Could not write model sidecar '%s': %s", sha_path, e)
-    return full_hash[:10] if isinstance(full_hash, str) else full_hash
+    hashed = load_or_calc_hash(filename)
+    return hashed if isinstance(hashed, str) else hashed
 
 
 def _vae_name_to_path(model_name: Any) -> tuple[str, str | None]:
