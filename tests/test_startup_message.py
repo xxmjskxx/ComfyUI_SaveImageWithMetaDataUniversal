@@ -23,12 +23,12 @@ def test_startup_message_only_once():
     if module_name in sys.modules:
         del sys.modules[module_name]
 
-    # Temporarily disable test mode to allow startup logging
+    # Temporarily disable test mode to allow startup logging (inside try so
+    # restoration is guaranteed even if earlier code raises)
     original_env = os.environ.get("METADATA_TEST_MODE")
-    if "METADATA_TEST_MODE" in os.environ:
-        del os.environ["METADATA_TEST_MODE"]
-
     try:
+        if "METADATA_TEST_MODE" in os.environ:
+            del os.environ["METADATA_TEST_MODE"]
         # Import the module multiple times
         ncm_path = 'ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.NODE_CLASS_MAPPINGS'
         ndnm_path = 'ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.NODE_DISPLAY_NAME_MAPPINGS'
@@ -64,6 +64,8 @@ def test_startup_message_only_once():
         # Restore original environment
         if original_env is not None:
             os.environ["METADATA_TEST_MODE"] = original_env
+            # Quick assertion to ensure the env var restoration path worked.
+            assert os.environ.get("METADATA_TEST_MODE") == original_env
 
         # Clean up logging
         logger.removeHandler(handler)

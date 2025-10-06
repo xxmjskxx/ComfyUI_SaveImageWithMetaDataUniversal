@@ -29,6 +29,47 @@ if _ROOT not in sys.path:
 _TEST_OUTPUT_DIR = os.path.join(_ROOT, "_test_outputs")
 os.makedirs(_TEST_OUTPUT_DIR, exist_ok=True)
 
+# ---------------------------------------------------------------------------
+# Shared test helpers / constants
+# Centralize mock file contents so individual tests don't duplicate literals.
+MOCK_FILE_CONTENT = {
+    "lora": "mock safetensors content",
+    "model": "mock model content",
+    "vae": "mock vae content",
+    "unet": "mock unet content",
+    "embedding": "mock embedding content",
+}
+
+
+@pytest.fixture()
+def mock_file_content():  # pragma: no cover - simple data fixture
+    """Provide shared mock file content mapping for tests."""
+    return MOCK_FILE_CONTENT
+
+
+@pytest.fixture()
+def create_test_files():  # pragma: no cover - file system helper
+    """Factory fixture to bulk-create test files with provided content.
+
+    Usage:
+        create_test_files(base_dir, folder_name, filenames, content)
+    Returns list of created filenames.
+    """
+
+    def _create(base_dir: str, folder_name: str, filenames, content: str):
+        target_dir = os.path.join(base_dir, folder_name)
+        os.makedirs(target_dir, exist_ok=True)
+        created = []
+        for filename in filenames:
+            path = os.path.join(target_dir, filename)
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(content)
+            created.append(filename)
+        return target_dir, created
+
+    return _create
+
+
 # Coverage helper: create an empty placeholder generated_user_rules.py so that
 # if tests import the module then delete/regenerate it, coverage still has a
 # source file to attribute (prevents 'No source for code' error in CI when the
