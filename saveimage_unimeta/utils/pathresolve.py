@@ -121,8 +121,13 @@ def _probe_folder(kind: str, base_name: str) -> str | None:
         pass
 
     stem, ext = os.path.splitext(base_name)
+    # Treat non-recognized extensions (e.g. numeric version fragments like .01) as part of the stem so
+    # we still attempt extension probing (critical for versioned names like 'model_1.02.safetensors').
+    if ext and ext.lower() not in EXTENSION_ORDER:
+        stem = base_name  # keep full string; we'll treat as if no extension supplied
+        ext = ""
     candidate_names: list[str] = []
-    if ext:  # Provided extension → just fallback to sanitized variant if trailing dot/space present
+    if ext:  # Provided recognized extension → fallback only to sanitized variant
         sanitized = sanitize_candidate(base_name)
         if sanitized != base_name:
             candidate_names.append(sanitized)

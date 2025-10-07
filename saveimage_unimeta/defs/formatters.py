@@ -323,7 +323,13 @@ def calc_lora_hash(model_name: Any, input_data: list) -> str:
         return "N/A"
     # Retrieve truncated hash but guarantee sidecar stores full hash (handled in load_or_calc_hash).
     hashed = load_or_calc_hash(full_path, truncate=10)
-    return hashed if isinstance(hashed, str) else "N/A"
+    if not hashed:
+        try:
+            logger.debug("[Metadata Lib] Failed to hash LoRA '%s' at '%s'", display_name, full_path)
+        except Exception:
+            pass
+        return "N/A"
+    return hashed
 
 
 def calc_unet_hash(model_name: Any, input_data: list) -> str:
