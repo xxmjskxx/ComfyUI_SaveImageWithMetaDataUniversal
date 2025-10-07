@@ -52,6 +52,9 @@ RESOLUTION_ATTR_KEYS: tuple[str, ...] = (
 
 logger = logging.getLogger(__name__)
 
+# Precomputed valid hexadecimal characters for fast membership tests (includes uppercase for lenient read).
+_HEX_CHARS = set("0123456789abcdefABCDEF")
+
 
 def sanitize_candidate(name: str, trim_trailing_punct: bool = True) -> str:
     """Return a normalized candidate filename stem.
@@ -242,9 +245,9 @@ def load_or_calc_hash(
             with open(sidecar, encoding="utf-8") as f:
                 candidate = f.read().strip()
                 # Accept only full length (64) hex sha256; otherwise treat as missing and recompute.
-                if candidate and len(candidate) == 64 and all(c in '0123456789abcdefABCDEF' for c in candidate):
+                if candidate and len(candidate) == 64 and all(c in _HEX_CHARS for c in candidate):
                     full_hash = candidate.lower()
-                else:
+                else:  # malformed or truncated
                     full_hash = None  # force recompute + overwrite
         except OSError as e:  # pragma: no cover
             logger.debug("[PathResolve] Failed reading sidecar '%s': %s", sidecar, e)

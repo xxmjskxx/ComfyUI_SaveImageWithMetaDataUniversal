@@ -40,7 +40,12 @@ except Exception:  # noqa: BLE001 - provide minimal stubs for tests
 from ..utils.embedding import get_embedding_file_path
 from ..utils.hash import calc_hash
 from ..utils.lora import find_lora_info
-from ..utils.pathresolve import try_resolve_artifact, load_or_calc_hash, sanitize_candidate, EXTENSION_ORDER
+from ..utils.pathresolve import (
+    try_resolve_artifact,
+    load_or_calc_hash,
+    sanitize_candidate,
+    EXTENSION_ORDER,
+)
 
 cache_model_hash = {}
 logger = logging.getLogger(__name__)
@@ -204,10 +209,8 @@ def _resolve_model_path_with_extensions(folder_type: str, model_name: str) -> st
     Returns:
         Full path if found, None otherwise
     """
-    # Common model file extensions in order of preference
-    extensions = [".safetensors", ".st", ".pt", ".bin", ".ckpt"]
-
-    for ext in extensions:
+    # Use centralized EXTENSION_ORDER to maintain a single source of truth
+    for ext in EXTENSION_ORDER:
         try:
             full_path = folder_paths.get_full_path(folder_type, model_name + ext)
             if full_path and os.path.exists(full_path):  # Verify the path actually exists
