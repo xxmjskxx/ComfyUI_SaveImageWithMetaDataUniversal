@@ -2,6 +2,7 @@ import os
 import importlib
 import numpy as np
 from PIL import Image
+from .fixtures_piexif import build_piexif_stub
 
 try:
     from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.node import SaveImageWithMetaDataUniversal  # type: ignore
@@ -24,37 +25,9 @@ def test_jpeg_com_marker_contains_fallback(monkeypatch, tmp_path):
         return (node.output_dir, 'test_img', 0, '')
     monkeypatch.setattr(real_folder_paths, 'get_save_image_path', _save_path)
 
-    # Monkeypatch piexif to always produce huge EXIF to force com-marker fallback
-    try:  # Standard runtime import
-        import piexif as real_piexif  # type: ignore
-    except (ImportError, ModuleNotFoundError):  # Access stubbed instance from module if real piexif unavailable
-        mod = importlib.import_module('ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.node')
-        real_piexif = getattr(mod, 'piexif')
-
-    class PStub:
-        ImageIFD = getattr(real_piexif, 'ImageIFD', type('ImageIFD', (), {'Model': 0x0110, 'Make': 0x010F}))
-        ExifIFD = getattr(real_piexif, 'ExifIFD', type('ExifIFD', (), {'UserComment': 0x9286}))
-        _UserComment = type(
-            'UC',
-            (),
-            {
-                'dump': staticmethod(
-                    lambda v, encoding="unicode": v.encode("utf-8") if isinstance(v, str) else b""
-                )
-            },
-        )
-        helper = getattr(real_piexif, 'helper', type('H', (), {'UserComment': _UserComment}))
-
-        @staticmethod
-        def dump(d):
-            return b'Z' * (128 * 1024)
-
-        @staticmethod
-        def insert(exif_bytes, path):
-            return None
-
+    # Force huge EXIF dump to trigger fallback
     mod = importlib.import_module('ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.node')
-    monkeypatch.setattr(mod, 'piexif', PStub)
+    monkeypatch.setattr(mod, 'piexif', build_piexif_stub('huge'))
 
     images = make_dummy_image()
     node.save_images(images=images, file_format='jpeg', max_jpeg_exif_kb=4)
