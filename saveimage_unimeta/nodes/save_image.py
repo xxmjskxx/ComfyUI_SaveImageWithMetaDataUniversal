@@ -128,6 +128,17 @@ class SaveImageWithMetaDataUniversal:
                         ),
                     },
                 ),
+                "lora_hash_logging": (
+                    ["none", "short", "full"],
+                    {
+                        "default": "none",
+                        "tooltip": (
+                            "Console logging for LoRA hashing. 'short' logs filename.ext; 'full' logs full path. "
+                            "Shows 'hashing <file>' when computing and 'reading <file> hash' when a cached "
+                            "sidecar is used."
+                        ),
+                    },
+                ),
             },
             "optional": {
                 "lossless_webp": (
@@ -267,6 +278,7 @@ class SaveImageWithMetaDataUniversal:
         sampler_selection_method=SAMPLER_SELECTION_METHOD[0],
         sampler_selection_node_id=0,
         file_format="png",
+        lora_hash_logging="none",
         lossless_webp=True,
         quality=100,
         save_workflow_json=False,
@@ -324,6 +336,12 @@ class SaveImageWithMetaDataUniversal:
         _node.load_user_definitions(required_classes, suppress_missing_log=suppress_missing_class_log)
         # Ensure piexif references are patched via node module during tests
         piexif = _node.piexif  # noqa: F841 - used implicitly by subsequent code references
+        # Apply LoRA hash logging preference (global mutable for formatters)
+        try:
+            from ..defs import formatters as _formatters_mod  # type: ignore
+            _formatters_mod.LORA_HASH_LOG_MODE = (lora_hash_logging or "none").lower()
+        except Exception:  # pragma: no cover
+            pass
         if _DEBUG_VERBOSE:
             logger.info(
                 cstr("[Metadata Loader] Using Captures File with %d entries").msg,

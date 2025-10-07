@@ -47,6 +47,10 @@ from ..utils.pathresolve import (
     EXTENSION_ORDER,
 )
 
+# Global (mutable) logging mode for LoRA hashing; set by SaveImage node at runtime.
+# Values: 'none' | 'short' | 'full'
+LORA_HASH_LOG_MODE: str = "none"
+
 cache_model_hash = {}
 logger = logging.getLogger(__name__)
 
@@ -321,6 +325,40 @@ def calc_lora_hash(model_name: Any, input_data: list) -> str:
     # Now we have the absolute path, so we can check for a .sha256 file or hash it.
     if isinstance(model_name, str) and any(c in model_name for c in '<>:"/\\|?*'):
         return "N/A"
+    # Determine logging preference
+    log_mode = (LORA_HASH_LOG_MODE or "none").lower()
+    sidecar_valid = False
+    sidecar_path = None
+    try:
+        base, _ = os.path.splitext(full_path)
+        sidecar_path = base + ".sha256"
+        if os.path.exists(sidecar_path):
+            try:
+                with open(sidecar_path, encoding="utf-8") as sf:
+                    cand = sf.read().strip()
+                    if cand and len(cand) == 64 and all(c in "0123456789abcdefABCDEF" for c in cand):
+                        sidecar_valid = True
+            except Exception:  # pragma: no cover
+                sidecar_valid = False
+    except Exception:  # pragma: no cover
+        pass
+
+    # Select display filename for logging
+    display_for_log: str | None = None
+    if log_mode == "full":
+        display_for_log = full_path
+    elif log_mode == "short":
+        display_for_log = os.path.basename(full_path)
+
+    if display_for_log:
+        try:
+            if sidecar_valid:
+                logger.info("[LoRA] reading %s hash", display_for_log)
+            else:
+                logger.info("[LoRA] hashing %s", display_for_log)
+        except Exception:  # pragma: no cover
+            pass
+
     # Retrieve truncated hash but guarantee sidecar stores full hash (handled in load_or_calc_hash).
     hashed = load_or_calc_hash(full_path, truncate=10)
     if not hashed:
