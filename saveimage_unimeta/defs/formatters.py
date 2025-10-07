@@ -40,7 +40,7 @@ except Exception:  # noqa: BLE001 - provide minimal stubs for tests
 from ..utils.embedding import get_embedding_file_path
 from ..utils.hash import calc_hash
 from ..utils.lora import find_lora_info
-from ..utils.pathresolve import try_resolve_artifact, load_or_calc_hash, sanitize_candidate
+from ..utils.pathresolve import try_resolve_artifact, load_or_calc_hash, sanitize_candidate, EXTENSION_ORDER
 
 cache_model_hash = {}
 logger = logging.getLogger(__name__)
@@ -245,6 +245,19 @@ def calc_lora_hash(model_name: Any, input_data: list) -> str:
 
     res = try_resolve_artifact("loras", model_name, post_resolvers=[_index_resolver])
     display_name, full_path = res.display_name, res.full_path
+
+    # If multiple physical files share the same stem with different extensions, prefer first EXTENSION_ORDER
+    if not full_path and isinstance(display_name, str):
+        stem = os.path.splitext(display_name)[0]
+        # Probe extensions explicitly in priority order
+        for ext in EXTENSION_ORDER:
+            try:
+                candidate = folder_paths.get_full_path("loras", stem + ext)
+            except Exception:  # pragma: no cover
+                candidate = None
+            if candidate and os.path.exists(candidate):
+                full_path = candidate
+                break
     if not full_path and isinstance(model_name, str):  # legacy fallback using patched folder_paths
         original = model_name
         candidate = sanitize_candidate(original) or original
@@ -305,7 +318,8 @@ def calc_lora_hash(model_name: Any, input_data: list) -> str:
     # Now we have the absolute path, so we can check for a .sha256 file or hash it.
     if isinstance(model_name, str) and any(c in model_name for c in '<>:"/\\|?*'):
         return "N/A"
-    hashed = load_or_calc_hash(full_path)
+    # Retrieve truncated hash but guarantee sidecar stores full hash (handled in load_or_calc_hash).
+    hashed = load_or_calc_hash(full_path, truncate=10)
     return hashed if isinstance(hashed, str) else "N/A"
 
 

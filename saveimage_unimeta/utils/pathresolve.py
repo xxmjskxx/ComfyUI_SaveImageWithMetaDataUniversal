@@ -240,7 +240,12 @@ def load_or_calc_hash(
     if os.path.exists(sidecar):
         try:
             with open(sidecar, encoding="utf-8") as f:
-                full_hash = f.read().strip() or None
+                candidate = f.read().strip()
+                # Accept only full length (64) hex sha256; otherwise treat as missing and recompute.
+                if candidate and len(candidate) == 64 and all(c in '0123456789abcdefABCDEF' for c in candidate):
+                    full_hash = candidate.lower()
+                else:
+                    full_hash = None  # force recompute + overwrite
         except OSError as e:  # pragma: no cover
             logger.debug("[PathResolve] Failed reading sidecar '%s': %s", sidecar, e)
     if not full_hash:
@@ -254,11 +259,13 @@ def load_or_calc_hash(
                 on_compute(filepath)
             except Exception:  # pragma: no cover
                 pass
-        try:
-            with open(sidecar, "w", encoding="utf-8") as f:
-                f.write(full_hash)
-        except OSError as e:  # pragma: no cover
-            logger.debug("[PathResolve] Could not write sidecar '%s': %s", sidecar, e)
+        # Always ensure sidecar has FULL 64-char hash (never truncated)
+        if full_hash and len(full_hash) == 64:
+            try:
+                with open(sidecar, "w", encoding="utf-8") as f:
+                    f.write(full_hash)
+            except OSError as e:  # pragma: no cover
+                logger.debug("[PathResolve] Could not write sidecar '%s': %s", sidecar, e)
     return full_hash if truncate is None else full_hash[:truncate]
 
 

@@ -73,14 +73,16 @@ def test_sidecar_hash_reuse(temp_artifact_dir):
         f.write("x" * 10)
     # Pre-write sidecar with known value
     sidecar = os.path.splitext(full_path)[0] + ".sha256"
-    known_hash = "deadbeefcafebabe0123456789abcdef"
+    # Provide a FULL 64-char sha256 so reuse path is taken (previous behavior accepted truncated)
+    known_hash = ("deadbeefcafebabe0123456789abcdef" * 2)[:64]
+    assert len(known_hash) == 64
     with open(sidecar, "w", encoding="utf-8") as f:
         f.write(known_hash)
     mfp = _mock_folder_paths(temp_artifact_dir)
     with patch("saveimage_unimeta.defs.formatters.folder_paths", mfp), \
          patch("saveimage_unimeta.utils.pathresolve.folder_paths", mfp):
-        h = calc_model_hash("reuse_test", [])
-        assert h == known_hash[:10]
+       h = calc_model_hash("reuse_test", [])
+       assert h == known_hash[:10]
 
 
 def test_extension_order_priority(temp_artifact_dir):
