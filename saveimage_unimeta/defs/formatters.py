@@ -49,7 +49,8 @@ from ..utils.pathresolve import (
 
 # Global (mutable) logging mode for LoRA hashing; set by SaveImage node at runtime.
 # Values: 'none' | 'short' | 'full'
-LORA_HASH_LOG_MODE: str = "none"
+import os as _os
+LORA_HASH_LOG_MODE: str = _os.environ.get("METADATA_LORA_HASH_LOG", "none")
 
 cache_model_hash = {}
 logger = logging.getLogger(__name__)
@@ -116,6 +117,19 @@ def calc_model_hash(model_name: Any, input_data: list) -> str:
         10-character truncated hex hash or 'N/A' if resolution failed.
     """
     display_name, filename = _ckpt_name_to_path(model_name)
+    # If display_name looks like a filename with no resolved path yet, probe extensions directly
+    if not filename and isinstance(display_name, str) and not os.path.isabs(display_name):
+        maybe_stem, ext = os.path.splitext(display_name)
+        if not ext or ext.lower() not in EXTENSION_ORDER:
+            # Try extension probing explicitly
+            for e in EXTENSION_ORDER:
+                try:
+                    fp = folder_paths.get_full_path("checkpoints", maybe_stem + e)
+                except Exception:
+                    fp = None
+                if fp and os.path.exists(fp):
+                    filename = fp
+                    break
     if not filename:
         if isinstance(model_name, str) and os.path.exists(model_name):
             filename = model_name
