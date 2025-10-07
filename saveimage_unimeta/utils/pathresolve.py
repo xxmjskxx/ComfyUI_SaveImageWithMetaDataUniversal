@@ -183,7 +183,7 @@ def try_resolve_artifact(
         # Container cases
         if isinstance(obj, list | tuple | dict) or any(
             hasattr(obj, a) for a in RESOLUTION_ATTR_KEYS
-        ):  # noqa: UP038
+        ):
             for cand in _iter_container_candidates(obj):
                 dn, fp = _recurse(cand, depth + 1)
                 if fp:

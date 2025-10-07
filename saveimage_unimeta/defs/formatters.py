@@ -59,7 +59,7 @@ def _ckpt_name_to_path(name_like: Any) -> tuple[str, str | None]:
         full: str | None = None
         # First attempt sanitized/original candidate
         try:
-                full = folder_paths.get_full_path("checkpoints", candidate)
+            full = folder_paths.get_full_path("checkpoints", candidate)
         except Exception:  # pragma: no cover
             full = None
         # If direct lookup failed OR produced non-existent path, probe extensions
