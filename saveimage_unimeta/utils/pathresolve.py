@@ -37,7 +37,18 @@ except (ImportError, ModuleNotFoundError):  # pragma: no cover - test fallback
         with open(path, 'rb') as f:
             return hashlib.sha256(f.read()).hexdigest()
 
-EXTENSION_ORDER: tuple[str, ...] = (".safetensors", ".st", ".pt", ".bin", ".ckpt")
+# Central, user-maintainable list of supported model/LoRA/VAE/UNet/embedding extensions
+# Order matters: earlier entries are preferred when multiple variants share a stem.
+SUPPORTED_MODEL_EXTENSIONS: tuple[str, ...] = (
+    ".safetensors",
+    ".st",
+    ".ckpt",
+    ".pt",
+    ".bin",
+)
+
+# Backward compatibility alias (older code/tests may import EXTENSION_ORDER)
+EXTENSION_ORDER: tuple[str, ...] = SUPPORTED_MODEL_EXTENSIONS
 RESOLUTION_ATTR_KEYS: tuple[str, ...] = (
     "ckpt_name",
     "model_name",
@@ -51,6 +62,9 @@ RESOLUTION_ATTR_KEYS: tuple[str, ...] = (
 )
 
 logger = logging.getLogger(__name__)
+
+# Captured candidate names from the most recent _probe_folder invocation (debug tooling).
+_LAST_PROBE_CANDIDATES: list[str] = []
 
 # Precomputed valid hexadecimal characters for fast membership tests (includes uppercase for lenient read).
 _HEX_CHARS = set("0123456789abcdefABCDEF")
@@ -88,7 +102,7 @@ class ResolutionResult:
 
 
 def _iter_container_candidates(container: Any) -> Iterable[Any]:
-    if isinstance(container, list | tuple):  # noqa: UP038
+    if isinstance(container, list | tuple):
         yield from container
     elif isinstance(container, dict):
         for key in RESOLUTION_ATTR_KEYS:
@@ -105,13 +119,22 @@ def _iter_container_candidates(container: Any) -> Iterable[Any]:
                     yield val
 
 
-def _probe_folder(kind: str, base_name: str) -> str | None:
-    """Attempt direct + extension fallback lookups for *base_name*.
+def has_supported_extension(name: str) -> bool:
+    """Return True if *name* ends with any supported extension (case-insensitive)."""
+    ln = name.lower()
+    return any(ln.endswith(ext) for ext in SUPPORTED_MODEL_EXTENSIONS)
 
-    `base_name` may already include an extension. If direct lookup fails and
-    has no recognized extension, we append each extension in priority order.
-    Trailing punctuation trimmed for a second pass if initial attempts fail.
+
+def _probe_folder(kind: str, base_name: str) -> str | None:
+    """Attempt direct + extension fallback lookups for *base_name* with debug candidate capture.
+
+    Enhancements over earlier version:
+      * Always records attempted candidate names into _LAST_PROBE_CANDIDATES.
+      * When a recognized extension lookup fails, still performs extension probing on the stem.
+      * Treats unknown/numeric extensions (e.g. .01) as part of stem and probes normal extension list.
     """
+    _LAST_PROBE_CANDIDATES.clear()
+    _LAST_PROBE_CANDIDATES.append(base_name)
     # First attempt raw
     try:
         raw = folder_paths.get_full_path(kind, base_name)
@@ -121,29 +144,33 @@ def _probe_folder(kind: str, base_name: str) -> str | None:
         pass
 
     stem, ext = os.path.splitext(base_name)
-    # Treat non-recognized extensions (e.g. numeric version fragments like .01) as part of the stem so
-    # we still attempt extension probing (critical for versioned names like 'model_1.02.safetensors').
-    if ext and ext.lower() not in EXTENSION_ORDER:
-        stem = base_name  # keep full string; we'll treat as if no extension supplied
+    # If extension unrecognized (numeric suffix) treat as part of stem so we still probe EXTENSION_ORDER.
+    recognized = ext.lower() in EXTENSION_ORDER if ext else False
+    if ext and not recognized:
+        stem = base_name
         ext = ""
+
     candidate_names: list[str] = []
-    if ext:  # Provided recognized extension → fallback only to sanitized variant
+    if ext and recognized:
+        # Provided recognized extension but direct lookup failed:
+        # attempt sanitized variant + fallback probing using stem
         sanitized = sanitize_candidate(base_name)
         if sanitized != base_name:
             candidate_names.append(sanitized)
+        stem_only = os.path.splitext(sanitized)[0]
+        for e in EXTENSION_ORDER:
+            if stem_only + e not in candidate_names:
+                candidate_names.append(stem_only + e)
     else:
         sanitized_stem = sanitize_candidate(stem)
-        # Build base names with extensions
         for e in EXTENSION_ORDER:
             candidate_names.append(sanitized_stem + e)
-            # If original stem had trailing punctuation prior to sanitize,
-            # also attempt the unsanitized + extension for completeness.
-        # Append unsanitized versions last if different
         if sanitized_stem != stem:
             for e in EXTENSION_ORDER:
                 candidate_names.append(stem + e)
 
     for name in candidate_names:
+        _LAST_PROBE_CANDIDATES.append(name)
         try:
             cand = folder_paths.get_full_path(kind, name)
             if cand and os.path.exists(cand):
@@ -228,6 +255,8 @@ def load_or_calc_hash(
     truncate: int = 10,
     sidecar_ext: str = ".sha256",
     on_compute: Callable[[str], None] | None = None,
+    sidecar_error_cb: Callable[[str, Exception], None] | None = None,
+    force_rehash: bool | None = None,
 ) -> str | None:
     """Return truncated hash loading/writing a sidecar opportunistically.
 
@@ -245,15 +274,18 @@ def load_or_calc_hash(
     base, _ = os.path.splitext(filepath)
     sidecar = base + sidecar_ext
     full_hash: str | None = None
-    if os.path.exists(sidecar):
+    if force_rehash is None:
+        # Allow runtime override (env) to force recomputation (debug / mismatch diagnosis).
+        force_rehash = os.environ.get("METADATA_FORCE_REHASH") == "1"
+
+    if not force_rehash and os.path.exists(sidecar):
         try:
             with open(sidecar, encoding="utf-8") as f:
                 candidate = f.read().strip()
-                # Accept only full length (64) hex sha256; otherwise treat as missing and recompute.
                 if candidate and len(candidate) == 64 and all(c in _HEX_CHARS for c in candidate):
                     full_hash = candidate.lower()
-                else:  # malformed or truncated
-                    full_hash = None  # force recompute + overwrite
+                else:
+                    full_hash = None
         except OSError as e:  # pragma: no cover
             logger.debug("[PathResolve] Failed reading sidecar '%s': %s", sidecar, e)
     if not full_hash:
@@ -274,13 +306,21 @@ def load_or_calc_hash(
                     f.write(full_hash)
             except OSError as e:  # pragma: no cover
                 logger.debug("[PathResolve] Could not write sidecar '%s': %s", sidecar, e)
+                if sidecar_error_cb:
+                    try:
+                        sidecar_error_cb(sidecar, e)
+                    except Exception:
+                        pass
     return full_hash if truncate is None else full_hash[:truncate]
 
 
 __all__ = [
     "EXTENSION_ORDER",
+    "SUPPORTED_MODEL_EXTENSIONS",
+    "has_supported_extension",
     "sanitize_candidate",
     "try_resolve_artifact",
     "load_or_calc_hash",
     "ResolutionResult",
+    "_LAST_PROBE_CANDIDATES",
 ]

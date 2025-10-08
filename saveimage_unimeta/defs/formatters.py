@@ -7,7 +7,9 @@ use of cached .sha256 sidecar files to avoid recomputation.
 
 import logging
 import os
+import time
 from typing import Any
+import sys
 
 import folder_paths  # type: ignore
 try:  # Attempt real comfy imports (runtime environment)
@@ -42,15 +44,132 @@ from ..utils.hash import calc_hash
 from ..utils.lora import find_lora_info
 from ..utils.pathresolve import (
     try_resolve_artifact,
-    load_or_calc_hash,
     sanitize_candidate,
     EXTENSION_ORDER,
 )
 
-# Global (mutable) logging mode for LoRA hashing; set by SaveImage node at runtime.
-# Values: 'none' | 'short' | 'full'
 import os as _os
-LORA_HASH_LOG_MODE: str = _os.environ.get("METADATA_LORA_HASH_LOG", "none")
+
+# Unified hash logging mode for all artifact types (model, lora, vae, unet, embeddings).
+# Modes: none | filename | path | detailed | debug
+HASH_LOG_MODE: str = _os.environ.get("METADATA_HASH_LOG_MODE", "none")
+# Propagation control (default ON for visibility)
+_HASH_LOG_PROPAGATE: bool = _os.environ.get("METADATA_HASH_LOG_PROPAGATE", "1") != "0"
+
+_WARNED_SIDECAR: set[str] = set()
+_WARNED_UNRESOLVED: set[str] = set()
+_LOGGER_INITIALIZED = False
+_HANDLER_TAG = "__hash_logger_handler__"
+
+def set_hash_log_mode(mode: str):
+    """Programmatically adjust hash log mode (tests / UI) and re-init logger."""
+    global HASH_LOG_MODE, _LOGGER_INITIALIZED
+    HASH_LOG_MODE = (mode or "none").lower()
+    _LOGGER_INITIALIZED = False  # force re-init next log call
+
+
+def _ensure_logger():  # runtime init when mode activated
+    global _LOGGER_INITIALIZED
+    if _LOGGER_INITIALIZED:
+        return
+    mode = (HASH_LOG_MODE or "none").lower()
+    if mode == "none":
+        return
+    try:
+        # Always set level so even existing handlers receive messages
+        logger.setLevel(logging.INFO)
+
+        # Determine if a real (non NullHandler) handler already present
+        has_real = any(not isinstance(h, logging.NullHandler) for h in logger.handlers)
+        if not has_real:
+            # Attach our dedicated stream handler
+            h = logging.StreamHandler()
+            setattr(h, _HANDLER_TAG, True)
+            h.setLevel(logging.INFO)
+            h.setFormatter(logging.Formatter("[%(levelname)s] %(message)s"))
+            logger.addHandler(h)
+        # Propagate unless explicitly disabled
+        logger.propagate = _HASH_LOG_PROPAGATE
+        _LOGGER_INITIALIZED = True
+        try:
+            logger.info(
+                "[Hash] logging initialized (mode=%s propagate=%s handler_added=%s)",
+                mode,
+                logger.propagate,
+                (not has_real),
+            )
+        except Exception:  # pragma: no cover
+            pass
+    except Exception:  # pragma: no cover
+        # Fallback: direct stderr warning once
+        try:
+            if not getattr(_ensure_logger, "_warned", False):
+                print("[Hash] logger initialization failed", file=sys.stderr)
+                _ensure_logger._warned = True  # type: ignore[attr-defined]
+        except Exception:
+            pass
+
+def _log(kind: str, msg: str, level=logging.INFO):
+    mode = (HASH_LOG_MODE or "none").lower()
+    if mode == "none":
+        return
+    _ensure_logger()
+    try:
+        logger.log(level, f"[Hash] {msg}")
+    except Exception:  # pragma: no cover
+        pass
+
+def _fmt_display(path: str) -> str:
+    mode = (HASH_LOG_MODE or "none").lower()
+    if mode in {"path", "detailed", "debug"}:
+        return path
+    # filename & other modes
+    return os.path.basename(path)
+
+def _sidecar_error_once(sidecar: str, exc: Exception):  # noqa: D401
+    if sidecar in _WARNED_SIDECAR:
+        return
+    _WARNED_SIDECAR.add(sidecar)
+    _log("generic", f"sidecar write failed {sidecar}: {exc}", level=logging.WARNING)
+
+def _warn_unresolved_once(kind: str, token: str):
+    key = f"{kind}:{token}"
+    if key in _WARNED_UNRESOLVED:
+        return
+    _WARNED_UNRESOLVED.add(key)
+    _log(kind, f"unresolved {kind} '{token}'", level=logging.WARNING)
+
+def _maybe_debug_candidates(kind: str, display: str):
+    from ..utils.pathresolve import _LAST_PROBE_CANDIDATES  # lazy import
+    mode = (HASH_LOG_MODE or "none").lower()
+    if mode == "debug" and _LAST_PROBE_CANDIDATES:
+        _log(kind, f"candidates for '{display}': {_LAST_PROBE_CANDIDATES}")
+
+def _hash_file(kind: str, path: str, truncate: int = 10) -> str | None:
+    # Centralized hashing with sidecar callback + timing & debug full hash
+    from ..utils.pathresolve import load_or_calc_hash  # local import to avoid cycles
+    mode = (HASH_LOG_MODE or "none").lower()
+    start = time.perf_counter()
+    fresh_computed = {"flag": False}
+    def _on_compute(_):
+        fresh_computed["flag"] = True
+    hashed = load_or_calc_hash(
+        path,
+        truncate=truncate,
+        on_compute=_on_compute,
+        sidecar_error_cb=_sidecar_error_once,
+    )
+    if hashed is not None:
+        source = "computed" if fresh_computed["flag"] else "sidecar"
+        if mode in {"filename", "path", "detailed", "debug"}:
+            _log(kind, f"hash source={source} truncated={hashed}")
+    if hashed and mode == "debug" and fresh_computed["flag"]:
+        # Retrieve full hash by reloading sidecar (already written) without truncation
+        from ..utils.pathresolve import load_or_calc_hash as _lc
+        full_hash = _lc(path, truncate=None) or "?"
+        dur_ms = (time.perf_counter() - start) * 1000.0
+        _log(kind, f"full hash {os.path.basename(path)}={full_hash} ({dur_ms:.1f} ms)")
+    return hashed
 
 cache_model_hash = {}
 logger = logging.getLogger(__name__)
@@ -116,7 +235,11 @@ def calc_model_hash(model_name: Any, input_data: list) -> str:
     Returns:
         10-character truncated hex hash or 'N/A' if resolution failed.
     """
+    mode = (HASH_LOG_MODE or "none").lower()
     display_name, filename = _ckpt_name_to_path(model_name)
+    mode = (HASH_LOG_MODE or "none").lower()
+    if mode in {"detailed", "debug"}:
+        _log("model", f"resolving token={display_name}")
     # If display_name looks like a filename with no resolved path yet, probe extensions directly
     if not filename and isinstance(display_name, str) and not os.path.isabs(display_name):
         maybe_stem, ext = os.path.splitext(display_name)
@@ -134,12 +257,29 @@ def calc_model_hash(model_name: Any, input_data: list) -> str:
         if isinstance(model_name, str) and os.path.exists(model_name):
             filename = model_name
         else:
-            # print(f"[Metadata Lib] Model '{display_name}' could not be resolved to a file. Skipping hash.")
+            if mode in {"detailed", "debug"}:
+                _warn_unresolved_once("model", str(display_name))
             return "N/A"
     # Reject obviously invalid filename tokens containing reserved characters
     if isinstance(model_name, str) and any(c in model_name for c in '<>:"/\\|?*'):
         return "N/A"
-    hashed = load_or_calc_hash(filename)
+    if mode in {"detailed", "debug"}:
+        exists_flag = bool(filename and os.path.exists(filename))
+        _log(
+            "model",
+            f"resolved (model) {display_name} -> {filename if filename else 'None'} "
+            f"exists={exists_flag}",
+        )
+        _maybe_debug_candidates("model", str(display_name))
+    if mode in {"filename", "path", "detailed", "debug"}:
+        verb = "hashing"
+        # sidecar presence detection (quick)
+        base, _ = os.path.splitext(filename)
+        sc = base + ".sha256"
+        if os.path.exists(sc):
+            verb = "reading"
+        _log("model", f"{verb} {_fmt_display(filename)} hash")
+    hashed = _hash_file("model", filename, truncate=10)
     return hashed if isinstance(hashed, str) else "N/A"
 
 
@@ -200,6 +340,9 @@ def calc_vae_hash(model_name: Any, input_data: list) -> str:
         10-character truncated hex hash or 'N/A'.
     """
     display_name, filename = _vae_name_to_path(model_name)
+    mode = (HASH_LOG_MODE or "none").lower()
+    if mode in {"detailed", "debug"}:
+        _log("vae", f"resolving token={display_name}")
     if not filename:
         # Try best-effort: if model_name looked like a path, hash it directly
         if isinstance(model_name, str) and os.path.exists(model_name):
@@ -208,7 +351,22 @@ def calc_vae_hash(model_name: Any, input_data: list) -> str:
             return "N/A"
     if isinstance(model_name, str) and any(c in model_name for c in '<>:"/\\|?*'):
         return "N/A"
-    hashed = load_or_calc_hash(filename)
+    mode = (HASH_LOG_MODE or "none").lower()
+    if mode in {"detailed", "debug"}:
+        exists_flag = bool(filename and os.path.exists(filename))
+        _log(
+            "vae",
+            f"resolved (vae) {display_name} -> {filename if filename else 'None'} "
+            f"exists={exists_flag}",
+        )
+        _maybe_debug_candidates("vae", str(display_name))
+    if mode in {"filename", "path", "detailed", "debug"}:
+        verb = "hashing"
+        base, _ = os.path.splitext(filename)
+        if os.path.exists(base + ".sha256"):
+            verb = "reading"
+        _log("vae", f"{verb} {_fmt_display(filename)} hash")
+    hashed = _hash_file("vae", filename, truncate=10)
     return hashed if isinstance(hashed, str) else "N/A"
 
 
@@ -264,6 +422,7 @@ def calc_lora_hash(model_name: Any, input_data: list) -> str:
         except Exception:  # pragma: no cover
             return None
 
+    mode = (HASH_LOG_MODE or "none").lower()
     res = try_resolve_artifact("loras", model_name, post_resolvers=[_index_resolver])
     display_name, full_path = res.display_name, res.full_path
 
@@ -333,14 +492,18 @@ def calc_lora_hash(model_name: Any, input_data: list) -> str:
                 full_path = info.get("abspath")
 
         # If both fallbacks fail, return N/A
+        if not full_path and isinstance(model_name, str) and os.path.exists(model_name):
+            full_path = model_name
         if not full_path:
+            if mode in {"detailed", "debug"}:
+                _warn_unresolved_once("lora", str(display_name))
             return "N/A"
 
     # Now we have the absolute path, so we can check for a .sha256 file or hash it.
     if isinstance(model_name, str) and any(c in model_name for c in '<>:"/\\|?*'):
         return "N/A"
     # Determine logging preference
-    log_mode = (LORA_HASH_LOG_MODE or "none").lower()
+    log_mode = mode
     sidecar_valid = False
     sidecar_path = None
     try:
@@ -364,17 +527,20 @@ def calc_lora_hash(model_name: Any, input_data: list) -> str:
     elif log_mode == "short":
         display_for_log = os.path.basename(full_path)
 
-    if display_for_log:
-        try:
-            if sidecar_valid:
-                logger.info("[LoRA] reading %s hash", display_for_log)
-            else:
-                logger.info("[LoRA] hashing %s", display_for_log)
-        except Exception:  # pragma: no cover
-            pass
+    if mode in {"detailed", "debug"}:
+        exists_flag = bool(full_path and os.path.exists(full_path))
+        _log(
+            "lora",
+            f"resolved (lora) {display_name} -> {full_path if full_path else 'None'} "
+            f"exists={exists_flag}",
+        )
+        _maybe_debug_candidates("lora", str(display_name))
+    if display_for_log and mode != "none":
+        verb = "reading" if sidecar_valid else "hashing"
+        _log("lora", f"{verb} {display_for_log} hash")
 
     # Retrieve truncated hash but guarantee sidecar stores full hash (handled in load_or_calc_hash).
-    hashed = load_or_calc_hash(full_path, truncate=10)
+    hashed = _hash_file("lora", full_path, truncate=10)
     if not hashed:
         try:
             logger.debug("[Metadata Lib] Failed to hash LoRA '%s' at '%s'", display_name, full_path)
@@ -425,7 +591,22 @@ def calc_unet_hash(model_name: Any, input_data: list) -> str:
             return "N/A"
     if isinstance(model_name, str) and any(c in model_name for c in '<>:"/\\|?*'):
         return "N/A"
-    hashed = load_or_calc_hash(filename)
+    mode = (HASH_LOG_MODE or "none").lower()
+    if mode in {"detailed", "debug"}:
+        exists_flag = bool(filename and os.path.exists(filename))
+        _log(
+            "unet",
+            f"resolved (unet) {model_name} -> {filename if filename else 'None'} "
+            f"exists={exists_flag}",
+        )
+        _maybe_debug_candidates("unet", str(model_name))
+    if mode in {"filename", "path", "detailed", "debug"}:
+        verb = "hashing"
+        base, _ = os.path.splitext(filename)
+        if os.path.exists(base + ".sha256"):
+            verb = "reading"
+        _log("unet", f"{verb} {_fmt_display(filename)} hash")
+    hashed = _hash_file("unet", filename, truncate=10)
     return hashed if isinstance(hashed, str) else "N/A"
 
 
@@ -451,12 +632,25 @@ def extract_embedding_names(text, input_data):
 
 def extract_embedding_hashes(text, input_data):
     embedding_names, clip = _extract_embedding_names(text, input_data)
-    embedding_hashes = []
+    mode = (HASH_LOG_MODE or "none").lower()
+    hashes = []
     for embedding_name in embedding_names:
-        embedding_file_path = get_embedding_file_path(embedding_name, clip)
-        embedding_hashes.append(calc_hash(embedding_file_path))
-
-    return embedding_hashes
+        try:
+            embedding_file_path = get_embedding_file_path(embedding_name, clip)
+        except Exception:
+            embedding_file_path = None
+        if not embedding_file_path or not os.path.exists(embedding_file_path):
+            if mode in {"detailed", "debug"}:
+                _warn_unresolved_once("embedding", embedding_name)
+            hashes.append("N/A")
+            continue
+        if mode in {"filename", "path", "detailed", "debug"}:
+            _log("embedding", f"hashing {_fmt_display(embedding_file_path)} hash")
+        h = calc_hash(embedding_file_path)
+        if mode == "debug":
+            _log("embedding", f"full hash {os.path.basename(embedding_file_path)}={h}")
+        hashes.append(h[:10])
+    return hashes
 
 
 def _extract_embedding_names(text, input_data):

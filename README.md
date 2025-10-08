@@ -398,6 +398,10 @@ Deferred and exploratory concepts are documented in:
 | `METADATA_NO_LORA_SUMMARY` | Suppress aggregated `LoRAs:` summary (UI `include_lora_summary` overrides). |
 | `METADATA_TEST_MODE` | Switch parameter string to multiline deterministic format for tests. |
 | `METADATA_DEBUG_PROMPTS` | Enable verbose prompt capture / aliasing debug logs. |
+| `METADATA_HASH_LOG_MODE` | Hash logging mode: `none` (default), `filename`, `path`, `detailed`, `debug` (includes candidate lists + full hash timing). |
+| `METADATA_HASH_LOG_PROPAGATE` | `0` to suppress propagation to root logger (keep logs local); `1` (default) to propagate. |
+| `METADATA_FORCE_REHASH` | When set to `1`, recomputes hashes ignoring existing `.sha256` sidecars (diagnostics / mismatch recovery). |
+| `METADATA_DUMP_LORA_INDEX` | When set: dump LoRA index JSON after first build. Value `1` → `_lora_index_dump.json` in CWD; otherwise use as output path. |
 
 Additional Support:
 * LoRA / model file extension recognition includes `.st` wherever `.safetensors` is accepted (hashing, detection, index building).

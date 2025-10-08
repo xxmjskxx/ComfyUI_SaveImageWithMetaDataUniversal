@@ -10,6 +10,8 @@ import os
 import re
 
 import folder_paths
+from .pathresolve import SUPPORTED_MODEL_EXTENSIONS
+import json
 
 # --- Caches and Indexes for Performance ---
 # This index will be built once and reused to speed up all subsequent LoRA lookups.
@@ -40,7 +42,7 @@ def build_lora_index() -> None:
     logger.info("[Metadata Lib] Building LoRA file index for the first time...")
     _LORA_INDEX = {}
     lora_paths = folder_paths.get_folder_paths("loras")
-    extensions = [".safetensors", ".st", ".pt", ".bin", ".ckpt"]
+    extensions = list(SUPPORTED_MODEL_EXTENSIONS)
 
     for lora_dir in lora_paths:
         for root, _, files in os.walk(lora_dir):
@@ -55,6 +57,16 @@ def build_lora_index() -> None:
 
     _LORA_INDEX_BUILT = True
     logger.info("[Metadata Lib] LoRA index built with %d entries.", len(_LORA_INDEX))
+    try:
+        if os.environ.get("METADATA_DUMP_LORA_INDEX"):
+            dump_path = os.environ.get("METADATA_DUMP_LORA_INDEX").strip()
+            if dump_path.lower() == "1":
+                dump_path = os.path.join(os.getcwd(), "_lora_index_dump.json")
+            with open(dump_path, "w", encoding="utf-8") as f:
+                json.dump(_LORA_INDEX, f, indent=2, sort_keys=True)
+            logger.info("[Metadata Lib] LoRA index dumped to %s", dump_path)
+    except Exception as e:  # pragma: no cover - diagnostic optional
+        logger.debug("[Metadata Lib] Failed dumping LoRA index: %r", e)
 
 
 def find_lora_info(base_name: str) -> dict[str, str] | None:
