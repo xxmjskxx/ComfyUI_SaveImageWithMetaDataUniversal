@@ -73,9 +73,16 @@ _HEX_CHARS = set("0123456789abcdefABCDEF")
 def sanitize_candidate(name: str, trim_trailing_punct: bool = True) -> str:
     """Return a normalized candidate filename stem.
 
-    - Optionally trims trailing spaces/dots (problematic on Windows) *only* at
-      the very end of the string. Internal dots are preserved.
-    - Strips surrounding quotes.
+    Behavior and rationale:
+    - Strips surrounding single/double quotes when the entire string is quoted.
+    - Optionally trims trailing spaces and dots only at the very end of the
+      string (internal punctuation is preserved). This is for Windows
+      portability: the Win32 layer normalizes paths so a trailing space/dot is
+      disallowed or silently collapsed (e.g., "foo." and "foo " map to
+      "foo"). Trimming here avoids lookup/hashing mismatches across OSes.
+
+    Note: This function is conservative by design and does not alter internal
+    dots or spaces, only terminal punctuation when enabled.
     """
     if not isinstance(name, str):  # defensive
         return str(name)

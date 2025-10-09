@@ -37,7 +37,7 @@ import numpy as np
 from ..utils.color import cstr
 try:  # Comfy runtime provides this; tests may not
     from comfy.cli_args import args  # type: ignore
-except Exception:  # noqa: BLE001
+except (ImportError, ModuleNotFoundError, AttributeError):  # fall back in isolated tests
     class _ArgsStub:
         disable_metadata = False
 
@@ -47,7 +47,7 @@ from PIL.PngImagePlugin import PngInfo
 
 try:  # Normal runtime
     from .. import hook  # type: ignore
-except Exception:  # noqa: BLE001 - circular or missing in isolated test
+except (ImportError, ModuleNotFoundError):  # circular or missing in isolated test
     class _HookStub:  # minimal attributes used
         current_save_image_node_id = 0
         current_prompt = {}
@@ -341,11 +341,11 @@ class SaveImageWithMetaDataUniversal:
             # Reinitialize hash logger only when the mode actually changes
             try:
                 new_mode = (model_hash_log or "none").lower()
-            except Exception:
+            except (AttributeError, TypeError, ValueError):
                 new_mode = "none"
             try:
                 current_mode = getattr(_formatters_mod, "HASH_LOG_MODE", "none")
-            except Exception:
+            except (AttributeError, TypeError):
                 current_mode = "none"
             if new_mode != current_mode and hasattr(_formatters_mod, "set_hash_log_mode"):
                 _formatters_mod.set_hash_log_mode(new_mode)  # resets internal init flag intentionally
@@ -353,7 +353,7 @@ class SaveImageWithMetaDataUniversal:
             if new_mode != "none" and hasattr(_formatters_mod, "_ensure_logger"):
                 try:
                     _formatters_mod._ensure_logger()
-                except Exception:
+                except (RuntimeError, AttributeError):
                     pass
         except (ImportError, AttributeError):  # pragma: no cover
             pass
@@ -644,7 +644,7 @@ class SaveImageWithMetaDataUniversal:
                         uc_final = piexif.helper.UserComment.dump(parameters, encoding="unicode")
                         final_exif = piexif.dump({"0th": {}, "Exif": {piexif.ExifIFD.UserComment: uc_final}})
                         piexif.insert(final_exif, file_path)
-                    except Exception:
+                    except (OSError, ValueError, KeyError, TypeError):
                         pass
                 # Record stage for this image
                 self._last_fallback_stages.append(fallback_stage)
@@ -653,7 +653,7 @@ class SaveImageWithMetaDataUniversal:
                 if exif_bytes is not None and file_format == "webp":
                     try:
                         piexif.insert(exif_bytes, file_path)
-                    except Exception:
+                    except (OSError, ValueError, RuntimeError):
                         # Non-fatal; WebP EXIF not critical
                         pass
 

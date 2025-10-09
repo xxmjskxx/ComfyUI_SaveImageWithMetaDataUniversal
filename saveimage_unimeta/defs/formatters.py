@@ -91,18 +91,27 @@ def _ensure_logger():  # runtime init when mode activated
     _HASH_LOG_PROPAGATE = os.environ.get("METADATA_HASH_LOG_PROPAGATE", "1") != "0"
     try:
         logger.setLevel(logging.INFO)
-        # Attach our own handler once to ensure INFO visibility regardless of root configuration
+        # Ensure we have a tagged StreamHandler and that it binds to the CURRENT sys.stderr.
         handler_added = False
-        has_tagged = any(getattr(h, _HANDLER_TAG, False) for h in logger.handlers)
-        if not has_tagged:
-            h = logging.StreamHandler()
-            setattr(h, _HANDLER_TAG, True)
-            h.setLevel(logging.INFO)
-            h.setFormatter(logging.Formatter("[%(levelname)s] %(message)s"))
-            logger.addHandler(h)
+        tagged_handler = None
+        for h in logger.handlers:
+            if getattr(h, _HANDLER_TAG, False):
+                tagged_handler = h
+                break
+        if tagged_handler is None:
+            tagged_handler = logging.StreamHandler()  # defaults to sys.stderr
+            setattr(tagged_handler, _HANDLER_TAG, True)
             handler_added = True
-        # Avoid duplicate outputs when root also has handlers
-        logger.propagate = False if handler_added else _HASH_LOG_PROPAGATE
+            logger.addHandler(tagged_handler)
+        # Rebind stream to current sys.stderr to cooperate with pytest's capsys
+        try:
+            tagged_handler.setStream(sys.stderr)
+        except Exception:  # pragma: no cover
+            pass
+        tagged_handler.setLevel(logging.INFO)
+        tagged_handler.setFormatter(logging.Formatter("[%(levelname)s] %(message)s"))
+        # Allow caller to control propagation to root via env flag
+        logger.propagate = _HASH_LOG_PROPAGATE
         _LOGGER_INITIALIZED = True
         # Print banner only once per process to prevent startup + first-run duplicates
         if not _BANNER_PRINTED:
