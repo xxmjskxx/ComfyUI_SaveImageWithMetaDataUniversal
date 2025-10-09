@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 _No changes yet._
 
+## [1.2.1] - 2025-10-09
+### Added
+- Tests for filename resolution with dots/special characters and startup message deduplication.
+
+### Changed
+- Narrowed import exception handling to avoid masking AttributeError during imports.
+- Centralized logger initialization to avoid duplicate banners; controlled propagation via env.
+
+### Fixed
+- Filename resolution for names with trailing dots/spaces and internal dots via sanitized candidate handling.
+- Prevented startup message from printing more than once.
+
 ## [1.2.0] - 2025-09-26
 ### Added
 - Tests: missing-only lens behavior, forced sampler role retention, scanner cache path parity.
@@ -106,7 +118,8 @@ Note: 1.0.0 was the first public registry release; this minor release formalizes
 
 ---
 
-[Unreleased]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.2.1...HEAD
+[1.2.1]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.1.2...v1.2.0
 
 ## [0.1.0] - 2025-09-20 (Initial Internal Release)
