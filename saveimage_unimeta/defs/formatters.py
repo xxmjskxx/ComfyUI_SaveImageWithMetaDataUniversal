@@ -23,7 +23,7 @@ try:  # Attempt real comfy imports (runtime environment)
     from comfy.text_encoders.flux import FluxTokenizer  # type: ignore
     from comfy.text_encoders.sd2_clip import SD2Tokenizer  # type: ignore
     from comfy.text_encoders.sd3_clip import SD3Tokenizer  # type: ignore
-except Exception:  # noqa: BLE001 - provide minimal stubs for tests
+except (ImportError, ModuleNotFoundError, AttributeError):  # noqa: BLE001 - provide minimal stubs for tests
     class _BaseTok:
         def encode_with_weights(self, text):  # pragma: no cover - trivial stub
             return []
@@ -49,6 +49,7 @@ from ..utils.pathresolve import (
 )
 
 import os as _os
+import sys as _sys
 
 # Unified hash logging mode for all artifact types (model, lora, vae, unet, embeddings).
 # Modes: none | filename | path | detailed | debug
@@ -60,6 +61,17 @@ _WARNED_SIDECAR: set[str] = set()
 _WARNED_UNRESOLVED: set[str] = set()
 _LOGGER_INITIALIZED = False
 _HANDLER_TAG = "__hash_logger_handler__"
+_BANNER_PRINTED = False
+
+# Prevent duplicate module instances under different package names (runtime vs tests)
+_SELF = _sys.modules.get(__name__)
+_ALT_NAMES = [
+    "saveimage_unimeta.defs.formatters",
+    "custom_nodes.ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.formatters",
+]
+for _n in _ALT_NAMES:
+    if _n not in _sys.modules and _SELF is not None:
+        _sys.modules[_n] = _SELF
 
 def set_hash_log_mode(mode: str):
     """Programmatically adjust hash log mode (tests / UI) and re-init logger."""
@@ -69,44 +81,48 @@ def set_hash_log_mode(mode: str):
 
 
 def _ensure_logger():  # runtime init when mode activated
-    global _LOGGER_INITIALIZED
+    global _LOGGER_INITIALIZED, _HASH_LOG_PROPAGATE, _BANNER_PRINTED
     if _LOGGER_INITIALIZED:
         return
     mode = (HASH_LOG_MODE or "none").lower()
     if mode == "none":
         return
+    # Re-evaluate propagate flag at runtime (may change between calls/tests)
+    _HASH_LOG_PROPAGATE = os.environ.get("METADATA_HASH_LOG_PROPAGATE", "1") != "0"
     try:
-        # Always set level so even existing handlers receive messages
         logger.setLevel(logging.INFO)
-
-        # Determine if a real (non NullHandler) handler already present
-        has_real = any(not isinstance(h, logging.NullHandler) for h in logger.handlers)
-        if not has_real:
-            # Attach our dedicated stream handler
+        # Attach our own handler once to ensure INFO visibility regardless of root configuration
+        handler_added = False
+        has_tagged = any(getattr(h, _HANDLER_TAG, False) for h in logger.handlers)
+        if not has_tagged:
             h = logging.StreamHandler()
             setattr(h, _HANDLER_TAG, True)
             h.setLevel(logging.INFO)
             h.setFormatter(logging.Formatter("[%(levelname)s] %(message)s"))
             logger.addHandler(h)
-        # Propagate unless explicitly disabled
-        logger.propagate = _HASH_LOG_PROPAGATE
+            handler_added = True
+        # Avoid duplicate outputs when root also has handlers
+        logger.propagate = False if handler_added else _HASH_LOG_PROPAGATE
         _LOGGER_INITIALIZED = True
-        try:
-            logger.info(
-                "[Hash] logging initialized (mode=%s propagate=%s handler_added=%s)",
-                mode,
-                logger.propagate,
-                (not has_real),
-            )
-        except Exception:  # pragma: no cover
-            pass
-    except Exception:  # pragma: no cover
-        # Fallback: direct stderr warning once
+        # Print banner only once per process to prevent startup + first-run duplicates
+        if not _BANNER_PRINTED:
+            try:
+                logger.info(
+                    "[Hash] logging initialized (mode=%s propagate=%s handler_added=%s suppress_dup=%s)",
+                    mode,
+                    logger.propagate,
+                    handler_added,
+                    handler_added,
+                )
+            except Exception:  # pragma: no cover
+                pass
+            _BANNER_PRINTED = True
+    except OSError:  # pragma: no cover
         try:
             if not getattr(_ensure_logger, "_warned", False):
                 print("[Hash] logger initialization failed", file=sys.stderr)
                 _ensure_logger._warned = True  # type: ignore[attr-defined]
-        except Exception:
+        except Exception:  # pragma: no cover
             pass
 
 def _log(kind: str, msg: str, level=logging.INFO):
@@ -189,7 +205,7 @@ def _ckpt_name_to_path(name_like: Any) -> tuple[str, str | None]:
         # First attempt sanitized/original candidate
         try:
             full = folder_paths.get_full_path("checkpoints", candidate)
-        except Exception:  # pragma: no cover
+        except OSError:  # pragma: no cover
             full = None
         # If direct lookup failed OR produced non-existent path, probe extensions
         if not full or not os.path.exists(full):
@@ -198,7 +214,7 @@ def _ckpt_name_to_path(name_like: Any) -> tuple[str, str | None]:
         if (not full or not os.path.exists(full)) and candidate != original:
             try:
                 full = folder_paths.get_full_path("checkpoints", original)
-            except Exception:  # pragma: no cover
+            except OSError:  # pragma: no cover
                 full = None
             if not full or not os.path.exists(full):
                 full = _resolve_model_path_with_extensions("checkpoints", original)
@@ -257,11 +273,58 @@ def calc_model_hash(model_name: Any, input_data: list) -> str:
         if isinstance(model_name, str) and os.path.exists(model_name):
             filename = model_name
         else:
-            if mode in {"detailed", "debug"}:
-                _warn_unresolved_once("model", str(display_name))
-            return "N/A"
-    # Reject obviously invalid filename tokens containing reserved characters
-    if isinstance(model_name, str) and any(c in model_name for c in '<>:"/\\|?*'):
+            # Retry with basename using display_name (may still contain separators) first
+            if isinstance(display_name, str) and ("/" in display_name or "\\" in display_name):
+                base_candidate = os.path.basename(display_name)
+                if mode == "debug":
+                    _log("model", f"retry basename={base_candidate} from token={display_name}")
+                if base_candidate and base_candidate != display_name:
+                    for e in EXTENSION_ORDER:
+                        try:
+                            fp2 = folder_paths.get_full_path(
+                                "checkpoints",
+                                base_candidate if base_candidate.endswith(e) else base_candidate + e,
+                            )
+                        except Exception:
+                            fp2 = None
+                        if fp2 and os.path.exists(fp2):
+                            filename = fp2
+                            if mode == "debug":
+                                _log("model", f"basename resolved {base_candidate} -> {fp2}")
+                            break
+            # If display_name was sanitized (lost separators) retry using original token
+            if not filename and isinstance(model_name, str) and ("/" in model_name or "\\" in model_name):
+                base_candidate = os.path.basename(model_name)
+                if mode == "debug":
+                    _log(
+                        "model",
+                        (
+                            "retry basename="
+                            f"{base_candidate} from original_token={model_name} sanitized_token={display_name}"
+                        ),
+                    )
+                for e in EXTENSION_ORDER:
+                    try:
+                        fp2 = folder_paths.get_full_path(
+                            "checkpoints",
+                            base_candidate if base_candidate.endswith(e) else base_candidate + e,
+                        )
+                    except Exception:
+                        fp2 = None
+                    if fp2 and os.path.exists(fp2):
+                        filename = fp2
+                        if mode == "debug":
+                            _log("model", f"basename resolved {base_candidate} -> {fp2}")
+                        break
+            if not filename:
+                if mode in {"detailed", "debug"}:
+                    _warn_unresolved_once("model", str(display_name))
+                if mode == "debug":
+                    _log("model", f"hash skipped reason=unresolved token={display_name}")
+                return "N/A"
+    # Reject obviously invalid tokens ONLY if we failed to resolve a real file; allow path-like inputs that
+    # successfully resolved via basename recovery or direct path usage.
+    if not filename and isinstance(model_name, str) and any(c in model_name for c in '<>:"/\\|?*'):
         return "N/A"
     if mode in {"detailed", "debug"}:
         exists_flag = bool(filename and os.path.exists(filename))
@@ -280,6 +343,8 @@ def calc_model_hash(model_name: Any, input_data: list) -> str:
             verb = "reading"
         _log("model", f"{verb} {_fmt_display(filename)} hash")
     hashed = _hash_file("model", filename, truncate=10)
+    if not isinstance(hashed, str) and mode == "debug":
+        _log("model", f"hash skipped reason=compute-failed token={display_name}")
     return hashed if isinstance(hashed, str) else "N/A"
 
 
@@ -349,7 +414,10 @@ def calc_vae_hash(model_name: Any, input_data: list) -> str:
             filename = model_name
         else:
             return "N/A"
-    if isinstance(model_name, str) and any(c in model_name for c in '<>:"/\\|?*'):
+    # Only reject invalid tokens if we FAILED to resolve a real file; allow path-like inputs.
+    if (not filename) and isinstance(model_name, str) and any(c in model_name for c in '<>:"/\\|?*'):
+        if mode == "debug":
+            _log("vae", f"hash skipped reason=invalid-token token={model_name}")
         return "N/A"
     mode = (HASH_LOG_MODE or "none").lower()
     if mode in {"detailed", "debug"}:
@@ -425,19 +493,10 @@ def calc_lora_hash(model_name: Any, input_data: list) -> str:
     mode = (HASH_LOG_MODE or "none").lower()
     res = try_resolve_artifact("loras", model_name, post_resolvers=[_index_resolver])
     display_name, full_path = res.display_name, res.full_path
+    if mode in {"detailed", "debug"}:
+        _log("lora", f"resolving token={display_name}")
 
-    # If multiple physical files share the same stem with different extensions, prefer first EXTENSION_ORDER
-    if not full_path and isinstance(display_name, str):
-        stem = os.path.splitext(display_name)[0]
-        # Probe extensions explicitly in priority order
-        for ext in EXTENSION_ORDER:
-            try:
-                candidate = folder_paths.get_full_path("loras", stem + ext)
-            except Exception:  # pragma: no cover
-                candidate = None
-            if candidate and os.path.exists(candidate):
-                full_path = candidate
-                break
+    # Rely on centralized resolver and index fallback; avoid ad-hoc extension probing here
     if not full_path and isinstance(model_name, str):  # legacy fallback using patched folder_paths
         original = model_name
         candidate = sanitize_candidate(original) or original
@@ -497,13 +556,17 @@ def calc_lora_hash(model_name: Any, input_data: list) -> str:
         if not full_path:
             if mode in {"detailed", "debug"}:
                 _warn_unresolved_once("lora", str(display_name))
+            if mode == "debug":
+                _log("lora", f"hash skipped reason=unresolved token={display_name}")
             return "N/A"
 
     # Now we have the absolute path, so we can check for a .sha256 file or hash it.
-    if isinstance(model_name, str) and any(c in model_name for c in '<>:"/\\|?*'):
+    # Only reject invalid tokens if we FAILED to resolve a real file; allow path-like inputs.
+    if (not full_path) and isinstance(model_name, str) and any(c in model_name for c in '<>:"/\\|?*'):
+        if mode == "debug":
+            _log("lora", f"hash skipped reason=invalid-token token={model_name}")
         return "N/A"
     # Determine logging preference
-    log_mode = mode
     sidecar_valid = False
     sidecar_path = None
     try:
@@ -520,13 +583,6 @@ def calc_lora_hash(model_name: Any, input_data: list) -> str:
     except Exception:  # pragma: no cover
         pass
 
-    # Select display filename for logging
-    display_for_log: str | None = None
-    if log_mode == "full":
-        display_for_log = full_path
-    elif log_mode == "short":
-        display_for_log = os.path.basename(full_path)
-
     if mode in {"detailed", "debug"}:
         exists_flag = bool(full_path and os.path.exists(full_path))
         _log(
@@ -535,17 +591,21 @@ def calc_lora_hash(model_name: Any, input_data: list) -> str:
             f"exists={exists_flag}",
         )
         _maybe_debug_candidates("lora", str(display_name))
-    if display_for_log and mode != "none":
+    if mode in {"filename", "path", "detailed", "debug"}:
         verb = "reading" if sidecar_valid else "hashing"
-        _log("lora", f"{verb} {display_for_log} hash")
+        _log("lora", f"{verb} {_fmt_display(full_path)} hash")
 
     # Retrieve truncated hash but guarantee sidecar stores full hash (handled in load_or_calc_hash).
+    if mode == "debug":
+        _log("lora", f"hashing target={full_path} token={display_name}")
     hashed = _hash_file("lora", full_path, truncate=10)
     if not hashed:
         try:
             logger.debug("[Metadata Lib] Failed to hash LoRA '%s' at '%s'", display_name, full_path)
-        except Exception:
+        except Exception:  # pragma: no cover
             pass
+        if mode == "debug":
+            _log("lora", f"hash skipped reason=compute-failed token={display_name}")
         return "N/A"
     return hashed
 
@@ -582,14 +642,20 @@ def calc_unet_hash(model_name: Any, input_data: list) -> str:
             if not fp or not os.path.exists(fp):
                 fp = _resolve_model_path_with_extensions("unet", original)
         filename = fp if fp and os.path.exists(fp) else None
+    mode = (HASH_LOG_MODE or "none").lower()
     if not filename:
         # Best effort: if it's a direct path string
         if isinstance(model_name, str) and os.path.exists(model_name):
             filename = model_name
         else:
             # print(f"[Metadata Lib] UNet '{model_name}' could not be resolved to a file. Skipping hash.")
+            if mode == "debug":
+                _log("unet", f"hash skipped reason=unresolved token={model_name}")
             return "N/A"
-    if isinstance(model_name, str) and any(c in model_name for c in '<>:"/\\|?*'):
+    # Only reject invalid tokens if we FAILED to resolve a real file; allow path-like inputs.
+    if (not filename) and isinstance(model_name, str) and any(c in model_name for c in '<>:"/\\|?*'):
+        if mode == "debug":
+            _log("unet", f"hash skipped reason=invalid-token token={model_name}")
         return "N/A"
     mode = (HASH_LOG_MODE or "none").lower()
     if mode in {"detailed", "debug"}:
@@ -607,6 +673,8 @@ def calc_unet_hash(model_name: Any, input_data: list) -> str:
             verb = "reading"
         _log("unet", f"{verb} {_fmt_display(filename)} hash")
     hashed = _hash_file("unet", filename, truncate=10)
+    if not isinstance(hashed, str) and mode == "debug":
+        _log("unet", f"hash skipped reason=compute-failed token={model_name}")
     return hashed if isinstance(hashed, str) else "N/A"
 
 

@@ -9,7 +9,7 @@ import logging
 import os
 from collections import deque
 
-from .defs.captures import CAPTURE_FIELD_LIST
+from .defs import CAPTURE_FIELD_LIST
 
 # from . import SAMPLERS
 from .defs.combo import SAMPLER_SELECTION_METHOD

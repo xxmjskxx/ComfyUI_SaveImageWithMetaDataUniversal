@@ -4,8 +4,10 @@ import os
 import re
 from collections.abc import Iterable, Iterator
 from typing import Any
+import importlib.metadata
 
-from .defs.captures import CAPTURE_FIELD_LIST
+# Use the aggregated, runtime-merged definitions (defaults + extensions + optional user JSON)
+from .defs import CAPTURE_FIELD_LIST
 from .defs.formatters import (
     calc_lora_hash,
     calc_model_hash,
@@ -14,8 +16,10 @@ from .defs.formatters import (
     display_model_name,
     display_vae_name,
 )
+from .defs import formatters as _hashfmt  # access HASH_LOG_MODE at runtime
 from .defs.meta import MetaField
 from .utils.color import cstr
+from .utils import pathresolve
 
 from nodes import NODE_CLASS_MAPPINGS
 
@@ -53,7 +57,56 @@ except ImportError:  # Fallback stubs allow linting/tests outside ComfyUI runtim
 
 
 # Versioning and feature flags
-CAPTURE_VERSION = "1.0.0"
+# Primary: use installed distribution metadata (fast, authoritative when packaged).
+# Fallback: if running from a cloned repo (not installed), parse nearest pyproject.toml.
+def _read_pyproject_version() -> str | None:  # pragma: no cover - simple IO
+    _toml_loader = None  # type: ignore
+    try:
+        import tomllib as _toml_loader  # type: ignore[attr-defined]
+    except ModuleNotFoundError:
+        try:
+            import tomli as _toml_loader  # type: ignore
+        except ModuleNotFoundError:
+            return None
+    try:
+        import pathlib
+        here = pathlib.Path(__file__).resolve()
+        for parent in here.parents:
+            pyproject = parent / "pyproject.toml"
+            if pyproject.is_file():
+                with pyproject.open("rb") as f:
+                    data = _toml_loader.load(f)  # type: ignore[arg-type]
+                return (
+                    data.get("project", {}).get("version")
+                    or data.get("tool", {}).get("poetry", {}).get("version")
+                    or None
+                )
+    except (OSError, KeyError, ValueError):
+        return None
+    return None
+
+try:
+    _dist_version = importlib.metadata.version("SaveImageWithMetaDataUniversal")
+except importlib.metadata.PackageNotFoundError:
+    _dist_version = None
+_pyproj_version = _read_pyproject_version()
+_RESOLVED_VERSION = (
+    _pyproj_version
+    if (_pyproj_version and (_dist_version is None or _pyproj_version != _dist_version))
+    else (_dist_version or _pyproj_version or "unknown")
+)
+
+def resolve_runtime_version() -> str:
+    """Return version string (env override > cached pyproject/dist result).
+
+    We do not re-read pyproject after import because ComfyUI restart is expected
+    on node pack update (user instruction). Environment override allows ad-hoc
+    debugging or temporary version stamping.
+    """
+    ov = os.environ.get("METADATA_VERSION_OVERRIDE", "").strip()
+    if ov:
+        return ov
+    return _RESOLVED_VERSION or "unknown"
 
 
 # Dynamic flag function so tests can toggle at runtime instead of snapshot at import
@@ -323,7 +376,12 @@ class Capture:
                                 if format_func is not None and not skip_hash_on_name:
                                     funcname = getattr(format_func, "__name__", "").lower()
                                     # Guard expensive hash formatters unless value string appears path-like
-                                    if "unet_hash" in funcname or "model_hash" in funcname or "vae_hash" in funcname:
+                                    if (
+                                        "unet_hash" in funcname
+                                        or "model_hash" in funcname
+                                        or "vae_hash" in funcname
+                                        or "lora_hash" in funcname
+                                    ):
                                         try:
                                             v_str = v if isinstance(v, str) else str(v)
                                         except Exception:  # pragma: no cover - string conversion failure
@@ -336,16 +394,15 @@ class Capture:
                                                 or "/" in v_str
                                                 or any(
                                                     vl.endswith(ext)
-                                                    for ext in (
-                                                        ".safetensors",
-                                                        ".st",
-                                                        ".ckpt",
-                                                        ".pt",
-                                                        ".bin",
-                                                    )
+                                                    for ext in pathresolve.SUPPORTED_MODEL_EXTENSIONS
                                                 )
                                             )
-                                        allow_call = not isinstance(v, str) or looks_like_file
+                                        # If user enabled hash logging, allow calling even for name-like tokens
+                                        try:
+                                            log_mode = getattr(_hashfmt, "HASH_LOG_MODE", "none")
+                                        except Exception:
+                                            log_mode = "none"
+                                        allow_call = (log_mode != "none") or (not isinstance(v, str) or looks_like_file)
                                         if allow_call:
                                             try:
                                                 v = format_func(v, input_data)
@@ -441,7 +498,12 @@ class Capture:
                         )
                         if format_func is not None and not skip_hash_on_name:
                             funcname = getattr(format_func, "__name__", "").lower()
-                            if "unet_hash" in funcname or "model_hash" in funcname or "vae_hash" in funcname:
+                            if (
+                                "unet_hash" in funcname
+                                or "model_hash" in funcname
+                                or "vae_hash" in funcname
+                                or "lora_hash" in funcname
+                            ):
                                 try:
                                     v_str = v if isinstance(v, str) else str(v)
                                 except Exception:  # pragma: no cover
@@ -454,16 +516,14 @@ class Capture:
                                         or "/" in v_str
                                         or any(
                                             vl.endswith(ext)
-                                            for ext in (
-                                                ".safetensors",
-                                                ".st",
-                                                ".ckpt",
-                                                ".pt",
-                                                ".bin",
-                                            )
+                                            for ext in pathresolve.SUPPORTED_MODEL_EXTENSIONS
                                         )
                                     )
-                                allow_call = not isinstance(v, str) or looks_like_file
+                                try:
+                                    log_mode = getattr(_hashfmt, "HASH_LOG_MODE", "none")
+                                except Exception:
+                                    log_mode = "none"
+                                allow_call = (log_mode != "none") or (not isinstance(v, str) or looks_like_file)
                                 if allow_call:
                                     try:
                                         v = format_func(v, input_data)
@@ -619,7 +679,7 @@ class Capture:
         pnginfo_dict = {}
         # Insert version stamp early so downstream additions (e.g., Hash detail) can reference it.
         if "Metadata generator version" not in pnginfo_dict:
-            pnginfo_dict["Metadata generator version"] = CAPTURE_VERSION
+            pnginfo_dict["Metadata generator version"] = resolve_runtime_version()
         DEBUG_PROMPTS = _debug_prompts_enabled()  # noqa: N806
 
         def update_pnginfo_dict(inputs, metafield, key):
@@ -1278,7 +1338,7 @@ class Capture:
 
             def best_model_display(values):
                 # Prefer strings ending with common model extensions, else any string, else fallback to str of first
-                exts = (".safetensors", ".st", ".ckpt", ".pt", ".bin")
+                exts = pathresolve.SUPPORTED_MODEL_EXTENSIONS
                 str_candidates = []
                 for v in values:
                     try:
@@ -1315,10 +1375,7 @@ class Capture:
                 looks_like_file = isinstance(mdisp, str) and (
                     "\\" in mdisp
                     or "/" in mdisp
-                    or any(
-                        mdisp_l.endswith(ext)
-                        for ext in (".safetensors", ".st", ".ckpt", ".pt", ".bin")
-                    )
+                    or any(mdisp_l.endswith(ext) for ext in pathresolve.SUPPORTED_MODEL_EXTENSIONS)
                 )
                 if looks_like_file:
                     # Try UNet first (Flux et al.), then checkpoint
@@ -1481,8 +1538,8 @@ class Capture:
         include_lora_summary_override = kwargs.get("include_lora_summary")
         guidance_as_cfg = bool(kwargs.get("guidance_as_cfg", False))
         # --- Prompt header reconstruction (robust dual-encoder handling) ---
-        pos = pnginfo_dict.get("Positive prompt", "") or ""
-        neg = pnginfo_dict.get("Negative prompt", "") or ""
+        pos = (pnginfo_dict.get("Positive prompt", "") or "").rstrip("\r\n")
+        neg = (pnginfo_dict.get("Negative prompt", "") or "").rstrip("\r\n")
         DEBUG_PROMPTS = os.environ.get("METADATA_DEBUG_PROMPTS", "").strip() != ""  # noqa: N806
 
         # Case-insensitive search for dual prompt keys to be resilient to prior casing differences.
@@ -1508,8 +1565,16 @@ class Capture:
         header_lines = []
         if t5 is not None and clip is not None:
             # Dual prompt scenario: suppress unified positive prompt completely, always label.
-            header_lines.append(f"T5 Prompt: {t5}")
-            header_lines.append(f"CLIP Prompt: {clip}")
+            try:
+                t5s = t5.rstrip("\r\n") if isinstance(t5, str) else str(t5)
+            except Exception:
+                t5s = str(t5)
+            try:
+                clips = clip.rstrip("\r\n") if isinstance(clip, str) else str(clip)
+            except Exception:
+                clips = str(clip)
+            header_lines.append(f"T5 Prompt: {t5s}")
+            header_lines.append(f"CLIP Prompt: {clips}")
         else:
             # Single prompt scenario: show the unified positive prompt.
             if pos:
@@ -1530,6 +1595,16 @@ class Capture:
             if k.lower() in {"t5 prompt", "clip prompt"}:
                 exclude_keys.add(k)
         data = {k: v for k, v in pnginfo_dict.items() if k not in exclude_keys}
+        # Pull out metadata generator version to force it last later
+        _mgv = None
+        if "Metadata generator version" in data:
+            _mgv = data.pop("Metadata generator version")
+        multi_entries = []
+        if "__multi_sampler_entries" in data:
+            try:
+                multi_entries = data.pop("__multi_sampler_entries") or []
+            except Exception:
+                multi_entries = []
 
         # Guidance-as-CFG override: when enabled and Guidance present, overwrite CFG scale with Guidance value
         # Then remove the original Guidance key.
@@ -1642,6 +1717,9 @@ class Capture:
             remaining.remove("Hash detail")
         for k in sorted(remaining):
             ordered_items.append((k, data[k]))
+        # Append metadata generator version last if present
+        if _mgv is not None:
+            ordered_items.append(("Metadata generator version", _mgv))
 
     # Safety pass: ensure critical legacy fields captured if they existed in
     # original pnginfo but were somehow missed.
@@ -1733,11 +1811,53 @@ class Capture:
                 s = _format_sampler(s)
             parts.append(f"{k}: {s}")
 
+        # Multi-sampler tail augmentation: only if >1 sampler candidate
+        tail = ""
+        if multi_entries and isinstance(multi_entries, list) and len(multi_entries) > 1:
+            try:
+                segs = []
+                for e in multi_entries:
+                    name = e.get("sampler_name") or e.get("class_type") or "?"
+                    if e.get("start_step") is not None and e.get("end_step") is not None:
+                        segs.append(f"{name} ({e['start_step']}-{e['end_step']})")
+                    elif e.get("steps") is not None:
+                        # Represent full-run steps as 0-(steps-1) only if there are segment samplers too
+                        any_segments = any(x.get("start_step") is not None for x in multi_entries)
+                        if any_segments and isinstance(e.get("steps"), int):
+                            rng = f"0-{int(e['steps'])-1}" if int(e['steps']) > 0 else "0-0"
+                            segs.append(f"{name} ({rng})")
+                        else:
+                            segs.append(f"{name}")
+                    else:
+                        segs.append(str(name))
+                tail_core = " | ".join(segs)
+                if multiline:
+                    tail = f"\nSamplers: {tail_core}"
+                else:
+                    tail = f", Samplers: {tail_core}"
+            except Exception:
+                tail = ""
+
+        def _normalize_newlines(s: str) -> str:
+            # Normalize CRLF and collapse duplicate blank lines conservatively
+            try:
+                s = s.replace("\r\n", "\n")
+            except Exception:
+                pass
+            # Collapse doubled newlines that can arise from mixed sources
+            # (do not attempt to preserve intentional >2 line breaks)
+            try:
+                while "\n\n" in s:
+                    s = s.replace("\n\n", "\n")
+            except Exception:
+                pass
+            return s
+
         if multiline:
-            return result + "\n".join(parts)
+            return _normalize_newlines(result + "\n".join(parts) + tail)
         else:
             # Legacy Automatic1111-style: single parameter line (after prompts / negative)
-            return result + ", ".join(parts)
+            return _normalize_newlines(result + ", ".join(parts) + tail)
 
     @classmethod
     def add_hash_detail_section(cls, pnginfo_dict):
