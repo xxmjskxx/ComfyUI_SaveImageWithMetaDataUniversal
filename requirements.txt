@@ -1,0 +1,11 @@
+# Runtime dependencies for ComfyUI_SaveImageWithMetaDataUniversal
+# These are the external libraries required when running in ComfyUI
+
+# Core image processing
+pillow>=10.0.0
+numpy>=1.21.0
+
+# EXIF metadata handling (optional but recommended)
+piexif>=1.1.0
+
+# Note: ComfyUI runtime dependencies (folder_paths, nodes, execution) are provided by ComfyUI itself

@@ -3,6 +3,7 @@ import sys
 import types
 from pathlib import Path
 import numpy as np
+from .fixtures_piexif import build_piexif_stub
 
 try:
     from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.node import (
@@ -66,23 +67,9 @@ def make_dummy_image():
 def test_fallback_minimal_trigger(monkeypatch):
     node = SaveImageWithMetaDataUniversal()
 
-    # Monkeypatch piexif to force large EXIF generation so fallback path triggers
-    try:
-        import piexif  # type: ignore
-        real_dump = piexif.dump
-
-        def huge_dump(d):
-            b = real_dump(d)
-            return b + b * 400
-
-        monkeypatch.setattr(piexif, 'dump', huge_dump)
-    except Exception:
-        # Provide stub that forces large size semantics
-        class _PiexifStub:
-            @staticmethod
-            def dump(d):
-                return b"x" * (5 * 1024 * 1024)  # 5MB to guarantee oversize
-        sys.modules['piexif'] = _PiexifStub()
+    # Use huge stub to force fallback; consistent deterministic behavior
+    node_mod = sys.modules['ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.node']
+    monkeypatch.setattr(node_mod, 'piexif', build_piexif_stub('huge'))
 
     images = make_dummy_image()
     # Trigger save as JPEG with tiny limit to guarantee fallback
