@@ -21,6 +21,9 @@ from logging import getLogger
 # from .meta import MetaField
 # from ..utils.color import cstr
 from ..utils.deserialize import deserialize_input
+# Ensure submodule attribute access like `from saveimage_unimeta.defs import formatters`
+# works reliably across environments/tests by importing the submodule here.
+from . import formatters as formatters  # re-exported via __all__ for direct import
 
 # Test mode is enabled only for explicit truthy tokens, not any non-empty string ("0" should be false)
 # NOTE: Test mode is captured at import time for baseline import shaping, but
@@ -69,6 +72,8 @@ __all__ = [
     "FORCED_INCLUDE_CLASSES",
     "set_forced_include",
     "clear_forced_include",
+    # Submodules expected to be importable via package (tests rely on this)
+    "formatters",
 ]
 ###############################
 # Extension loading utilities #
