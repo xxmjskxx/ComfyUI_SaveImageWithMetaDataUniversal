@@ -22,6 +22,7 @@ stability is verified.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 import logging
 import os
 from typing import Any
@@ -68,6 +69,8 @@ _LAST_PROBE_CANDIDATES: list[str] = []
 
 # Precomputed valid hexadecimal characters for fast membership tests (includes uppercase for lenient read).
 _HEX_CHARS = set("0123456789abcdefABCDEF")
+# Precompiled full-hex regex for fast 64-char validation
+_HEX64_RE = re.compile(r"^[0-9a-fA-F]{64}$")
 
 
 def sanitize_candidate(name: str, trim_trailing_punct: bool = True) -> str:
@@ -289,7 +292,7 @@ def load_or_calc_hash(
         try:
             with open(sidecar, encoding="utf-8") as f:
                 candidate = f.read().strip()
-                if candidate and len(candidate) == 64 and all(c in _HEX_CHARS for c in candidate):
+                if candidate and _HEX64_RE.match(candidate):
                     full_hash = candidate.lower()
                 else:
                     full_hash = None

@@ -37,7 +37,7 @@ import numpy as np
 from ..utils.color import cstr
 try:  # Comfy runtime provides this; tests may not
     from comfy.cli_args import args  # type: ignore
-except (ImportError, ModuleNotFoundError, AttributeError):  # fall back in isolated tests
+except (ImportError, ModuleNotFoundError):  # fall back in isolated tests
     class _ArgsStub:
         disable_metadata = False
 

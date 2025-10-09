@@ -40,6 +40,8 @@ def test_startup_message_only_once():
             with patch(NDNM_ATTR_PATH, {'TestNode': 'Test Node'}):
                 # First import
                 spec = importlib.util.find_spec(module_name)
+                if spec is None:
+                    raise ImportError(f"Module {module_name} not found")
                 module1 = importlib.util.module_from_spec(spec)
                 sys.modules[module_name] = module1
                 spec.loader.exec_module(module1)

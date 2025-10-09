@@ -23,7 +23,7 @@ try:  # Attempt real comfy imports (runtime environment)
     from comfy.text_encoders.flux import FluxTokenizer  # type: ignore
     from comfy.text_encoders.sd2_clip import SD2Tokenizer  # type: ignore
     from comfy.text_encoders.sd3_clip import SD3Tokenizer  # type: ignore
-except (ImportError, ModuleNotFoundError, AttributeError):  # noqa: BLE001 - provide minimal stubs for tests
+except (ImportError, ModuleNotFoundError):  # noqa: BLE001 - provide minimal stubs for tests
     class _BaseTok:
         def encode_with_weights(self, text):  # pragma: no cover - trivial stub
             return []
