@@ -74,5 +74,5 @@ def test_lora_with_dots():
         logger.info("'%s' -> base='%s', ext='%s'", test_name, base, ext)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     test_lora_with_dots()
