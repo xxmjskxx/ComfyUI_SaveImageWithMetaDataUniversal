@@ -14,7 +14,6 @@ import logging
 import os
 import sys
 import tempfile
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -221,7 +220,7 @@ def test_splitext_edge_case_documentation():
         assert isinstance(ext, str)
 
 
-if __name__ == "__main__":  # allow ad‑hoc local run
+if __name__ == "__main__":  # allow ad-hoc local run
     import pytest as _pytest
 
     raise SystemExit(_pytest.main([__file__]))

@@ -1869,6 +1869,7 @@ class Capture:
             try:
                 s = s.replace("\r\n", "\n")
             except Exception:
+                # Best-effort normalization; ignore errors if input is not a string or replace fails.
                 pass
             # Collapse doubled newlines that can arise from mixed sources
             # (do not attempt to preserve intentional >2 line breaks)
@@ -1876,6 +1877,7 @@ class Capture:
                 while "\n\n" in s:
                     s = s.replace("\n\n", "\n")
             except Exception:
+                # Intentionally ignore errors during newline normalization; fallback to original string.
                 pass
             return s
 

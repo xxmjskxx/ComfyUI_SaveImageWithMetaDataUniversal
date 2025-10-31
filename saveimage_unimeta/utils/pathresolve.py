@@ -67,8 +67,6 @@ logger = logging.getLogger(__name__)
 # Captured candidate names from the most recent _probe_folder invocation (debug tooling).
 _LAST_PROBE_CANDIDATES: list[str] = []
 
-# Precomputed valid hexadecimal characters for fast membership tests (includes uppercase for lenient read).
-_HEX_CHARS = set("0123456789abcdefABCDEF")
 # Precompiled full-hex regex for fast 64-char validation
 _HEX64_RE = re.compile(r"^[0-9a-fA-F]{64}$")
 
@@ -123,7 +121,7 @@ def _iter_container_candidates(container: Any) -> Iterable[Any]:
             if hasattr(container, attr):
                 try:
                     val = getattr(container, attr)
-                except Exception:  # pragma: no cover
+                except AttributeError:  # pragma: no cover
                     continue
                 if val:
                     yield val
@@ -320,6 +318,7 @@ def load_or_calc_hash(
                     try:
                         sidecar_error_cb(sidecar, e)
                     except Exception:
+                        # Ignore errors from sidecar_error_cb to avoid interfering with main flow.
                         pass
     return full_hash if truncate is None else full_hash[:truncate]
 
