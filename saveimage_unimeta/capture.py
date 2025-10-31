@@ -4,6 +4,7 @@ import os
 import re
 from collections.abc import Iterable, Iterator
 from typing import Any
+import importlib.metadata
 
 from .defs.captures import CAPTURE_FIELD_LIST
 from .defs.formatters import (
@@ -76,7 +77,41 @@ class _OutputCacheCompat:
 
 
 # Versioning and feature flags
-CAPTURE_VERSION = "1.0.0"
+# Primary: use installed distribution metadata (fast, authoritative when packaged).
+# Fallback: if running from a cloned repo (not installed), parse nearest pyproject.toml.
+try:
+    CAPTURE_VERSION = importlib.metadata.version("SaveImageWithMetaDataUniversal")
+except importlib.metadata.PackageNotFoundError:
+    CAPTURE_VERSION = "unknown"
+    # TOML loader detection: tomllib (3.11+) or fallback to tomli for 3.10
+    _toml_loader = None  # type: ignore
+    try:
+        import tomllib as _toml_loader  # type: ignore[attr-defined]
+    except ModuleNotFoundError:  # pragma: no cover
+        _toml_loader = None  # type: ignore
+    if _toml_loader is None:
+        try:
+            import tomli as _toml_loader  # type: ignore
+        except ModuleNotFoundError:  # pragma: no cover
+            _toml_loader = None  # type: ignore
+
+    if _toml_loader:  # type: ignore
+        try:
+            import pathlib
+            here = pathlib.Path(__file__).resolve()
+            for parent in here.parents:
+                pyproject = parent / "pyproject.toml"
+                if pyproject.is_file():
+                    with pyproject.open("rb") as f:
+                        data = _toml_loader.load(f)  # type: ignore[arg-type]
+                    CAPTURE_VERSION = (
+                        data.get("project", {}).get("version")
+                        or data.get("tool", {}).get("poetry", {}).get("version")
+                        or "unknown"
+                    )
+                    break
+        except Exception:  # pragma: no cover - non‑critical fallback failure
+            pass
 
 
 # Dynamic flag function so tests can toggle at runtime instead of snapshot at import
@@ -1556,6 +1591,16 @@ class Capture:
             if k.lower() in {"t5 prompt", "clip prompt"}:
                 exclude_keys.add(k)
         data = {k: v for k, v in pnginfo_dict.items() if k not in exclude_keys}
+        # Pull out metadata generator version to force it last later
+        _mgv = None
+        if "Metadata generator version" in data:
+            _mgv = data.pop("Metadata generator version")
+        multi_entries = []
+        if "__multi_sampler_entries" in data:
+            try:
+                multi_entries = data.pop("__multi_sampler_entries") or []
+            except Exception:
+                multi_entries = []
 
         # Guidance-as-CFG override: when enabled and Guidance present, overwrite CFG scale with Guidance value
         # Then remove the original Guidance key.
@@ -1668,6 +1713,9 @@ class Capture:
             remaining.remove("Hash detail")
         for k in sorted(remaining):
             ordered_items.append((k, data[k]))
+        # Append metadata generator version last if present
+        if _mgv is not None:
+            ordered_items.append(("Metadata generator version", _mgv))
 
     # Safety pass: ensure critical legacy fields captured if they existed in
     # original pnginfo but were somehow missed.
@@ -1759,11 +1807,38 @@ class Capture:
                 s = _format_sampler(s)
             parts.append(f"{k}: {s}")
 
+        # Multi-sampler tail augmentation: only if >1 sampler candidate
+        tail = ""
+        if multi_entries and isinstance(multi_entries, list) and len(multi_entries) > 1:
+            try:
+                segs = []
+                for e in multi_entries:
+                    name = e.get("sampler_name") or e.get("class_type") or "?"
+                    if e.get("start_step") is not None and e.get("end_step") is not None:
+                        segs.append(f"{name} ({e['start_step']}-{e['end_step']})")
+                    elif e.get("steps") is not None:
+                        # Represent full-run steps as 0-(steps-1) only if there are segment samplers too
+                        any_segments = any(x.get("start_step") is not None for x in multi_entries)
+                        if any_segments and isinstance(e.get("steps"), int):
+                            rng = f"0-{int(e['steps'])-1}" if int(e['steps']) > 0 else "0-0"
+                            segs.append(f"{name} ({rng})")
+                        else:
+                            segs.append(f"{name}")
+                    else:
+                        segs.append(str(name))
+                tail_core = " | ".join(segs)
+                if multiline:
+                    tail = f"\nSamplers: {tail_core}"
+                else:
+                    tail = f", Samplers: {tail_core}"
+            except Exception:
+                tail = ""
+
         if multiline:
-            return result + "\n".join(parts)
+            return result + "\n".join(parts) + tail
         else:
             # Legacy Automatic1111-style: single parameter line (after prompts / negative)
-            return result + ", ".join(parts)
+            return result + ", ".join(parts) + tail
 
     @classmethod
     def add_hash_detail_section(cls, pnginfo_dict):
