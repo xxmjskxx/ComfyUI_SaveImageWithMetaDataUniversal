@@ -148,7 +148,7 @@ def _probe_folder(kind: str, base_name: str) -> str | None:
         raw = folder_paths.get_full_path(kind, base_name)
         if raw and os.path.exists(raw):
             return raw
-    except Exception:  # pragma: no cover
+    except (FileNotFoundError, OSError):  # pragma: no cover
         pass
 
     stem, ext = os.path.splitext(base_name)
@@ -183,7 +183,7 @@ def _probe_folder(kind: str, base_name: str) -> str | None:
             cand = folder_paths.get_full_path(kind, name)
             if cand and os.path.exists(cand):
                 return cand
-        except Exception:  # pragma: no cover
+        except (FileNotFoundError, OSError):  # pragma: no cover
             continue
     return None
 
@@ -237,7 +237,7 @@ def try_resolve_artifact(
         try:
             if isinstance(obj, str) and os.path.exists(obj):
                 return obj, obj
-        except Exception:  # pragma: no cover
+        except OSError:  # pragma: no cover
             pass
         return str(obj), None
 
@@ -247,7 +247,7 @@ def try_resolve_artifact(
         for resolver in post_resolvers:
             try:
                 path = resolver(display_name)
-            except Exception:  # pragma: no cover
+            except (OSError, TypeError, AttributeError):  # pragma: no cover
                 path = None
             if path and os.path.exists(path):  # final validation
                 break
