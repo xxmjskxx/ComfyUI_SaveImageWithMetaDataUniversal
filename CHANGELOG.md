@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 _No changes yet._
 
+## [1.3.0] - 2025-10-31
+### Added
+- **Compatibility wrapper for ComfyUI 0.3.65+**: `_OutputCacheCompat` class provides backward compatibility for API changes in get_input_data execution_list parameter.
+- Unified artifact resolution system via `pathresolve.py` module with `try_resolve_artifact()` and `load_or_calc_hash()` helpers.
+- Centralized `EXTENSION_ORDER` constant for consistent extension priority across all model types.
+- Enhanced filename sanitization with `sanitize_candidate()` to handle Windows-problematic trailing punctuation.
+- Comprehensive test suite for special character filenames including unicode, punctuation, and version numbers with dots.
+- Hash logging modes with configurable levels (none/filename/path/detailed/debug) and propagation control.
+- Hash basename logging and relative path hashing capabilities.
+- Tests for hash logging, startup message deduplication, LoRA dots fix, and OutputCache compatibility.
+- Support for sidecar `.sha256` file validation with proper format checking.
+- PEP 562 lazy attribute access for `saveimage_unimeta` subpackage import.
+
+### Changed
+- Consolidated duplicate resolution logic across model/VAE/LoRA/UNet hash functions into reusable helpers.
+- Improved filename resolution to handle names with multiple dots (e.g., `model.v1.2.3.safetensors`).
+- Enhanced startup logging with session-based deduplication using logging registry.
+- Moved `importlib` to module scope in `__init__.py` to avoid repeated imports.
+- Refined exception handling to narrow catches where appropriate (OSError instead of broad Exception).
+- Updated hash calculation to use centralized `load_or_calc_hash()` with sidecar support.
+- Wrapped outputs dict with `_OutputCacheCompat` for ComfyUI 0.3.65+ compatibility.
+
+### Fixed
+- **Compatibility with ComfyUI 0.3.65+** which changed get_input_data to expect execution_list with get_output_cache() method.
+- Filename resolution errors for models with version numbers containing dots (e.g., `dark_gothic_fantasy_xl_3.01`).
+- Edge cases in `os.path.splitext()` handling for filenames with multiple extensions.
+- Hash logging propagation issues via environment variable control.
+- Startup message printing multiple times on module reload.
+- Invalid noqa comment in test_show_any.py.
+
 ## [1.2.1] - 2025-10-09
 ### Added
 - Tests for filename resolution with dots/special characters and startup message deduplication.

@@ -56,6 +56,29 @@ except ImportError:  # Fallback stubs allow linting/tests outside ComfyUI runtim
             super().__init__()
 
 
+class _OutputCacheCompat:
+    """Compatibility wrapper for ComfyUI API changes.
+
+    ComfyUI 0.3.65+ changed get_input_data to expect an execution_list with
+    get_output_cache() method instead of a plain dict. This wrapper provides
+    backward compatibility by wrapping the outputs dict with the expected interface.
+    """
+    def __init__(self, outputs_dict):
+        self._outputs = outputs_dict if outputs_dict is not None else {}
+
+    def get_output_cache(self, input_unique_id, unique_id):
+        """Return cached output for the given node ID.
+
+        Args:
+            input_unique_id: The node ID to get output from
+            unique_id: The current node ID (unused in dict-based cache)
+
+        Returns:
+            The cached output tuple or None if not found
+        """
+        return self._outputs.get(input_unique_id)
+
+
 # Versioning and feature flags
 # Primary: use installed distribution metadata (fast, authoritative when packaged).
 # Fallback: if running from a cloned repo (not installed), parse nearest pyproject.toml.
@@ -290,6 +313,9 @@ class Capture:
         except Exception:
             outputs = {}
 
+        # Wrap outputs dict with compatibility layer for ComfyUI 0.3.65+ API
+        outputs_compat = _OutputCacheCompat(outputs)
+
         for node_id, obj in prompt.items():
             class_type = obj["class_type"]
             if class_type not in CAPTURE_FIELD_LIST:
@@ -301,7 +327,7 @@ class Capture:
                 node_inputs,
                 obj_class,
                 node_id,
-                outputs,
+                outputs_compat,
                 DynamicPrompt(prompt),
                 extra_data,
             )
@@ -576,7 +602,7 @@ class Capture:
                             node_inputs,
                             obj_class,
                             node_id,
-                            outputs,
+                            outputs_compat,
                             DynamicPrompt(prompt),
                             extra_data,
                         )
