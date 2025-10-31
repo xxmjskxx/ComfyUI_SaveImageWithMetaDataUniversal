@@ -165,6 +165,8 @@ docs/HEURISTICS_CHANGES.md
 tasksync/
 user_rules/
 .vscode/
+docs/releases/RELEASE_NOTES_*1.2*.md
+docs/releases/PR_DRAFT_*1.2*.md
 
 # Ephemeral local drafting files (root only). Keep actual published notes in docs/.
 /RELEASE_NOTES_*.md
