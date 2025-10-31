@@ -165,6 +165,8 @@ docs/HEURISTICS_CHANGES.md
 tasksync/
 user_rules/
 .vscode/
+.vscode/settings.json
+.vscode
 docs/releases/RELEASE_NOTES_*1.2*.md
 docs/releases/PR_DRAFT_*1.2*.md
 
