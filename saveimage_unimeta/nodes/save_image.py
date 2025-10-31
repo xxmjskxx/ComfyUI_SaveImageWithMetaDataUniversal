@@ -354,6 +354,7 @@ class SaveImageWithMetaDataUniversal:
                 try:
                     _formatters_mod._ensure_logger()
                 except (RuntimeError, AttributeError):
+                    # Logger initialization is non-critical; safe to ignore errors during fallback.
                     pass
         except (ImportError, AttributeError):  # pragma: no cover
             pass
@@ -645,6 +646,7 @@ class SaveImageWithMetaDataUniversal:
                         final_exif = piexif.dump({"0th": {}, "Exif": {piexif.ExifIFD.UserComment: uc_final}})
                         piexif.insert(final_exif, file_path)
                     except (OSError, ValueError, KeyError, TypeError):
+                        # Non-fatal: failed to write fallback EXIF metadata. Image is still saved.
                         pass
                 # Record stage for this image
                 self._last_fallback_stages.append(fallback_stage)
