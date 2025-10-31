@@ -244,7 +244,7 @@ def display_model_name(name_like: Any) -> str:
         pass
     if isinstance(fp, str) and fp:
         try:
-                return os.path.basename(fp)
+            return os.path.basename(fp)
         except (TypeError, AttributeError):
             return fp
     return str(name_like)
@@ -396,7 +396,7 @@ def display_vae_name(name_like: Any) -> str:
         pass
     if isinstance(fp, str) and fp:
         try:
-                return os.path.basename(fp)
+            return os.path.basename(fp)
         except (TypeError, AttributeError):
             return fp
     return str(name_like)
