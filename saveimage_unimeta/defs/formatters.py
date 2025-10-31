@@ -240,12 +240,12 @@ def display_model_name(name_like: Any) -> str:
     try:
         if isinstance(dn, str) and dn:
             return os.path.basename(dn)
-    except (TypeError, AttributeError):
+    except TypeError:  # pragma: no cover - defensive guard, isinstance check should prevent this
         pass
     if isinstance(fp, str) and fp:
         try:
             return os.path.basename(fp)
-        except (TypeError, AttributeError):
+        except TypeError:  # pragma: no cover - defensive guard, isinstance check should prevent this
             return fp
     return str(name_like)
 
@@ -392,12 +392,12 @@ def display_vae_name(name_like: Any) -> str:
     try:
         if isinstance(dn, str) and dn:
             return os.path.basename(dn)
-    except (TypeError, AttributeError):
+    except TypeError:  # pragma: no cover - defensive guard, isinstance check should prevent this
         pass
     if isinstance(fp, str) and fp:
         try:
             return os.path.basename(fp)
-        except (TypeError, AttributeError):
+        except TypeError:  # pragma: no cover - defensive guard, isinstance check should prevent this
             return fp
     return str(name_like)
 
@@ -537,7 +537,7 @@ def calc_lora_hash(model_name: Any, input_data: list) -> str:
         dn = "" if display_name is None else str(display_name).strip()
         if dn == "" or dn.lower() in {"none", "null", "n/a"}:
             return "N/A"
-    except (AttributeError, TypeError):
+    except TypeError:  # pragma: no cover - defensive guard for edge cases in str() conversion
         pass
 
     # If not resolved, try extension fallback first, then LoRA index as secondary fallback
