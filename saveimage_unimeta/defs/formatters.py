@@ -240,12 +240,12 @@ def display_model_name(name_like: Any) -> str:
     try:
         if isinstance(dn, str) and dn:
             return os.path.basename(dn)
-    except Exception:
+    except (TypeError, AttributeError):
         pass
     if isinstance(fp, str) and fp:
         try:
-                return os.path.basename(fp)
-        except Exception:
+            return os.path.basename(fp)
+        except (TypeError, AttributeError):
             return fp
     return str(name_like)
 
@@ -260,7 +260,6 @@ def calc_model_hash(model_name: Any, input_data: list) -> str:
     Returns:
         10-character truncated hex hash or 'N/A' if resolution failed.
     """
-    mode = (HASH_LOG_MODE or "none").lower()
     display_name, filename = _ckpt_name_to_path(model_name)
     mode = (HASH_LOG_MODE or "none").lower()
     if mode in {"detailed", "debug"}:
@@ -273,7 +272,7 @@ def calc_model_hash(model_name: Any, input_data: list) -> str:
             for e in EXTENSION_ORDER:
                 try:
                     fp = folder_paths.get_full_path("checkpoints", maybe_stem + e)
-                except Exception:
+                except (FileNotFoundError, OSError):
                     fp = None
                 if fp and os.path.exists(fp):
                     filename = fp
@@ -294,7 +293,7 @@ def calc_model_hash(model_name: Any, input_data: list) -> str:
                                 "checkpoints",
                                 base_candidate if base_candidate.endswith(e) else base_candidate + e,
                             )
-                        except Exception:
+                        except (FileNotFoundError, OSError):
                             fp2 = None
                         if fp2 and os.path.exists(fp2):
                             filename = fp2
@@ -318,7 +317,7 @@ def calc_model_hash(model_name: Any, input_data: list) -> str:
                             "checkpoints",
                             base_candidate if base_candidate.endswith(e) else base_candidate + e,
                         )
-                    except Exception:
+                    except (FileNotFoundError, OSError):
                         fp2 = None
                     if fp2 and os.path.exists(fp2):
                         filename = fp2
@@ -393,12 +392,12 @@ def display_vae_name(name_like: Any) -> str:
     try:
         if isinstance(dn, str) and dn:
             return os.path.basename(dn)
-    except Exception:
+    except (TypeError, AttributeError):
         pass
     if isinstance(fp, str) and fp:
         try:
-                return os.path.basename(fp)
-        except Exception:
+            return os.path.basename(fp)
+        except (TypeError, AttributeError):
             return fp
     return str(name_like)
 
@@ -538,7 +537,7 @@ def calc_lora_hash(model_name: Any, input_data: list) -> str:
         dn = "" if display_name is None else str(display_name).strip()
         if dn == "" or dn.lower() in {"none", "null", "n/a"}:
             return "N/A"
-    except Exception:
+    except (AttributeError, TypeError):
         pass
 
     # If not resolved, try extension fallback first, then LoRA index as secondary fallback
@@ -554,7 +553,7 @@ def calc_lora_hash(model_name: Any, input_data: list) -> str:
                     info = find_lora_info(display_name)
                 else:
                     info = None
-            except Exception:
+            except (OSError, FileNotFoundError, KeyError):
                 info = None
             if info:
                 full_path = info.get("abspath")
