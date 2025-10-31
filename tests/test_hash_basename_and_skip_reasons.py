@@ -1,5 +1,4 @@
 import logging
-from pathlib import Path
 
 from saveimage_unimeta.defs import formatters
 
