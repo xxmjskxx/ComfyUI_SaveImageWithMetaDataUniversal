@@ -78,7 +78,7 @@ def test_notify_persists_widgets_values_into_workflow():
 
 def test_anytype_wildcard_accepts_all_kinds():
     # Ensure the wildcard type behaves as a string token and equals any kind
-    from saveimage_unimeta.nodes.show_any import AnyType, any_type, ShowAnyToString  # noqa: WPS433
+    from saveimage_unimeta.nodes.show_any import AnyType, any_type, ShowAnyToString
 
     assert isinstance(any_type, str)
     assert isinstance(any_type, AnyType)
