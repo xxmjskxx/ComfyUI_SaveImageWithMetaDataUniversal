@@ -18,9 +18,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 
 try:  # runtime import (skip gracefully if minimal env)
     from saveimage_unimeta.defs.formatters import (
