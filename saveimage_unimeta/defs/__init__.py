@@ -111,8 +111,14 @@ def _load_extensions() -> None:
         package_name = f"custom_nodes.ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.ext.{module_name}"
         try:
             module = import_module(package_name)
-        except ModuleNotFoundError as e:  # pragma: no cover - unlikely once packaged
-            logger.warning("[Metadata Loader] Extension module not found '%s': %s", module_name, e)
+        except ModuleNotFoundError as e:  # pragma: no cover - expected when optional custom node not installed
+            # Extensions are optional - only needed if the corresponding custom node is installed
+            # Log at debug level since this is expected behavior, not an error
+            logger.debug(
+                "[Metadata Loader] Optional extension '%s' skipped (custom node not installed): %s",
+                module_name,
+                e,
+            )
             continue
         except ImportError as e:
             logger.warning("[Metadata Loader] Failed to import extension '%s': %s", module_name, e)
