@@ -11,9 +11,20 @@ The `run_dev_workflows.py` script allows you to:
 
 ## Setup
 
-### 1. Create the Test Script (Local Only)
+### 1. Get the Test Script (Local Only)
 
-The script `run_dev_workflows.py` should be created in the root of this custom node pack but is excluded from git via `.gitignore`. You can copy it from the repository history or recreate it as needed.
+The script `run_dev_workflows.py` is excluded from git via `.gitignore` to keep it local-only. To get it:
+
+**Option 1: Download from Git History**
+```bash
+# From the repository root
+git show origin/copilot/add-test-script-for-dev-workflows:run_dev_workflows.py > run_dev_workflows.py
+```
+
+**Option 2: View and Copy from PR/Branch**
+Navigate to the PR or branch `copilot/add-test-script-for-dev-workflows` and copy the script file contents directly.
+
+The script will not be tracked by git once you have it locally.
 
 ### 2. Create the Workflow Directory
 
