@@ -121,7 +121,7 @@ def _iter_container_candidates(container: Any) -> Iterable[Any]:
             if hasattr(container, attr):
                 try:
                     val = getattr(container, attr)
-                except AttributeError:  # pragma: no cover
+                except Exception:  # pragma: no cover
                     continue
                 if val:
                     yield val
@@ -247,7 +247,7 @@ def try_resolve_artifact(
         for resolver in post_resolvers:
             try:
                 path = resolver(display_name)
-            except (OSError, TypeError, AttributeError):  # pragma: no cover
+            except Exception:  # pragma: no cover
                 path = None
             if path and os.path.exists(path):  # final validation
                 break
