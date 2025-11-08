@@ -67,8 +67,6 @@ logger = logging.getLogger(__name__)
 # Captured candidate names from the most recent _probe_folder invocation (debug tooling).
 _LAST_PROBE_CANDIDATES: list[str] = []
 
-# Precomputed valid hexadecimal characters for fast membership tests (includes uppercase for lenient read).
-_HEX_CHARS = set("0123456789abcdefABCDEF")
 # Precompiled full-hex regex for fast 64-char validation
 _HEX64_RE = re.compile(r"^[0-9a-fA-F]{64}$")
 
@@ -150,7 +148,7 @@ def _probe_folder(kind: str, base_name: str) -> str | None:
         raw = folder_paths.get_full_path(kind, base_name)
         if raw and os.path.exists(raw):
             return raw
-    except Exception:  # pragma: no cover
+    except (FileNotFoundError, OSError):  # pragma: no cover
         pass
 
     stem, ext = os.path.splitext(base_name)
@@ -185,7 +183,7 @@ def _probe_folder(kind: str, base_name: str) -> str | None:
             cand = folder_paths.get_full_path(kind, name)
             if cand and os.path.exists(cand):
                 return cand
-        except Exception:  # pragma: no cover
+        except (FileNotFoundError, OSError):  # pragma: no cover
             continue
     return None
 
@@ -239,7 +237,7 @@ def try_resolve_artifact(
         try:
             if isinstance(obj, str) and os.path.exists(obj):
                 return obj, obj
-        except Exception:  # pragma: no cover
+        except OSError:  # pragma: no cover
             pass
         return str(obj), None
 
@@ -320,6 +318,7 @@ def load_or_calc_hash(
                     try:
                         sidecar_error_cb(sidecar, e)
                     except Exception:
+                        # Ignore errors from sidecar_error_cb to avoid interfering with main flow.
                         pass
     return full_hash if truncate is None else full_hash[:truncate]
 
