@@ -58,6 +58,9 @@ class _OutputCacheCompat:
     ComfyUI 0.3.65+ changed get_input_data to expect an execution_list with
     get_output_cache() method instead of a plain dict. This wrapper provides
     backward compatibility by wrapping the outputs dict with the expected interface.
+
+    Some ComfyUI versions call get_output_cache() while others call get_cache().
+    This wrapper provides both methods for maximum compatibility.
     """
     def __init__(self, outputs_dict):
         self._outputs = outputs_dict if outputs_dict is not None else {}
@@ -73,6 +76,18 @@ class _OutputCacheCompat:
             The cached output tuple or None if not found
         """
         return self._outputs.get(input_unique_id)
+
+    def get_cache(self, input_unique_id, unique_id):
+        """Alias for get_output_cache for compatibility with different ComfyUI versions.
+
+        Args:
+            input_unique_id: The node ID to get output from
+            unique_id: The current node ID (unused in dict-based cache)
+
+        Returns:
+            The cached output tuple or None if not found
+        """
+        return self.get_output_cache(input_unique_id, unique_id)
 
 
 # Versioning and feature flags
