@@ -53,7 +53,7 @@ def create_test_files():  # pragma: no cover - file system helper
 
     Usage:
         create_test_files(base_dir, folder_name, filenames, content)
-    Returns list of created filenames.
+    Returns tuple of (target_dir, list of created filenames).
     """
 
     def _create(base_dir: str, folder_name: str, filenames, content: str):
