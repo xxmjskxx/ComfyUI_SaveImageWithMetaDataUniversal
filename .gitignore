@@ -170,6 +170,10 @@ user_rules/
 docs/releases/RELEASE_NOTES_*1.2*.md
 docs/releases/PR_DRAFT_*1.2*.md
 
+# workflow script and local test workflows
+/dev_test_workflows/
+/run_dev_workflows.py
+
 # Ephemeral local drafting files (root only). Keep actual published notes in docs/.
 /RELEASE_NOTES_*.md
 /PR_DRAFT_*.md
