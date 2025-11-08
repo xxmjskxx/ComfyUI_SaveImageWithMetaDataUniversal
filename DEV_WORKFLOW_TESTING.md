@@ -11,20 +11,9 @@ The `run_dev_workflows.py` script allows you to:
 
 ## Setup
 
-### 1. Get the Test Script (Local Only)
+### 1. Use the Test Script
 
-The script `run_dev_workflows.py` is excluded from git via `.gitignore` to keep it local-only. To get it:
-
-**Option 1: Download from Git History**
-```bash
-# From the repository root
-git show origin/copilot/add-test-script-for-dev-workflows:run_dev_workflows.py > run_dev_workflows.py
-```
-
-**Option 2: View and Copy from PR/Branch**
-Navigate to the PR or branch `copilot/add-test-script-for-dev-workflows` and copy the script file contents directly.
-
-The script will not be tracked by git once you have it locally.
+The script `run_dev_workflows.py` is included in the repository root. Simply use it directly from the repository.
 
 ### 2. Create the Workflow Directory
 
@@ -141,7 +130,7 @@ Copy these to `dev_test_workflows/` and update model paths for your environment.
 
 ## Notes
 
-- Both `run_dev_workflows.py` and `dev_test_workflows/` are excluded from git
+- The `dev_test_workflows/` folder is excluded from git via `.gitignore`
 - This allows you to keep local test workflows with machine-specific paths
 - The script only queues workflows; it doesn't wait for completion or check results
 - For detailed workflow execution, monitor the ComfyUI server console output

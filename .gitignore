@@ -161,7 +161,6 @@ scripts/
 
 # Local development/testing files (not committed)
 /dev_test_workflows/
-/run_dev_workflows.py
 
 # Ephemeral local drafting files (root only). Keep actual published notes in docs/.
 /RELEASE_NOTES_*.md
