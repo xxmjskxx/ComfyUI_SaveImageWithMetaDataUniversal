@@ -74,3 +74,34 @@ def test_output_cache_compat_preserves_values():
     assert compat.get_output_cache("node1", "x") == ([1, 2, 3], {"key": "value"})
     assert compat.get_output_cache("node2", "x") == (["string", 42, None],)
     assert compat.get_output_cache("node3", "x") == (None, None, None)
+
+
+def test_output_cache_compat_get_cache_alias():
+    """Test that get_cache method works as an alias for get_output_cache.
+
+    Some ComfyUI versions call get_cache() instead of get_output_cache().
+    This test verifies both methods return the same results.
+    """
+    outputs = {
+        "1": ("output1",),
+        "2": ("output2", "extra"),
+        "3": None,
+    }
+
+    compat = _OutputCacheCompat(outputs)
+
+    # Test that get_cache exists and works
+    assert hasattr(compat, "get_cache")
+    assert callable(compat.get_cache)
+
+    # Test that get_cache returns the same results as get_output_cache
+    assert compat.get_cache("1", "current") == compat.get_output_cache("1", "current")
+    assert compat.get_cache("2", "current") == compat.get_output_cache("2", "current")
+    assert compat.get_cache("3", "current") == compat.get_output_cache("3", "current")
+    assert compat.get_cache("nonexistent", "current") == compat.get_output_cache("nonexistent", "current")
+
+    # Verify specific values
+    assert compat.get_cache("1", "current") == ("output1",)
+    assert compat.get_cache("2", "current") == ("output2", "extra")
+    assert compat.get_cache("3", "current") is None
+    assert compat.get_cache("nonexistent", "current") is None

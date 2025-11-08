@@ -31,6 +31,7 @@ dev = [
     "pip-audit",  # security auditing
     "pre-commit",  # git hooks
     "PyYAML",  # YAML parsing for configs
+    # Note: runtime dependencies (pillow, numpy, piexif) are declared in [project.dependencies]
 ]
 
 [tool.ruff]
