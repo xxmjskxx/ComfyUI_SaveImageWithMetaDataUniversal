@@ -267,7 +267,7 @@ def load_or_calc_hash(
     force_rehash: bool | None = None,
 ) -> str | None:
     """Return truncated hash loading/writing a sidecar opportunistically.
-    Full hash is save to sidecar for compatibility with existing usages in other modules and programs.
+    Full hash is saved to sidecar for compatibility with existing usages in other modules and programs.
     Truncated to 10 chars for compatibility with Civitai and other sites/tools that read metadata hashes.
 
     Args:
