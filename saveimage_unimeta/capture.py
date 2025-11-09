@@ -644,8 +644,8 @@ class Capture:
                             )
                         if not need_t5 and not need_clip:
                             break
-                    except Exception:
-                        continue  # Skip invalid slot data and try next slot
+                    except Exception:  # Skip invalid slot data and try next slot
+                        continue
         except Exception:
             pass  # Text encoder extraction may fail - continue with available metadata
 
