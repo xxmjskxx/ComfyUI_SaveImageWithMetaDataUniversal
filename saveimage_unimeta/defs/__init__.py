@@ -136,7 +136,7 @@ def _load_extensions() -> None:
                     module_name,
                 )
         except AttributeError:
-            pass
+            pass  # Extension doesn't define CAPTURE_FIELD_LIST - gracefully continue
 
         # Merge SAMPLERS: deep-merge per node key similar to captures
         try:
@@ -157,7 +157,7 @@ def _load_extensions() -> None:
                     module_name,
                 )
         except AttributeError:
-            pass
+            pass  # Extension doesn't define SAMPLERS - gracefully continue
 
 
 def load_extensions_only() -> None:

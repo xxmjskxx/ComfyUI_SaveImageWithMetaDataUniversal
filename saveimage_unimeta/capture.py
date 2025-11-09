@@ -176,7 +176,7 @@ if _debug_prompts_enabled():
     try:
         logger.setLevel(logging.DEBUG)
     except Exception:
-        pass
+        pass  # Setting log level may fail if logger is misconfigured - continue anyway
     try:
         # Ensure at least one handler is attached so debug lines are visible
         added_handler = False
@@ -189,7 +189,7 @@ if _debug_prompts_enabled():
         # Avoid duplicate logs when root also has handlers by not propagating
         logger.propagate = False
     except Exception:
-        pass
+        pass  # Logger configuration may fail - continue without debug logging
 
 
 class Capture:
@@ -645,9 +645,9 @@ class Capture:
                         if not need_t5 and not need_clip:
                             break
                     except Exception:
-                        continue
+                        continue  # Skip invalid slot data and try next slot
         except Exception:
-            pass
+            pass  # Text encoder extraction may fail - continue with available metadata
 
         # Inline LoRA fallback extraction for test mode / prompt-only presence
         try:
@@ -686,7 +686,7 @@ class Capture:
                         if sc is not None:
                             inputs.setdefault(MetaField.LORA_STRENGTH_CLIP, []).append(("inline", sc))
         except Exception:  # pragma: no cover
-            pass
+            pass  # Inline LoRA extraction may fail - continue with captured data
 
         return inputs
 
@@ -743,7 +743,7 @@ class Capture:
                         # Guidance sometimes comes from sliders or ints
                         val = float(val)
                     except Exception:
-                        pass
+                        pass  # Keep original value if conversion fails
                 # Normalize Weight dtype to a readable string
                 if key == "Weight dtype":
                     # Many nodes pass dtype objects or enums; stringify cleanly and sanitize
@@ -916,7 +916,7 @@ class Capture:
                     pnginfo_dict.get("Negative prompt"),
                 )
             except Exception:
-                pass
+                pass  # Prompt validation may fail - continue with available prompts
 
         # Normalize any lowercase 't5 prompt'/'clip prompt' to Title-case and remove duplicates early
         try:
@@ -940,7 +940,7 @@ class Capture:
                         if k != "CLIP Prompt":
                             pnginfo_dict.pop(k, None)
         except Exception:
-            pass
+            pass  # Prompt normalization may fail - continue with unnormalized prompts
 
         # Heuristic dual-encoder prompt aliasing: if we have multiple CLIP encoders but only a single 'Positive prompt'
         # and neither 'T5 prompt' nor 'CLIP prompt' were explicitly captured, duplicate the positive text into both
@@ -976,7 +976,7 @@ class Capture:
                             clip_names,
                         )
         except Exception:
-            pass
+            pass  # Dual-encoder aliasing may fail - continue with single prompt
 
         # Prefer valid positive steps; avoid placeholder -1 or None
         steps_list = inputs_before_sampler_node.get(MetaField.STEPS, [])
@@ -985,7 +985,7 @@ class Capture:
             try:
                 steps_val = int(steps_val)
             except Exception:
-                pass
+                pass  # Keep original value if conversion to int fails
             if isinstance(steps_val, int) and steps_val >= 0:
                 pnginfo_dict["Steps"] = steps_val
 
@@ -1001,7 +1001,7 @@ class Capture:
                     schedulers,
                 )
             except Exception:
-                pass
+                pass  # Debug logging may fail - continue processing
 
         # Fallback: some sampler nodes may have their own inputs excluded by the "before sampler" boundary.
         # If we missed SAMPLER_NAME upstream, attempt to recover it from the full pre-this-node capture set.
@@ -1020,7 +1020,7 @@ class Capture:
                             sampler_names,
                         )
                     except Exception:
-                        pass
+                        pass  # Debug logging may fail - continue processing
             elif _debug_prompts_enabled():
                 try:
                     logger.debug(
@@ -1030,7 +1030,7 @@ class Capture:
                         ).msg,
                     )
                 except Exception:
-                    pass
+                    pass  # Debug logging may fail - continue processing
 
         # Direct graph introspection fallback: look into hook.current_prompt for KSamplerSelect / SamplerCustomAdvanced
         # nodes that expose a textual 'sampler_name' input but were not captured by rule scanning.
@@ -1206,7 +1206,7 @@ class Capture:
                             sampler_names,
                         )
             except Exception:
-                pass
+                pass  # Sampler introspection may fail - continue without it
         # If we have a clean sampler text and it's not the leading entry, prepend it
         try:
             if clean_sampler_text:
@@ -1224,7 +1224,7 @@ class Capture:
                             sampler_names,
                         )
         except Exception:
-            pass
+            pass  # Sampler prepending may fail - continue with existing list
 
         if save_civitai_sampler:
             pnginfo_dict["Sampler"] = cls.get_sampler_for_civitai(sampler_names, schedulers)
@@ -1258,7 +1258,7 @@ class Capture:
                         try:
                             scheduler = scheduler.lower()
                         except Exception:
-                            pass
+                            pass  # Keep original scheduler if lowercasing fails
                         if pnginfo_dict["Sampler"]:
                             pnginfo_dict["Sampler"] = f"{pnginfo_dict['Sampler']}_{scheduler}"
                         else:
@@ -1271,7 +1271,7 @@ class Capture:
                             pnginfo_dict.get("Sampler"),
                         )
                     except Exception:
-                        pass
+                        pass  # Debug logging may fail - continue processing
 
         update_pnginfo_dict(inputs_before_sampler_node, MetaField.CFG, "CFG scale")
 
@@ -1311,7 +1311,7 @@ class Capture:
                 if len(nums) >= 2:
                     return int(nums[0]), int(nums[1])
             except Exception:
-                pass
+                pass  # Size string parsing may fail - return None
             return None
 
         if len(image_widths) > 0 and len(image_heights) > 0:
@@ -1371,7 +1371,7 @@ class Capture:
                     pnginfo_dict["Size"] = f"{w}x{h}"
                     size_set = True
                 except Exception:
-                    pass
+                    pass  # Size parsing may fail - continue without Size field
 
         # Ensure model name is a readable basename; hash populated separately
         model_names = inputs_before_sampler_node.get(MetaField.MODEL_NAME, [])
@@ -1426,7 +1426,7 @@ class Capture:
                     if h and h != "N/A":
                         pnginfo_dict["Model hash"] = h
             except Exception:
-                pass
+                pass  # Model hash calculation may fail - continue without hash
 
         # Insert Weight dtype right after Model/Model hash, before shifts
         if dtype_candidate is None and isinstance(pnginfo_dict.get("Model"), str):
@@ -1503,7 +1503,7 @@ class Capture:
                     if not (raw.strip().startswith("<") and ">" in raw):
                         return raw
                 except Exception:
-                    pass
+                    pass  # VAE name extraction may fail - return None
             return None
 
         v_disp = resolve_vae_display()
@@ -1517,14 +1517,14 @@ class Capture:
                 if _vh.startswith("<") and ">" in _vh:
                     pnginfo_dict.pop("VAE hash", None)
             except Exception:
-                pass
+                pass  # VAE hash validation may fail - keep existing value
         if "VAE hash" not in pnginfo_dict and "VAE" in pnginfo_dict:
             try:
                 h = calc_vae_hash(pnginfo_dict["VAE"], None)
                 if h and h != "N/A":
                     pnginfo_dict["VAE hash"] = h
             except Exception:
-                pass
+                pass  # VAE hash calculation may fail - continue without hash
 
         # Append LoRA and Embedding info
         pnginfo_dict.update(cls.gen_loras(inputs_before_sampler_node))
@@ -1817,7 +1817,7 @@ class Capture:
                     insert_pos = hashes_idx if hashes_idx is not None else len(ordered_items)
                     ordered_items.insert(insert_pos, ("LoRAs", summary_val))
             except Exception:
-                pass
+                pass  # LoRA summary insertion may fail - continue without it
 
         def _format_sampler(raw: str) -> str:
             """Return display value for sampler.
@@ -1989,7 +1989,7 @@ class Capture:
                     return
                 resource_hashes[key] = v
             except Exception:
-                pass
+                pass  # Hash validation may fail - skip this hash
 
         # Prefer already computed hashes from pnginfo_dict if available
         if isinstance(pnginfo_dict, dict):
@@ -2050,7 +2050,7 @@ class Capture:
                             add_if_valid(k, hval)
                     i += 1
         except Exception:
-            pass
+            pass  # LoRA hash extraction may fail - return collected hashes
 
         return resource_hashes
 
@@ -2080,7 +2080,7 @@ class Capture:
                     lsc,
                 )
         except Exception:
-            pass
+            pass  # Debug logging may fail - continue processing
 
         # Pre-filter: remove any entries that are clearly aggregated syntax blobs like
         # "<lora:foo:0.5> <lora:bar:0.7>" which can appear if a raw text field slipped through.
@@ -2199,7 +2199,7 @@ class Capture:
                         if isinstance(s, str) and "<lora:" in s.lower():
                             aggregated_text_candidates.append(s)
                     except Exception:
-                        pass
+                        pass  # Value extraction may fail - skip this value
             import re as _re
 
             syntax_pattern = _re.compile(
@@ -2245,7 +2245,7 @@ class Capture:
                     pnginfo_dict["Lora_0 Model name"] = "error: see log"
                     pnginfo_dict["Lora_0 Model hash"] = "error"
             except Exception:
-                pass
+                pass  # Error placeholder insertion may fail - continue anyway
 
         # Stable sort: original order of appearance already preserved in dedup
         for index, (name_disp, mh, sm_final, sc_final) in enumerate(dedup):
@@ -2394,7 +2394,7 @@ class Capture:
                     scheduler,
                 )
             except Exception:
-                pass
+                pass  # Debug logging may fail - continue processing
 
         # Normalize & drop obvious object reprs (e.g. "<comfy.samplers.KSAMPLER object at 0x....>")
         def _clean(s):
@@ -2474,7 +2474,7 @@ class Capture:
                     scheduler_l,
                 )
             except Exception:
-                pass
+                pass  # Debug logging may fail - continue processing
 
         # Do not fabricate a placeholder sampler when none can be determined; prefer scheduler-only fallback.
         if not sampler:

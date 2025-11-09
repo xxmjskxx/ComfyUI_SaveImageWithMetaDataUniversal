@@ -63,7 +63,7 @@ class Trace:
                     start_node_id,
                 )
             except Exception:
-                pass
+                pass  # Logging failure should not break trace tree building
         return trace_tree
 
     @classmethod
@@ -116,7 +116,7 @@ class Trace:
                     [f"{nid}:{dist}/{ctype}" for nid, dist, ctype in sorted_by_distance_trace_tree],
                 )
             except Exception:
-                pass
+                pass  # Logging failure should not break sampler node finding
         # Pass 1: exact matches defined in SAMPLERS
         for nid, _, class_type in sorted_by_distance_trace_tree:
             if class_type in SAMPLERS.keys():
@@ -168,5 +168,5 @@ class Trace:
                     {getattr(meta, 'name', str(meta)): v for meta, v in filtered_inputs.items()},
                 )
             except Exception:
-                pass
+                pass  # Logging failure should not break input filtering
         return filtered_inputs

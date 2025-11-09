@@ -112,7 +112,11 @@ def _maybe_log_startup():  # pragma: no cover
 # import of the subpackage.
 def __getattr__(name):  # pragma: no cover - simple passthrough
     if name == "saveimage_unimeta":
-        return importlib.import_module(f"{__name__}.saveimage_unimeta")
+        import sys
+        mod = importlib.import_module(f"{__name__}.saveimage_unimeta")
+        # Cache the module to avoid redundant imports
+        setattr(sys.modules[__name__], name, mod)
+        return mod
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 

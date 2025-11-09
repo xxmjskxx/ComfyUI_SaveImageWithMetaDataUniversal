@@ -19,7 +19,7 @@ except ModuleNotFoundError:  # pragma: no cover - isolated test fallback
             try:
                 _os.makedirs(self._out, exist_ok=True)
             except OSError:
-                pass
+                pass  # Directory creation may fail - tests will fail later if needed
 
         def get_output_directory(self):  # noqa: D401
             return self._out
