@@ -19,7 +19,7 @@ except ModuleNotFoundError:  # pragma: no cover - isolated test fallback
             try:
                 _os.makedirs(self._out, exist_ok=True)
             except OSError:
-                pass
+                pass  # Directory creation may fail - tests will fail later if needed
 
         def get_output_directory(self):  # noqa: D401
             return self._out
@@ -32,13 +32,12 @@ except ModuleNotFoundError:  # pragma: no cover - isolated test fallback
 
         def get_full_path(self, kind, name):  # noqa: D401
             return name
-
     folder_paths = _FolderPathsStub()  # type: ignore
 import numpy as np
 from ..utils.color import cstr
 try:  # Comfy runtime provides this; tests may not
     from comfy.cli_args import args  # type: ignore
-except Exception:  # noqa: BLE001
+except (ImportError, ModuleNotFoundError):  # fall back in isolated tests
     class _ArgsStub:
         disable_metadata = False
 
@@ -48,7 +47,7 @@ from PIL.PngImagePlugin import PngInfo
 
 try:  # Normal runtime
     from .. import hook  # type: ignore
-except Exception:  # noqa: BLE001 - circular or missing in isolated test
+except (ImportError, ModuleNotFoundError):  # circular or missing in isolated test
     class _HookStub:  # minimal attributes used
         current_save_image_node_id = 0
         current_prompt = {}
@@ -56,7 +55,7 @@ except Exception:  # noqa: BLE001 - circular or missing in isolated test
     hook = _HookStub()  # type: ignore
 from ..capture import Capture
 from ..defs import FORCED_INCLUDE_CLASSES
-from ..defs.captures import CAPTURE_FIELD_LIST
+from ..defs import CAPTURE_FIELD_LIST
 from ..defs.combo import SAMPLER_SELECTION_METHOD
 from ..defs.samplers import SAMPLERS
 from ..trace import Trace
@@ -244,6 +243,17 @@ class SaveImageWithMetaDataUniversal:
                         ),
                     },
                 ),
+                # New unified hashing log control (models, LoRAs, embeddings, etc.)
+                "model_hash_log": (
+                    ["none", "filename", "path", "detailed", "debug"],
+                    {
+                        "default": "none",
+                        "tooltip": (
+                            "Artifact hashing log: filename=short, path=full, detailed=resolution+sidecar, "
+                            "debug=+candidates+full hash."[:140]
+                        ),
+                    },
+                ),
             },
             "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO"},
         }
@@ -267,6 +277,7 @@ class SaveImageWithMetaDataUniversal:
         sampler_selection_method=SAMPLER_SELECTION_METHOD[0],
         sampler_selection_node_id=0,
         file_format="png",
+        model_hash_log="none",
         lossless_webp=True,
         quality=100,
         save_workflow_json=False,
@@ -312,7 +323,7 @@ class SaveImageWithMetaDataUniversal:
         try:
             trace_tree_for_loader = Trace.trace(hook.current_save_image_node_id, hook.current_prompt)
             required_classes = {cls for (_, cls) in trace_tree_for_loader.values()}
-        except Exception:
+        except (KeyError, AttributeError, TypeError, ValueError):
             required_classes = None
         # Merge any globally forced include classes provided by MetadataRuleScanner
         if FORCED_INCLUDE_CLASSES:
@@ -324,6 +335,29 @@ class SaveImageWithMetaDataUniversal:
         _node.load_user_definitions(required_classes, suppress_missing_log=suppress_missing_class_log)
         # Ensure piexif references are patched via node module during tests
         piexif = _node.piexif  # noqa: F841 - used implicitly by subsequent code references
+        # Apply unified hash logging preference
+        try:
+            from ..defs import formatters as _formatters_mod  # type: ignore
+            # Reinitialize hash logger only when the mode actually changes
+            try:
+                new_mode = (model_hash_log or "none").lower()
+            except (AttributeError, TypeError, ValueError):
+                new_mode = "none"
+            try:
+                current_mode = getattr(_formatters_mod, "HASH_LOG_MODE", "none")
+            except (AttributeError, TypeError):
+                current_mode = "none"
+            if new_mode != current_mode and hasattr(_formatters_mod, "set_hash_log_mode"):
+                _formatters_mod.set_hash_log_mode(new_mode)  # resets internal init flag intentionally
+            # Proactively ensure logger is initialized when mode isn't none
+            if new_mode != "none" and hasattr(_formatters_mod, "_ensure_logger"):
+                try:
+                    _formatters_mod._ensure_logger()
+                except (RuntimeError, AttributeError):
+                    # Logger initialization is non-critical; safe to ignore errors during fallback.
+                    pass
+        except (ImportError, AttributeError):  # pragma: no cover
+            pass
         if _DEBUG_VERBOSE:
             logger.info(
                 cstr("[Metadata Loader] Using Captures File with %d entries").msg,
@@ -347,7 +381,7 @@ class SaveImageWithMetaDataUniversal:
                     arr = image.cpu().numpy()
                 else:  # Already numpy or list-like
                     arr = getattr(image, "numpy", lambda: image)()
-            except Exception:  # fallback last resort
+            except (AttributeError, TypeError, ValueError):  # fallback last resort
                 arr = image
             i = 255.0 * arr
             img = Image.fromarray(np.clip(i, 0, 255).astype(np.uint8))
@@ -432,7 +466,7 @@ class SaveImageWithMetaDataUniversal:
                     if zeroth_ifd or exif_ifd:
                         exif_dict = {"0th": zeroth_ifd, "Exif": exif_ifd}
                         exif_bytes = piexif.dump(exif_dict)
-                except Exception as e:
+                except (KeyError, ValueError, OSError, TypeError) as e:
                     logger.warning("Failed preparing EXIF for %s: %s", file_format, e)
 
                 save_kwargs = {
@@ -532,7 +566,7 @@ class SaveImageWithMetaDataUniversal:
                                     save_kwargs.pop("exif", None)
                                     exif_bytes = None
                                     fallback_stage = "com-marker"
-                        except Exception as e:
+                        except (OSError, ValueError, KeyError, TypeError) as e:
                             logger.warning(
                                 "[SaveImageWithMetaData] Failed fallback handling for oversized EXIF (%d bytes): %s",
                                 len(exif_bytes),
@@ -590,7 +624,7 @@ class SaveImageWithMetaDataUniversal:
                                 quality=quality,
                                 comment=parameters.encode("utf-8", "ignore")[:60000],  # ensure within marker limits
                             )
-                    except Exception as e:
+                    except (OSError, ValueError) as e:
                         logger.warning(
                             "[SaveImageWithMetaData] Failed to write JPEG COM marker fallback: %s",
                             e,
@@ -611,7 +645,8 @@ class SaveImageWithMetaDataUniversal:
                         uc_final = piexif.helper.UserComment.dump(parameters, encoding="unicode")
                         final_exif = piexif.dump({"0th": {}, "Exif": {piexif.ExifIFD.UserComment: uc_final}})
                         piexif.insert(final_exif, file_path)
-                    except Exception:
+                    except (OSError, ValueError, KeyError, TypeError):
+                        # Non-fatal: failed to write fallback EXIF metadata. Image is still saved.
                         pass
                 # Record stage for this image
                 self._last_fallback_stages.append(fallback_stage)
@@ -620,7 +655,7 @@ class SaveImageWithMetaDataUniversal:
                 if exif_bytes is not None and file_format == "webp":
                     try:
                         piexif.insert(exif_bytes, file_path)
-                    except Exception:
+                    except (OSError, ValueError, RuntimeError):
                         # Non-fatal; WebP EXIF not critical
                         pass
 
@@ -632,7 +667,7 @@ class SaveImageWithMetaDataUniversal:
             results.append({"filename": file, "subfolder": subfolder, "type": self.type})
             try:
                 counter = int(counter) + 1
-            except Exception:
+            except (TypeError, ValueError):
                 counter = 1
 
         # Pass through original tensor batch as output so downstream nodes can reuse the images

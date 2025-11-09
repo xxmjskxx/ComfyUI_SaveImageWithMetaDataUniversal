@@ -4,8 +4,10 @@ import os
 import re
 from collections.abc import Iterable, Iterator
 from typing import Any
+import importlib.metadata
 
-from .defs.captures import CAPTURE_FIELD_LIST
+# Use the aggregated, runtime-merged definitions (defaults + extensions + optional user JSON)
+from .defs import CAPTURE_FIELD_LIST
 from .defs.formatters import (
     calc_lora_hash,
     calc_model_hash,
@@ -14,8 +16,10 @@ from .defs.formatters import (
     display_model_name,
     display_vae_name,
 )
+from .defs import formatters as _hashfmt  # access HASH_LOG_MODE at runtime
 from .defs.meta import MetaField
 from .utils.color import cstr
+from .utils import pathresolve
 
 from nodes import NODE_CLASS_MAPPINGS
 
@@ -58,6 +62,9 @@ class _OutputCacheCompat:
     ComfyUI 0.3.65+ changed get_input_data to expect an execution_list with
     get_output_cache() method instead of a plain dict. This wrapper provides
     backward compatibility by wrapping the outputs dict with the expected interface.
+
+    Some ComfyUI versions call get_output_cache() while others call get_cache().
+    This wrapper provides both methods for maximum compatibility.
     """
     def __init__(self, outputs_dict):
         self._outputs = outputs_dict if outputs_dict is not None else {}
@@ -74,9 +81,70 @@ class _OutputCacheCompat:
         """
         return self._outputs.get(input_unique_id)
 
+    def get_cache(self, input_unique_id, unique_id):
+        """Alias for get_output_cache for compatibility with different ComfyUI versions.
+
+        Args:
+            input_unique_id: The node ID to get output from
+            unique_id: The current node ID (unused in dict-based cache)
+
+        Returns:
+            The cached output tuple or None if not found
+        """
+        return self.get_output_cache(input_unique_id, unique_id)
+
 
 # Versioning and feature flags
-CAPTURE_VERSION = "1.0.0"
+# Primary: use installed distribution metadata (fast, authoritative when packaged).
+# Fallback: if running from a cloned repo (not installed), parse nearest pyproject.toml.
+def _read_pyproject_version() -> str | None:  # pragma: no cover - simple IO
+    _toml_loader = None  # type: ignore
+    try:
+        import tomllib as _toml_loader  # type: ignore[attr-defined]
+    except ModuleNotFoundError:
+        try:
+            import tomli as _toml_loader  # type: ignore
+        except ModuleNotFoundError:
+            return None
+    try:
+        import pathlib
+        here = pathlib.Path(__file__).resolve()
+        for parent in here.parents:
+            pyproject = parent / "pyproject.toml"
+            if pyproject.is_file():
+                with pyproject.open("rb") as f:
+                    data = _toml_loader.load(f)  # type: ignore[arg-type]
+                return (
+                    data.get("project", {}).get("version")
+                    or data.get("tool", {}).get("poetry", {}).get("version")
+                    or None
+                )
+    except (OSError, KeyError, ValueError):
+        return None
+    return None
+
+try:
+    _dist_version = importlib.metadata.version("SaveImageWithMetaDataUniversal")
+except importlib.metadata.PackageNotFoundError:
+    _dist_version = None
+_pyproj_version = _read_pyproject_version()
+_RESOLVED_VERSION = (
+    _pyproj_version
+    if (_pyproj_version and (_dist_version is None or _pyproj_version != _dist_version))
+    else (_dist_version or _pyproj_version or "unknown")
+)
+
+def resolve_runtime_version() -> str:
+    """Return version string (env override > cached pyproject/dist result).
+
+    We do not re-read pyproject after import because ComfyUI restart is expected
+    on node pack update (user instruction). Environment override allows ad-hoc
+    debugging or temporary version stamping.
+    """
+    ov = os.environ.get("METADATA_VERSION_OVERRIDE", "").strip()
+    if ov:
+        return ov
+    return _RESOLVED_VERSION or "unknown"
 
 
 # Dynamic flag function so tests can toggle at runtime instead of snapshot at import
@@ -108,7 +176,7 @@ if _debug_prompts_enabled():
     try:
         logger.setLevel(logging.DEBUG)
     except Exception:
-        pass
+        pass  # Setting log level may fail if logger is misconfigured - continue anyway
     try:
         # Ensure at least one handler is attached so debug lines are visible
         added_handler = False
@@ -121,7 +189,7 @@ if _debug_prompts_enabled():
         # Avoid duplicate logs when root also has handlers by not propagating
         logger.propagate = False
     except Exception:
-        pass
+        pass  # Logger configuration may fail - continue without debug logging
 
 
 class Capture:
@@ -349,7 +417,12 @@ class Capture:
                                 if format_func is not None and not skip_hash_on_name:
                                     funcname = getattr(format_func, "__name__", "").lower()
                                     # Guard expensive hash formatters unless value string appears path-like
-                                    if "unet_hash" in funcname or "model_hash" in funcname or "vae_hash" in funcname:
+                                    if (
+                                        "unet_hash" in funcname
+                                        or "model_hash" in funcname
+                                        or "vae_hash" in funcname
+                                        or "lora_hash" in funcname
+                                    ):
                                         try:
                                             v_str = v if isinstance(v, str) else str(v)
                                         except Exception:  # pragma: no cover - string conversion failure
@@ -362,16 +435,15 @@ class Capture:
                                                 or "/" in v_str
                                                 or any(
                                                     vl.endswith(ext)
-                                                    for ext in (
-                                                        ".safetensors",
-                                                        ".st",
-                                                        ".ckpt",
-                                                        ".pt",
-                                                        ".bin",
-                                                    )
+                                                    for ext in pathresolve.SUPPORTED_MODEL_EXTENSIONS
                                                 )
                                             )
-                                        allow_call = not isinstance(v, str) or looks_like_file
+                                        # If user enabled hash logging, allow calling even for name-like tokens
+                                        try:
+                                            log_mode = getattr(_hashfmt, "HASH_LOG_MODE", "none")
+                                        except Exception:
+                                            log_mode = "none"
+                                        allow_call = (log_mode != "none") or (not isinstance(v, str) or looks_like_file)
                                         if allow_call:
                                             try:
                                                 v = format_func(v, input_data)
@@ -467,7 +539,12 @@ class Capture:
                         )
                         if format_func is not None and not skip_hash_on_name:
                             funcname = getattr(format_func, "__name__", "").lower()
-                            if "unet_hash" in funcname or "model_hash" in funcname or "vae_hash" in funcname:
+                            if (
+                                "unet_hash" in funcname
+                                or "model_hash" in funcname
+                                or "vae_hash" in funcname
+                                or "lora_hash" in funcname
+                            ):
                                 try:
                                     v_str = v if isinstance(v, str) else str(v)
                                 except Exception:  # pragma: no cover
@@ -480,16 +557,14 @@ class Capture:
                                         or "/" in v_str
                                         or any(
                                             vl.endswith(ext)
-                                            for ext in (
-                                                ".safetensors",
-                                                ".st",
-                                                ".ckpt",
-                                                ".pt",
-                                                ".bin",
-                                            )
+                                            for ext in pathresolve.SUPPORTED_MODEL_EXTENSIONS
                                         )
                                     )
-                                allow_call = not isinstance(v, str) or looks_like_file
+                                try:
+                                    log_mode = getattr(_hashfmt, "HASH_LOG_MODE", "none")
+                                except Exception:
+                                    log_mode = "none"
+                                allow_call = (log_mode != "none") or (not isinstance(v, str) or looks_like_file)
                                 if allow_call:
                                     try:
                                         v = format_func(v, input_data)
@@ -569,10 +644,10 @@ class Capture:
                             )
                         if not need_t5 and not need_clip:
                             break
-                    except Exception:
+                    except Exception:  # Skip invalid slot data and try next slot
                         continue
         except Exception:
-            pass
+            pass  # Text encoder extraction may fail - continue with available metadata
 
         # Inline LoRA fallback extraction for test mode / prompt-only presence
         try:
@@ -611,7 +686,7 @@ class Capture:
                         if sc is not None:
                             inputs.setdefault(MetaField.LORA_STRENGTH_CLIP, []).append(("inline", sc))
         except Exception:  # pragma: no cover
-            pass
+            pass  # Inline LoRA extraction may fail - continue with captured data
 
         return inputs
 
@@ -645,7 +720,7 @@ class Capture:
         pnginfo_dict = {}
         # Insert version stamp early so downstream additions (e.g., Hash detail) can reference it.
         if "Metadata generator version" not in pnginfo_dict:
-            pnginfo_dict["Metadata generator version"] = CAPTURE_VERSION
+            pnginfo_dict["Metadata generator version"] = resolve_runtime_version()
         DEBUG_PROMPTS = _debug_prompts_enabled()  # noqa: N806
 
         def update_pnginfo_dict(inputs, metafield, key):
@@ -668,7 +743,7 @@ class Capture:
                         # Guidance sometimes comes from sliders or ints
                         val = float(val)
                     except Exception:
-                        pass
+                        pass  # Keep original value if conversion fails
                 # Normalize Weight dtype to a readable string
                 if key == "Weight dtype":
                     # Many nodes pass dtype objects or enums; stringify cleanly and sanitize
@@ -841,7 +916,7 @@ class Capture:
                     pnginfo_dict.get("Negative prompt"),
                 )
             except Exception:
-                pass
+                pass  # Prompt validation may fail - continue with available prompts
 
         # Normalize any lowercase 't5 prompt'/'clip prompt' to Title-case and remove duplicates early
         try:
@@ -865,7 +940,7 @@ class Capture:
                         if k != "CLIP Prompt":
                             pnginfo_dict.pop(k, None)
         except Exception:
-            pass
+            pass  # Prompt normalization may fail - continue with unnormalized prompts
 
         # Heuristic dual-encoder prompt aliasing: if we have multiple CLIP encoders but only a single 'Positive prompt'
         # and neither 'T5 prompt' nor 'CLIP prompt' were explicitly captured, duplicate the positive text into both
@@ -901,7 +976,7 @@ class Capture:
                             clip_names,
                         )
         except Exception:
-            pass
+            pass  # Dual-encoder aliasing may fail - continue with single prompt
 
         # Prefer valid positive steps; avoid placeholder -1 or None
         steps_list = inputs_before_sampler_node.get(MetaField.STEPS, [])
@@ -910,7 +985,7 @@ class Capture:
             try:
                 steps_val = int(steps_val)
             except Exception:
-                pass
+                pass  # Keep original value if conversion to int fails
             if isinstance(steps_val, int) and steps_val >= 0:
                 pnginfo_dict["Steps"] = steps_val
 
@@ -926,7 +1001,7 @@ class Capture:
                     schedulers,
                 )
             except Exception:
-                pass
+                pass  # Debug logging may fail - continue processing
 
         # Fallback: some sampler nodes may have their own inputs excluded by the "before sampler" boundary.
         # If we missed SAMPLER_NAME upstream, attempt to recover it from the full pre-this-node capture set.
@@ -945,7 +1020,7 @@ class Capture:
                             sampler_names,
                         )
                     except Exception:
-                        pass
+                        pass  # Debug logging may fail - continue processing
             elif _debug_prompts_enabled():
                 try:
                     logger.debug(
@@ -955,7 +1030,7 @@ class Capture:
                         ).msg,
                     )
                 except Exception:
-                    pass
+                    pass  # Debug logging may fail - continue processing
 
         # Direct graph introspection fallback: look into hook.current_prompt for KSamplerSelect / SamplerCustomAdvanced
         # nodes that expose a textual 'sampler_name' input but were not captured by rule scanning.
@@ -1131,7 +1206,7 @@ class Capture:
                             sampler_names,
                         )
             except Exception:
-                pass
+                pass  # Sampler introspection may fail - continue without it
         # If we have a clean sampler text and it's not the leading entry, prepend it
         try:
             if clean_sampler_text:
@@ -1149,7 +1224,7 @@ class Capture:
                             sampler_names,
                         )
         except Exception:
-            pass
+            pass  # Sampler prepending may fail - continue with existing list
 
         if save_civitai_sampler:
             pnginfo_dict["Sampler"] = cls.get_sampler_for_civitai(sampler_names, schedulers)
@@ -1183,7 +1258,7 @@ class Capture:
                         try:
                             scheduler = scheduler.lower()
                         except Exception:
-                            pass
+                            pass  # Keep original scheduler if lowercasing fails
                         if pnginfo_dict["Sampler"]:
                             pnginfo_dict["Sampler"] = f"{pnginfo_dict['Sampler']}_{scheduler}"
                         else:
@@ -1196,7 +1271,7 @@ class Capture:
                             pnginfo_dict.get("Sampler"),
                         )
                     except Exception:
-                        pass
+                        pass  # Debug logging may fail - continue processing
 
         update_pnginfo_dict(inputs_before_sampler_node, MetaField.CFG, "CFG scale")
 
@@ -1236,7 +1311,7 @@ class Capture:
                 if len(nums) >= 2:
                     return int(nums[0]), int(nums[1])
             except Exception:
-                pass
+                pass  # Size string parsing may fail - return None
             return None
 
         if len(image_widths) > 0 and len(image_heights) > 0:
@@ -1296,7 +1371,7 @@ class Capture:
                     pnginfo_dict["Size"] = f"{w}x{h}"
                     size_set = True
                 except Exception:
-                    pass
+                    pass  # Size parsing may fail - continue without Size field
 
         # Ensure model name is a readable basename; hash populated separately
         model_names = inputs_before_sampler_node.get(MetaField.MODEL_NAME, [])
@@ -1304,7 +1379,7 @@ class Capture:
 
             def best_model_display(values):
                 # Prefer strings ending with common model extensions, else any string, else fallback to str of first
-                exts = (".safetensors", ".st", ".ckpt", ".pt", ".bin")
+                exts = pathresolve.SUPPORTED_MODEL_EXTENSIONS
                 str_candidates = []
                 for v in values:
                     try:
@@ -1341,10 +1416,7 @@ class Capture:
                 looks_like_file = isinstance(mdisp, str) and (
                     "\\" in mdisp
                     or "/" in mdisp
-                    or any(
-                        mdisp_l.endswith(ext)
-                        for ext in (".safetensors", ".st", ".ckpt", ".pt", ".bin")
-                    )
+                    or any(mdisp_l.endswith(ext) for ext in pathresolve.SUPPORTED_MODEL_EXTENSIONS)
                 )
                 if looks_like_file:
                     # Try UNet first (Flux et al.), then checkpoint
@@ -1354,7 +1426,7 @@ class Capture:
                     if h and h != "N/A":
                         pnginfo_dict["Model hash"] = h
             except Exception:
-                pass
+                pass  # Model hash calculation may fail - continue without hash
 
         # Insert Weight dtype right after Model/Model hash, before shifts
         if dtype_candidate is None and isinstance(pnginfo_dict.get("Model"), str):
@@ -1431,7 +1503,7 @@ class Capture:
                     if not (raw.strip().startswith("<") and ">" in raw):
                         return raw
                 except Exception:
-                    pass
+                    pass  # VAE name extraction may fail - return None
             return None
 
         v_disp = resolve_vae_display()
@@ -1445,14 +1517,14 @@ class Capture:
                 if _vh.startswith("<") and ">" in _vh:
                     pnginfo_dict.pop("VAE hash", None)
             except Exception:
-                pass
+                pass  # VAE hash validation may fail - keep existing value
         if "VAE hash" not in pnginfo_dict and "VAE" in pnginfo_dict:
             try:
                 h = calc_vae_hash(pnginfo_dict["VAE"], None)
                 if h and h != "N/A":
                     pnginfo_dict["VAE hash"] = h
             except Exception:
-                pass
+                pass  # VAE hash calculation may fail - continue without hash
 
         # Append LoRA and Embedding info
         pnginfo_dict.update(cls.gen_loras(inputs_before_sampler_node))
@@ -1507,8 +1579,8 @@ class Capture:
         include_lora_summary_override = kwargs.get("include_lora_summary")
         guidance_as_cfg = bool(kwargs.get("guidance_as_cfg", False))
         # --- Prompt header reconstruction (robust dual-encoder handling) ---
-        pos = pnginfo_dict.get("Positive prompt", "") or ""
-        neg = pnginfo_dict.get("Negative prompt", "") or ""
+        pos = (pnginfo_dict.get("Positive prompt", "") or "").rstrip("\r\n")
+        neg = (pnginfo_dict.get("Negative prompt", "") or "").rstrip("\r\n")
         DEBUG_PROMPTS = os.environ.get("METADATA_DEBUG_PROMPTS", "").strip() != ""  # noqa: N806
 
         # Case-insensitive search for dual prompt keys to be resilient to prior casing differences.
@@ -1534,8 +1606,16 @@ class Capture:
         header_lines = []
         if t5 is not None and clip is not None:
             # Dual prompt scenario: suppress unified positive prompt completely, always label.
-            header_lines.append(f"T5 Prompt: {t5}")
-            header_lines.append(f"CLIP Prompt: {clip}")
+            try:
+                t5s = t5.rstrip("\r\n") if isinstance(t5, str) else str(t5)
+            except Exception:
+                t5s = str(t5)
+            try:
+                clips = clip.rstrip("\r\n") if isinstance(clip, str) else str(clip)
+            except Exception:
+                clips = str(clip)
+            header_lines.append(f"T5 Prompt: {t5s}")
+            header_lines.append(f"CLIP Prompt: {clips}")
         else:
             # Single prompt scenario: show the unified positive prompt.
             if pos:
@@ -1556,6 +1636,16 @@ class Capture:
             if k.lower() in {"t5 prompt", "clip prompt"}:
                 exclude_keys.add(k)
         data = {k: v for k, v in pnginfo_dict.items() if k not in exclude_keys}
+        # Pull out metadata generator version to force it last later
+        _mgv = None
+        if "Metadata generator version" in data:
+            _mgv = data.pop("Metadata generator version")
+        multi_entries = []
+        if "__multi_sampler_entries" in data:
+            try:
+                multi_entries = data.pop("__multi_sampler_entries") or []
+            except Exception:
+                multi_entries = []
 
         # Guidance-as-CFG override: when enabled and Guidance present, overwrite CFG scale with Guidance value
         # Then remove the original Guidance key.
@@ -1668,6 +1758,9 @@ class Capture:
             remaining.remove("Hash detail")
         for k in sorted(remaining):
             ordered_items.append((k, data[k]))
+        # Append metadata generator version last if present
+        if _mgv is not None:
+            ordered_items.append(("Metadata generator version", _mgv))
 
     # Safety pass: ensure critical legacy fields captured if they existed in
     # original pnginfo but were somehow missed.
@@ -1724,7 +1817,7 @@ class Capture:
                     insert_pos = hashes_idx if hashes_idx is not None else len(ordered_items)
                     ordered_items.insert(insert_pos, ("LoRAs", summary_val))
             except Exception:
-                pass
+                pass  # LoRA summary insertion may fail - continue without it
 
         def _format_sampler(raw: str) -> str:
             """Return display value for sampler.
@@ -1759,11 +1852,55 @@ class Capture:
                 s = _format_sampler(s)
             parts.append(f"{k}: {s}")
 
+        # Multi-sampler tail augmentation: only if >1 sampler candidate
+        tail = ""
+        if multi_entries and isinstance(multi_entries, list) and len(multi_entries) > 1:
+            try:
+                segs = []
+                for e in multi_entries:
+                    name = e.get("sampler_name") or e.get("class_type") or "?"
+                    if e.get("start_step") is not None and e.get("end_step") is not None:
+                        segs.append(f"{name} ({e['start_step']}-{e['end_step']})")
+                    elif e.get("steps") is not None:
+                        # Represent full-run steps as 0-(steps-1) only if there are segment samplers too
+                        any_segments = any(x.get("start_step") is not None for x in multi_entries)
+                        if any_segments and isinstance(e.get("steps"), int):
+                            rng = f"0-{int(e['steps'])-1}" if int(e['steps']) > 0 else "0-0"
+                            segs.append(f"{name} ({rng})")
+                        else:
+                            segs.append(f"{name}")
+                    else:
+                        segs.append(str(name))
+                tail_core = " | ".join(segs)
+                if multiline:
+                    tail = f"\nSamplers: {tail_core}"
+                else:
+                    tail = f", Samplers: {tail_core}"
+            except Exception:
+                tail = ""
+
+        def _normalize_newlines(s: str) -> str:
+            # Normalize CRLF and collapse duplicate blank lines conservatively
+            try:
+                s = s.replace("\r\n", "\n")
+            except Exception:
+                # Best-effort normalization; ignore errors if input is not a string or replace fails.
+                pass
+            # Collapse doubled newlines that can arise from mixed sources
+            # (do not attempt to preserve intentional >2 line breaks)
+            try:
+                while "\n\n" in s:
+                    s = s.replace("\n\n", "\n")
+            except Exception:
+                # Intentionally ignore errors during newline normalization; fallback to original string.
+                pass
+            return s
+
         if multiline:
-            return result + "\n".join(parts)
+            return _normalize_newlines(result + "\n".join(parts) + tail)
         else:
             # Legacy Automatic1111-style: single parameter line (after prompts / negative)
-            return result + ", ".join(parts)
+            return _normalize_newlines(result + ", ".join(parts) + tail)
 
     @classmethod
     def add_hash_detail_section(cls, pnginfo_dict):
@@ -1852,7 +1989,7 @@ class Capture:
                     return
                 resource_hashes[key] = v
             except Exception:
-                pass
+                pass  # Hash validation may fail - skip this hash
 
         # Prefer already computed hashes from pnginfo_dict if available
         if isinstance(pnginfo_dict, dict):
@@ -1913,7 +2050,7 @@ class Capture:
                             add_if_valid(k, hval)
                     i += 1
         except Exception:
-            pass
+            pass  # LoRA hash extraction may fail - return collected hashes
 
         return resource_hashes
 
@@ -1943,7 +2080,7 @@ class Capture:
                     lsc,
                 )
         except Exception:
-            pass
+            pass  # Debug logging may fail - continue processing
 
         # Pre-filter: remove any entries that are clearly aggregated syntax blobs like
         # "<lora:foo:0.5> <lora:bar:0.7>" which can appear if a raw text field slipped through.
@@ -2062,7 +2199,7 @@ class Capture:
                         if isinstance(s, str) and "<lora:" in s.lower():
                             aggregated_text_candidates.append(s)
                     except Exception:
-                        pass
+                        pass  # Value extraction may fail - skip this value
             import re as _re
 
             syntax_pattern = _re.compile(
@@ -2108,7 +2245,7 @@ class Capture:
                     pnginfo_dict["Lora_0 Model name"] = "error: see log"
                     pnginfo_dict["Lora_0 Model hash"] = "error"
             except Exception:
-                pass
+                pass  # Error placeholder insertion may fail - continue anyway
 
         # Stable sort: original order of appearance already preserved in dedup
         for index, (name_disp, mh, sm_final, sc_final) in enumerate(dedup):
@@ -2257,7 +2394,7 @@ class Capture:
                     scheduler,
                 )
             except Exception:
-                pass
+                pass  # Debug logging may fail - continue processing
 
         # Normalize & drop obvious object reprs (e.g. "<comfy.samplers.KSAMPLER object at 0x....>")
         def _clean(s):
@@ -2337,7 +2474,7 @@ class Capture:
                     scheduler_l,
                 )
             except Exception:
-                pass
+                pass  # Debug logging may fail - continue processing
 
         # Do not fabricate a placeholder sampler when none can be determined; prefer scheduler-only fallback.
         if not sampler:

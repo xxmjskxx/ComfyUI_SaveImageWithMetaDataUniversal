@@ -587,7 +587,7 @@ class MetadataRuleScanner:
                                 if _re.search(pat, lower_name):
                                     return True
                             except Exception:
-                                pass
+                                pass  # Skip invalid regex patterns
                         groups_spec = rule_obj.get("required_class_keyword_groups")
                         if groups_spec:
                             groups = None
@@ -636,7 +636,7 @@ class MetadataRuleScanner:
                                     if isinstance(kw, str) and kw.lower() in lower_name:
                                         return True
                                 except Exception:
-                                    pass
+                                    pass  # Skip invalid keyword - continue checking others
                             return False
                         return True
 
@@ -966,7 +966,7 @@ class MetadataRuleScanner:
             cache_hits = int(_BASELINE_CACHE.get("hits", 0))  # type: ignore[arg-type]
             cache_misses = int(_BASELINE_CACHE.get("misses", 0))  # type: ignore[arg-type]
         except Exception:
-            pass
+            pass  # Cache stats may be unavailable - use defaults (0)
 
         diff_chunks = [
             f"Mode={effective_mode}",
@@ -1004,5 +1004,5 @@ class MetadataRuleScanner:
                     "result": base_result,
                 }
             except Exception:
-                pass
+                pass  # JSON formatting may fail - return base result anyway
         return base_result

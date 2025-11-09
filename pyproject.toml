@@ -3,8 +3,13 @@ name = "SaveImageWithMetaDataUniversal"
 description = """
 Node for saving PNGs, WEBPs, and JPEGs with rich automatically captured metadata from any node: prompts, model/VAE/LoRA names & hashes, sampler & scheduler (Civitai-compatible), optional workflow embedding, dynamic rule scanning + forced include system, deterministic ordering, filename tokens, and staged JPEG metadata fallback.
 """
-version = "1.2.0"
+version = "1.3.0"
 license = { file = "LICENSE" }
+dependencies = [
+    "pillow>=10.0.0",
+    "numpy>=1.21.0",
+    "piexif>=1.1.0",
+]
 
 [project.urls]
 Repository = "https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal"
@@ -18,14 +23,15 @@ Icon = "img/logo.svg"
 
 [project.optional-dependencies]
 dev = [
-    "mypy",  # linting
-    "ruff",
-    "pytest",
-    "bump-my-version",
-    "coverage",  # testing
-    "pip-audit",
-    "pre-commit",
-    "PyYAML",  # testing
+    "mypy",  # type checking
+    "ruff",  # linting and formatting
+    "pytest",  # testing framework
+    "pytest-cov",  # coverage reporting
+    "bump-my-version",  # version management
+    "pip-audit",  # security auditing
+    "pre-commit",  # git hooks
+    "PyYAML",  # YAML parsing for configs
+    # Note: runtime dependencies (pillow, numpy, piexif) are declared in [project.dependencies]
 ]
 
 [tool.ruff]

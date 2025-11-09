@@ -333,10 +333,10 @@
         "ver": "0.3.59"
       },
       "widgets_values": [
-        "flux\\flux1-dev-fp8-e4m3fn.safetensors",
+        "flux1-dev-fp8-e4m3fn.safetensors",
         "fp8_e4m3fn_fast",
-        "flux\\t5xxl_fp16.safetensors",
-        "flux\\clip_l.safetensors",
+        "t5xxl_fp16.safetensors",
+        "clip_l.safetensors",
         "flux",
         "default",
         "ae.safetensors"
@@ -1236,7 +1236,7 @@
               }
             },
             "widgets_values": [
-              "flux\\flux1-dev-fp8-e4m3fn.safetensors",
+              "flux1-dev-fp8-e4m3fn.safetensors",
               "fp8_e4m3fn_fast"
             ],
             "color": "#223",
@@ -1317,8 +1317,8 @@
               }
             },
             "widgets_values": [
-              "flux\\t5xxl_fp16.safetensors",
-              "flux\\clip_l.safetensors",
+              "t5xxl_fp16.safetensors",
+              "clip_l.safetensors",
               "flux",
               "default"
             ]
