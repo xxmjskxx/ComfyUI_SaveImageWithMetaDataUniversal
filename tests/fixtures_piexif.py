@@ -17,7 +17,7 @@ def _load_real_piexif():
     return real_piexif
 
 
-def build_piexif_stub(mode: Literal['huge','small','adaptive']) -> object:
+def build_piexif_stub(mode: Literal['huge', 'small', 'adaptive']) -> object:
     real = _load_real_piexif()
 
     class PStub:  # pragma: no cover - deterministic

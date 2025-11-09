@@ -64,7 +64,7 @@ def get_lora_strength_model_stack(node_id, obj, prompt, extra_data, outputs, inp
         if input_data[0].get("input_mode", [""])[0] == "advanced":
             return select_stack_by_prefix(input_data, "model_str", counter_key="lora_count")
     except Exception:
-        pass
+        pass  # Fall back to simple mode if advanced mode check fails
     return select_stack_by_prefix(input_data, "lora_wt", counter_key="lora_count")
 
 
@@ -74,7 +74,7 @@ def get_lora_strength_clip_stack(node_id, obj, prompt, extra_data, outputs, inpu
         if input_data[0].get("input_mode", [""])[0] == "advanced":
             return select_stack_by_prefix(input_data, "clip_str", counter_key="lora_count")
     except Exception:
-        pass
+        pass  # Fall back to simple mode if advanced mode check fails
     return select_stack_by_prefix(input_data, "lora_wt", counter_key="lora_count")
 
 # This mirrors the indirection used by generated_user_rules.py

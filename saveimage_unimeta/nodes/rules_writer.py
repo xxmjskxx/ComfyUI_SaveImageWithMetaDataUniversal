@@ -36,7 +36,7 @@ class SaveCustomMetadataRules:
                     if os.path.isdir(full) and _looks_like_timestamp(entry):
                         backup_choices.append(entry)
             except OSError:
-                pass
+                pass  # Backups directory may not exist or be inaccessible - continue without it
         # Sort newest first after 'none'
         if len(backup_choices) > 1:
             head, tail = backup_choices[0], backup_choices[1:]
@@ -373,7 +373,7 @@ class SaveCustomMetadataRules:
             try:
                 os.rmdir(target_dir)
             except OSError:
-                pass
+                pass  # Directory may not be empty or removable - not critical
             return None
         return os.path.basename(target_dir)
 
