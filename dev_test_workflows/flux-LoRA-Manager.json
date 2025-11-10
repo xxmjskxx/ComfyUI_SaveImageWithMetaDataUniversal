@@ -1,0 +1,379 @@
+{
+  "1": {
+    "inputs": {
+      "samples": [
+        "4",
+        1
+      ],
+      "vae": [
+        "3:4",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "4": {
+    "inputs": {
+      "noise": [
+        "11",
+        0
+      ],
+      "guider": [
+        "7",
+        0
+      ],
+      "sampler": [
+        "6:11",
+        0
+      ],
+      "sigmas": [
+        "6:12",
+        0
+      ],
+      "latent_image": [
+        "6:31",
+        0
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "SamplerCustomAdvanced"
+    }
+  },
+  "7": {
+    "inputs": {
+      "model": [
+        "6:29",
+        0
+      ],
+      "conditioning": [
+        "6:10",
+        0
+      ]
+    },
+    "class_type": "BasicGuider",
+    "_meta": {
+      "title": "BasicGuider"
+    }
+  },
+  "8": {
+    "inputs": {
+      "text": "Monochrome manga sketch, eerie and haunting extreme face close-up of a female skeleton with a weathered, menacing, surreal appearance, with an unnerving smile with missing teeth, striking eyes, and grotesque features. The skeleton has one gold-colored tooth and wears the remains of tattered leather armor with sci-fi elements. The eyes are shaded, sad and pained, with a contagious sorrow accentuating the intense, unsettling gaze. The macabre sketch is hyper-detailed in manga style, featuring a vibrant neon fluorescent monochromatic gradient background in bleached tones, combined with gray and white color grading for a dramatic effect.",
+      "clip": [
+        "3:3",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "9": {
+    "inputs": {
+      "filename_prefix": "Test\\%date:yyyy-MM-dd%//%date:yyyy-MM-dd-hhmmss%",
+      "sampler_selection_method": "Farthest",
+      "sampler_selection_node_id": 0,
+      "file_format": "png",
+      "lossless_webp": true,
+      "quality": 100,
+      "max_jpeg_exif_kb": 60,
+      "save_workflow_json": false,
+      "add_counter_to_filename": true,
+      "civitai_sampler": false,
+      "guidance_as_cfg": false,
+      "save_workflow_image": true,
+      "include_lora_summary": false,
+      "suppress_missing_class_log": true,
+      "model_hash_log": "none",
+      "images": [
+        "1",
+        0
+      ]
+    },
+    "class_type": "SaveImageWithMetaDataUniversal",
+    "_meta": {
+      "title": "Save Image w/ Metadata Universal"
+    }
+  },
+  "11": {
+    "inputs": {
+      "noise_seed": 1023866501781149
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "RandomNoise"
+    }
+  },
+  "17": {
+    "inputs": {
+      "text": "<lora:aether-core-3:0.10>",
+      "loras": {
+        "__value__": [
+          {
+            "name": "aether-core-3",
+            "strength": 0.1,
+            "active": true,
+            "expanded": false,
+            "clipStrength": 0.1
+          }
+        ]
+      }
+    },
+    "class_type": "Lora Stacker (LoraManager)",
+    "_meta": {
+      "title": "Lora Stacker (LoraManager)"
+    }
+  },
+  "19": {
+    "inputs": {
+      "text": "<lora:ancient_shadows_of_the_lens-FluxDev:0.31> <lora:3d-anaglyphs:0.20>",
+      "loras": {
+        "__value__": [
+          {
+            "name": "ancient_shadows_of_the_lens-FluxDev",
+            "strength": 0.31,
+            "active": true,
+            "expanded": false,
+            "clipStrength": 0.31
+          },
+          {
+            "name": "3d-anaglyphs",
+            "strength": 0.2,
+            "active": true,
+            "expanded": false,
+            "clipStrength": 0.2
+          }
+        ]
+      }
+    },
+    "class_type": "Lora Stacker (LoraManager)",
+    "_meta": {
+      "title": "Lora Stacker (LoraManager)"
+    }
+  },
+  "20": {
+    "inputs": {
+      "model": [
+        "2:25",
+        0
+      ],
+      "lora_syntax": [
+        "22",
+        0
+      ],
+      "clip": [
+        "3:3",
+        0
+      ],
+      "lora_stack": [
+        "19",
+        0
+      ]
+    },
+    "class_type": "LoRA Text Loader (LoraManager)",
+    "_meta": {
+      "title": "LoRA Text Loader (LoraManager)"
+    }
+  },
+  "21": {
+    "inputs": {
+      "text": "<lora:FluxMythG0thicL1nes:0.47:0.35> <lora:FantasyWizardWitchesFluxV2-000001:0.22:0.20> <lora:FluxMythR3alisticF:0.15>",
+      "loras": {
+        "__value__": [
+          {
+            "name": "FluxMythG0thicL1nes",
+            "strength": 0.47,
+            "active": true,
+            "expanded": true,
+            "clipStrength": 0.35
+          },
+          {
+            "name": "FantasyWizardWitchesFluxV2-000001",
+            "strength": 0.22,
+            "active": true,
+            "expanded": true,
+            "clipStrength": 0.2
+          },
+          {
+            "name": "FluxMythR3alisticF",
+            "strength": 0.15,
+            "active": true,
+            "expanded": false,
+            "clipStrength": 0.15
+          }
+        ]
+      },
+      "model": [
+        "20",
+        0
+      ],
+      "clip": [
+        "20",
+        1
+      ],
+      "lora_stack": [
+        "17",
+        0
+      ]
+    },
+    "class_type": "Lora Loader (LoraManager)",
+    "_meta": {
+      "title": "Lora Loader (LoraManager)"
+    }
+  },
+  "22": {
+    "inputs": {
+      "value": "<lora:Comic book opus 3:0.51>\n<lora:bilibin:0.21>"
+    },
+    "class_type": "PrimitiveStringMultiline",
+    "_meta": {
+      "title": "String (Multiline)"
+    }
+  },
+  "3:1": {
+    "inputs": {
+      "unet_name": "flux\\flux1-dev-fp8-e4m3fn.safetensors",
+      "weight_dtype": "fp8_e4m3fn_fast"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "Load Diffusion Model"
+    }
+  },
+  "3:3": {
+    "inputs": {
+      "clip_name1": "flux\\t5xxl_fp16.safetensors",
+      "clip_name2": "flux\\clip_l.safetensors",
+      "type": "flux",
+      "device": "default"
+    },
+    "class_type": "DualCLIPLoader",
+    "_meta": {
+      "title": "DualCLIPLoader"
+    }
+  },
+  "3:4": {
+    "inputs": {
+      "vae_name": "ae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "2:25": {
+    "inputs": {
+      "patch_order": "object_patch_first",
+      "full_load": "auto",
+      "model": [
+        "2:24",
+        0
+      ]
+    },
+    "class_type": "PatchModelPatcherOrder",
+    "_meta": {
+      "title": "Patch Model Patcher Order"
+    }
+  },
+  "2:23": {
+    "inputs": {
+      "backend": "inductor",
+      "model": [
+        "3:1",
+        0
+      ]
+    },
+    "class_type": "TorchCompileModel",
+    "_meta": {
+      "title": "TorchCompileModel"
+    }
+  },
+  "2:24": {
+    "inputs": {
+      "sage_attention": "auto",
+      "allow_compile": false,
+      "model": [
+        "2:23",
+        0
+      ]
+    },
+    "class_type": "PathchSageAttentionKJ",
+    "_meta": {
+      "title": "Patch Sage Attention KJ"
+    }
+  },
+  "6:10": {
+    "inputs": {
+      "guidance": 3.5,
+      "conditioning": [
+        "8",
+        0
+      ]
+    },
+    "class_type": "FluxGuidance",
+    "_meta": {
+      "title": "FluxGuidance"
+    }
+  },
+  "6:11": {
+    "inputs": {
+      "sampler_name": "euler"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "KSamplerSelect"
+    }
+  },
+  "6:12": {
+    "inputs": {
+      "scheduler": "beta",
+      "steps": 20,
+      "denoise": 1,
+      "model": [
+        "6:29",
+        0
+      ]
+    },
+    "class_type": "BasicScheduler",
+    "_meta": {
+      "title": "BasicScheduler"
+    }
+  },
+  "6:29": {
+    "inputs": {
+      "max_shift": 1.15,
+      "base_shift": 0.5,
+      "width": [
+        "6:31",
+        1
+      ],
+      "height": [
+        "6:31",
+        2
+      ],
+      "model": [
+        "21",
+        0
+      ]
+    },
+    "class_type": "ModelSamplingFlux",
+    "_meta": {
+      "title": "ModelSamplingFlux"
+    }
+  },
+  "6:31": {
+    "inputs": {
+      "dimensions": "1024 x 1024  (square)",
+      "clip_scale": 1,
+      "batch_size": 1
+    },
+    "class_type": "SDXL Empty Latent Image (rgthree)",
+    "_meta": {
+      "title": "SDXL Empty Latent Image (rgthree)"
+    }
+  }
+}

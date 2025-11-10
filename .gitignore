@@ -158,9 +158,13 @@ saveimage_unimeta/user_rules/backups/
 saveimage_unimeta/user_rules/user_captures.json
 saveimage_unimeta/user_rules/user_samplers.json
 scripts/
+.vscode/
+docs/HEURISTICS_CHANGES.md
+docs/releases/
+tasksync/
 
 # Local development/testing files (not committed)
-/dev_test_workflows/
+# /dev_test_workflows/
 
 # Ephemeral local drafting files (root only). Keep actual published notes in docs/.
 /RELEASE_NOTES_*.md
