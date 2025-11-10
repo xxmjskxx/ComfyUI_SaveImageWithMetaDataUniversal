@@ -1,7 +1,7 @@
 {
   "1": {
     "inputs": {
-      "filename_prefix": "Test\\ComfyUI-without-meta",
+      "filename_prefix": "Test\\Embedding-ComfyUI-without-meta",
       "images": [
         "3",
         0
@@ -221,7 +221,7 @@
   },
   "17": {
     "inputs": {
-      "filename_prefix": "Test\\ComfyUI",
+      "filename_prefix": "Test\\Embedding-ComfyUI",
       "sampler_selection_method": "Farthest",
       "sampler_selection_node_id": 0,
       "file_format": "png",
