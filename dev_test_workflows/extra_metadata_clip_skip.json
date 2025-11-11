@@ -31,8 +31,8 @@
     "inputs": {
       "text": "1girl, hatsune miku, vocaloid, aqua hair, aqua eyes, twintails, aqua necktie, cyan shirt, sleeveless, detached sleeves, black sleeves, upper body, smile, looking at viewer, waving, masterpiece, best quality, very aesthetic, absurdres",
       "clip": [
-        "9",
-        1
+        "12",
+        0
       ]
     },
     "class_type": "CLIPTextEncode",
@@ -44,8 +44,8 @@
     "inputs": {
       "text": "lowres, (bad), text, error, fewer, extra, missing, worst quality, jpeg artifacts, low quality, watermark, unfinished, displeasing, oldest, early, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract]",
       "clip": [
-        "9",
-        1
+        "12",
+        0
       ]
     },
     "class_type": "CLIPTextEncode",
@@ -167,6 +167,7 @@
   },
   "10": {
     "inputs": {
+      "display": "",
       "value": [
         "2",
         1
@@ -188,6 +189,19 @@
     "class_type": "ShowAny|unimeta",
     "_meta": {
       "title": "Show Any (Any to String)"
+    }
+  },
+  "12": {
+    "inputs": {
+      "stop_at_clip_layer": -2,
+      "clip": [
+        "9",
+        1
+      ]
+    },
+    "class_type": "CLIPSetLastLayer",
+    "_meta": {
+      "title": "CLIP Set Last Layer"
     }
   }
 }

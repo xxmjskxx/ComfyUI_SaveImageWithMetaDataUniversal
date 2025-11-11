@@ -1,32 +1,4 @@
 {
-  "13": {
-    "inputs": {
-      "noise": [
-        "183",
-        0
-      ],
-      "guider": [
-        "22",
-        0
-      ],
-      "sampler": [
-        "1033",
-        0
-      ],
-      "sigmas": [
-        "1032",
-        0
-      ],
-      "latent_image": [
-        "725",
-        0
-      ]
-    },
-    "class_type": "SamplerCustomAdvanced",
-    "_meta": {
-      "title": "SamplerCustomAdvanced"
-    }
-  },
   "22": {
     "inputs": {
       "model": [
@@ -46,7 +18,7 @@
   "51": {
     "inputs": {
       "samples": [
-        "13",
+        "1027",
         0
       ],
       "vae": [
@@ -175,8 +147,8 @@
     "inputs": {
       "text": "oil painting, semi realistic, fantasy, anime style, solid color background, tall thin character, beautiful lush vibrant forest, backlighting, dramatic atmospheric glow, countless small tiny clumsy gentle spirits, great forest spirit, intricate highly detailed, natural fantastical elements, leaves flowers feathers, hair clothing, delicate translucent wings, gentle mystical business, forest secret heartbeat, branches arms, leaves hair, ethereal benevolent connection, natural world, deep abiding, magic, hushed reverence, wonder, mysticism, otherworldly aura, vibrant colors, bold brushstrokes, gradating background, blues emerald greens, slender athletic build, elegant arm, beckoning summoning, reverence awe, drinking in essence, character attire, mesmerizing blend, organic growth, R3alisticF, retr0grade90s, A digital anime artwork in the style of cklg, in the style of cksc,",
       "clip": [
-        "694",
-        0
+        "1062",
+        1
       ]
     },
     "class_type": "CLIPTextEncode",
@@ -225,6 +197,43 @@
       "title": "Patch Model Patcher Order"
     }
   },
+  "1027": {
+    "inputs": {
+      "eta": 0.5,
+      "sampler_name": "linear/euler",
+      "scheduler": "bong_tangent",
+      "steps": 2,
+      "steps_to_run": -1,
+      "denoise": 1,
+      "cfg": 1,
+      "seed": [
+        "1040",
+        0
+      ],
+      "sampler_mode": "standard",
+      "bongmath": true,
+      "model": [
+        "1034",
+        0
+      ],
+      "positive": [
+        "1031",
+        0
+      ],
+      "negative": [
+        "1028",
+        0
+      ],
+      "latent_image": [
+        "725",
+        0
+      ]
+    },
+    "class_type": "ClownsharKSampler_Beta",
+    "_meta": {
+      "title": "ClownsharKSampler"
+    }
+  },
   "1028": {
     "inputs": {
       "conditioning": [
@@ -261,30 +270,6 @@
       "title": "FluxGuidance"
     }
   },
-  "1032": {
-    "inputs": {
-      "scheduler": "karras",
-      "steps": 2,
-      "denoise": 1,
-      "model": [
-        "1076",
-        0
-      ]
-    },
-    "class_type": "BasicScheduler",
-    "_meta": {
-      "title": "BasicScheduler"
-    }
-  },
-  "1033": {
-    "inputs": {
-      "sampler_name": "dpmpp_2m"
-    },
-    "class_type": "KSamplerSelect",
-    "_meta": {
-      "title": "KSamplerSelect"
-    }
-  },
   "1034": {
     "inputs": {
       "max_shift": 1.15,
@@ -298,7 +283,7 @@
         2
       ],
       "model": [
-        "1076",
+        "1062",
         0
       ]
     },
@@ -401,46 +386,44 @@
       "title": "CLIPSeg"
     }
   },
-  "1075": {
+  "1061": {
     "inputs": {
-      "lora_name": "flux\\artstyle\\style\\m100-style_v.02.safetensors",
-      "strength_model": 0.3,
-      "model": [
-        "1077",
-        0
-      ]
+      "switch_1": "On",
+      "lora_name_1": "flux\\film\\80sFantasyMovieMJ7Flux.safetensors",
+      "model_weight_1": 0.96,
+      "clip_weight_1": 1.02,
+      "switch_2": "On",
+      "lora_name_2": "flux\\fashion\\closeupfilm.safetensors",
+      "model_weight_2": 1.05,
+      "clip_weight_2": 0.98,
+      "switch_3": "Off",
+      "lora_name_3": "flux\\artstyle\\style\\aidmaAbadonedHorror-FLUX-V0.1.safetensors",
+      "model_weight_3": 1,
+      "clip_weight_3": 1
     },
-    "class_type": "LoraLoaderModelOnly",
+    "class_type": "CR LoRA Stack",
     "_meta": {
-      "title": "LoraLoaderModelOnly"
+      "title": "💊 CR LoRA Stack"
     }
   },
-  "1076": {
+  "1062": {
     "inputs": {
-      "lora_name": "flux\\artstyle\\style\\Style_Calligraphy_ART.safetensors",
-      "strength_model": 1,
-      "model": [
-        "1075",
-        0
-      ]
-    },
-    "class_type": "LoraLoaderModelOnly",
-    "_meta": {
-      "title": "LoraLoaderModelOnly"
-    }
-  },
-  "1077": {
-    "inputs": {
-      "lora_name": "flux\\artstyle\\style\\lnrnr_flux_EliPot.safetensors",
-      "strength_model": 0.15,
       "model": [
         "1017",
         0
+      ],
+      "clip": [
+        "694",
+        0
+      ],
+      "lora_stack": [
+        "1061",
+        0
       ]
     },
-    "class_type": "LoraLoaderModelOnly",
+    "class_type": "CR Apply LoRA Stack",
     "_meta": {
-      "title": "LoraLoaderModelOnly"
+      "title": "💊 CR Apply LoRA Stack"
     }
   },
   "1083": {
@@ -477,10 +460,10 @@
   },
   "1117": {
     "inputs": {
-      "filename_prefix": "Test\\ComfyUI-Large-Workflow-jpeg",
+      "filename_prefix": "ComfyUI",
       "sampler_selection_method": "Farthest",
       "sampler_selection_node_id": 0,
-      "file_format": "jpeg",
+      "file_format": "png",
       "lossless_webp": true,
       "quality": 100,
       "max_jpeg_exif_kb": 60,

@@ -476,13 +476,13 @@
   },
   "1117": {
     "inputs": {
-      "filename_prefix": "Test\\ComfyUI-Large-Workflow-png",
+      "filename_prefix": "Test\\ComfyUI-Large-Workflow-jpeg-60kb",
       "sampler_selection_method": "Farthest",
       "sampler_selection_node_id": 0,
-      "file_format": "png",
+      "file_format": "jpeg",
       "lossless_webp": true,
       "quality": 100,
-      "max_jpeg_exif_kb": 32,
+      "max_jpeg_exif_kb": 60,
       "save_workflow_json": false,
       "add_counter_to_filename": true,
       "civitai_sampler": true,

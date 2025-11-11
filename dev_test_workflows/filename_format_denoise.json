@@ -49,7 +49,7 @@
       "cfg": 8,
       "sampler_name": "dpmpp_2m",
       "scheduler": "karras",
-      "denoise": 1,
+      "denoise": 0.7,
       "model": [
         "2",
         0
