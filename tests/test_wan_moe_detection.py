@@ -1,7 +1,6 @@
 """Test WAN MoE detection and enhanced multi-sampler functionality."""
 
 import os
-import json
 import pytest
 
 # Ensure test mode for deterministic formatting
