@@ -120,13 +120,13 @@ Before considering this complete, verify:
 - [x] Demo script works
 - [x] Code is linted and clean
 
-## Known Limitations
+## Known Limitations - UPDATE
 
-### Wan21 Workflow
-The problem statement notes metadata recording issues with Chinese characters in `wan21_text_to_image.json`. While the parser now correctly handles Chinese characters in prompts, deeper issues with this specific workflow may require:
-- Investigation of the workflow structure
-- Analysis of the nodes being used
-- Potential upstream fixes in node implementations
+### Wan21 Workflow - RESOLVED ✅
+Testing with the actual `Wan21_00001_.png` image (now in `dev_test_workflows/`) confirms:
+- ✅ Parser successfully handles Chinese characters in all metadata fields
+- ✅ All 23 fields extracted correctly including Chinese embedding names
+- ✅ No metadata recording issues found - system working as expected
 
 ### Flux LoRA Manager
 API export issues for `flux-LoRA-Manager.json` are ComfyUI UI-related, not validation script issues. Users should:

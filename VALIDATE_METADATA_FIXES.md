@@ -109,8 +109,16 @@ python validate_metadata.py --output-folder "./output/Test" --log-file "./valida
 
 ## Known Limitations
 
-### Wan21 Workflow Issue
-The problem statement mentions issues with the `wan21_text_to_image.json` workflow, particularly with Chinese characters. While the parser now correctly handles Chinese characters in prompts, the specific metadata recording issues with this workflow may require further investigation of the workflow itself or the nodes it uses.
+### Wan21 Workflow - RESOLVED ✅
+The problem statement mentioned issues with the `wan21_text_to_image.json` workflow, particularly with Chinese characters.
+
+**Update**: Testing with the actual `Wan21_00001_.png` image confirms that:
+- ✅ The parser correctly handles Chinese characters in all metadata fields
+- ✅ All required fields (Steps, Sampler, CFG scale, Seed, Size, Model, etc.) are successfully extracted
+- ✅ Embedding fields with Chinese text (e.g., "色调艳丽，过曝，静态...") are parsed correctly
+- ✅ The metadata recording and parsing system is working as expected with multilingual content
+
+The image `dev_test_workflows/Wan21_00001_.png` has been added as a reference test case demonstrating successful Chinese character handling. The parser extracts 23 fields including complex Chinese embedding names and hashes.
 
 ### Flux LoRA Manager Workflow
 The problem statement mentions difficulty exporting a working API version of `flux-LoRA-Manager.json`. This is a ComfyUI UI/API export issue, not a validation script issue. Users should ensure:
@@ -146,7 +154,6 @@ To fully validate these fixes with actual images:
 
 ## Future Improvements
 
-1. **Wan21 Workflow Investigation**: Further debug the Chinese character metadata recording issue
-2. **Workflow Export Tool**: Consider creating a helper tool to ensure workflows are properly exported in API format
-3. **Validation Report**: Add option to generate HTML/JSON validation reports
-4. **Image Metadata Viewer**: Create a companion tool to view and verify metadata in individual images
+1. **Workflow Export Tool**: Consider creating a helper tool to ensure workflows are properly exported in API format
+2. **Validation Report**: Add option to generate HTML/JSON validation reports
+3. **Image Metadata Viewer**: Create a companion tool to view and verify metadata in individual images
