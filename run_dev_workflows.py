@@ -23,6 +23,12 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+try:
+    from send2trash import send2trash
+    SEND2TRASH_AVAILABLE = True
+except ImportError:
+    SEND2TRASH_AVAILABLE = False
+
 
 class WorkflowRunner:
     """Handles ComfyUI workflow execution via HTTP API."""
@@ -147,6 +153,42 @@ class WorkflowRunner:
             print(f"  ✗ Error loading {workflow_path.name}: {e}")
             return None
 
+    def clean_output_folder(self, output_path: Path) -> bool:
+        """Clean the output folder by moving files to recycle bin."""
+        if not output_path.exists():
+            print(f"⚠ Output folder does not exist: {output_path}")
+            print("  (It will be created when workflows run)")
+            return True
+
+        if not SEND2TRASH_AVAILABLE:
+            print("⚠ Warning: send2trash not installed. Cannot clean output folder.")
+            print("  Install with: pip install send2trash")
+            return False
+
+        print(f"Cleaning output folder: {output_path}")
+
+        # Get all files and folders in the directory
+        items = list(output_path.iterdir())
+
+        if not items:
+            print("  ✓ Output folder is already empty")
+            return True
+
+        moved_count = 0
+        error_count = 0
+
+        for item in items:
+            try:
+                send2trash(str(item))
+                moved_count += 1
+                print(f"  ✓ Moved to recycle bin: {item.name}")
+            except Exception as e:
+                print(f"  ✗ Failed to move {item.name}: {e}")
+                error_count += 1
+
+        print(f"  Summary: {moved_count} items moved, {error_count} errors")
+        return error_count == 0
+
     def run_workflows(self, workflow_dir: Path, wait_between: float = 2.0) -> tuple[int, int]:
         """Run all workflows in the specified directory."""
         if not workflow_dir.exists():
@@ -197,10 +239,11 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Windows with full paths
+  # Windows with full paths and output folder cleanup
   python run_dev_workflows.py --comfyui-path "C:\\StableDiffusion\\ComfyUI" ^
     --python-exe "C:\\StableDiffusion\\python_embeded\\python.exe" ^
-    --temp-dir "F:\\StableDiffusion\\ComfyUI" --extra-args "--windows-standalone-build"
+    --temp-dir "F:\\StableDiffusion\\ComfyUI" --extra-args "--windows-standalone-build" ^
+    --output-folder "C:\\StableDiffusion\\StabilityMatrix-win-x64\\Data\\Packages\\ComfyUI\\output\\Test"
 
   # Linux/Mac (simpler)
   python run_dev_workflows.py --comfyui-path "/path/to/ComfyUI"
@@ -275,6 +318,18 @@ Examples:
         help="Don't stop server after execution (only if started by this script)",
     )
 
+    parser.add_argument(
+        "--output-folder",
+        type=str,
+        help="Path to ComfyUI output Test folder to clean before running workflows",
+    )
+
+    parser.add_argument(
+        "--no-clean",
+        action="store_true",
+        help="Skip cleaning the output folder before running workflows",
+    )
+
     args = parser.parse_args()
 
     # Convert workflow_dir to absolute path relative to script location
@@ -304,6 +359,14 @@ Examples:
     print("=" * 70)
 
     try:
+        # Clean output folder if requested
+        if args.output_folder and not args.no_clean:
+            output_path = Path(args.output_folder)
+            print("\n" + "=" * 70)
+            if not runner.clean_output_folder(output_path):
+                print("⚠ Warning: Output folder cleanup had errors, continuing anyway...")
+            print("=" * 70 + "\n")
+
         # Start server if needed
         if not args.no_start_server:
             if not runner.start_server():

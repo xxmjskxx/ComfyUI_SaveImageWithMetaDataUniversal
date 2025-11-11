@@ -81,6 +81,8 @@ python run_dev_workflows.py --comfyui-path "/path/to/ComfyUI" --keep-server
 
 ## Command-Line Options
 
+### run_dev_workflows.py Options
+
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--comfyui-path` | Path to ComfyUI installation (containing main.py) | *Required* |
@@ -93,6 +95,15 @@ python run_dev_workflows.py --comfyui-path "/path/to/ComfyUI" --keep-server
 | `--wait-between` | Seconds to wait between workflow executions | `2.0` |
 | `--no-start-server` | Don't start server, assume it's already running | `False` |
 | `--keep-server` | Don't stop server after execution | `False` |
+| `--output-folder` | Path to output Test folder to clean before running | None |
+| `--no-clean` | Skip cleaning the output folder | `False` |
+
+### validate_metadata.py Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--output-folder` | Path to ComfyUI output Test folder with generated images | *Required* |
+| `--workflow-dir` | Directory containing workflow JSON files | `dev_test_workflows` |
 
 ## Example Workflows
 
@@ -136,12 +147,124 @@ Copy these to `dev_test_workflows/` and update model paths for your environment.
 - For detailed workflow execution, monitor the ComfyUI server console output
 - Workflows are executed sequentially with a 2-second delay between them (configurable)
 
+## Cleaning Test Output
+
+The script can automatically clean the output Test folder before running workflows to ensure a clean testing environment.
+
+### Automatic Cleanup
+
+Use the `--output-folder` option to specify the Test folder to clean:
+
+**Windows:**
+```bash
+python run_dev_workflows.py ^
+  --comfyui-path "C:\StableDiffusion\ComfyUI" ^
+  --output-folder "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI\output\Test"
+```
+
+**Linux/Mac:**
+```bash
+python run_dev_workflows.py \
+  --comfyui-path "/path/to/ComfyUI" \
+  --output-folder "/path/to/ComfyUI/output/Test"
+```
+
+### Skip Cleanup
+
+If you want to keep existing files, use `--no-clean`:
+
+```bash
+python run_dev_workflows.py --comfyui-path "." --output-folder "./output/Test" --no-clean
+```
+
+**Note:** The cleanup feature requires the `send2trash` package. Install it with:
+
+```bash
+pip install send2trash
+```
+
+Files are moved to the recycle bin/trash instead of being permanently deleted, so you can recover them if needed.
+
+## Validating Metadata
+
+After running workflows, you can validate that the generated images contain the expected metadata using the `validate_metadata.py` script.
+
+### Basic Usage
+
+**Windows:**
+```bash
+python validate_metadata.py ^
+  --output-folder "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI\output\Test"
+```
+
+**Linux/Mac:**
+```bash
+python validate_metadata.py \
+  --output-folder "/path/to/ComfyUI/output/Test"
+```
+
+### What Gets Validated
+
+The validation script:
+- Reads metadata from PNG, JPEG, and WebP images
+- Parses the workflow JSON files to extract expected metadata values
+- Compares actual metadata against expected values
+- Reports validation results with pass/fail status
+
+### Validation Checks
+
+For each image, the script checks:
+- **Required Fields:** Steps, Sampler, CFG scale, Seed (based on workflow configuration)
+- **File Format:** Matches the workflow's specified output format
+- **Metadata Fallback:** Detects and reports if JPEG metadata fallback occurred
+
+### Complete Testing Workflow
+
+A typical testing workflow looks like this:
+
+**Windows:**
+```batch
+@echo off
+REM Step 1: Clean output folder and run workflows
+python run_dev_workflows.py ^
+  --comfyui-path "C:\StableDiffusion\ComfyUI" ^
+  --python-exe "C:\StableDiffusion\python_embeded\python.exe" ^
+  --temp-dir "F:\StableDiffusion\ComfyUI" ^
+  --extra-args "--windows-standalone-build" ^
+  --output-folder "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI\output\Test"
+
+REM Step 2: Wait for workflows to complete (adjust timing as needed)
+timeout /t 120
+
+REM Step 3: Validate the generated images
+python validate_metadata.py ^
+  --output-folder "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI\output\Test"
+```
+
+**Linux/Mac:**
+```bash
+#!/bin/bash
+
+# Step 1: Clean output folder and run workflows
+python run_dev_workflows.py \
+  --comfyui-path "/path/to/ComfyUI" \
+  --output-folder "/path/to/ComfyUI/output/Test"
+
+# Step 2: Wait for workflows to complete (adjust timing as needed)
+sleep 120
+
+# Step 3: Validate the generated images
+python validate_metadata.py \
+  --output-folder "/path/to/ComfyUI/output/Test"
+```
+
 ## Advanced Usage
 
 ### Custom Workflow Directory
 
 ```bash
 python run_dev_workflows.py --comfyui-path "." --workflow-dir "my_custom_tests"
+python validate_metadata.py --output-folder "./output/Test" --workflow-dir "my_custom_tests"
 ```
 
 ### Multiple Environments
@@ -159,6 +282,7 @@ Then run:
 
 ```bash
 python run_dev_workflows.py --comfyui-path "." --workflow-dir "dev_test_workflows/flux_tests"
+python validate_metadata.py --output-folder "./output/Test" --workflow-dir "dev_test_workflows/flux_tests"
 ```
 
 ### Batch Testing
@@ -168,13 +292,23 @@ Create a batch file (Windows) or shell script (Linux/Mac) to run multiple test s
 **test_all.bat (Windows):**
 ```batch
 @echo off
-python run_dev_workflows.py --comfyui-path "%COMFYUI_PATH%" --workflow-dir "dev_test_workflows/flux_tests"
-python run_dev_workflows.py --comfyui-path "%COMFYUI_PATH%" --workflow-dir "dev_test_workflows/sd15_tests" --no-start-server
+python run_dev_workflows.py --comfyui-path "%COMFYUI_PATH%" --workflow-dir "dev_test_workflows/flux_tests" --output-folder "%OUTPUT_PATH%"
+timeout /t 120
+python validate_metadata.py --output-folder "%OUTPUT_PATH%" --workflow-dir "dev_test_workflows/flux_tests"
+
+python run_dev_workflows.py --comfyui-path "%COMFYUI_PATH%" --workflow-dir "dev_test_workflows/sd15_tests" --no-start-server --output-folder "%OUTPUT_PATH%"
+timeout /t 120
+python validate_metadata.py --output-folder "%OUTPUT_PATH%" --workflow-dir "dev_test_workflows/sd15_tests"
 ```
 
 **test_all.sh (Linux/Mac):**
 ```bash
 #!/bin/bash
-python run_dev_workflows.py --comfyui-path "$COMFYUI_PATH" --workflow-dir "dev_test_workflows/flux_tests"
-python run_dev_workflows.py --comfyui-path "$COMFYUI_PATH" --workflow-dir "dev_test_workflows/sd15_tests" --no-start-server
+python run_dev_workflows.py --comfyui-path "$COMFYUI_PATH" --workflow-dir "dev_test_workflows/flux_tests" --output-folder "$OUTPUT_PATH"
+sleep 120
+python validate_metadata.py --output-folder "$OUTPUT_PATH" --workflow-dir "dev_test_workflows/flux_tests"
+
+python run_dev_workflows.py --comfyui-path "$COMFYUI_PATH" --workflow-dir "dev_test_workflows/sd15_tests" --no-start-server --output-folder "$OUTPUT_PATH"
+sleep 120
+python validate_metadata.py --output-folder "$OUTPUT_PATH" --workflow-dir "dev_test_workflows/sd15_tests"
 ```
