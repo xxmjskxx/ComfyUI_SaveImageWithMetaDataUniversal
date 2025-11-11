@@ -269,6 +269,13 @@ class MetadataTestSampler:
         clip_name3: str = "",
         clip_name4: str = "",
     ):
+        """
+        Generate a solid-color test image for metadata validation.
+
+        All parameters except width, height, batch_size, and colour_* are intentionally
+        unused in this stub node. They exist solely to be captured by the Save node
+        via the prompt graph for metadata generation without requiring actual models.
+        """
         # These parameters are intentionally unused in this stub node.
         # The Save node reads them via the prompt graph for metadata capture.
         images = _make_batch(batch_size, height, width, (colour_r, colour_g, colour_b))

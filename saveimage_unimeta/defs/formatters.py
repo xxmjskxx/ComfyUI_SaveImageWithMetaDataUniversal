@@ -778,7 +778,7 @@ def _extract_embedding_candidates(text, input_data):
 
     try:
         data_map = input_data[0] if isinstance(input_data, list | tuple) and input_data else input_data
-    except Exception:
+    except (IndexError, TypeError):
         data_map = None
 
     resolved_dict = _resolve_dict_from_nested(data_map)
@@ -871,14 +871,14 @@ def _extract_embedding_candidates(text, input_data):
             try:
                 path = get_embedding_file_path(sanitized, clip)
             except (OSError, TypeError, ValueError) as err:
-                logger.debug(
+                logger.warning(
                     "[Metadata Lib] Skipping embedding '%s' due to resolution error: %r",
                     display_name,
                     err,
                 )
                 continue
             if not path:
-                logger.debug(
+                logger.warning(
                     "[Metadata Lib] Embedding '%s' could not be resolved to a file; skipping",
                     display_name,
                 )
