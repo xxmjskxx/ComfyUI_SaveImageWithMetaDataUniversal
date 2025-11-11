@@ -48,6 +48,9 @@ def test_wan_sampler_has_expected_fields_and_selectors():
     assert entry[MetaField.CFG]["field_name"] == "cfg"
     assert entry[MetaField.SHIFT]["field_name"] == "shift"
     assert entry[MetaField.DENOISE]["field_name"] == "denoise"
+    # Wan2.2 MoE segment support
+    assert entry[MetaField.START_STEP]["field_name"] == "start_step"
+    assert entry[MetaField.END_STEP]["field_name"] == "end_step"
     # selectors callable
     assert callable(entry[MetaField.SAMPLER_NAME]["selector"])  # type: ignore[index]
     assert callable(entry[MetaField.SCHEDULER]["selector"])  # type: ignore[index]
