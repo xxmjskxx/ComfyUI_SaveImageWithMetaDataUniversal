@@ -47,6 +47,12 @@ You can use workflows from `example_workflows/` as templates, but update the mod
 
 ### Basic Usage (Windows)
 
+Single line command:
+
+```bash
+python run_dev_workflows.py --comfyui-path "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI_windows_portable" --python-exe "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI_windows_portable\python_embeded\python.exe" --temp-dir "F:\StableDiffusion\ComfyUI" --extra-args="--windows-standalone-build"
+```
+
 Using the command format from your environment:
 
 ```bash
@@ -54,7 +60,7 @@ python run_dev_workflows.py ^
   --comfyui-path "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI_windows_portable" ^
   --python-exe "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI_windows_portable\python_embeded\python.exe" ^
   --temp-dir "F:\StableDiffusion\ComfyUI" ^
-  --extra-args "--windows-standalone-build"
+  --extra-args="--windows-standalone-build"
 ```
 
 ### Basic Usage (Linux/Mac)
