@@ -341,7 +341,8 @@ class MetadataValidator:
             # If we get here, this line is either a continuation or not a field
             if current_key:
                 # Continuation of previous value
-                current_value.append(line.strip())
+                if line.strip():
+                    current_value.append(line.strip())
 
         # Save last key-value
         if current_key:
