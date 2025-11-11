@@ -205,7 +205,6 @@ CAPTURE_FIELD_LIST = {
         MetaField.CLIP_MODEL_NAME: {"prefix": "clip_name"},
         MetaField.IMAGE_WIDTH: {"field_name": "width"},
         MetaField.IMAGE_HEIGHT: {"field_name": "height"},
-        MetaField.METADATA_GENERATOR_VERSION: {"field_name": "generator_version"},
     },
 }
 
