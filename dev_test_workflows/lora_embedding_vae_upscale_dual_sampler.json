@@ -141,7 +141,7 @@
   },
   "9": {
     "inputs": {
-      "value": "(low quality, worst quality:1.4), embedding:EasyNegative, embedding:neg\\FastNegativeV2, "
+      "value": "(low quality, worst quality:1.4), embedding:EasyNegative, embedding:FastNegativeV2, "
     },
     "class_type": "PrimitiveStringMultiline",
     "_meta": {
