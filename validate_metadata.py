@@ -305,21 +305,26 @@ class WorkflowAnalyzer:
                     # Strip leading/trailing spaces
                     clean_part = part.strip()
 
-                    # Skip empty parts or parts that are just tokens
-                    if not clean_part or clean_part.startswith('%'):
+                    # Skip empty parts
+                    if not clean_part:
                         continue
 
-                    # Remove token patterns but keep the base text
+                    # Skip parts that are ONLY tokens
+                    if clean_part.startswith('%') and clean_part.endswith('%'):
+                        continue
+
+                    # Remove token patterns but keep the static text
                     # For example: "siwm-%model:10%" -> "siwm"
+                    # For example: "%date:yyyy-MM-dd-hhmmss%-Flux-dual-clip" -> "Flux-dual-clip"
                     import re
-                    # Extract the base part before any token
-                    base_match = re.match(r'^([^%]+)', clean_part)
-                    if base_match:
-                        base = base_match.group(1).strip('-_')
-                        # Only add non-generic patterns (not just "Test" or "Tests")
-                        if base and base.lower() not in {'test', 'tests'} and base not in seen_patterns:
-                            patterns.append(base)
-                            seen_patterns.add(base)
+                    # Remove all %...% patterns
+                    cleaned = re.sub(r'%[^%]+%', '', clean_part)
+                    cleaned = cleaned.strip('-_')
+
+                    # Only add non-generic patterns (not just "Test" or "Tests")
+                    if cleaned and cleaned.lower() not in {'test', 'tests'} and cleaned not in seen_patterns:
+                        patterns.append(cleaned)
+                        seen_patterns.add(cleaned)
 
         return patterns
 
