@@ -161,7 +161,7 @@
   },
   "15": {
     "inputs": {
-      "filename_prefix": "Test\\eff-ComfyUI",
+      "filename_prefix": "Test\\eff_basic",
       "sampler_selection_method": "Farthest",
       "sampler_selection_node_id": 0,
       "file_format": "png",

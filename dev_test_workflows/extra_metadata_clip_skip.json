@@ -97,7 +97,7 @@
   },
   "7": {
     "inputs": {
-      "seed": 0,
+      "seed": 999999999999999,
       "steps": 20,
       "cfg": 8,
       "sampler_name": "euler_ancestral",
@@ -167,7 +167,7 @@
   },
   "10": {
     "inputs": {
-      "display": "",
+      "text_0": "832",
       "value": [
         "2",
         1
@@ -180,7 +180,7 @@
   },
   "11": {
     "inputs": {
-      "display": "",
+      "text_0": "1216",
       "value": [
         "2",
         2
