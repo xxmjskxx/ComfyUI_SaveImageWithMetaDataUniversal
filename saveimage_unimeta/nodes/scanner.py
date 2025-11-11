@@ -404,7 +404,7 @@ class MetadataRuleScanner:
             try:
                 pack_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
                 test_mode = os.environ.get("METADATA_TEST_MODE", "").strip().lower() in {"1", "true", "yes", "on"}
-                preferred = os.path.join(pack_dir, "_test_outputs", "user_rules")
+                preferred = os.path.join(pack_dir, "tests/_test_outputs", "user_rules")
                 if test_mode and os.path.isdir(preferred):
                     user_dir = preferred
                 else:

@@ -426,13 +426,13 @@ See `CHANGELOG.md` for a summarized list of notable changes (e.g. JPEG fallback 
 
 ### Development & Testing
 
-For testing workflows locally, see `DEV_WORKFLOW_TESTING.md` for:
-- Running workflows from the command line with `run_dev_workflows.py`
+For testing workflows locally, see `tests/comfyui_cli_tests/DEV_WORKFLOW_TESTING.md` for:
+- Running workflows from the command line with `tests/comfyui_cli_tests/run_dev_workflows.py`
 - Automatically cleaning test output folders
-- Validating generated image metadata with `validate_metadata.py`
+- Validating generated image metadata with `tests/comfyui_cli_tests/validate_metadata.py`
 - Complete testing workflow examples
 
-For workflow test coverage suggestions, see `WORKFLOW_TEST_SUGGESTIONS.md` which includes:
+For workflow test coverage suggestions, see `tests/comfyui_cli_tests/WORKFLOW_TEST_SUGGESTIONS.md` which includes:
 - Analysis of current test coverage
 - 18 specific workflow test recommendations
 - Priority guidelines for comprehensive testing

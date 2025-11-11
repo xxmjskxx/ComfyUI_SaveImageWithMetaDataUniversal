@@ -1,6 +1,6 @@
 # Additional Test Workflow Suggestions
 
-Based on the analysis of the current test workflows in `dev_test_workflows/`, here are suggestions for additional workflows that would provide more comprehensive test coverage of the Save Image w/ Metadata Universal node's features.
+Based on the analysis of the current test workflows in `tests/comfyui_cli_tests/dev_test_workflows/`, here are suggestions for additional workflows that would provide more comprehensive test coverage of the Save Image w/ Metadata Universal node's features.
 
 ## Current Coverage Summary
 

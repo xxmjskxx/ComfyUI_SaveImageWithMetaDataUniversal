@@ -94,10 +94,10 @@ def main():
     }
     print(f"Delta: {diff:.6f}s ({pct:.2f}%) -> {verdict}")
     # Use unified test outputs directory
-    out_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "_test_outputs"))
+    out_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "tests/_test_outputs"))
     # Fallback: project root _test_outputs if relative path doesn't exist
     if not os.path.isdir(out_dir):
-        out_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "_test_outputs"))
+        out_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "tests/_test_outputs"))
     os.makedirs(out_dir, exist_ok=True)
     with open(os.path.join(out_dir, "merge_bench.json"), "w", encoding="utf-8") as f:
         json.dump(result, f, indent=2)
