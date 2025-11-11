@@ -970,26 +970,39 @@ class MetadataValidator:
         # Validate each workflow's outputs
         all_results = []
         validated_images = set()
+        workflows_with_images = set()
+        workflows_without_images = set()
 
         for workflow_file in workflow_files:
             results = self.validate_workflow_outputs(workflow_file, all_images)
-            all_results.extend(results)
 
-            # Track which images were validated
-            for result in results:
-                validated_images.add(Path(result['image_path']))
+            # Track workflows that had matching images vs those that didn't
+            if results:
+                workflows_with_images.add(workflow_file.name)
+                all_results.extend(results)
 
-        # Report unmatched images
-        unmatched_images = set(all_images) - validated_images
-        if unmatched_images:
-            print(f"\n⚠ Warning: {len(unmatched_images)} image(s) did not match any workflow:")
-            for img in sorted(unmatched_images):
-                print(f"  - {img.name}")
+                # Track which images were validated
+                for result in results:
+                    validated_images.add(Path(result['image_path']))
+            else:
+                # Check if this workflow was skipped (like 1-scan-and-save-custom-metadata-rules.json)
+                # or if it genuinely had no matching images
+                if workflow_file.name != '1-scan-and-save-custom-metadata-rules.json':
+                    # Load workflow to check if it has a save node
+                    try:
+                        with open(workflow_file, encoding='utf-8') as f:
+                            workflow = json.load(f)
+                        expected = WorkflowAnalyzer.extract_expected_metadata(workflow, workflow_file.stem)
+                        if expected['has_save_node']:
+                            workflows_without_images.add(workflow_file.name)
+                    except Exception:
+                        pass
 
         # Calculate statistics
         total = len(all_results)
         passed = sum(1 for r in all_results if r['passed'])
         failed = total - passed
+        unmatched_images = set(all_images) - validated_images
 
         # Print summary
         print("\n" + "=" * 70)
@@ -997,6 +1010,21 @@ class MetadataValidator:
         print(f"  Total Images Validated: {total}")
         print(f"  ✓ Passed:               {passed}")
         print(f"  ✗ Failed:               {failed}")
+        print(f"  ⚠ Unmatched Images:     {len(unmatched_images)}")
+        print(f"  ⚠ Unmatched Workflows:  {len(workflows_without_images)}")
+        print("=" * 70)
+
+        # Report unmatched images
+        if unmatched_images:
+            print(f"\nUnmatched Images ({len(unmatched_images)}):")
+            for img in sorted(unmatched_images):
+                print(f"  - {img.name}")
+
+        # Report unmatched workflows
+        if workflows_without_images:
+            print(f"\nUnmatched Workflows ({len(workflows_without_images)}):")
+            for wf in sorted(workflows_without_images):
+                print(f"  - {wf}")
 
         if failed > 0:
             print("\nFailed Images:")

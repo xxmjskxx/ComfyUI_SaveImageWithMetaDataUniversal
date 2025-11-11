@@ -107,6 +107,27 @@ python validate_metadata.py --output-folder "./output/Test" --workflow-dir "./my
 python validate_metadata.py --output-folder "./output/Test" --log-file "./validation.log"
 ```
 
+### Validation Summary
+
+The script now provides a comprehensive summary including:
+
+```
+======================================================================
+Validation Summary:
+  Total Images Validated: 21
+  ✓ Passed:               21
+  ✗ Failed:               0
+  ⚠ Unmatched Images:     0
+  ⚠ Unmatched Workflows:  0
+======================================================================
+```
+
+- **Total Images Validated**: Number of images successfully matched to workflows and validated
+- **Passed**: Images with valid metadata matching workflow expectations
+- **Failed**: Images with metadata issues or missing required fields
+- **Unmatched Images**: Images in the output folder that don't match any workflow pattern
+- **Unmatched Workflows**: Workflows with save nodes but no matching output images
+
 ## Known Limitations
 
 ### Wan21 Workflow - METADATA GENERATION ISSUES IDENTIFIED ⚠️
