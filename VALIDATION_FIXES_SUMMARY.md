@@ -122,11 +122,17 @@ Before considering this complete, verify:
 
 ## Known Limitations - UPDATE
 
-### Wan21 Workflow - RESOLVED ✅
-Testing with the actual `Wan21_00001_.png` image (now in `dev_test_workflows/`) confirms:
-- ✅ Parser successfully handles Chinese characters in all metadata fields
-- ✅ All 23 fields extracted correctly including Chinese embedding names
-- ✅ No metadata recording issues found - system working as expected
+### Wan21 Workflow - Metadata Generation Issues ⚠️
+Testing with the actual `Wan21_00001_.png` image reveals **metadata generation bugs**:
+- ⚠️ Workflow has NO embeddings, but 2 are recorded (prompts incorrectly captured as embeddings)
+- ⚠️ Embedding names/hashes contain prompts instead of actual embedding data  
+- ⚠️ Hashes summary uses wrong keys ("embed:3" instead of "embed:EmbeddingName")
+- ⚠️ Trailing punctuation in embedding names causes hash failures
+
+**Validation script now detects these issues**:
+- ✅ N/A values, prompts as embeddings, trailing punctuation
+- ✅ Missing or mismatched Hashes entries
+- ✅ Added 7 new tests for metadata quality validation
 
 ### Flux LoRA Manager
 API export issues for `flux-LoRA-Manager.json` are ComfyUI UI-related, not validation script issues. Users should:

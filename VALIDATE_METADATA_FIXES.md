@@ -109,16 +109,27 @@ python validate_metadata.py --output-folder "./output/Test" --log-file "./valida
 
 ## Known Limitations
 
-### Wan21 Workflow - RESOLVED ✅
-The problem statement mentioned issues with the `wan21_text_to_image.json` workflow, particularly with Chinese characters.
+### Wan21 Workflow - METADATA GENERATION ISSUES IDENTIFIED ⚠️
 
-**Update**: Testing with the actual `Wan21_00001_.png` image confirms that:
-- ✅ The parser correctly handles Chinese characters in all metadata fields
-- ✅ All required fields (Steps, Sampler, CFG scale, Seed, Size, Model, etc.) are successfully extracted
-- ✅ Embedding fields with Chinese text (e.g., "色调艳丽，过曝，静态...") are parsed correctly
-- ✅ The metadata recording and parsing system is working as expected with multilingual content
+**Important Update**: The wan21 workflow has **metadata generation issues** (not parsing issues):
 
-The image `dev_test_workflows/Wan21_00001_.png` has been added as a reference test case demonstrating successful Chinese character handling. The parser extracts 23 fields including complex Chinese embedding names and hashes.
+**Issues Found**:
+1. **Phantom embeddings**: The workflow contains NO embedding nodes, yet 2 embeddings are being recorded
+2. **Prompts as embedding data**: The positive and negative prompts are being incorrectly recorded as embedding names and hashes
+3. **Wrong Hashes indexing**: Embeddings appear as "embed:3" and "embed:4" instead of "embed:EmbeddingName"
+4. **Trailing punctuation**: Embedding names with trailing commas (e.g., "EasyNegative,,") cause hash computation failures
+
+These are **saveimage_unimeta metadata generation bugs**, not validation script issues.
+
+**Validation Script Enhancements**:
+To help catch these issues, the validation script now detects:
+- ✅ **N/A values**: Any field containing "N/A" is flagged as an error
+- ✅ **Prompts as embeddings**: Embedding names/hashes longer than 100/70 characters (suggests prompts)
+- ✅ **Trailing punctuation**: Embedding names ending with commas or other punctuation
+- ✅ **Missing Hashes entries**: Models/LoRAs/embeddings with metadata but missing from Hashes summary
+- ✅ **Wrong Hashes keys**: Embeddings with numeric keys (e.g., "embed:10") instead of name-based keys
+
+The image `dev_test_workflows/Wan21_00001_.png` demonstrates these issues. The validation script successfully detects all the problems listed above.
 
 ### Flux LoRA Manager Workflow
 The problem statement mentions difficulty exporting a working API version of `flux-LoRA-Manager.json`. This is a ComfyUI UI/API export issue, not a validation script issue. Users should ensure:

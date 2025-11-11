@@ -649,6 +649,24 @@ class MetadataValidator:
                 result['warnings'].append(f"Metadata fallback occurred: {fallback_stage}")
                 result['fallback_stage'] = fallback_stage
 
+        # Check for N/A values in any field (should never happen)
+        for field_name, field_value in fields.items():
+            if field_value == 'N/A' or 'N/A' in field_value:
+                result['errors'].append(
+                    f"Field '{field_name}' contains 'N/A' value: {field_value}"
+                )
+
+        # Validate Hashes summary if present
+        if 'Hashes' in fields:
+            try:
+                hashes_dict = json.loads(fields['Hashes'])
+                self._validate_hashes_summary(fields, hashes_dict, result)
+            except json.JSONDecodeError:
+                result['errors'].append("Hashes field is not valid JSON")
+
+        # Validate embedding fields
+        self._validate_embedding_fields(fields, result)
+
         # Validate file format matches expectation
         expected_format = expected.get('file_format', 'png')
         actual_format = image_path.suffix.lower().lstrip('.')
@@ -664,6 +682,122 @@ class MetadataValidator:
         result['passed'] = len(result['errors']) == 0
 
         return result
+
+    def _validate_hashes_summary(self, fields: dict, hashes_dict: dict, result: dict):
+        """Validate that the Hashes summary matches the metadata entries."""
+        # Check that all models/VAEs/LoRAs/embeddings in metadata are in Hashes
+        # LoRAs
+        lora_indices = set()
+        for key in fields.keys():
+            if key.startswith('Lora_') and 'Model name' in key:
+                # Extract index
+                match = re.match(r'Lora_(\d+) Model name', key)
+                if match:
+                    lora_indices.add(int(match.group(1)))
+
+        for idx in lora_indices:
+            model_name_key = f'Lora_{idx} Model name'
+            model_hash_key = f'Lora_{idx} Model hash'
+
+            if model_name_key in fields:
+                model_name = fields[model_name_key]
+                # Remove extension if present
+                model_name_base = model_name.replace('.safetensors', '').replace('.pt', '').replace('.ckpt', '')
+
+                # Check if this LoRA is in the Hashes dict
+                lora_key = f'lora:{model_name_base}'
+                if lora_key not in hashes_dict:
+                    result['errors'].append(
+                        f"LoRA '{model_name}' has metadata but is missing from Hashes summary"
+                    )
+
+            if model_hash_key in fields and fields[model_hash_key] == 'N/A':
+                result['errors'].append(
+                    f"LoRA hash for Lora_{idx} is 'N/A' - hash should always be computed"
+                )
+
+        # Embeddings
+        embedding_indices = set()
+        for key in fields.keys():
+            if key.startswith('Embedding_') and 'name' in key:
+                match = re.match(r'Embedding_(\d+) name', key)
+                if match:
+                    embedding_indices.add(int(match.group(1)))
+
+        for idx in embedding_indices:
+            name_key = f'Embedding_{idx} name'
+            hash_key = f'Embedding_{idx} hash'
+
+            if name_key in fields:
+                emb_name = fields[name_key]
+
+                # Check if this is actually a prompt (very long text suggests it's not an embedding)
+                if len(emb_name) > 100:
+                    result['errors'].append(
+                        f"Embedding_{idx} name appears to be a prompt (length={len(emb_name)}), not an embedding name"
+                    )
+
+                # Check if embedding is in Hashes dict
+                # The key should be embed:<name>, not embed:<wrong_index>
+                found_in_hashes = False
+
+                for hash_key_name in hashes_dict.keys():
+                    if hash_key_name.startswith('embed:'):
+                        embed_name_in_hash = hash_key_name.replace('embed:', '')
+
+                        # Check if the name matches exactly
+                        if embed_name_in_hash == emb_name:
+                            found_in_hashes = True
+                            break
+                        # If it's just a number, that's wrong - should be the embedding name
+                        elif embed_name_in_hash.isdigit():
+                            result['errors'].append(
+                                f"Embedding_{idx} '{emb_name}' is in Hashes with wrong key "
+                                f"'embed:{embed_name_in_hash}' (should be 'embed:{emb_name}')"
+                            )
+                            found_in_hashes = True  # Found but with wrong key
+                            break
+
+                if not found_in_hashes:
+                    result['errors'].append(
+                        f"Embedding_{idx} '{emb_name}' has metadata but is missing from Hashes summary"
+                    )
+
+            if hash_key in fields and fields[hash_key] == 'N/A':
+                result['errors'].append(
+                    f"Embedding hash for Embedding_{idx} is 'N/A' - hash should always be computed"
+                )
+
+        # Check model and VAE
+        if 'Model hash' in fields and fields['Model hash'] == 'N/A':
+            result['errors'].append("Model hash is 'N/A' - hash should always be computed")
+
+        if 'VAE hash' in fields and fields['VAE hash'] == 'N/A':
+            result['errors'].append("VAE hash is 'N/A' - hash should always be computed")
+
+    def _validate_embedding_fields(self, fields: dict, result: dict):
+        """Validate embedding-specific issues."""
+        for key, value in fields.items():
+            if 'Embedding_' in key and 'name' in key:
+                # Check for trailing commas or other punctuation
+                if value.endswith(',') or value.endswith(',,'):
+                    result['errors'].append(
+                        f"Embedding name '{key}' has trailing punctuation: '{value}'"
+                    )
+
+                # Check if this is actually a prompt (very long text suggests it's not an embedding)
+                if len(value) > 100:
+                    result['errors'].append(
+                        f"Embedding name '{key}' appears to be a prompt (length={len(value)}), not an embedding name"
+                    )
+
+            # Check if embedding hash is also suspiciously long (suggests it's a prompt)
+            # Normal hashes are typically 10-64 characters (sha256 truncated or full)
+            if 'Embedding_' in key and 'hash' in key:
+                if len(value) > 70:
+                    result['errors'].append(
+                        f"Embedding hash '{key}' appears to be a prompt (length={len(value)}), not a hash"
+                    )
 
     def match_image_to_workflow(self, image_path: Path, filename_patterns: list[str]) -> bool:
         """Check if an image filename matches any of the workflow's filename patterns.
