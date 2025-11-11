@@ -67,10 +67,16 @@ class MetadataReader:
                         if near_end_index != -1:
                             end_index = binary_content.find(b'tEXt', near_end_index)
                             if end_index != -1:
-                                extracted = binary_content[start_index + len(b'parameters') + 1:end_index - 9]
+                                # PNG tEXt chunk has CRC (4 bytes) + length (4 bytes) + type (4 bytes)
+                                # We subtract 9 to account for partial chunk structure
+                                PNG_TEXT_CHUNK_SUFFIX_LENGTH = 9
+                                start_pos = start_index + len(b'parameters') + 1
+                                end_pos = end_index - PNG_TEXT_CHUNK_SUFFIX_LENGTH
+                                extracted = binary_content[start_pos:end_pos]
                                 try:
                                     metadata['parameters'] = extracted.decode('utf-8').strip()
                                 except UnicodeDecodeError:
+                                    # Decoding failed; skip and continue with other metadata extraction methods
                                     pass
         except Exception as e:
             print(f"  Warning: Error reading PNG metadata from {image_path.name}: {e}")
@@ -81,27 +87,30 @@ class MetadataReader:
     def decode_user_comment(user_comment: bytes) -> str:
         """Decode EXIF UserComment field."""
         try:
+            comment_bytes = user_comment
             # Skip first 8 bytes (character code) if present
-            if len(user_comment) > 8 and user_comment[:8] == b'UNICODE\x00':
-                user_comment = user_comment[8:]
-            elif len(user_comment) > 4:
+            if len(comment_bytes) > 8 and comment_bytes[:8] == b'UNICODE\x00':
+                comment_bytes = comment_bytes[8:]
+            elif len(comment_bytes) > 4:
                 # Try to skip encoding marker
-                user_comment = user_comment[4:]
+                comment_bytes = comment_bytes[4:]
 
             # Try UTF-16 BE first
             try:
-                return user_comment.decode('utf-16be', 'backslashreplace')
+                return comment_bytes.decode('utf-16be', 'backslashreplace')
             except UnicodeDecodeError:
+                # UTF-16 BE decoding failed; try other encodings
                 pass
 
             # Try UTF-8
             try:
-                return user_comment.decode('utf-8', 'backslashreplace')
+                return comment_bytes.decode('utf-8', 'backslashreplace')
             except UnicodeDecodeError:
+                # UTF-8 decoding failed; fall back to latin-1
                 pass
 
             # Fallback to latin-1
-            return user_comment.decode('latin-1', 'replace')
+            return comment_bytes.decode('latin-1', 'replace')
         except Exception:
             return str(user_comment)
 
@@ -119,8 +128,8 @@ class MetadataReader:
                     if piexif.ExifIFD.UserComment in exif_dict.get("Exif", {}):
                         user_comment = exif_dict["Exif"][piexif.ExifIFD.UserComment]
                         metadata['parameters'] = MetadataReader.decode_user_comment(user_comment)
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f"  Warning: piexif failed to read EXIF from {image_path.name}: {e}")
 
             # Fallback to PIL's EXIF reading
             if not metadata and hasattr(img, '_getexif') and img._getexif():
@@ -137,6 +146,8 @@ class MetadataReader:
                 with open(image_path, 'rb') as f:
                     content = f.read()
                     # Look for COM marker
+                    # JPEG COM (comment) marker is represented by the byte sequence 0xFF 0xFE.
+                    # This check detects if the image contains a comment marker, used for fallback metadata.
                     if b'\xff\xfe' in content:
                         metadata['_fallback_mode'] = 'com-marker'
         except Exception as e:
@@ -158,8 +169,8 @@ class MetadataReader:
                     if piexif.ExifIFD.UserComment in exif_dict.get("Exif", {}):
                         user_comment = exif_dict["Exif"][piexif.ExifIFD.UserComment]
                         metadata['parameters'] = MetadataReader.decode_user_comment(user_comment)
-                except Exception:
-                    pass
+                except Exception as exif_error:
+                    print(f"  Warning: Error reading EXIF from WebP {image_path.name}: {exif_error}")
 
             # Check other WebP metadata
             if hasattr(img, 'info'):
@@ -215,7 +226,18 @@ class WorkflowAnalyzer:
 
     @staticmethod
     def extract_expected_metadata(workflow: dict, workflow_name: str) -> dict[str, Any]:
-        """Extract expected metadata fields from workflow."""
+        """Extract expected metadata fields from workflow.
+
+        Returns a dictionary with:
+        - workflow_name: Name of the workflow file
+        - has_save_node: Whether a SaveImageWithMetaDataUniversal node exists
+        - file_format: Expected output format (png/jpeg/webp)
+        - filename_prefix: Output filename prefix template
+        - save_workflow_json: Whether workflow JSON should be saved
+        - include_lora_summary: Whether LoRA summary line is included
+        - max_jpeg_exif_kb: Maximum JPEG EXIF size before fallback
+        - sampler_info: List of sampler node configurations (steps, cfg, seed, etc.)
+        """
         expected = {
             'workflow_name': workflow_name,
             'has_save_node': False,
@@ -267,31 +289,57 @@ class MetadataValidator:
         self.results = []
 
     def parse_parameters_string(self, params_str: str) -> dict[str, str]:
-        """Parse the parameters string into a dictionary of fields."""
+        """Parse the parameters string into a dictionary of fields.
+
+        Only treats lines as key-value pairs if the key matches a known metadata key pattern.
+        This prevents incorrectly splitting prompt text containing colons (e.g., "at 3:00 PM" or URLs).
+        """
         if not params_str:
             return {}
 
-        fields = {}
+        # Define known metadata keys that should be treated as field names
+        # These are the standard metadata fields from the Save Image node
+        known_keys = {
+            "Steps", "Sampler", "CFG scale", "Seed", "Size", "Model", "Model hash",
+            "VAE", "VAE hash", "Clip skip", "Denoise", "Shift", "Max shift", "Base shift",
+            "Guidance", "Scheduler", "Hashes", "Metadata generator version", "Batch index",
+            "Batch size", "Metadata Fallback", "LoRAs"
+        }
+        # Also match keys like "Lora_1", "Lora_2", "Embedding_1", etc.
+        known_key_patterns = [r"^Lora_\d+$", r"^Lora_\d+ hash$", r"^Embedding_\d+$", r"^Embedding_\d+ hash$"]
 
-        # Split by newlines and parse key: value pairs
+        fields = {}
         lines = params_str.strip().split('\n')
         current_key = None
         current_value = []
 
         for line in lines:
-            # Check if line starts with a known key
-            if ':' in line:
-                parts = line.split(':', 1)
-                key = parts[0].strip()
-                value = parts[1].strip() if len(parts) > 1 else ''
+            # Check if line starts with a known key followed by a colon
+            match = re.match(r'^([A-Za-z0-9 _\-]+):\s*(.*)', line)
+            if match:
+                potential_key = match.group(1).strip()
+                value = match.group(2)
 
-                # Save previous key-value if exists
-                if current_key:
-                    fields[current_key] = '\n'.join(current_value).strip()
+                # Check if this is a known metadata key
+                is_known_key = potential_key in known_keys
+                if not is_known_key:
+                    # Check against patterns
+                    for pattern in known_key_patterns:
+                        if re.match(pattern, potential_key):
+                            is_known_key = True
+                            break
 
-                current_key = key
-                current_value = [value] if value else []
-            elif current_key:
+                if is_known_key:
+                    # Save previous key-value if exists
+                    if current_key:
+                        fields[current_key] = '\n'.join(current_value).strip()
+
+                    current_key = potential_key
+                    current_value = [value] if value else []
+                    continue
+
+            # If we get here, this line is either a continuation or not a field
+            if current_key:
                 # Continuation of previous value
                 current_value.append(line.strip())
 
@@ -402,10 +450,9 @@ class MetadataValidator:
         # The filename_prefix determines the subfolder structure
         # (we search recursively so we don't need to parse the prefix)
 
-        # Search for images in the output folder
-        images = []
-        for ext in ['*.png', '*.jpg', '*.jpeg', '*.webp']:
-            images.extend(self.output_dir.glob(f"**/{ext}"))
+        # Search for images in the output folder using a single recursive traversal
+        image_suffixes = {'.png', '.jpg', '.jpeg', '.webp'}
+        images = [f for f in self.output_dir.rglob("*") if f.is_file() and f.suffix.lower() in image_suffixes]
 
         if not images:
             print(f"  ⚠ Warning: No output images found in {self.output_dir}")
