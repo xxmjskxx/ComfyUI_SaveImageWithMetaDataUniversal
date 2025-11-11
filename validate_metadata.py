@@ -226,12 +226,19 @@ class WorkflowAnalyzer:
     """Analyzes workflow JSON files to extract expected metadata."""
 
     @staticmethod
-    def find_save_node(workflow: dict) -> tuple[str | None, dict | None]:
-        """Find the Save Image node in the workflow."""
+    def find_save_nodes(workflow: dict) -> list[tuple[str, dict]]:
+        """Find all SaveImageWithMetaDataUniversal nodes in the workflow."""
+        save_nodes = []
         for node_id, node_data in workflow.items():
             if node_data.get('class_type') == 'SaveImageWithMetaDataUniversal':
-                return node_id, node_data
-        return None, None
+                save_nodes.append((node_id, node_data))
+        return save_nodes
+
+    @staticmethod
+    def find_save_node(workflow: dict) -> tuple[str | None, dict | None]:
+        """Find the first Save Image node in the workflow (for backward compatibility)."""
+        nodes = WorkflowAnalyzer.find_save_nodes(workflow)
+        return nodes[0] if nodes else (None, None)
 
     @staticmethod
     def find_sampler_nodes(workflow: dict) -> list[tuple[str, dict]]:
@@ -249,6 +256,94 @@ class WorkflowAnalyzer:
         return samplers
 
     @staticmethod
+    def resolve_filename_prefix(workflow: dict, filename_prefix: Any) -> str:
+        """Resolve filename_prefix which may be a string or a link to another node.
+
+        Args:
+            workflow: Dictionary with string keys representing node IDs
+            filename_prefix: Either a string or a list [node_id, output_index] linking to another node
+
+        Returns:
+            The resolved filename prefix string. Returns empty string if:
+            - filename_prefix is a list but the linked node doesn't exist
+            - The linked node has no 'value' in its inputs
+            - filename_prefix is neither a string nor a list
+        """
+        if isinstance(filename_prefix, list):
+            # It's a link to another node [node_id, output_index]
+            link_node_id = str(filename_prefix[0])
+            if link_node_id in workflow:
+                linked_node = workflow[link_node_id]
+                # Get the value from the linked node's inputs
+                return linked_node.get('inputs', {}).get('value', '')
+        return filename_prefix if isinstance(filename_prefix, str) else ''
+
+    @staticmethod
+    def extract_filename_patterns(workflow: dict) -> list[str]:
+        """Extract all filename patterns from SaveImageWithMetaDataUniversal and SaveImage nodes.
+
+        Returns a list of simplified patterns that can be used for matching.
+        For example, "Test\\flux-CR-LoRA-stack" becomes "flux-CR-LoRA-stack".
+        """
+        patterns = []
+        seen_patterns = set()  # Track unique patterns
+
+        # Find SaveImageWithMetaDataUniversal nodes
+        save_nodes = WorkflowAnalyzer.find_save_nodes(workflow)
+
+        # Also find regular SaveImage nodes (for control images)
+        for node_id, node_data in workflow.items():
+            if node_data.get('class_type') == 'SaveImage':
+                save_nodes.append((node_id, node_data))
+
+        for _, save_node in save_nodes:
+            inputs = save_node.get('inputs', {})
+            prefix = inputs.get('filename_prefix', '')
+
+            # Resolve linked filename_prefix
+            prefix = WorkflowAnalyzer.resolve_filename_prefix(workflow, prefix)
+
+            if prefix:
+                # Extract the meaningful part of the pattern
+                # Remove path separators and tokens like %date%, %seed%, etc.
+                # Keep the static parts that identify the workflow
+
+                # Split by path separators
+                parts = prefix.replace('\\', '/').split('/')
+
+                for part in parts:
+                    # Remove common tokens but keep the base name
+                    # Strip leading/trailing spaces
+                    clean_part = part.strip()
+
+                    # Skip empty parts
+                    if not clean_part:
+                        continue
+
+                    # Skip parts that are ONLY tokens
+                    if clean_part.startswith('%') and clean_part.endswith('%'):
+                        continue
+
+                    # Remove token patterns but keep the static text
+                    # For example: "siwm-%model:10%" -> "siwm"
+                    # For example: "%date:yyyy-MM-dd-hhmmss%-Flux-dual-clip" -> "Flux-dual-clip"
+                    # Remove all %...% patterns
+                    cleaned = re.sub(r'%[^%]+%', '', clean_part)
+                    cleaned = cleaned.strip('-_')
+
+                    # Only add non-generic patterns (not just "Test" or "Tests")
+                    # Require minimum length of 3 to avoid overly broad matches like "a" or "xy"
+                    # Use case-insensitive deduplication to match case-insensitive matching logic
+                    cleaned_lower = cleaned.lower()
+                    if (cleaned and len(cleaned) >= 3
+                            and cleaned_lower not in {'test', 'tests'}
+                            and cleaned_lower not in seen_patterns):
+                        patterns.append(cleaned)
+                        seen_patterns.add(cleaned_lower)
+
+        return patterns
+
+    @staticmethod
     def extract_expected_metadata(workflow: dict, workflow_name: str) -> dict[str, Any]:
         """Extract expected metadata fields from workflow.
 
@@ -257,6 +352,7 @@ class WorkflowAnalyzer:
         - has_save_node: Whether a SaveImageWithMetaDataUniversal node exists
         - file_format: Expected output format (png/jpeg/webp)
         - filename_prefix: Output filename prefix template
+        - filename_patterns: List of patterns extracted from filename_prefix
         - save_workflow_json: Whether workflow JSON should be saved
         - include_lora_summary: Whether LoRA summary line is included
         - max_jpeg_exif_kb: Maximum JPEG EXIF size before fallback
@@ -267,18 +363,27 @@ class WorkflowAnalyzer:
             'has_save_node': False,
             'file_format': None,
             'sampler_info': [],
+            'filename_patterns': [],
         }
 
-        # Find save node
-        save_node_id, save_node = WorkflowAnalyzer.find_save_node(workflow)
-        if save_node:
+        # Find save nodes (there can be multiple)
+        save_nodes = WorkflowAnalyzer.find_save_nodes(workflow)
+        if save_nodes:
             expected['has_save_node'] = True
+
+            # Use the first save node for defaults
+            _, save_node = save_nodes[0]
             inputs = save_node.get('inputs', {})
             expected['file_format'] = inputs.get('file_format', 'png')
-            expected['filename_prefix'] = inputs.get('filename_prefix', '')
+            expected['filename_prefix'] = WorkflowAnalyzer.resolve_filename_prefix(
+                workflow, inputs.get('filename_prefix', '')
+            )
             expected['save_workflow_json'] = inputs.get('save_workflow_json', False)
             expected['include_lora_summary'] = inputs.get('include_lora_summary', False)
             expected['max_jpeg_exif_kb'] = inputs.get('max_jpeg_exif_kb', 60)
+
+            # Extract filename patterns from all save nodes
+            expected['filename_patterns'] = WorkflowAnalyzer.extract_filename_patterns(workflow)
 
         # Find sampler nodes
         samplers = WorkflowAnalyzer.find_sampler_nodes(workflow)
@@ -394,9 +499,26 @@ class MetadataValidator:
             'fields': {},
         }
 
+        # Check if this is a control image (without metadata)
+        # Control images are saved using the default SaveImage node and are expected
+        # to have no metadata or parameters field
+        is_control_image = 'without-meta' in image_path.name.lower()
+
         # Read metadata
         metadata = MetadataReader.read_metadata(image_path)
 
+        # Handle control images: they should have no metadata or parameters
+        if is_control_image:
+            if not metadata or not metadata.get('parameters', ''):
+                # Expected behavior for control images
+                result['passed'] = True
+                result['warnings'].append("Control image (without-meta) - no metadata expected")
+                return result
+            # Control image unexpectedly has metadata - continue with normal validation
+            # but add a warning
+            result['warnings'].append("Control image (without-meta) has unexpected metadata - validating anyway")
+
+        # For non-control images, metadata is required
         if not metadata:
             result['errors'].append("No metadata found in image")
             return result
@@ -456,8 +578,32 @@ class MetadataValidator:
 
         return result
 
-    def validate_workflow_outputs(self, workflow_file: Path) -> list[dict]:
-        """Validate all images generated by a specific workflow."""
+    def match_image_to_workflow(self, image_path: Path, filename_patterns: list[str]) -> bool:
+        """Check if an image filename matches any of the workflow's filename patterns.
+
+        Uses word-boundary matching to avoid false positives like "eff" matching "jeff_image.png".
+        Patterns must match as whole words or be separated by delimiters (_, -, .).
+        """
+        if not filename_patterns:
+            # If no patterns, try to match workflow name from filename
+            return False
+
+        # Remove file extension for matching
+        image_name = image_path.stem.lower()
+
+        # Check each pattern
+        for pattern in filename_patterns:
+            pattern_lower = pattern.lower()
+            # Match pattern as a whole word or separated by delimiters (_,-,.)
+            # Regex: (^|[_\-.])pattern($|[_\-.])
+            regex = r'(^|[_\-.])' + re.escape(pattern_lower) + r'($|[_\-.])'
+            if re.search(regex, image_name):
+                return True
+
+        return False
+
+    def validate_workflow_outputs(self, workflow_file: Path, all_images: list[Path]) -> list[dict]:
+        """Validate images generated by a specific workflow."""
         print(f"\nValidating workflow: {workflow_file.name}")
 
         # Load workflow
@@ -479,23 +625,26 @@ class MetadataValidator:
         if expected.get('sampler_info'):
             print(f"  Sampler nodes found: {len(expected['sampler_info'])}")
 
-        # Find output images
-        # The filename_prefix determines the subfolder structure
-        # (we search recursively so we don't need to parse the prefix)
+        # Show the filename patterns we're looking for
+        patterns = expected.get('filename_patterns', [])
+        if patterns:
+            print(f"  Filename patterns: {', '.join(patterns)}")
 
-        # Search for images in the output folder using a single recursive traversal
-        image_suffixes = {'.png', '.jpg', '.jpeg', '.webp'}
-        images = [f for f in self.output_dir.rglob("*") if f.is_file() and f.suffix.lower() in image_suffixes]
+        # Filter images that match this workflow
+        matching_images = []
+        for image_path in all_images:
+            if self.match_image_to_workflow(image_path, patterns):
+                matching_images.append(image_path)
 
-        if not images:
-            print(f"  ⚠ Warning: No output images found in {self.output_dir}")
+        if not matching_images:
+            print("  ⚠ Warning: No matching images found for this workflow")
             return []
 
-        print(f"  Found {len(images)} image(s) to validate")
+        print(f"  Found {len(matching_images)} matching image(s)")
 
-        # Validate each image
+        # Validate each matching image
         results = []
-        for image_path in images:
+        for image_path in matching_images:
             result = self.validate_image(image_path, workflow_file.stem, expected)
             results.append(result)
 
@@ -545,11 +694,34 @@ class MetadataValidator:
             print(f"⚠ No workflow files found in {self.workflow_dir}")
             return 0, 0, 0
 
+        # Collect all images once (more efficient than searching for each workflow)
+        print("\nScanning for images...")
+        image_suffixes = {'.png', '.jpg', '.jpeg', '.webp'}
+        all_images = [f for f in self.output_dir.rglob("*") if f.is_file() and f.suffix.lower() in image_suffixes]
+        print(f"Found {len(all_images)} total image(s) in output directory")
+
+        if not all_images:
+            print(f"⚠ Warning: No images found in {self.output_dir}")
+            return 0, 0, 0
+
         # Validate each workflow's outputs
         all_results = []
+        validated_images = set()
+
         for workflow_file in workflow_files:
-            results = self.validate_workflow_outputs(workflow_file)
+            results = self.validate_workflow_outputs(workflow_file, all_images)
             all_results.extend(results)
+
+            # Track which images were validated
+            for result in results:
+                validated_images.add(Path(result['image_path']))
+
+        # Report unmatched images
+        unmatched_images = set(all_images) - validated_images
+        if unmatched_images:
+            print(f"\n⚠ Warning: {len(unmatched_images)} image(s) did not match any workflow:")
+            for img in sorted(unmatched_images):
+                print(f"  - {img.name}")
 
         # Calculate statistics
         total = len(all_results)
@@ -559,15 +731,15 @@ class MetadataValidator:
         # Print summary
         print("\n" + "=" * 70)
         print("Validation Summary:")
-        print(f"  Total Images:  {total}")
-        print(f"  ✓ Passed:      {passed}")
-        print(f"  ✗ Failed:      {failed}")
+        print(f"  Total Images Validated: {total}")
+        print(f"  ✓ Passed:               {passed}")
+        print(f"  ✗ Failed:               {failed}")
 
         if failed > 0:
             print("\nFailed Images:")
             for result in all_results:
                 if not result['passed']:
-                    print(f"  - {Path(result['image_path']).name}")
+                    print(f"  - {Path(result['image_path']).name} (workflow: {result['workflow_name']})")
                     for error in result['errors']:
                         print(f"      {error}")
 
