@@ -153,7 +153,7 @@ class SaveImageWithMetaDataUniversal:
                     "INT",
                     {
                         "default": 60,
-                        "min": 4,
+                        "min": 1,
                         "max": 64,  # Hard UI cap: real single APP1 EXIF segment practical limit ~64KB
                         "step": 1,
                         "tooltip": (

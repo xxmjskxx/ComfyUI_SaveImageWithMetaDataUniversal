@@ -284,6 +284,7 @@ class WorkflowAnalyzer:
 
         Returns a list of simplified patterns that can be used for matching.
         For example, "Test\\flux-CR-LoRA-stack" becomes "flux-CR-LoRA-stack".
+        For complex paths like "Test\\siwm-%model:10%/%pprompt:20%", extracts "siwm".
         """
         patterns = []
         seen_patterns = set()  # Track unique patterns
@@ -308,7 +309,7 @@ class WorkflowAnalyzer:
                 # Remove path separators and tokens like %date%, %seed%, etc.
                 # Keep the static parts that identify the workflow
 
-                # Split by path separators
+                # Split by path separators (both / and \)
                 parts = prefix.replace('\\', '/').split('/')
 
                 for part in parts:
@@ -329,7 +330,8 @@ class WorkflowAnalyzer:
                     # For example: "%date:yyyy-MM-dd-hhmmss%-Flux-dual-clip" -> "Flux-dual-clip"
                     # Remove all %...% patterns
                     cleaned = re.sub(r'%[^%]+%', '', clean_part)
-                    cleaned = cleaned.strip('-_')
+                    # Also remove any remaining separators from token removal
+                    cleaned = cleaned.strip('-_/')
 
                     # Only add non-generic patterns (not just "Test" or "Tests")
                     # Require minimum length of 3 to avoid overly broad matches like "a" or "xy"
@@ -415,9 +417,10 @@ class MetadataValidator:
     # Compiled regex patterns for known metadata key patterns (compiled once for efficiency)
     KNOWN_KEY_PATTERNS = [
         re.compile(r"^Lora_\d+$"),
-        re.compile(r"^Lora_\d+ hash$"),
+        re.compile(r"^Lora_\d+\s+.+$"),  # Matches "Lora_0 Model name", "Lora_0 Model hash", etc.
         re.compile(r"^Embedding_\d+$"),
-        re.compile(r"^Embedding_\d+ hash$"),
+        re.compile(r"^Embedding_\d+\s+.+$"),  # Matches "Embedding_0 name", "Embedding_0 hash", etc.
+        re.compile(r"^CLIP_\d+\s+.+$"),  # Matches "CLIP_1 Model name", etc.
     ]
 
     def __init__(self, workflow_dir: Path, output_dir: Path):
@@ -428,7 +431,11 @@ class MetadataValidator:
     def parse_parameters_string(self, params_str: str) -> dict[str, str]:
         """Parse the parameters string into a dictionary of fields.
 
-        Only treats lines as key-value pairs if the key matches a known metadata key pattern.
+        Handles both formats:
+        1. Single-line format: "key: value, key: value, ..."
+        2. Multi-line format: "key: value\\nkey: value\\n..."
+
+        Only treats text as key-value pairs if the key matches a known metadata key pattern.
         This prevents incorrectly splitting prompt text containing colons (e.g., "at 3:00 PM" or URLs).
         """
         if not params_str:
@@ -440,50 +447,130 @@ class MetadataValidator:
             "Steps", "Sampler", "CFG scale", "Seed", "Size", "Model", "Model hash",
             "VAE", "VAE hash", "Clip skip", "Denoise", "Shift", "Max shift", "Base shift",
             "Guidance", "Scheduler", "Hashes", "Metadata generator version", "Batch index",
-            "Batch size", "Metadata Fallback", "LoRAs"
+            "Batch size", "Metadata Fallback", "LoRAs", "Weight dtype", "Samplers",
+            "T5 Prompt", "CLIP Prompt", "CLIP_1 Model name", "CLIP_2 Model name"
         }
 
-        fields = {}
-        lines = params_str.strip().split('\n')
-        current_key = None
-        current_value = []
+        # Keys that typically appear in the prompt header (before metadata)
+        prompt_header_keys = {"T5 Prompt", "CLIP Prompt", "Positive prompt", "Negative prompt"}
 
-        for line in lines:
-            # Check if line starts with a known key followed by a colon
+        # Keys that signal the start of actual metadata (not prompts)
+        metadata_start_keys = known_keys - prompt_header_keys
+
+        fields = {}
+
+        # First, extract the prompt header (positive and negative prompts)
+        # These appear at the start before the metadata fields
+        lines = params_str.strip().split('\n')
+        metadata_start_idx = 0
+
+        # Look for where the actual metadata starts (after prompts)
+        # Metadata fields start with known metadata keys (not prompt headers) followed by a colon
+        for idx, line in enumerate(lines):
             match = re.match(r'^([A-Za-z0-9 _\-]+):\s*(.*)', line)
             if match:
                 potential_key = match.group(1).strip()
-                value = match.group(2)
+                is_metadata_key = (
+                    potential_key in metadata_start_keys
+                    or any(pattern.match(potential_key) for pattern in self.KNOWN_KEY_PATTERNS)
+                )
+                if is_metadata_key:
+                    metadata_start_idx = idx
+                    break
 
-                # Check if this is a known metadata key
-                is_known_key = potential_key in known_keys
-                if not is_known_key:
-                    # Check against compiled patterns (e.g., "Lora_1", "Embedding_2 hash")
-                    for pattern in self.KNOWN_KEY_PATTERNS:
-                        if pattern.match(potential_key):
-                            is_known_key = True
-                            break
+        # Join metadata lines (after prompts)
+        if metadata_start_idx < len(lines):
+            metadata_text = '\n'.join(lines[metadata_start_idx:])
+        else:
+            metadata_text = params_str
 
-                if is_known_key:
-                    # Save previous key-value if exists
-                    if current_key:
-                        fields[current_key] = '\n'.join(current_value).strip()
+        # Detect format: check if we have comma separators between known keys
+        # Count commas followed by known keys vs newlines followed by known keys
+        comma_key_count = 0
+        newline_key_count = 0
 
-                    current_key = potential_key
-                    current_value = []
-                    if value:
-                        current_value.append(value)
+        for key in known_keys:
+            # Check for ", Key:" pattern (comma-separated format)
+            if re.search(r',\s*' + re.escape(key) + r':', metadata_text):
+                comma_key_count += 1
+            # Check for "\nKey:" pattern (newline-separated format)
+            if re.search(r'\n\s*' + re.escape(key) + r':', metadata_text):
+                newline_key_count += 1
+
+        # Determine which format to use
+        use_comma_format = comma_key_count > newline_key_count
+
+        if use_comma_format:
+            # Parse comma-separated format
+            # Split by commas, but only if followed by a known key or Lora_/Embedding_ pattern
+            # Build a regex that matches ", known_key:" patterns
+
+            # Create a list of all known key patterns
+            all_patterns = list(known_keys)
+
+            # Build the split pattern dynamically
+            escaped_keys = [re.escape(k) + r':' for k in all_patterns]
+            split_pattern = r',\s*(?=' + '|'.join(escaped_keys) + r'|(?:Lora_|Embedding_|CLIP_)\d+\s+[^:]+:)'
+
+            parts = re.split(split_pattern, metadata_text)
+
+            for part in parts:
+                part = part.strip()
+                if not part:
                     continue
 
-            # If we get here, this line is either a continuation or not a field
-            if current_key:
-                # Continuation of previous value
-                if line.strip():
-                    current_value.append(line.strip())
+                # Extract key: value from this part
+                # Allow spaces in keys for patterns like "Lora_0 Model name"
+                match = re.match(r'^([A-Za-z0-9 _\-]+):\s*(.*)', part, re.DOTALL)
+                if match:
+                    key = match.group(1).strip()
+                    value = match.group(2).strip()
 
-        # Save last key-value
-        if current_key:
-            fields[current_key] = '\n'.join(current_value).strip()
+                    # Verify it's a known key or matches a pattern
+                    is_known = key in known_keys or any(pattern.match(key) for pattern in self.KNOWN_KEY_PATTERNS)
+                    if is_known:
+                        fields[key] = value
+        else:
+            # Parse newline-separated format (original logic)
+            current_key = None
+            current_value = []
+
+            for line in lines[metadata_start_idx:]:
+                # Check if line starts with a known key followed by a colon
+                match = re.match(r'^([A-Za-z0-9 _\-]+):\s*(.*)', line)
+                if match:
+                    potential_key = match.group(1).strip()
+                    value = match.group(2)
+
+                    # Check if this is a known metadata key
+                    is_known_key = potential_key in known_keys
+                    if not is_known_key:
+                        # Check against compiled patterns (e.g., "Lora_1", "Embedding_2 hash")
+                        for pattern in self.KNOWN_KEY_PATTERNS:
+                            if pattern.match(potential_key):
+                                is_known_key = True
+                                break
+
+                    if is_known_key:
+                        # Save previous key-value if exists
+                        if current_key:
+                            fields[current_key] = '\n'.join(current_value).strip()
+
+                        current_key = potential_key
+                        current_value = []
+                        if value:
+                            current_value.append(value)
+                        continue
+
+                # If we get here, this line is either a continuation or not a field
+                if current_key:
+                    # Continuation of previous value
+                    if line.strip():
+                        current_value.append(line.strip())
+
+            # Save last key-value
+            if current_key:
+                fields[current_key] = '\n'.join(current_value).strip()
 
         return fields
 
@@ -605,6 +692,12 @@ class MetadataValidator:
     def validate_workflow_outputs(self, workflow_file: Path, all_images: list[Path]) -> list[dict]:
         """Validate images generated by a specific workflow."""
         print(f"\nValidating workflow: {workflow_file.name}")
+
+        # Special case: 1-scan-and-save-custom-metadata-rules.json doesn't create images
+        # It only contains Metadata Rule Scanner + Save Custom Metadata Rules nodes
+        if workflow_file.name == '1-scan-and-save-custom-metadata-rules.json':
+            print("  ℹ Info: This workflow generates metadata rules, not images (skipping)")
+            return []
 
         # Load workflow
         try:
