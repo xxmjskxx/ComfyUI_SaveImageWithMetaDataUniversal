@@ -816,7 +816,7 @@ class MetadataValidator:
         for key, value in fields.items():
             if 'Embedding_' in key and 'name' in key:
                 # Check for trailing commas or other punctuation
-                if value.rstrip(',') != value:
+                if value.rstrip(',.;:') != value:
                     result['errors'].append(
                         f"Embedding name '{key}' has trailing punctuation: '{value}'"
                     )
