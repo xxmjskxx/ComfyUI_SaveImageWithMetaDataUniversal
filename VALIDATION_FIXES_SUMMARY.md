@@ -144,7 +144,7 @@ API export issues for `flux-LoRA-Manager.json` are ComfyUI UI-related, not valid
 
 All issues from the problem statement have been successfully resolved:
 - ✅ **5 major issues fixed**
-- ✅ **22 new tests added**
+- ✅ **32 new tests added**
 - ✅ **6 new files created**
 - ✅ **2 core files enhanced**
 - ✅ **100% test pass rate**
