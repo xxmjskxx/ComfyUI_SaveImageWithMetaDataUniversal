@@ -995,8 +995,8 @@ class MetadataValidator:
                         expected = WorkflowAnalyzer.extract_expected_metadata(workflow, workflow_file.stem)
                         if expected['has_save_node']:
                             workflows_without_images.add(workflow_file.name)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        print(f"Warning: Failed to analyze workflow '{workflow_file.name}': {e}")
 
         # Calculate statistics
         total = len(all_results)
