@@ -141,7 +141,7 @@
   },
   "9": {
     "inputs": {
-      "value": "(low quality, worst quality:1.4), embedding:EasyNegative"
+      "value": "(low quality, worst quality:1.4), embedding:EasyNegative, embedding:neg\\FastNegativeV2, "
     },
     "class_type": "PrimitiveStringMultiline",
     "_meta": {
@@ -166,7 +166,7 @@
   },
   "11": {
     "inputs": {
-      "value": "guts, berserk, masterpiece, best quality, hatsune miku, upper body"
+      "value": "guts, berserk, masterpiece, best quality, anime, upper body"
     },
     "class_type": "PrimitiveStringMultiline",
     "_meta": {

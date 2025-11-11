@@ -234,6 +234,20 @@
       "title": "Save Image w/ Metadata Universal"
     }
   },
+  "114": {
+    "inputs": {
+      "lora_name": "flux\\turbos\\FLUX.1-Turbo-Alpha.safetensors",
+      "strength_model": 0.8,
+      "model": [
+        "88",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "LoraLoaderModelOnly"
+    }
+  },
   "44:38": {
     "inputs": {
       "clip_name": "sigclip_vision_patch14_384.safetensors"
@@ -252,31 +266,31 @@
       "title": "ModelPatchLoader"
     }
   },
-  "43:40": {
-    "inputs": {
-      "model": [
-        "88",
-        0
-      ],
-      "model_patch": [
-        "44:39",
-        0
-      ],
-      "clip_vision_output": [
-        "43:41",
-        0
-      ]
-    },
-    "class_type": "USOStyleReference",
-    "_meta": {
-      "title": "USOStyleReference"
-    }
-  },
   "43:44": {
     "inputs": {},
     "class_type": "USOStyleReference",
     "_meta": {
       "title": "USOStyleReference"
+    }
+  },
+  "28:11": {
+    "inputs": {
+      "sampler_name": "euler"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "KSamplerSelect"
+    }
+  },
+  "28:27": {
+    "inputs": {
+      "dimensions": "1024 x 1024  (square)",
+      "clip_scale": 1,
+      "batch_size": 1
+    },
+    "class_type": "SDXL Empty Latent Image (rgthree)",
+    "_meta": {
+      "title": "SDXL Empty Latent Image (rgthree)"
     }
   },
   "43:41": {
@@ -313,6 +327,39 @@
       "title": "CLIP Vision Encode"
     }
   },
+  "28:10": {
+    "inputs": {
+      "guidance": 4,
+      "conditioning": [
+        "8",
+        0
+      ]
+    },
+    "class_type": "FluxGuidance",
+    "_meta": {
+      "title": "FluxGuidance"
+    }
+  },
+  "43:40": {
+    "inputs": {
+      "model": [
+        "114",
+        0
+      ],
+      "model_patch": [
+        "44:39",
+        0
+      ],
+      "clip_vision_output": [
+        "43:41",
+        0
+      ]
+    },
+    "class_type": "USOStyleReference",
+    "_meta": {
+      "title": "USOStyleReference"
+    }
+  },
   "46:40": {
     "inputs": {
       "model": [
@@ -333,58 +380,10 @@
       "title": "USOStyleReference"
     }
   },
-  "28:10": {
-    "inputs": {
-      "guidance": 4,
-      "conditioning": [
-        "8",
-        0
-      ]
-    },
-    "class_type": "FluxGuidance",
-    "_meta": {
-      "title": "FluxGuidance"
-    }
-  },
-  "28:11": {
-    "inputs": {
-      "sampler_name": "euler"
-    },
-    "class_type": "KSamplerSelect",
-    "_meta": {
-      "title": "KSamplerSelect"
-    }
-  },
-  "28:27": {
-    "inputs": {
-      "dimensions": "1024 x 1024  (square)",
-      "clip_scale": 1,
-      "batch_size": 1
-    },
-    "class_type": "SDXL Empty Latent Image (rgthree)",
-    "_meta": {
-      "title": "SDXL Empty Latent Image (rgthree)"
-    }
-  },
-  "28:12": {
-    "inputs": {
-      "scheduler": "simple",
-      "steps": 25,
-      "denoise": 1,
-      "model": [
-        "28:9",
-        0
-      ]
-    },
-    "class_type": "BasicScheduler",
-    "_meta": {
-      "title": "BasicScheduler"
-    }
-  },
   "28:9": {
     "inputs": {
-      "max_shift": 1.1500000000000001,
-      "base_shift": 0.5000000000000001,
+      "max_shift": 1.15,
+      "base_shift": 0.5,
       "width": [
         "28:27",
         1
@@ -401,6 +400,21 @@
     "class_type": "ModelSamplingFlux",
     "_meta": {
       "title": "ModelSamplingFlux"
+    }
+  },
+  "28:12": {
+    "inputs": {
+      "scheduler": "simple",
+      "steps": 8,
+      "denoise": 1,
+      "model": [
+        "28:9",
+        0
+      ]
+    },
+    "class_type": "BasicScheduler",
+    "_meta": {
+      "title": "BasicScheduler"
     }
   }
 }

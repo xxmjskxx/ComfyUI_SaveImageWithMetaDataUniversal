@@ -110,6 +110,20 @@
       "title": "CLIPTextEncodeFlux"
     }
   },
+  "13": {
+    "inputs": {
+      "lora_name": "flux\\turbos\\FLUX.1-Turbo-Alpha.safetensors",
+      "strength_model": 0.8,
+      "model": [
+        "3:1",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "LoraLoaderModelOnly"
+    }
+  },
   "3:1": {
     "inputs": {
       "unet_name": "flux\\flux1-dev-fp8-e4m3fn.safetensors",
@@ -165,7 +179,7 @@
     "inputs": {
       "backend": "inductor",
       "model": [
-        "3:1",
+        "13",
         0
       ]
     },
@@ -227,7 +241,7 @@
   "6:12": {
     "inputs": {
       "scheduler": "beta",
-      "steps": 20,
+      "steps": 8,
       "denoise": 1,
       "model": [
         "6:29",

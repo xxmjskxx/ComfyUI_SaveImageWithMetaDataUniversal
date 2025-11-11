@@ -74,7 +74,7 @@
   },
   "9": {
     "inputs": {
-      "filename_prefix": "Test\\%date:yyyy-MM-dd%//%date:yyyy-MM-dd-hhmmss%-Flux",
+      "filename_prefix": "Test\\%date:yyyy-MM-dd%//%date:yyyy-MM-dd-hhmmss%-Flux-batch3-LoRA-summ-GCFG",
       "sampler_selection_method": "Farthest",
       "sampler_selection_node_id": 0,
       "file_format": "png",
@@ -83,10 +83,10 @@
       "max_jpeg_exif_kb": 60,
       "save_workflow_json": false,
       "add_counter_to_filename": true,
-      "civitai_sampler": false,
-      "guidance_as_cfg": false,
+      "civitai_sampler": true,
+      "guidance_as_cfg": true,
       "save_workflow_image": true,
-      "include_lora_summary": false,
+      "include_lora_summary": true,
       "suppress_missing_class_log": true,
       "model_hash_log": "none",
       "images": [
@@ -106,6 +106,20 @@
     "class_type": "RandomNoise",
     "_meta": {
       "title": "RandomNoise"
+    }
+  },
+  "12": {
+    "inputs": {
+      "lora_name": "flux\\turbos\\FLUX.1-Turbo-Alpha.safetensors",
+      "strength_model": 0.8,
+      "model": [
+        "3:1",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "LoraLoaderModelOnly"
     }
   },
   "3:1": {
@@ -139,31 +153,50 @@
       "title": "Load VAE"
     }
   },
-  "2:25": {
+  "6:11": {
     "inputs": {
-      "patch_order": "object_patch_first",
-      "full_load": "auto",
-      "model": [
-        "2:24",
-        0
-      ]
+      "sampler_name": "euler"
     },
-    "class_type": "PatchModelPatcherOrder",
+    "class_type": "KSamplerSelect",
     "_meta": {
-      "title": "Patch Model Patcher Order"
+      "title": "KSamplerSelect"
+    }
+  },
+  "6:31": {
+    "inputs": {
+      "dimensions": "1024 x 1024  (square)",
+      "clip_scale": 1,
+      "batch_size": 3
+    },
+    "class_type": "SDXL Empty Latent Image (rgthree)",
+    "_meta": {
+      "title": "SDXL Empty Latent Image (rgthree)"
     }
   },
   "2:23": {
     "inputs": {
       "backend": "inductor",
       "model": [
-        "3:1",
+        "12",
         0
       ]
     },
     "class_type": "TorchCompileModel",
     "_meta": {
       "title": "TorchCompileModel"
+    }
+  },
+  "6:10": {
+    "inputs": {
+      "guidance": 3.5,
+      "conditioning": [
+        "8",
+        0
+      ]
+    },
+    "class_type": "FluxGuidance",
+    "_meta": {
+      "title": "FluxGuidance"
     }
   },
   "2:24": {
@@ -180,41 +213,18 @@
       "title": "Patch Sage Attention KJ"
     }
   },
-  "6:10": {
+  "2:25": {
     "inputs": {
-      "guidance": 3.5,
-      "conditioning": [
-        "8",
-        0
-      ]
-    },
-    "class_type": "FluxGuidance",
-    "_meta": {
-      "title": "FluxGuidance"
-    }
-  },
-  "6:11": {
-    "inputs": {
-      "sampler_name": "euler"
-    },
-    "class_type": "KSamplerSelect",
-    "_meta": {
-      "title": "KSamplerSelect"
-    }
-  },
-  "6:12": {
-    "inputs": {
-      "scheduler": "beta",
-      "steps": 20,
-      "denoise": 1,
+      "patch_order": "object_patch_first",
+      "full_load": "auto",
       "model": [
-        "6:29",
+        "2:24",
         0
       ]
     },
-    "class_type": "BasicScheduler",
+    "class_type": "PatchModelPatcherOrder",
     "_meta": {
-      "title": "BasicScheduler"
+      "title": "Patch Model Patcher Order"
     }
   },
   "6:29": {
@@ -239,15 +249,19 @@
       "title": "ModelSamplingFlux"
     }
   },
-  "6:31": {
+  "6:12": {
     "inputs": {
-      "dimensions": "1024 x 1024  (square)",
-      "clip_scale": 1,
-      "batch_size": 1
+      "scheduler": "beta",
+      "steps": 8,
+      "denoise": 1,
+      "model": [
+        "6:29",
+        0
+      ]
     },
-    "class_type": "SDXL Empty Latent Image (rgthree)",
+    "class_type": "BasicScheduler",
     "_meta": {
-      "title": "SDXL Empty Latent Image (rgthree)"
+      "title": "BasicScheduler"
     }
   }
 }
