@@ -224,7 +224,10 @@ class Capture:
         """Normalize model / embedding / LoRA / CLIP names into a stable display form.
 
         Processing steps (applied in order):
-            1. If ``value`` is a list/tuple, take its first element (some loaders wrap single names).
+            1. If ``value`` is a list/tuple:
+               - For tuples with 2+ elements (node_id, actual_value, ...): extract index 1 (the actual value),
+                 skipping the node id at index 0. This handles capture tuples that include node context.
+               - For single-element containers: extract index 0 (some loaders wrap single names).
             2. Coerce to ``str`` (fall back to ``repr``-like behavior via ``str(obj)`` if not already a string).
             3. Extract just the basename (drop directory components).
             4. Strip surrounding single/double quotes and outer whitespace.
@@ -240,8 +243,11 @@ class Capture:
         """
         try:
             if isinstance(value, list | tuple):  # noqa: UP038
-                # When capture tuples include node id + field context (2+ elements),
-                # extract the value portion at index 1 rather than the node id at index 0.
+                # Capture tuples may include contextual metadata: (node_id, actual_value, optional_field_name).
+                # For 2+ element tuples: extract index 1 (the actual value), not index 0 (the node id).
+                # This ensures we display "EasyNegative.safetensors" rather than node id "42"
+                # when processing captures like (42, "EasyNegative.safetensors", "text").
+                # For single-element containers: some loaders wrap names in a list, so extract index 0.
                 if len(value) >= 2:
                     value = value[1]
                 elif len(value) == 1:
