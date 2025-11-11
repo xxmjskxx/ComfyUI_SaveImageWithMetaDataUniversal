@@ -57,7 +57,7 @@
   },
   "6": {
     "inputs": {
-      "seed": 82628696717253,
+      "seed": 706190577933098,
       "steps": 4,
       "cfg": 1,
       "sampler_name": "dpmpp_2m",
@@ -89,7 +89,7 @@
     "inputs": {
       "shift": 8,
       "model": [
-        "12",
+        "14",
         0
       ]
     },
@@ -167,23 +167,10 @@
       "title": "LoraLoaderModelOnly"
     }
   },
-  "12": {
-    "inputs": {
-      "backend": "inductor",
-      "model": [
-        "13",
-        0
-      ]
-    },
-    "class_type": "TorchCompileModel",
-    "_meta": {
-      "title": "TorchCompileModel"
-    }
-  },
   "13": {
     "inputs": {
       "sage_attention": "auto",
-      "allow_compile": true,
+      "allow_compile": false,
       "model": [
         "11",
         0
@@ -192,6 +179,25 @@
     "class_type": "PathchSageAttentionKJ",
     "_meta": {
       "title": "Patch Sage Attention KJ"
+    }
+  },
+  "14": {
+    "inputs": {
+      "backend": "inductor",
+      "fullgraph": false,
+      "mode": "default",
+      "dynamic": false,
+      "compile_transformer_blocks_only": true,
+      "dynamo_cache_size_limit": 64,
+      "force_parameter_static_shapes": true,
+      "model": [
+        "13",
+        0
+      ]
+    },
+    "class_type": "TorchCompileModelWanVideoV2",
+    "_meta": {
+      "title": "TorchCompileModelWanVideoV2"
     }
   }
 }

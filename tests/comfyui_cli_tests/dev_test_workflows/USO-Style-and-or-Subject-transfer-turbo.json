@@ -251,7 +251,7 @@
   "115": {
     "inputs": {
       "sage_attention": "auto",
-      "allow_compile": true,
+      "allow_compile": false,
       "model": [
         "116",
         0
