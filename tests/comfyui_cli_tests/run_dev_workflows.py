@@ -2,7 +2,7 @@
 """
 CLI Test Script for Running ComfyUI Workflows
 
-This script executes all workflow JSON files from the 'dev_test_workflows' folder
+This script executes all workflow JSON files from the 'tests/comfyui_cli_tests/dev_test_workflows' folder
 by queuing them to a running ComfyUI server via the HTTP API.
 
 Usage:
@@ -235,7 +235,7 @@ class WorkflowRunner:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Run ComfyUI workflows from dev_test_workflows folder",
+        description="Run ComfyUI workflows from tests/comfyui_cli_tests/dev_test_workflows folder",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -269,8 +269,8 @@ Examples:
     parser.add_argument(
         "--workflow-dir",
         type=str,
-        default="dev_test_workflows",
-        help="Directory containing workflow JSON files (default: dev_test_workflows)",
+        default="tests/comfyui_cli_tests/dev_test_workflows",
+        help="Directory containing workflow JSON files (default: tests/comfyui_cli_tests/dev_test_workflows)",
     )
 
     parser.add_argument(

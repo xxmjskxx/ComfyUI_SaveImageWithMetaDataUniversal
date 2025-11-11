@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-# Add parent directory to path to import validate_metadata
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add comfyui_cli_tests directory to path to import validate_metadata
+sys.path.insert(0, str(Path(__file__).parent / 'comfyui_cli_tests'))
 
 from validate_metadata import MetadataValidator
 

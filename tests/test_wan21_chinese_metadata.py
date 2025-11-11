@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-# Add parent directory to path to import validate_metadata
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add comfyui_cli_tests directory to path to import validate_metadata
+sys.path.insert(0, str(Path(__file__).parent / 'comfyui_cli_tests'))
 
 from validate_metadata import MetadataValidator
 
@@ -79,14 +79,14 @@ class TestWan21ChineseMetadata:
 
     def test_wan21_image_exists(self):
         """Test that the wan21 reference image exists."""
-        image_path = Path('dev_test_workflows/Wan21_00001_.png')
+        image_path = Path('tests/comfyui_cli_tests/dev_test_workflows/Wan21_00001_.png')
         assert image_path.exists(), f"Wan21 reference image not found at {image_path}"
 
     def test_wan21_image_has_metadata(self):
         """Test that the wan21 image contains the expected metadata."""
         from PIL import Image
 
-        image_path = Path('dev_test_workflows/Wan21_00001_.png')
+        image_path = Path('tests/comfyui_cli_tests/dev_test_workflows/Wan21_00001_.png')
         if not image_path.exists():
             pytest.skip("Wan21 reference image not available")
 

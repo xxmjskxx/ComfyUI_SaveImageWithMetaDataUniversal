@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-# Add parent directory to path to import validate_metadata
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add comfyui_cli_tests directory to path to import validate_metadata
+sys.path.insert(0, str(Path(__file__).parent / 'comfyui_cli_tests'))
 
 from validate_metadata import MetadataValidator, WorkflowAnalyzer
 
@@ -18,7 +18,7 @@ class TestValidateMetadataIntegration:
     def test_special_workflow_skip(self):
         """Test that 1-scan-and-save-custom-metadata-rules.json is skipped."""
         validator = MetadataValidator(Path('.'), Path('.'))
-        workflow_file = Path('dev_test_workflows/1-scan-and-save-custom-metadata-rules.json')
+        workflow_file = Path('tests/comfyui_cli_tests/dev_test_workflows/1-scan-and-save-custom-metadata-rules.json')
 
         # This should return empty list and print info message
         results = validator.validate_workflow_outputs(workflow_file, [])
@@ -26,7 +26,7 @@ class TestValidateMetadataIntegration:
 
     def test_filename_format_denoise_workflow_pattern(self):
         """Test that filename_format_denoise.json workflow pattern extraction works."""
-        workflow_file = Path('dev_test_workflows/filename_format_denoise.json')
+        workflow_file = Path('tests/comfyui_cli_tests/dev_test_workflows/filename_format_denoise.json')
 
         if not workflow_file.exists():
             pytest.skip(f"Workflow file not found: {workflow_file}")
@@ -41,7 +41,7 @@ class TestValidateMetadataIntegration:
 
     def test_large_workflow_jpeg_4kb_pattern(self):
         """Test that large-workflow-jpeg-4kb.json workflow exists and has correct settings."""
-        workflow_file = Path('dev_test_workflows/large-workflow-jpeg-4kb.json')
+        workflow_file = Path('tests/comfyui_cli_tests/dev_test_workflows/large-workflow-jpeg-4kb.json')
 
         assert workflow_file.exists(), "large-workflow-jpeg-4kb.json should exist"
 
@@ -61,7 +61,7 @@ class TestValidateMetadataIntegration:
     def test_large_workflow_jpeg_lower_kb_variants(self):
         """Test that 2kb and 1kb variants exist for testing other fallback stages."""
         for kb_size in [1, 2]:
-            workflow_file = Path(f'dev_test_workflows/large-workflow-jpeg-{kb_size}kb.json')
+            workflow_file = Path(f'tests/comfyui_cli_tests/dev_test_workflows/large-workflow-jpeg-{kb_size}kb.json')
             assert workflow_file.exists(), f"large-workflow-jpeg-{kb_size}kb.json should exist"
 
             with open(workflow_file) as f:
@@ -76,7 +76,7 @@ class TestValidateMetadataIntegration:
 
     def test_extra_metadata_clip_skip_workflow(self):
         """Test extra_metadata_clip_skip.json workflow analysis."""
-        workflow_file = Path('dev_test_workflows/extra_metadata_clip_skip.json')
+        workflow_file = Path('tests/comfyui_cli_tests/dev_test_workflows/extra_metadata_clip_skip.json')
 
         if not workflow_file.exists():
             pytest.skip(f"Workflow file not found: {workflow_file}")

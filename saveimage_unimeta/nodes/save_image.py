@@ -15,7 +15,7 @@ except ModuleNotFoundError:  # pragma: no cover - isolated test fallback
     class _FolderPathsStub:  # minimal surface used by this module
         def __init__(self):
             import os as _os
-            self._out = _os.path.abspath("_test_outputs")
+            self._out = _os.path.abspath("tests/_test_outputs")
             try:
                 _os.makedirs(self._out, exist_ok=True)
             except OSError:

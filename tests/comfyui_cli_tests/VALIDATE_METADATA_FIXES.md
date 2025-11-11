@@ -72,9 +72,9 @@ The old pattern extraction logic wasn't properly extracting "siwm" from this com
 ## New Files Created
 
 ### Test Workflow Files
-- `dev_test_workflows/large-workflow-jpeg-4kb.json`
-- `dev_test_workflows/large-workflow-jpeg-2kb.json`
-- `dev_test_workflows/large-workflow-jpeg-1kb.json`
+- `tests/comfyui_cli_tests/dev_test_workflows/large-workflow-jpeg-4kb.json`
+- `tests/comfyui_cli_tests/dev_test_workflows/large-workflow-jpeg-2kb.json`
+- `tests/comfyui_cli_tests/dev_test_workflows/large-workflow-jpeg-1kb.json`
 
 ### Test Files
 - `tests/test_validate_metadata.py` - Unit tests for the validator components
@@ -98,13 +98,13 @@ The `validate_metadata.py` script now correctly validates:
 
 ```bash
 # Validate test outputs
-python validate_metadata.py --output-folder "/path/to/ComfyUI/output/Test"
+python tests/comfyui_cli_tests/validate_metadata.py --output-folder "/path/to/ComfyUI/output/Test"
 
 # With custom workflow directory
-python validate_metadata.py --output-folder "./output/Test" --workflow-dir "./my_workflows"
+python tests/comfyui_cli_tests/validate_metadata.py --output-folder "./output/Test" --workflow-dir "./my_workflows"
 
 # With log file
-python validate_metadata.py --output-folder "./output/Test" --log-file "./validation.log"
+python tests/comfyui_cli_tests/validate_metadata.py --output-folder "./output/Test" --log-file "./validation.log"
 ```
 
 ### Validation Summary
@@ -150,7 +150,7 @@ To help catch these issues, the validation script now detects:
 - ✅ **Missing Hashes entries**: Models/LoRAs/embeddings with metadata but missing from Hashes summary
 - ✅ **Wrong Hashes keys**: Embeddings with numeric keys (e.g., "embed:10") instead of name-based keys
 
-The image `dev_test_workflows/Wan21_00001_.png` demonstrates these issues. The validation script successfully detects all the problems listed above.
+The image `tests/comfyui_cli_tests/dev_test_workflows/Wan21_00001_.png` demonstrates these issues. The validation script successfully detects all the problems listed above.
 
 ### Flux LoRA Manager Workflow
 The problem statement mentions difficulty exporting a working API version of `flux-LoRA-Manager.json`. This is a ComfyUI UI/API export issue, not a validation script issue. Users should ensure:
@@ -164,13 +164,13 @@ To fully validate these fixes with actual images:
 
 1. Run the dev workflows:
    ```bash
-   python run_dev_workflows.py --comfyui-path "/path/to/ComfyUI" \
+   python tests/comfyui_cli_tests/run_dev_workflows.py --comfyui-path "/path/to/ComfyUI" \
      --output-folder "/path/to/output/Test"
    ```
 
 2. Validate the generated images:
    ```bash
-   python validate_metadata.py --output-folder "/path/to/output/Test"
+   python tests/comfyui_cli_tests/validate_metadata.py --output-folder "/path/to/output/Test"
    ```
 
 3. Expected results:

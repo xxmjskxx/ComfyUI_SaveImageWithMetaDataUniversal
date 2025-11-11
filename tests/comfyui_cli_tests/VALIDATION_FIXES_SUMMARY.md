@@ -43,9 +43,9 @@ Existing test suite ................................. PASSING
    - Changed min `max_jpeg_exif_kb` from 4 to 1
 
 ### New Test Workflows
-3. **dev_test_workflows/large-workflow-jpeg-4kb.json** (NEW)
-4. **dev_test_workflows/large-workflow-jpeg-2kb.json** (NEW)
-5. **dev_test_workflows/large-workflow-jpeg-1kb.json** (NEW)
+3. **tests/comfyui_cli_tests/dev_test_workflows/large-workflow-jpeg-4kb.json** (NEW)
+4. **tests/comfyui_cli_tests/dev_test_workflows/large-workflow-jpeg-2kb.json** (NEW)
+5. **tests/comfyui_cli_tests/dev_test_workflows/large-workflow-jpeg-1kb.json** (NEW)
 
 ### New Test Files
 6. **tests/test_validate_metadata.py** (NEW - 273 lines)
@@ -59,12 +59,12 @@ Existing test suite ................................. PASSING
 
 ### Basic Validation
 ```bash
-python validate_metadata.py --output-folder "/path/to/ComfyUI/output/Test"
+python tests/comfyui_cli_tests/validate_metadata.py --output-folder "/path/to/ComfyUI/output/Test"
 ```
 
 ### With Logging
 ```bash
-python validate_metadata.py \
+python tests/comfyui_cli_tests/validate_metadata.py \
   --output-folder "/path/to/ComfyUI/output/Test" \
   --log-file "./validation_results.log"
 ```

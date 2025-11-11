@@ -237,7 +237,7 @@ def load_user_definitions(required_classes: set | None = None, suppress_missing_
     )
     # User rule directory relocation: legacy was 'py/'. New directory 'user_rules/'.
     # In test mode, prefer an isolated _test_outputs/user_rules directory if present to avoid polluting repo root.
-    TEST_OUTPUTS_DIR = os.path.join(NODE_PACK_DIR, "_test_outputs")
+    TEST_OUTPUTS_DIR = os.path.join(NODE_PACK_DIR, "tests/_test_outputs")
     # Re-evaluate test mode at runtime so late env mutation still enables
     # isolation (coverage run import ordering can differ from local pytest).
     runtime_test_mode = _is_test_mode()
@@ -253,7 +253,7 @@ def load_user_definitions(required_classes: set | None = None, suppress_missing_
     LEGACY_PY_DIR = os.path.join(NODE_PACK_DIR, "py")  # noqa: N806
     # Test isolation: allow legacy files placed in _test_outputs/py to migrate too.
     if _TEST_MODE:
-        test_legacy = os.path.join(NODE_PACK_DIR, "_test_outputs", "py")
+        test_legacy = os.path.join(NODE_PACK_DIR, "tests/_test_outputs", "py")
         if os.path.isdir(test_legacy):  # prefer test-scoped legacy if present
             LEGACY_PY_DIR = test_legacy  # type: ignore
     if not os.path.exists(USER_CAPTURES_FILE):

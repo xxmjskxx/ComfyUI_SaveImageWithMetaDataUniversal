@@ -1062,8 +1062,8 @@ Examples:
     parser.add_argument(
         "--workflow-dir",
         type=str,
-        default="dev_test_workflows",
-        help="Directory containing workflow JSON files (default: dev_test_workflows)",
+        default="tests/comfyui_cli_tests/dev_test_workflows",
+        help="Directory containing workflow JSON files (default: tests/comfyui_cli_tests/dev_test_workflows)",
     )
 
     parser.add_argument(

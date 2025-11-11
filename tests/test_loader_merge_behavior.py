@@ -15,7 +15,7 @@ def _node_pack_py_dir() -> str:
     # Place test user rule artifacts under _test_outputs/user_rules to avoid polluting real tree.
     here = os.path.dirname(__file__)
     pack_root = os.path.abspath(os.path.join(here, os.pardir))
-    return os.path.join(pack_root, "_test_outputs", "user_rules")
+    return os.path.join(pack_root, "tests/_test_outputs", "user_rules")
 
 
 def _write_json(path: str, data) -> None:

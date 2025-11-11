@@ -13,7 +13,7 @@ def _base_dirs():
         "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.rules_writer"
     )
     base = os.path.dirname(os.path.dirname(os.path.abspath(mod.__file__)))  # saveimage_unimeta
-    test_outputs = os.path.join(base, "_test_outputs")
+    test_outputs = os.path.join(base, "tests/_test_outputs")
     user_rules = os.path.join(test_outputs, "user_rules")
     legacy_py = os.path.join(test_outputs, "py")
     ext_dir = os.path.join(base, "defs", "ext")
