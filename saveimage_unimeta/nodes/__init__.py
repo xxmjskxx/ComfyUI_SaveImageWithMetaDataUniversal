@@ -10,6 +10,7 @@ from .show_text import ShowText  # local unimeta variant (separate file for clar
 from .show_any import ShowAnyToString  # new any->string display node
 from ..defs import set_forced_include
 
+
 class MetadataForceInclude:
     """Configure globally forced node class names for metadata capture.
 
@@ -76,12 +77,14 @@ class MetadataForceInclude:
     @staticmethod
     def configure(force_include_node_class="", reset_forced=False, dry_run=False):
         from ..defs import clear_forced_include  # local import to avoid cycle
+
         if reset_forced and not dry_run:
             clear_forced_include()
         if force_include_node_class and not dry_run:
             updated = set_forced_include(force_include_node_class)
         else:
             from ..defs import FORCED_INCLUDE_CLASSES as _F
+
             updated = _F
         joined = ",".join(sorted(updated))
         return (joined, joined)

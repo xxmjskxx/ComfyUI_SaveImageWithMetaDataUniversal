@@ -8,6 +8,7 @@ runtime distribution. Still runnable directly:
 Outputs JSON summary to _test_outputs/merge_bench.json (consistent with other
 test artifacts) and prints a human-readable verdict.
 """
+
 from __future__ import annotations
 
 import json

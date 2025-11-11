@@ -12,20 +12,14 @@ def _make_clip(tmp_path, identifier="embedding:"):
 
 
 def test_extract_embedding_names_without_clip_returns_empty(monkeypatch):
-    fmt = importlib.import_module(
-        "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.formatters"
-    )
+    fmt = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.formatters")
     monkeypatch.setattr(fmt, "token_weights", lambda text, _: [(text, 1.0)])
-    names = fmt.extract_embedding_names(
-        "embedding:EasyNegative", ({"text": ["embedding:EasyNegative"]},)
-    )
+    names = fmt.extract_embedding_names("embedding:EasyNegative", ({"text": ["embedding:EasyNegative"]},))
     assert names == []
 
 
 def test_extract_embedding_names_respects_valid_embeddings(monkeypatch, tmp_path):
-    fmt = importlib.import_module(
-        "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.formatters"
-    )
+    fmt = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.formatters")
     monkeypatch.setattr(fmt, "token_weights", lambda text, _: [(text, 1.0)])
     clip = _make_clip(tmp_path)
     (tmp_path / "EasyNegative.safetensors").write_text("stub")
@@ -38,9 +32,7 @@ def test_extract_embedding_names_respects_valid_embeddings(monkeypatch, tmp_path
 
 
 def test_extract_embedding_names_skips_whitespace_candidates(monkeypatch, tmp_path):
-    fmt = importlib.import_module(
-        "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.formatters"
-    )
+    fmt = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.formatters")
     monkeypatch.setattr(fmt, "token_weights", lambda text, _: [(text, 1.0)])
     clip = _make_clip(tmp_path)
     (tmp_path / "foo.safetensors").write_text("stub")

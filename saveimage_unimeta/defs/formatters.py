@@ -12,6 +12,7 @@ from typing import Any
 import sys
 
 import folder_paths  # type: ignore
+
 try:  # Attempt real comfy imports (runtime environment)
     from comfy.sd1_clip import (  # type: ignore
         SD1Tokenizer,
@@ -24,6 +25,7 @@ try:  # Attempt real comfy imports (runtime environment)
     from comfy.text_encoders.sd2_clip import SD2Tokenizer  # type: ignore
     from comfy.text_encoders.sd3_clip import SD3Tokenizer  # type: ignore
 except (ImportError, ModuleNotFoundError):  # noqa: BLE001 - provide minimal stubs for tests
+
     class _BaseTok:
         def encode_with_weights(self, text):  # pragma: no cover - trivial stub
             return []
@@ -38,6 +40,7 @@ except (ImportError, ModuleNotFoundError):  # noqa: BLE001 - provide minimal stu
 
     def token_weights(x):  # type: ignore
         return []
+
 
 from ..utils.embedding import get_embedding_file_path
 from ..utils.hash import calc_hash
@@ -72,6 +75,7 @@ _ALT_NAMES = [
 for _n in _ALT_NAMES:
     if _n not in _sys.modules and _SELF is not None:
         _sys.modules[_n] = _SELF
+
 
 def set_hash_log_mode(mode: str):
     """Programmatically adjust hash log mode (tests / UI) and re-init logger."""
@@ -134,6 +138,7 @@ def _ensure_logger():  # runtime init when mode activated
         except Exception:  # pragma: no cover
             pass
 
+
 def _log(kind: str, msg: str, level=logging.INFO):
     mode = (HASH_LOG_MODE or "none").lower()
     if mode == "none":
@@ -144,6 +149,7 @@ def _log(kind: str, msg: str, level=logging.INFO):
     except Exception:  # pragma: no cover
         pass
 
+
 def _fmt_display(path: str) -> str:
     mode = (HASH_LOG_MODE or "none").lower()
     if mode in {"path", "detailed", "debug"}:
@@ -151,11 +157,13 @@ def _fmt_display(path: str) -> str:
     # filename & other modes
     return os.path.basename(path)
 
+
 def _sidecar_error_once(sidecar: str, exc: Exception):  # noqa: D401
     if sidecar in _WARNED_SIDECAR:
         return
     _WARNED_SIDECAR.add(sidecar)
     _log("generic", f"sidecar write failed {sidecar}: {exc}", level=logging.WARNING)
+
 
 def _warn_unresolved_once(kind: str, token: str):
     key = f"{kind}:{token}"
@@ -164,20 +172,26 @@ def _warn_unresolved_once(kind: str, token: str):
     _WARNED_UNRESOLVED.add(key)
     _log(kind, f"unresolved {kind} '{token}'", level=logging.WARNING)
 
+
 def _maybe_debug_candidates(kind: str, display: str):
     from ..utils.pathresolve import _LAST_PROBE_CANDIDATES  # lazy import
+
     mode = (HASH_LOG_MODE or "none").lower()
     if mode == "debug" and _LAST_PROBE_CANDIDATES:
         _log(kind, f"candidates for '{display}': {_LAST_PROBE_CANDIDATES}")
 
+
 def _hash_file(kind: str, path: str, truncate: int = 10) -> str | None:
     # Centralized hashing with sidecar callback + timing & debug full hash
     from ..utils.pathresolve import load_or_calc_hash  # local import to avoid cycles
+
     mode = (HASH_LOG_MODE or "none").lower()
     start = time.perf_counter()
     fresh_computed = {"flag": False}
+
     def _on_compute(_):
         fresh_computed["flag"] = True
+
     hashed = load_or_calc_hash(
         path,
         truncate=truncate,
@@ -191,10 +205,12 @@ def _hash_file(kind: str, path: str, truncate: int = 10) -> str | None:
     if hashed and mode == "debug" and fresh_computed["flag"]:
         # Retrieve full hash by reloading sidecar (already written) without truncation
         from ..utils.pathresolve import load_or_calc_hash as _lc
+
         full_hash = _lc(path, truncate=None) or "?"
         dur_ms = (time.perf_counter() - start) * 1000.0
         _log(kind, f"full hash {os.path.basename(path)}={full_hash} ({dur_ms:.1f} ms)")
     return hashed
+
 
 cache_model_hash = {}
 logger = logging.getLogger(__name__)
@@ -341,8 +357,7 @@ def calc_model_hash(model_name: Any, input_data: list) -> str:
         exists_flag = bool(filename and os.path.exists(filename))
         _log(
             "model",
-            f"resolved (model) {display_name} -> {filename if filename else 'None'} "
-            f"exists={exists_flag}",
+            f"resolved (model) {display_name} -> {filename if filename else 'None'} " f"exists={exists_flag}",
         )
         _maybe_debug_candidates("model", str(display_name))
     if mode in {"filename", "path", "detailed", "debug"}:
@@ -371,7 +386,7 @@ def _vae_name_to_path(model_name: Any) -> tuple[str, str | None]:
         candidate = sanitized or original
         full: str | None = None
         try:
-                full = folder_paths.get_full_path("vae", candidate)
+            full = folder_paths.get_full_path("vae", candidate)
         except Exception:  # pragma: no cover
             full = None
         if not full or not os.path.exists(full):
@@ -435,8 +450,7 @@ def calc_vae_hash(model_name: Any, input_data: list) -> str:
         exists_flag = bool(filename and os.path.exists(filename))
         _log(
             "vae",
-            f"resolved (vae) {display_name} -> {filename if filename else 'None'} "
-            f"exists={exists_flag}",
+            f"resolved (vae) {display_name} -> {filename if filename else 'None'} " f"exists={exists_flag}",
         )
         _maybe_debug_candidates("vae", str(display_name))
     if mode in {"filename", "path", "detailed", "debug"}:
@@ -526,7 +540,7 @@ def calc_lora_hash(model_name: Any, input_data: list) -> str:
             if not fp or not os.path.exists(fp):
                 fp = _resolve_model_path_with_extensions("loras", original)
         # Index lookup as final fallback
-        if (not fp or not os.path.exists(fp)):
+        if not fp or not os.path.exists(fp):
             try:
                 info = find_lora_info(candidate)
                 if info and os.path.exists(info.get("abspath", "")):
@@ -598,8 +612,7 @@ def calc_lora_hash(model_name: Any, input_data: list) -> str:
         exists_flag = bool(full_path and os.path.exists(full_path))
         _log(
             "lora",
-            f"resolved (lora) {display_name} -> {full_path if full_path else 'None'} "
-            f"exists={exists_flag}",
+            f"resolved (lora) {display_name} -> {full_path if full_path else 'None'} " f"exists={exists_flag}",
         )
         _maybe_debug_candidates("lora", str(display_name))
     if mode in {"filename", "path", "detailed", "debug"}:
@@ -673,8 +686,7 @@ def calc_unet_hash(model_name: Any, input_data: list) -> str:
         exists_flag = bool(filename and os.path.exists(filename))
         _log(
             "unet",
-            f"resolved (unet) {model_name} -> {filename if filename else 'None'} "
-            f"exists={exists_flag}",
+            f"resolved (unet) {model_name} -> {filename if filename else 'None'} " f"exists={exists_flag}",
         )
         _maybe_debug_candidates("unet", str(model_name))
     if mode in {"filename", "path", "detailed", "debug"}:
@@ -750,20 +762,20 @@ def _extract_embedding_candidates(text, input_data):
     embedding_dir = None
 
     try:
-        data_map = input_data[0] if isinstance(input_data, (list, tuple)) and input_data else input_data
+        data_map = input_data[0] if isinstance(input_data, list | tuple) and input_data else input_data
     except Exception:
         data_map = None
 
     clip_container = None
     if isinstance(data_map, dict):
         clip_container = data_map.get("clip")
-    elif isinstance(data_map, (list, tuple)) and data_map:
+    elif isinstance(data_map, list | tuple) and data_map:
         # Some runtimes wrap map in a tuple already assessed above.
         maybe_map = data_map[0]
         if isinstance(maybe_map, dict):
             clip_container = maybe_map.get("clip")
 
-    if isinstance(clip_container, (list, tuple)) and clip_container:
+    if isinstance(clip_container, list | tuple) and clip_container:
         clip_ = clip_container[0]
     else:
         clip_ = clip_container

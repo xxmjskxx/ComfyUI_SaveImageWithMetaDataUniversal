@@ -66,6 +66,7 @@ class _OutputCacheCompat:
     Some ComfyUI versions call get_output_cache() while others call get_cache().
     This wrapper provides both methods for maximum compatibility.
     """
+
     def __init__(self, outputs_dict):
         self._outputs = outputs_dict if outputs_dict is not None else {}
 
@@ -108,6 +109,7 @@ def _read_pyproject_version() -> str | None:  # pragma: no cover - simple IO
             return None
     try:
         import pathlib
+
         here = pathlib.Path(__file__).resolve()
         for parent in here.parents:
             pyproject = parent / "pyproject.toml"
@@ -123,6 +125,7 @@ def _read_pyproject_version() -> str | None:  # pragma: no cover - simple IO
         return None
     return None
 
+
 try:
     _dist_version = importlib.metadata.version("SaveImageWithMetaDataUniversal")
 except importlib.metadata.PackageNotFoundError:
@@ -133,6 +136,7 @@ _RESOLVED_VERSION = (
     if (_pyproj_version and (_dist_version is None or _pyproj_version != _dist_version))
     else (_dist_version or _pyproj_version or "unknown")
 )
+
 
 def resolve_runtime_version() -> str:
     """Return version string (env override > cached pyproject/dist result).
@@ -167,9 +171,11 @@ def _include_lora_summary() -> bool:  # noqa: D401
 
 logger = logging.getLogger(__name__)
 
+
 def _debug_prompts_enabled() -> bool:
     """Return True if verbose prompt/sampler debug logging is enabled (runtime evaluated)."""
     return os.environ.get("METADATA_DEBUG_PROMPTS", "").strip() != ""
+
 
 # If user toggled debug flag, ensure logger emits DEBUG regardless of inherited root level.
 if _debug_prompts_enabled():
@@ -384,10 +390,7 @@ class Capture:
                     values = [
                         v[0]
                         for k, v in input_data[0].items()
-                        if k.startswith(prefix)
-                        and isinstance(v, list)
-                        and v
-                        and v[0] != "None"
+                        if k.startswith(prefix) and isinstance(v, list) and v and v[0] != "None"
                     ]
                     for val in values:
                         inputs[meta].append((node_id, val))
@@ -439,8 +442,7 @@ class Capture:
                                                 "\\" in v_str
                                                 or "/" in v_str
                                                 or any(
-                                                    vl.endswith(ext)
-                                                    for ext in pathresolve.SUPPORTED_MODEL_EXTENSIONS
+                                                    vl.endswith(ext) for ext in pathresolve.SUPPORTED_MODEL_EXTENSIONS
                                                 )
                                             )
                                         # If user enabled hash logging, allow calling even for name-like tokens
@@ -560,10 +562,7 @@ class Capture:
                                     looks_like_file = (
                                         "\\" in v_str
                                         or "/" in v_str
-                                        or any(
-                                            vl.endswith(ext)
-                                            for ext in pathresolve.SUPPORTED_MODEL_EXTENSIONS
-                                        )
+                                        or any(vl.endswith(ext) for ext in pathresolve.SUPPORTED_MODEL_EXTENSIONS)
                                     )
                                 try:
                                     log_mode = getattr(_hashfmt, "HASH_LOG_MODE", "none")
@@ -882,8 +881,8 @@ class Capture:
         _merge_prompt_variants(MetaField.POSITIVE_PROMPT, positive=True)
         _merge_prompt_variants(MetaField.NEGATIVE_PROMPT, positive=False)
 
-    # Post-pass: If Negative prompt was never truly provided (empty, 'none',
-    # or identical to positive with no variant merge), blank it.
+        # Post-pass: If Negative prompt was never truly provided (empty, 'none',
+        # or identical to positive with no variant merge), blank it.
         neg_raw = pnginfo_dict.get("Negative prompt")
         pos_raw = pnginfo_dict.get("Positive prompt")
 
@@ -968,16 +967,12 @@ class Capture:
                         pnginfo_dict["CLIP Prompt"] = pos_prompt_val
                         if DEBUG_PROMPTS:
                             logger.debug(
-                                cstr(
-                                    "[Metadata Debug] Dual prompt aliasing applied with clip_names=%s"
-                                ).msg,
+                                cstr("[Metadata Debug] Dual prompt aliasing applied with clip_names=%s").msg,
                                 clip_names,
                             )
                     elif DEBUG_PROMPTS:
                         logger.debug(
-                            cstr(
-                                "[Metadata Debug] Dual prompt aliasing conditions not met clip_names=%s"
-                            ).msg,
+                            cstr("[Metadata Debug] Dual prompt aliasing conditions not met clip_names=%s").msg,
                             clip_names,
                         )
         except Exception:
@@ -1011,17 +1006,13 @@ class Capture:
         # Fallback: some sampler nodes may have their own inputs excluded by the "before sampler" boundary.
         # If we missed SAMPLER_NAME upstream, attempt to recover it from the full pre-this-node capture set.
         if not sampler_names:
-            fallback_sampler_names = inputs_before_this_node.get(
-                MetaField.SAMPLER_NAME, []
-            )
+            fallback_sampler_names = inputs_before_this_node.get(MetaField.SAMPLER_NAME, [])
             if fallback_sampler_names:
                 sampler_names = fallback_sampler_names
                 if _debug_prompts_enabled():
                     try:
                         logger.debug(
-                            cstr(
-                                "[Metadata Debug] Recovered sampler_names from inputs_before_this_node: %r"
-                            ).msg,
+                            cstr("[Metadata Debug] Recovered sampler_names from inputs_before_this_node: %r").msg,
                             sampler_names,
                         )
                     except Exception:
@@ -1060,9 +1051,7 @@ class Capture:
                         sampler_names = [(nid, raw_val, "sampler_name")]  # reshape to captured tuple form
                         if _debug_prompts_enabled():
                             logger.debug(
-                                cstr(
-                                    "[Metadata Debug] Sampler name recovered via graph introspection from %s: %r"
-                                ).msg,
+                                cstr("[Metadata Debug] Sampler name recovered via graph introspection from %s: %r").msg,
                                 ctype,
                                 sampler_names,
                             )
@@ -1099,6 +1088,7 @@ class Capture:
                 "uni_pc",
                 "uni_pc_bh2",
             }
+
             def _scan_for_token(src_dict):
                 for vals in src_dict.values():
                     for v in Capture._iter_values(vals):
@@ -1109,13 +1099,12 @@ class Capture:
                         if s in KNOWN_SAMPLER_TOKENS:
                             return [("heuristic_sampler", v)]
                 return []
+
             sampler_names = _scan_for_token(inputs_before_sampler_node)
             if not sampler_names:
                 sampler_names = _scan_for_token(inputs_before_this_node)
             if sampler_names and _debug_prompts_enabled():
-                logger.debug(
-                    "[Metadata Debug] Heuristic sampler token recovered: %r", sampler_names
-                )
+                logger.debug("[Metadata Debug] Heuristic sampler token recovered: %r", sampler_names)
 
         # Re-prioritize sampler_names: prefer entries whose field tag (3rd tuple element) is 'sampler_name'
         # and whose value is a clean string, ahead of generic 'sampler' object references that stringify to
@@ -1139,9 +1128,7 @@ class Capture:
                     except Exception:
                         sval = ""
                 if (
-                    field_name == "sampler_name"
-                    and sval
-                    and not sval.strip().startswith("<")  # skip raw object reprs
+                    field_name == "sampler_name" and sval and not sval.strip().startswith("<")  # skip raw object reprs
                 ):
                     preferred.append(ent)
                 else:
@@ -1201,9 +1188,9 @@ class Capture:
                         recovered_nid = nid
                         break
                 if recovered:
-                    sampler_names = [
-                        (recovered_nid, recovered, recovered_field or "sampler_name")
-                    ] + (sampler_names or [])
+                    sampler_names = [(recovered_nid, recovered, recovered_field or "sampler_name")] + (
+                        sampler_names or []
+                    )
                     clean_sampler_text = recovered
                     if _debug_prompts_enabled():
                         logger.debug(
@@ -1302,8 +1289,8 @@ class Capture:
 
         update_pnginfo_dict(inputs_before_sampler_node, MetaField.CLIP_SKIP, "Clip skip")
 
-    # Size handling: support discrete width/height, a single dimensions tuple,
-    # or strings like "832 x 1216  (portrait)"
+        # Size handling: support discrete width/height, a single dimensions tuple,
+        # or strings like "832 x 1216  (portrait)"
         image_widths = inputs_before_sampler_node.get(MetaField.IMAGE_WIDTH, [])
         image_heights = inputs_before_sampler_node.get(MetaField.IMAGE_HEIGHT, [])
         size_set = False
@@ -1767,8 +1754,8 @@ class Capture:
         if _mgv is not None:
             ordered_items.append(("Metadata generator version", _mgv))
 
-    # Safety pass: ensure critical legacy fields captured if they existed in
-    # original pnginfo but were somehow missed.
+        # Safety pass: ensure critical legacy fields captured if they existed in
+        # original pnginfo but were somehow missed.
         critical_fields = [
             "Steps",
             "Sampler",
@@ -1870,7 +1857,7 @@ class Capture:
                         # Represent full-run steps as 0-(steps-1) only if there are segment samplers too
                         any_segments = any(x.get("start_step") is not None for x in multi_entries)
                         if any_segments and isinstance(e.get("steps"), int):
-                            rng = f"0-{int(e['steps'])-1}" if int(e['steps']) > 0 else "0-0"
+                            rng = f"0-{int(e['steps'])-1}" if int(e["steps"]) > 0 else "0-0"
                             segs.append(f"{name} ({rng})")
                         else:
                             segs.append(f"{name}")
@@ -2392,9 +2379,7 @@ class Capture:
         if _debug_prompts_enabled():
             try:
                 logger.debug(
-                    cstr(
-                        "[Metadata Debug] Civitai mapper unwrapped sampler=%r scheduler=%r (pre-scan)"
-                    ).msg,
+                    cstr("[Metadata Debug] Civitai mapper unwrapped sampler=%r scheduler=%r (pre-scan)").msg,
                     sampler,
                     scheduler,
                 )
@@ -2417,11 +2402,7 @@ class Capture:
         if not sampler and sampler_names:
             raw_entry = sampler_names[0]
             try:
-                raw_value = (
-                    raw_entry[1]
-                    if isinstance(raw_entry, list | tuple) and len(raw_entry) > 1
-                    else raw_entry
-                )
+                raw_value = raw_entry[1] if isinstance(raw_entry, list | tuple) and len(raw_entry) > 1 else raw_entry
             except Exception:
                 raw_value = raw_entry
             # Attempt to mine known sampler tokens from attributes / __dict__
@@ -2472,9 +2453,7 @@ class Capture:
         if _debug_prompts_enabled():
             try:
                 logger.debug(
-                    cstr(
-                        "[Metadata Debug] Civitai mapper tokens sampler_l=%r scheduler_l=%r"
-                    ).msg,
+                    cstr("[Metadata Debug] Civitai mapper tokens sampler_l=%r scheduler_l=%r").msg,
                     sampler_l,
                     scheduler_l,
                 )
@@ -2485,9 +2464,7 @@ class Capture:
         if not sampler:
             if _debug_prompts_enabled():
                 logger.debug(
-                    cstr(
-                        "[Metadata Debug] Civitai mapper: missing sampler; returning scheduler=%r"
-                    ).msg,
+                    cstr("[Metadata Debug] Civitai mapper: missing sampler; returning scheduler=%r").msg,
                     scheduler,
                 )
             return scheduler or ""

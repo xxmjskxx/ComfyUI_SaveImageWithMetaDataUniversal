@@ -6,13 +6,10 @@ from .diff_utils import parse_diff_report
 
 # We will monkeypatch defs.CAPTURE_FIELD_LIST and defs.SAMPLERS to simulate existing baseline
 
+
 def test_missing_lens_filters_existing_metafields(monkeypatch):
-    defs_mod = importlib.import_module(
-        "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs"
-    )
-    nodes_pkg = importlib.import_module(
-        "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes"
-    )
+    defs_mod = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs")
+    nodes_pkg = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes")
 
     class DummyNode:
         @classmethod
@@ -62,12 +59,8 @@ def test_missing_lens_filters_existing_metafields(monkeypatch):
 
 
 def test_missing_lens_filters_sampler_roles(monkeypatch):
-    defs_mod = importlib.import_module(
-        "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs"
-    )
-    nodes_pkg = importlib.import_module(
-        "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes"
-    )
+    defs_mod = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs")
+    nodes_pkg = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes")
 
     class DummySampler:
         @classmethod
@@ -78,6 +71,7 @@ def test_missing_lens_filters_sampler_roles(monkeypatch):
     # Also register in the global 'nodes' stub module used by scanner (import nodes)
     try:  # pragma: no cover - registration glue
         import nodes as _global_nodes  # type: ignore
+
         _global_nodes.NODE_CLASS_MAPPINGS["RoleSamplerNode"] = DummySampler  # type: ignore
     except (ImportError, AttributeError):  # environment may not expose global nodes
         # Swallow only expected import/attr errors; other exceptions should surface.
@@ -88,6 +82,7 @@ def test_missing_lens_filters_sampler_roles(monkeypatch):
         # Invalidate scanner baseline cache so it reflects injected baseline roles
         try:  # pragma: no cover - cache reset glue
             import ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.scanner as scan_mod  # type: ignore
+
             if hasattr(scan_mod, "_BASELINE_CACHE"):
                 delattr(scan_mod, "_BASELINE_CACHE")
         except (ImportError, AttributeError):
@@ -118,9 +113,7 @@ def test_missing_lens_filters_sampler_roles(monkeypatch):
         if "RoleSamplerNode" in on_payload["samplers"]:
             # Allow equal count if baseline cache did not include injected roles.
             # Primary guarantee: missing-lens never increases number of roles.
-            assert len(on_payload["samplers"]["RoleSamplerNode"]) <= len(
-                off_payload["samplers"]["RoleSamplerNode"]
-            )
+            assert len(on_payload["samplers"]["RoleSamplerNode"]) <= len(off_payload["samplers"]["RoleSamplerNode"])
     finally:
         nodes_pkg.NODE_CLASS_MAPPINGS.pop("RoleSamplerNode", None)
         defs_mod.SAMPLERS.pop("RoleSamplerNode", None)

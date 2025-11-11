@@ -74,12 +74,12 @@ def create_test_files():  # pragma: no cover - file system helper
 # if tests import the module then delete/regenerate it, coverage still has a
 # source file to attribute (prevents 'No source for code' error in CI when the
 # file is momentarily absent at report time). The real writer will overwrite.
-_ext_dir = os.path.join(_ROOT, 'saveimage_unimeta', 'defs', 'ext')
+_ext_dir = os.path.join(_ROOT, "saveimage_unimeta", "defs", "ext")
 try:
     os.makedirs(_ext_dir, exist_ok=True)
-    _placeholder = os.path.join(_ext_dir, 'generated_user_rules.py')
+    _placeholder = os.path.join(_ext_dir, "generated_user_rules.py")
     if not os.path.exists(_placeholder):
-        with open(_placeholder, 'w', encoding='utf-8') as _f:
+        with open(_placeholder, "w", encoding="utf-8") as _f:
             _f.write(
                 "# Placeholder generated_user_rules.py for test coverage stability.\n"
                 "CAPTURE_FIELD_LIST = {}\n"
@@ -120,7 +120,7 @@ if "comfy" not in sys.modules:  # pragma: no cover
     for sub in [
         "sd1_clip",
         "sd2_clip",
-        "clip_model" ,
+        "clip_model",
         "model_management",
     ]:
         m = types.ModuleType(f"comfy.{sub}")
@@ -145,8 +145,10 @@ if "saveimage_unimeta.hook" not in sys.modules:  # pragma: no cover
     hook_mod.current_extra_data = {}
     hook_mod.prompt_executer = _PromptExecuterStub()
     hook_mod.current_save_image_node_id = -1
+
     def _noop(*a, **k):
         return None
+
     hook_mod.pre_execute = _noop
     hook_mod.pre_get_input_data = _noop
     sys.modules["saveimage_unimeta.hook"] = hook_mod
@@ -169,6 +171,8 @@ def node_instance(tmp_path):
     node = SaveImageWithMetaDataUniversal()
     node.output_dir = str(tmp_path)
     return node
+
+
 # Ensure project root is on sys.path so that
 # 'ComfyUI_SaveImageWithMetaDataUniversal' can be imported in tests.
 
@@ -176,8 +180,8 @@ def node_instance(tmp_path):
 os.environ.setdefault("METADATA_TEST_MODE", "1")
 
 TESTS_DIR = os.path.dirname(__file__)
-PROJECT_ROOT = os.path.abspath(os.path.join(TESTS_DIR, '..'))
-CUSTOM_NODES_PARENT = os.path.abspath(os.path.join(PROJECT_ROOT, '..'))
+PROJECT_ROOT = os.path.abspath(os.path.join(TESTS_DIR, ".."))
+CUSTOM_NODES_PARENT = os.path.abspath(os.path.join(PROJECT_ROOT, ".."))
 
 for path in (CUSTOM_NODES_PARENT, PROJECT_ROOT):
     if path not in sys.path:
@@ -192,8 +196,12 @@ except Exception:  # noqa: BLE001 - tests bootstrap
 # Provide a lightweight stub for folder_paths expected by some modules during import.
 if "folder_paths" not in sys.modules:  # pragma: no cover - environment setup
     import types
+
     fp = types.ModuleType("folder_paths")
-    def _no_op(*_a, **_kw): return None
+
+    def _no_op(*_a, **_kw):
+        return None
+
     # Minimal API surface used in code
     fp.get_output_directory = lambda: "."
     fp.get_save_image_path = lambda *a, **k: (".", "", "test.png", None)
@@ -204,6 +212,7 @@ if "folder_paths" not in sys.modules:  # pragma: no cover - environment setup
 # Provide comfy tokenizer stubs
 if "comfy" not in sys.modules:  # pragma: no cover
     import types
+
     comfy = types.ModuleType("comfy")
     sd1_clip = types.ModuleType("comfy.sd1_clip")
     sdxl_clip = types.ModuleType("comfy.sdxl_clip")
@@ -214,15 +223,25 @@ if "comfy" not in sys.modules:  # pragma: no cover
 
     class _BaseTokenizer:  # minimal placeholder
         pass
+
     class SD1Tokenizer(_BaseTokenizer): ...
+
     class SDXLTokenizer(_BaseTokenizer): ...
+
     class FluxTokenizer(_BaseTokenizer): ...
+
     class SD2Tokenizer(_BaseTokenizer): ...
+
     class SD3Tokenizer(_BaseTokenizer): ...
 
-    def escape_important(x): return x
-    def unescape_important(x): return x
-    def token_weights(x): return []
+    def escape_important(x):
+        return x
+
+    def unescape_important(x):
+        return x
+
+    def token_weights(x):
+        return []
 
     sd1_clip.SD1Tokenizer = SD1Tokenizer
     sd1_clip.escape_important = escape_important
@@ -249,6 +268,7 @@ if "comfy" not in sys.modules:  # pragma: no cover
 # Provide minimal 'nodes' module with NODE_CLASS_MAPPINGS used in capture.
 if "nodes" not in sys.modules:  # pragma: no cover
     import types
+
     nodes_mod = types.ModuleType("nodes")
     nodes_mod.NODE_CLASS_MAPPINGS = {}
     nodes_mod.checkpoint_nodes = {}
@@ -274,10 +294,12 @@ def reset_env_flags():
             else:
                 os.environ[k] = v
 
+
 # -----------------------------
 # Test mode detection utilities
 # -----------------------------
 _TEST_MODE_TRUTHY = {"1", "true", "yes", "on"}
+
 
 def metadata_test_mode_enabled() -> bool:
     """Return True if METADATA_TEST_MODE is explicitly enabled.
@@ -286,6 +308,7 @@ def metadata_test_mode_enabled() -> bool:
     use identical truthiness semantics.
     """
     return os.environ.get("METADATA_TEST_MODE", "").strip().lower() in _TEST_MODE_TRUTHY
+
 
 @pytest.fixture()
 def metadata_test_mode():  # pragma: no cover - trivial accessor

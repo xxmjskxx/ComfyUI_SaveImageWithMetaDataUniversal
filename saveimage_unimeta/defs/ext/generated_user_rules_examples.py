@@ -28,6 +28,7 @@ Recommended approach
 2) Use these examples to refine or extend capture for special nodes.
 3) Save an image and review the parameter string to validate your changes.
 """
+
 from typing import Any
 from collections.abc import Mapping
 
@@ -46,6 +47,7 @@ from ..validators import (
     is_negative_prompt,
 )
 from ..selectors import select_stack_by_prefix
+
 
 # Self-contained LoRA stack helpers to mirror the generator output.
 # These avoid importing from other extension modules.
@@ -77,6 +79,7 @@ def get_lora_strength_clip_stack(node_id, obj, prompt, extra_data, outputs, inpu
         pass  # Fall back to simple mode if advanced mode check fails
     return select_stack_by_prefix(input_data, "lora_wt", counter_key="lora_count")
 
+
 # This mirrors the indirection used by generated_user_rules.py
 KNOWN = {
     "calc_model_hash": calc_model_hash,
@@ -100,24 +103,20 @@ CAPTURE_FIELD_LIST_EXAMPLES: dict[str, Mapping[MetaField, Mapping[str, Any]]] = 
         MetaField.MODEL_NAME: {"field_name": "ckpt_name"},
         MetaField.MODEL_HASH: {"field_name": "ckpt_name", "format": KNOWN["calc_model_hash"]},
     },
-
     # Example 2: CLIP text encoders with validation for prompt roles
     "CLIPTextEncode": {
         MetaField.POSITIVE_PROMPT: {"field_name": "text", "validate": KNOWN["is_positive_prompt"]},
         MetaField.NEGATIVE_PROMPT: {"field_name": "text", "validate": KNOWN["is_negative_prompt"]},
     },
-
     # Example 3: CLIP loaders capturing multiple inputs by prefix (clip_name, clip_name1, clip_name2, ...)
     "CLIPLoader": {
         MetaField.CLIP_MODEL_NAME: {"prefix": "clip_name"},
     },
-
     # Example 4: VAE loader with hash calculation
     "VAELoader": {
         MetaField.VAE_NAME: {"field_name": "vae_name"},
         MetaField.VAE_HASH: {"field_name": "vae_name", "format": KNOWN["calc_vae_hash"]},
     },
-
     # Example 5: Sampler core fields
     "KSampler": {
         MetaField.SEED: {"field_name": "seed"},
@@ -126,7 +125,6 @@ CAPTURE_FIELD_LIST_EXAMPLES: dict[str, Mapping[MetaField, Mapping[str, Any]]] = 
         MetaField.SAMPLER_NAME: {"field_name": "sampler_name"},
         MetaField.SCHEDULER: {"field_name": "scheduler"},
     },
-
     # Example 6: LoRA loader including strengths and hash
     "LoraLoader": {
         MetaField.LORA_MODEL_NAME: {"field_name": "lora_name"},
@@ -138,12 +136,10 @@ CAPTURE_FIELD_LIST_EXAMPLES: dict[str, Mapping[MetaField, Mapping[str, Any]]] = 
         # MetaField.LORA_STRENGTH_MODEL: {"fields": ["strength_clip", "strength_model"]},
         # MetaField.LORA_STRENGTH_CLIP: {"fields": ["strength_clip", "strength_model"]},
     },
-
     # Example 7: Inline constant value (when the node doesn’t expose it)
     "SomeCustomNode": {
         MetaField.DENOISE: {"value": 1.0},
     },
-
     # Example 8: UNet loaders
     "UNETLoader": {
         MetaField.MODEL_NAME: {"field_name": "unet_name"},

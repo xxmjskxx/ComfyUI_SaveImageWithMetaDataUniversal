@@ -17,6 +17,7 @@ def _passthrough(value, *_):
     """Return value unchanged (helper for pre-hashed stub inputs)."""
     return value
 
+
 # import os
 # import json
 

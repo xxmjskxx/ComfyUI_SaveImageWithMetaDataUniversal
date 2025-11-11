@@ -1,5 +1,6 @@
 # mostly from https://github.com/ltdrdata/was-node-suite-comfyui/blob/main/WAS_Node_Suite.py
 
+
 class cstr(str):  # noqa: N801 - external public API relies on lowercase name
     class color:  # noqa: N801 - nested helper intentionally lowercase for attribute style access
         END = "\33[0m"

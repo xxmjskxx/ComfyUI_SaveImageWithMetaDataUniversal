@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 # Add comfyui_cli_tests directory to path to import validate_metadata
-sys.path.insert(0, str(Path(__file__).parent / 'comfyui_cli_tests'))
+sys.path.insert(0, str(Path(__file__).parent / "comfyui_cli_tests"))
 
 from validate_metadata import MetadataValidator
 
@@ -17,7 +17,7 @@ class TestMetadataQualityValidation:
 
     def test_detect_na_values(self):
         """Test that N/A values in metadata are detected as errors."""
-        validator = MetadataValidator(Path('.'), Path('.'))
+        validator = MetadataValidator(Path("."), Path("."))
 
         params_str = (
             "test prompt\nNegative prompt: bad\n"
@@ -26,21 +26,21 @@ class TestMetadataQualityValidation:
         )
 
         fields = validator.parse_parameters_string(params_str)
-        result = {'errors': [], 'warnings': []}
+        result = {"errors": [], "warnings": []}
 
         # Check for N/A values
         for field_name, field_value in fields.items():
-            if field_value == 'N/A' or 'N/A' in field_value:
-                result['errors'].append(f"Field '{field_name}' contains 'N/A' value")
+            if field_value == "N/A" or "N/A" in field_value:
+                result["errors"].append(f"Field '{field_name}' contains 'N/A' value")
 
         # Should detect N/A in both Embedding_0 hash and Model hash
-        assert len(result['errors']) == 2
-        assert any('Embedding_0 hash' in err for err in result['errors'])
-        assert any('Model hash' in err for err in result['errors'])
+        assert len(result["errors"]) == 2
+        assert any("Embedding_0 hash" in err for err in result["errors"])
+        assert any("Model hash" in err for err in result["errors"])
 
     def test_detect_prompts_as_embedding_names(self):
         """Test that prompts incorrectly recorded as embedding names are detected."""
-        validator = MetadataValidator(Path('.'), Path('.'))
+        validator = MetadataValidator(Path("."), Path("."))
 
         # Very long "embedding name" suggests it's actually a prompt
         long_prompt = (
@@ -55,28 +55,25 @@ class TestMetadataQualityValidation:
         )
 
         fields = validator.parse_parameters_string(params_str)
-        result = {'errors': [], 'warnings': []}
+        result = {"errors": [], "warnings": []}
 
         # Validate embeddings
         validator._validate_embedding_fields(fields, result)
 
         # Check if Hashes validation detects the issue
-        if 'Hashes' in fields:
-            hashes_dict = json.loads(fields['Hashes'])
+        if "Hashes" in fields:
+            hashes_dict = json.loads(fields["Hashes"])
             validator._validate_hashes_summary(fields, hashes_dict, result)
 
         # Should detect that the embedding name is too long to be a real embedding
-        assert any('appears to be a prompt' in err for err in result['errors'])
+        assert any("appears to be a prompt" in err for err in result["errors"])
 
     def test_detect_prompts_as_embedding_hashes(self):
         """Test that prompts incorrectly recorded as embedding hashes are detected."""
-        validator = MetadataValidator(Path('.'), Path('.'))
+        validator = MetadataValidator(Path("."), Path("."))
 
         # Hash that's actually a prompt
-        fake_hash = (
-            "This is clearly a prompt not a hash value because hashes are "
-            "short alphanumeric strings"
-        )
+        fake_hash = "This is clearly a prompt not a hash value because hashes are " "short alphanumeric strings"
         params_str = (
             f"test prompt\nNegative prompt: bad\n"
             f"Steps: 20, Sampler: euler, Seed: 123, "
@@ -84,32 +81,32 @@ class TestMetadataQualityValidation:
         )
 
         fields = validator.parse_parameters_string(params_str)
-        result = {'errors': [], 'warnings': []}
+        result = {"errors": [], "warnings": []}
 
         validator._validate_embedding_fields(fields, result)
 
         # Should detect that the embedding hash is too long to be a real hash
-        assert any('Embedding hash' in err and 'appears to be a prompt' in err for err in result['errors'])
+        assert any("Embedding hash" in err and "appears to be a prompt" in err for err in result["errors"])
 
     def test_detect_trailing_punctuation_in_embedding_names(self):
         """Test that trailing punctuation in embedding names is detected."""
-        validator = MetadataValidator(Path('.'), Path('.'))
+        validator = MetadataValidator(Path("."), Path("."))
 
         params_str = """test prompt
 Negative prompt: bad
 Steps: 20, Sampler: euler, Seed: 123, Embedding_0 name: EasyNegative,,, Embedding_0 hash: abc123"""
 
         fields = validator.parse_parameters_string(params_str)
-        result = {'errors': [], 'warnings': []}
+        result = {"errors": [], "warnings": []}
 
         validator._validate_embedding_fields(fields, result)
 
         # Should detect trailing commas
-        assert any('trailing punctuation' in err for err in result['errors'])
+        assert any("trailing punctuation" in err for err in result["errors"])
 
     def test_detect_wrong_embedding_index_in_hashes(self):
         """Test that wrong embedding indexing in Hashes summary is detected."""
-        validator = MetadataValidator(Path('.'), Path('.'))
+        validator = MetadataValidator(Path("."), Path("."))
 
         params_str = (
             "test prompt\nNegative prompt: bad\n"
@@ -120,19 +117,19 @@ Steps: 20, Sampler: euler, Seed: 123, Embedding_0 name: EasyNegative,,, Embeddin
         )
 
         fields = validator.parse_parameters_string(params_str)
-        result = {'errors': [], 'warnings': []}
+        result = {"errors": [], "warnings": []}
 
-        if 'Hashes' in fields:
-            hashes_dict = json.loads(fields['Hashes'])
+        if "Hashes" in fields:
+            hashes_dict = json.loads(fields["Hashes"])
             validator._validate_hashes_summary(fields, hashes_dict, result)
 
         # Should detect that embed:10 is wrong (should be embed:FastNegativeV2)
         # and that EasyNegative is missing from Hashes
-        assert any('wrong key' in err or 'missing from Hashes' in err for err in result['errors'])
+        assert any("wrong key" in err or "missing from Hashes" in err for err in result["errors"])
 
     def test_detect_missing_embeddings_from_hashes(self):
         """Test that embeddings missing from Hashes summary are detected."""
-        validator = MetadataValidator(Path('.'), Path('.'))
+        validator = MetadataValidator(Path("."), Path("."))
 
         params_str = (
             "test prompt\nNegative prompt: bad\n"
@@ -143,18 +140,18 @@ Steps: 20, Sampler: euler, Seed: 123, Embedding_0 name: EasyNegative,,, Embeddin
         )
 
         fields = validator.parse_parameters_string(params_str)
-        result = {'errors': [], 'warnings': []}
+        result = {"errors": [], "warnings": []}
 
-        if 'Hashes' in fields:
-            hashes_dict = json.loads(fields['Hashes'])
+        if "Hashes" in fields:
+            hashes_dict = json.loads(fields["Hashes"])
             validator._validate_hashes_summary(fields, hashes_dict, result)
 
         # Should detect that both embeddings are missing from Hashes
-        assert len([err for err in result['errors'] if 'missing from Hashes' in err]) == 2
+        assert len([err for err in result["errors"] if "missing from Hashes" in err]) == 2
 
     def test_detect_missing_lora_from_hashes(self):
         """Test that LoRAs missing from Hashes summary are detected."""
-        validator = MetadataValidator(Path('.'), Path('.'))
+        validator = MetadataValidator(Path("."), Path("."))
 
         params_str = (
             "test prompt\nNegative prompt: bad\n"
@@ -164,18 +161,18 @@ Steps: 20, Sampler: euler, Seed: 123, Embedding_0 name: EasyNegative,,, Embeddin
         )
 
         fields = validator.parse_parameters_string(params_str)
-        result = {'errors': [], 'warnings': []}
+        result = {"errors": [], "warnings": []}
 
-        if 'Hashes' in fields:
-            hashes_dict = json.loads(fields['Hashes'])
+        if "Hashes" in fields:
+            hashes_dict = json.loads(fields["Hashes"])
             validator._validate_hashes_summary(fields, hashes_dict, result)
 
         # Should detect that LoRA is missing from Hashes
-        assert any('missing from Hashes' in err and 'test_lora' in err for err in result['errors'])
+        assert any("missing from Hashes" in err and "test_lora" in err for err in result["errors"])
 
     def test_detect_hash_mismatch_embedding(self):
         """Test that hash mismatches between metadata and Hashes are detected for embeddings."""
-        validator = MetadataValidator(Path('.'), Path('.'))
+        validator = MetadataValidator(Path("."), Path("."))
 
         params_str = (
             "test prompt\nNegative prompt: bad\n"
@@ -185,18 +182,18 @@ Steps: 20, Sampler: euler, Seed: 123, Embedding_0 name: EasyNegative,,, Embeddin
         )
 
         fields = validator.parse_parameters_string(params_str)
-        result = {'errors': [], 'warnings': []}
+        result = {"errors": [], "warnings": []}
 
-        if 'Hashes' in fields:
-            hashes_dict = json.loads(fields['Hashes'])
+        if "Hashes" in fields:
+            hashes_dict = json.loads(fields["Hashes"])
             validator._validate_hashes_summary(fields, hashes_dict, result)
 
         # Should detect hash mismatch
-        assert any('hash mismatch' in err.lower() for err in result['errors'])
+        assert any("hash mismatch" in err.lower() for err in result["errors"])
 
     def test_detect_hash_mismatch_lora(self):
         """Test that hash mismatches between metadata and Hashes are detected for LoRAs."""
-        validator = MetadataValidator(Path('.'), Path('.'))
+        validator = MetadataValidator(Path("."), Path("."))
 
         params_str = (
             "test prompt\nNegative prompt: bad\n"
@@ -206,18 +203,18 @@ Steps: 20, Sampler: euler, Seed: 123, Embedding_0 name: EasyNegative,,, Embeddin
         )
 
         fields = validator.parse_parameters_string(params_str)
-        result = {'errors': [], 'warnings': []}
+        result = {"errors": [], "warnings": []}
 
-        if 'Hashes' in fields:
-            hashes_dict = json.loads(fields['Hashes'])
+        if "Hashes" in fields:
+            hashes_dict = json.loads(fields["Hashes"])
             validator._validate_hashes_summary(fields, hashes_dict, result)
 
         # Should detect hash mismatch
-        assert any('hash mismatch' in err.lower() for err in result['errors'])
+        assert any("hash mismatch" in err.lower() for err in result["errors"])
 
     def test_detect_hash_mismatch_model(self):
         """Test that hash mismatches between metadata and Hashes are detected for models."""
-        validator = MetadataValidator(Path('.'), Path('.'))
+        validator = MetadataValidator(Path("."), Path("."))
 
         params_str = (
             "test prompt\nNegative prompt: bad\n"
@@ -226,15 +223,15 @@ Steps: 20, Sampler: euler, Seed: 123, Embedding_0 name: EasyNegative,,, Embeddin
         )
 
         fields = validator.parse_parameters_string(params_str)
-        result = {'errors': [], 'warnings': []}
+        result = {"errors": [], "warnings": []}
 
-        if 'Hashes' in fields:
-            hashes_dict = json.loads(fields['Hashes'])
+        if "Hashes" in fields:
+            hashes_dict = json.loads(fields["Hashes"])
             validator._validate_hashes_summary(fields, hashes_dict, result)
 
         # Should detect hash mismatch
-        assert any('hash mismatch' in err.lower() for err in result['errors'])
+        assert any("hash mismatch" in err.lower() for err in result["errors"])
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

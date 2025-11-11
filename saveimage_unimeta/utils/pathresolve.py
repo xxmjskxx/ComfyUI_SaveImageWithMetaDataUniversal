@@ -19,6 +19,7 @@ NOTE: This module intentionally duplicates *some* logic now present in
 `defs/formatters.py`; subsequent refactors will remove that duplication once
 stability is verified.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -33,10 +34,13 @@ import folder_paths  # type: ignore
 try:  # local import guarded for tests (calc_hash optional patch)
     from .hash import calc_hash  # type: ignore
 except (ImportError, ModuleNotFoundError):  # pragma: no cover - test fallback
+
     def calc_hash(path: str) -> str:  # type: ignore
         import hashlib
-        with open(path, 'rb') as f:
+
+        with open(path, "rb") as f:
             return hashlib.sha256(f.read()).hexdigest()
+
 
 # Central, user-maintainable list of supported model/LoRA/VAE/UNet/embedding extensions
 # Order matters: earlier entries are preferred when multiple variants share a stem.
@@ -89,9 +93,7 @@ def sanitize_candidate(name: str, trim_trailing_punct: bool = True) -> str:
         return str(name)
     # Strip outer whitespace then symmetric single/double quote wrapping
     cleaned = name.strip()
-    if (cleaned.startswith("'") and cleaned.endswith("'")) or (
-        cleaned.startswith('"') and cleaned.endswith('"')
-    ):
+    if (cleaned.startswith("'") and cleaned.endswith("'")) or (cleaned.startswith('"') and cleaned.endswith('"')):
         if len(cleaned) >= 2:
             cleaned = cleaned[1:-1]
     if trim_trailing_punct:
@@ -224,9 +226,7 @@ def try_resolve_artifact(
             return obj, path
 
         # Container cases
-        if isinstance(obj, list | tuple | dict) or any(
-            hasattr(obj, a) for a in RESOLUTION_ATTR_KEYS
-        ):
+        if isinstance(obj, list | tuple | dict) or any(hasattr(obj, a) for a in RESOLUTION_ATTR_KEYS):
             for cand in _iter_container_candidates(obj):
                 dn, fp = _recurse(cand, depth + 1)
                 if fp:

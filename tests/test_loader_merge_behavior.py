@@ -61,6 +61,7 @@ class TestLoaderMergeBehavior:
             # In CI with METADATA_TEST_MODE enabled defaults may intentionally be empty; skip.
             if metadata_test_mode:
                 import pytest as _pytest
+
                 _pytest.skip("Baseline empty under test mode; skip coverage satisfied scenario.")
             raise AssertionError("Expected defaults/ext to provide some coverage")
         covered_subset = set(list(cover)[: min(3, len(cover))])
@@ -80,6 +81,7 @@ class TestLoaderMergeBehavior:
         if not CAPTURE_FIELD_LIST:
             if metadata_test_mode:
                 import pytest as _pytest
+
                 _pytest.skip("Baseline empty under test mode; skip merge test.")
             raise AssertionError("Expected baseline captures to be non-empty")
         existing_class = next(iter(CAPTURE_FIELD_LIST.keys()))

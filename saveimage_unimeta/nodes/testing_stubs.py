@@ -20,7 +20,7 @@ def _make_batch(batch_size: int, height: int, width: int, colour: tuple[float, f
     batch_size = max(1, int(batch_size))
     height = max(1, int(height))
     width = max(1, int(width))
-    r, g, b = [min(1.0, max(0.0, c)) for c in colour]
+    r, g, b = (min(1.0, max(0.0, c)) for c in colour)
 
     if torch is not None:
         images = torch.zeros((batch_size, height, width, 3), dtype=torch.float32)

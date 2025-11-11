@@ -74,7 +74,7 @@ def _value_for_index(normalized_map, prefixes, idx):
 def _toggle_truthy(raw) -> bool:
     if isinstance(raw, bool):
         return raw
-    if isinstance(raw, (int, float)):
+    if isinstance(raw, int | float):
         return not math.isclose(float(raw), 0.0, abs_tol=1e-9)
     try:
         text = str(raw).strip().lower()
@@ -178,6 +178,8 @@ def select_lora_model_strengths(input_data):
 
 def select_lora_clip_strengths(input_data):
     return [entry[2] for entry in collect_lora_stack(input_data)]
+
+
 def select_by_prefix(input_data, prefix):
     """
     A robust selector that finds all values from inputs whose keys start with a given prefix.
@@ -185,12 +187,7 @@ def select_by_prefix(input_data, prefix):
     if not prefix:
         return []
     return [
-        v[0]
-        for k, v in input_data[0].items()
-        if k.startswith(prefix)
-        and v
-        and isinstance(v, list)
-        and v[0] != "None"
+        v[0] for k, v in input_data[0].items() if k.startswith(prefix) and v and isinstance(v, list) and v[0] != "None"
     ]
 
 
@@ -253,4 +250,3 @@ def select_stack_by_prefix(input_data, prefix: str, counter_key: str | None = No
         except Exception:
             return items
     return items
-

@@ -32,11 +32,9 @@ def get_lora_strength_clip_stack(node_id, obj, prompt, extra_data, outputs, inpu
 
 def get_lora_data_stack(input_data, attribute):
     lora_count = input_data[0]["num_loras"][0]
-    return [
-        v[0]
-        for k, v in input_data[0].items()
-        if re.search(attribute, k) is not None and v[0] != "None"
-    ][:lora_count]
+    return [v[0] for k, v in input_data[0].items() if re.search(attribute, k) is not None and v[0] != "None"][
+        :lora_count
+    ]
 
 
 def get_lora_model_hash(node_id, obj, prompt, extra_data, outputs, input_data):

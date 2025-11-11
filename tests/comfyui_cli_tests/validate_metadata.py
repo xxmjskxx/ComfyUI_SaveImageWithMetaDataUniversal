@@ -31,6 +31,7 @@ except ImportError:
 
 try:
     import piexif
+
     PIEXIF_AVAILABLE = True
 except ImportError:
     PIEXIF_AVAILABLE = False
@@ -40,18 +41,21 @@ class _Tee:
     def __init__(self, stream, log_fp):
         self._stream = stream
         self._log_fp = log_fp
+
     def write(self, data):
         self._stream.write(data)
         self._log_fp.write(data)
+
     def flush(self):
         self._stream.flush()
         self._log_fp.flush()
+
 
 def setup_print_tee(log_file: Path):
     # Ensure parent directory exists
     log_file.parent.mkdir(parents=True, exist_ok=True)
     # Open once; close at exit
-    log_fp = open(log_file, 'w', encoding='utf-8')
+    log_fp = open(log_file, "w", encoding="utf-8")
     atexit.register(log_fp.close)
 
     # Tee both stdout and stderr to the same file
@@ -70,10 +74,10 @@ class MetadataReader:
             img = Image.open(image_path)
 
             # Try to get PNG info
-            if hasattr(img, 'info') and img.info:
+            if hasattr(img, "info") and img.info:
                 # Look for parameters in PNG metadata
-                if 'parameters' in img.info:
-                    metadata['parameters'] = img.info['parameters']
+                if "parameters" in img.info:
+                    metadata["parameters"] = img.info["parameters"]
 
                 # Copy all text chunks
                 for key, value in img.info.items():
@@ -82,23 +86,23 @@ class MetadataReader:
 
             # Alternative: read from binary if structured metadata not found
             if not metadata:
-                with open(image_path, 'rb') as f:
+                with open(image_path, "rb") as f:
                     binary_content = f.read()
-                    start_index = binary_content.find(b'parameters')
+                    start_index = binary_content.find(b"parameters")
                     if start_index != -1:
                         # Try to extract parameters
-                        near_end_index = binary_content.find(b'Hashes: ', start_index)
+                        near_end_index = binary_content.find(b"Hashes: ", start_index)
                         if near_end_index != -1:
-                            end_index = binary_content.find(b'tEXt', near_end_index)
+                            end_index = binary_content.find(b"tEXt", near_end_index)
                             if end_index != -1:
                                 # PNG tEXt chunk has CRC (4 bytes) + length (4 bytes) + type (4 bytes)
                                 # We subtract 9 to account for partial chunk structure
                                 PNG_TEXT_CHUNK_SUFFIX_LENGTH = 9
-                                start_pos = start_index + len(b'parameters') + 1
+                                start_pos = start_index + len(b"parameters") + 1
                                 end_pos = end_index - PNG_TEXT_CHUNK_SUFFIX_LENGTH
                                 extracted = binary_content[start_pos:end_pos]
                                 try:
-                                    metadata['parameters'] = extracted.decode('utf-8').strip()
+                                    metadata["parameters"] = extracted.decode("utf-8").strip()
                                 except UnicodeDecodeError:
                                     # Decoding failed; skip and continue with other metadata extraction methods
                                     pass
@@ -113,7 +117,7 @@ class MetadataReader:
         try:
             comment_bytes = user_comment
             # Skip first 8 bytes (character code) if present
-            if len(comment_bytes) > 8 and comment_bytes[:8] == b'UNICODE\x00':
+            if len(comment_bytes) > 8 and comment_bytes[:8] == b"UNICODE\x00":
                 comment_bytes = comment_bytes[8:]
             elif len(comment_bytes) > 4:
                 # Try to skip encoding marker
@@ -121,20 +125,20 @@ class MetadataReader:
 
             # Try UTF-16 BE first
             try:
-                return comment_bytes.decode('utf-16be', 'backslashreplace')
+                return comment_bytes.decode("utf-16be", "backslashreplace")
             except UnicodeDecodeError:
                 # UTF-16 BE decoding failed; try other encodings
                 pass
 
             # Try UTF-8
             try:
-                return comment_bytes.decode('utf-8', 'backslashreplace')
+                return comment_bytes.decode("utf-8", "backslashreplace")
             except UnicodeDecodeError:
                 # UTF-8 decoding failed; fall back to latin-1
                 pass
 
             # Fallback to latin-1
-            return comment_bytes.decode('latin-1', 'replace')
+            return comment_bytes.decode("latin-1", "replace")
         except Exception:
             return str(user_comment)
 
@@ -151,29 +155,29 @@ class MetadataReader:
                     exif_dict = piexif.load(str(image_path))
                     if piexif.ExifIFD.UserComment in exif_dict.get("Exif", {}):
                         user_comment = exif_dict["Exif"][piexif.ExifIFD.UserComment]
-                        metadata['parameters'] = MetadataReader.decode_user_comment(user_comment)
+                        metadata["parameters"] = MetadataReader.decode_user_comment(user_comment)
                 except Exception as e:
                     print(f"  Warning: piexif failed to read EXIF from {image_path.name}: {e}")
 
             # Fallback to PIL's EXIF reading
-            if not metadata and hasattr(img, '_getexif') and img._getexif():
+            if not metadata and hasattr(img, "_getexif") and img._getexif():
                 exif_data = img._getexif()
                 for tag, value in exif_data.items():
                     tag_name = TAGS.get(tag, tag)
-                    if tag_name == 'UserComment' and isinstance(value, bytes):
+                    if tag_name == "UserComment" and isinstance(value, bytes):
                         decoded = MetadataReader.decode_user_comment(value)
-                        metadata['parameters'] = decoded
+                        metadata["parameters"] = decoded
                         break
 
             # Check for JPEG comment marker (fallback mode)
             if not metadata:
-                with open(image_path, 'rb') as f:
+                with open(image_path, "rb") as f:
                     content = f.read()
                     # Look for COM marker
                     # JPEG COM (comment) marker is represented by the byte sequence 0xFF 0xFE.
                     # This check detects if the image contains a comment marker, used for fallback metadata.
-                    if b'\xff\xfe' in content:
-                        metadata['_fallback_mode'] = 'com-marker'
+                    if b"\xff\xfe" in content:
+                        metadata["_fallback_mode"] = "com-marker"
         except Exception as e:
             print(f"  Warning: Error reading JPEG metadata from {image_path.name}: {e}")
 
@@ -187,17 +191,17 @@ class MetadataReader:
             img = Image.open(image_path)
 
             # WebP can have EXIF data
-            if PIEXIF_AVAILABLE and 'exif' in img.info:
+            if PIEXIF_AVAILABLE and "exif" in img.info:
                 try:
-                    exif_dict = piexif.load(img.info['exif'])
+                    exif_dict = piexif.load(img.info["exif"])
                     if piexif.ExifIFD.UserComment in exif_dict.get("Exif", {}):
                         user_comment = exif_dict["Exif"][piexif.ExifIFD.UserComment]
-                        metadata['parameters'] = MetadataReader.decode_user_comment(user_comment)
+                        metadata["parameters"] = MetadataReader.decode_user_comment(user_comment)
                 except Exception as exif_error:
                     print(f"  Warning: Error reading EXIF from WebP {image_path.name}: {exif_error}")
 
             # Check other WebP metadata
-            if hasattr(img, 'info'):
+            if hasattr(img, "info"):
                 for key, value in img.info.items():
                     if isinstance(value, str):
                         metadata[key] = value
@@ -211,11 +215,11 @@ class MetadataReader:
         """Read metadata from any supported image format."""
         ext = image_path.suffix.lower()
 
-        if ext == '.png':
+        if ext == ".png":
             return MetadataReader.read_png_metadata(image_path)
-        elif ext in ['.jpg', '.jpeg']:
+        elif ext in [".jpg", ".jpeg"]:
             return MetadataReader.read_jpeg_metadata(image_path)
-        elif ext == '.webp':
+        elif ext == ".webp":
             return MetadataReader.read_webp_metadata(image_path)
         else:
             print(f"  Warning: Unsupported image format: {ext}")
@@ -230,7 +234,7 @@ class WorkflowAnalyzer:
         """Find all SaveImageWithMetaDataUniversal nodes in the workflow."""
         save_nodes = []
         for node_id, node_data in workflow.items():
-            if node_data.get('class_type') == 'SaveImageWithMetaDataUniversal':
+            if node_data.get("class_type") == "SaveImageWithMetaDataUniversal":
                 save_nodes.append((node_id, node_data))
         return save_nodes
 
@@ -244,14 +248,14 @@ class WorkflowAnalyzer:
     def find_sampler_nodes(workflow: dict) -> list[tuple[str, dict]]:
         """Find all sampler-like nodes in the workflow."""
         sampler_types = [
-            'KSampler',
-            'KSamplerAdvanced',
-            'SamplerCustom',
-            'SamplerCustomAdvanced',
+            "KSampler",
+            "KSamplerAdvanced",
+            "SamplerCustom",
+            "SamplerCustomAdvanced",
         ]
         samplers = []
         for node_id, node_data in workflow.items():
-            if node_data.get('class_type') in sampler_types:
+            if node_data.get("class_type") in sampler_types:
                 samplers.append((node_id, node_data))
         return samplers
 
@@ -275,8 +279,8 @@ class WorkflowAnalyzer:
             if link_node_id in workflow:
                 linked_node = workflow[link_node_id]
                 # Get the value from the linked node's inputs
-                return linked_node.get('inputs', {}).get('value', '')
-        return filename_prefix if isinstance(filename_prefix, str) else ''
+                return linked_node.get("inputs", {}).get("value", "")
+        return filename_prefix if isinstance(filename_prefix, str) else ""
 
     @staticmethod
     def extract_filename_patterns(workflow: dict) -> list[str]:
@@ -294,12 +298,12 @@ class WorkflowAnalyzer:
 
         # Also find regular SaveImage nodes (for control images)
         for node_id, node_data in workflow.items():
-            if node_data.get('class_type') == 'SaveImage':
+            if node_data.get("class_type") == "SaveImage":
                 save_nodes.append((node_id, node_data))
 
         for _, save_node in save_nodes:
-            inputs = save_node.get('inputs', {})
-            prefix = inputs.get('filename_prefix', '')
+            inputs = save_node.get("inputs", {})
+            prefix = inputs.get("filename_prefix", "")
 
             # Resolve linked filename_prefix
             prefix = WorkflowAnalyzer.resolve_filename_prefix(workflow, prefix)
@@ -310,7 +314,7 @@ class WorkflowAnalyzer:
                 # Keep the static parts that identify the workflow
 
                 # Split by path separators (both / and \)
-                parts = prefix.replace('\\', '/').split('/')
+                parts = prefix.replace("\\", "/").split("/")
 
                 for part in parts:
                     # Remove common tokens but keep the base name
@@ -322,24 +326,27 @@ class WorkflowAnalyzer:
                         continue
 
                     # Skip parts that are ONLY tokens
-                    if clean_part.startswith('%') and clean_part.endswith('%'):
+                    if clean_part.startswith("%") and clean_part.endswith("%"):
                         continue
 
                     # Remove token patterns but keep the static text
                     # For example: "siwm-%model:10%" -> "siwm"
                     # For example: "%date:yyyy-MM-dd-hhmmss%-Flux-dual-clip" -> "Flux-dual-clip"
                     # Remove all %...% patterns
-                    cleaned = re.sub(r'%[^%]+%', '', clean_part)
+                    cleaned = re.sub(r"%[^%]+%", "", clean_part)
                     # Also remove any remaining separators from token removal
-                    cleaned = cleaned.strip('-_/')
+                    cleaned = cleaned.strip("-_/")
 
                     # Only add non-generic patterns (not just "Test" or "Tests")
                     # Require minimum length of 3 to avoid overly broad matches like "a" or "xy"
                     # Use case-insensitive deduplication to match case-insensitive matching logic
                     cleaned_lower = cleaned.lower()
-                    if (cleaned and len(cleaned) >= 3
-                            and cleaned_lower not in {'test', 'tests'}
-                            and cleaned_lower not in seen_patterns):
+                    if (
+                        cleaned
+                        and len(cleaned) >= 3
+                        and cleaned_lower not in {"test", "tests"}
+                        and cleaned_lower not in seen_patterns
+                    ):
                         patterns.append(cleaned)
                         seen_patterns.add(cleaned_lower)
 
@@ -361,52 +368,52 @@ class WorkflowAnalyzer:
         - sampler_info: List of sampler node configurations (steps, cfg, seed, etc.)
         """
         expected = {
-            'workflow_name': workflow_name,
-            'has_save_node': False,
-            'file_format': None,
-            'sampler_info': [],
-            'filename_patterns': [],
+            "workflow_name": workflow_name,
+            "has_save_node": False,
+            "file_format": None,
+            "sampler_info": [],
+            "filename_patterns": [],
         }
 
         # Find save nodes (there can be multiple)
         save_nodes = WorkflowAnalyzer.find_save_nodes(workflow)
         if save_nodes:
-            expected['has_save_node'] = True
+            expected["has_save_node"] = True
 
             # Use the first save node for defaults
             _, save_node = save_nodes[0]
-            inputs = save_node.get('inputs', {})
-            expected['file_format'] = inputs.get('file_format', 'png')
-            expected['filename_prefix'] = WorkflowAnalyzer.resolve_filename_prefix(
-                workflow, inputs.get('filename_prefix', '')
+            inputs = save_node.get("inputs", {})
+            expected["file_format"] = inputs.get("file_format", "png")
+            expected["filename_prefix"] = WorkflowAnalyzer.resolve_filename_prefix(
+                workflow, inputs.get("filename_prefix", "")
             )
-            expected['save_workflow_json'] = inputs.get('save_workflow_json', False)
-            expected['include_lora_summary'] = inputs.get('include_lora_summary', False)
-            expected['max_jpeg_exif_kb'] = inputs.get('max_jpeg_exif_kb', 60)
+            expected["save_workflow_json"] = inputs.get("save_workflow_json", False)
+            expected["include_lora_summary"] = inputs.get("include_lora_summary", False)
+            expected["max_jpeg_exif_kb"] = inputs.get("max_jpeg_exif_kb", 60)
 
             # Extract filename patterns from all save nodes
-            expected['filename_patterns'] = WorkflowAnalyzer.extract_filename_patterns(workflow)
+            expected["filename_patterns"] = WorkflowAnalyzer.extract_filename_patterns(workflow)
 
         # Find sampler nodes
         samplers = WorkflowAnalyzer.find_sampler_nodes(workflow)
         for sampler_id, sampler_node in samplers:
-            sampler_inputs = sampler_node.get('inputs', {})
+            sampler_inputs = sampler_node.get("inputs", {})
             sampler_info = {
-                'node_id': sampler_id,
-                'class_type': sampler_node.get('class_type'),
-                'steps': sampler_inputs.get('steps'),
-                'cfg': sampler_inputs.get('cfg'),
-                'sampler_name': sampler_inputs.get('sampler_name'),
-                'scheduler': sampler_inputs.get('scheduler'),
-                'denoise': sampler_inputs.get('denoise'),
-                'seed': None,
+                "node_id": sampler_id,
+                "class_type": sampler_node.get("class_type"),
+                "steps": sampler_inputs.get("steps"),
+                "cfg": sampler_inputs.get("cfg"),
+                "sampler_name": sampler_inputs.get("sampler_name"),
+                "scheduler": sampler_inputs.get("scheduler"),
+                "denoise": sampler_inputs.get("denoise"),
+                "seed": None,
             }
 
             # Try to find seed (might be in noise input or direct)
-            if 'seed' in sampler_inputs:
-                sampler_info['seed'] = sampler_inputs['seed']
+            if "seed" in sampler_inputs:
+                sampler_info["seed"] = sampler_inputs["seed"]
 
-            expected['sampler_info'].append(sampler_info)
+            expected["sampler_info"].append(sampler_info)
 
         return expected
 
@@ -444,11 +451,34 @@ class MetadataValidator:
         # Define known metadata keys that should be treated as field names
         # These are the standard metadata fields from the Save Image node
         known_keys = {
-            "Steps", "Sampler", "CFG scale", "Seed", "Size", "Model", "Model hash",
-            "VAE", "VAE hash", "Clip skip", "Denoise", "Shift", "Max shift", "Base shift",
-            "Guidance", "Scheduler", "Hashes", "Metadata generator version", "Batch index",
-            "Batch size", "Metadata Fallback", "LoRAs", "Weight dtype", "Samplers",
-            "T5 Prompt", "CLIP Prompt", "CLIP_1 Model name", "CLIP_2 Model name"
+            "Steps",
+            "Sampler",
+            "CFG scale",
+            "Seed",
+            "Size",
+            "Model",
+            "Model hash",
+            "VAE",
+            "VAE hash",
+            "Clip skip",
+            "Denoise",
+            "Shift",
+            "Max shift",
+            "Base shift",
+            "Guidance",
+            "Scheduler",
+            "Hashes",
+            "Metadata generator version",
+            "Batch index",
+            "Batch size",
+            "Metadata Fallback",
+            "LoRAs",
+            "Weight dtype",
+            "Samplers",
+            "T5 Prompt",
+            "CLIP Prompt",
+            "CLIP_1 Model name",
+            "CLIP_2 Model name",
         }
 
         # Keys that typically appear in the prompt header (before metadata)
@@ -461,18 +491,17 @@ class MetadataValidator:
 
         # First, extract the prompt header (positive and negative prompts)
         # These appear at the start before the metadata fields
-        lines = params_str.strip().split('\n')
+        lines = params_str.strip().split("\n")
         metadata_start_idx = 0
 
         # Look for where the actual metadata starts (after prompts)
         # Metadata fields start with known metadata keys (not prompt headers) followed by a colon
         for idx, line in enumerate(lines):
-            match = re.match(r'^([A-Za-z0-9 _\-]+):\s*(.*)', line)
+            match = re.match(r"^([A-Za-z0-9 _\-]+):\s*(.*)", line)
             if match:
                 potential_key = match.group(1).strip()
-                is_metadata_key = (
-                    potential_key in metadata_start_keys
-                    or any(pattern.match(potential_key) for pattern in self.KNOWN_KEY_PATTERNS)
+                is_metadata_key = potential_key in metadata_start_keys or any(
+                    pattern.match(potential_key) for pattern in self.KNOWN_KEY_PATTERNS
                 )
                 if is_metadata_key:
                     metadata_start_idx = idx
@@ -480,15 +509,15 @@ class MetadataValidator:
 
         # Join metadata lines (after prompts)
         if metadata_start_idx < len(lines):
-            metadata_text = '\n'.join(lines[metadata_start_idx:])
+            metadata_text = "\n".join(lines[metadata_start_idx:])
         else:
             metadata_text = params_str
 
         # Detect format: check if we have comma separators between known keys
         # Build combined regex patterns for comma and newline formats (more efficient)
         escaped_keys = [re.escape(k) for k in known_keys]
-        comma_pattern = re.compile(r',\s*(?:' + '|'.join(escaped_keys) + r'):')
-        newline_pattern = re.compile(r'\n\s*(?:' + '|'.join(escaped_keys) + r'):')
+        comma_pattern = re.compile(r",\s*(?:" + "|".join(escaped_keys) + r"):")
+        newline_pattern = re.compile(r"\n\s*(?:" + "|".join(escaped_keys) + r"):")
 
         comma_key_count = len(comma_pattern.findall(metadata_text))
         newline_key_count = len(newline_pattern.findall(metadata_text))
@@ -505,8 +534,8 @@ class MetadataValidator:
             all_patterns = list(known_keys)
 
             # Build the split pattern dynamically
-            escaped_keys = [re.escape(k) + r':' for k in all_patterns]
-            split_pattern = r',\s*(?=' + '|'.join(escaped_keys) + r'|(?:Lora_|Embedding_|CLIP_)\d+\s+[^:]+:)'
+            escaped_keys = [re.escape(k) + r":" for k in all_patterns]
+            split_pattern = r",\s*(?=" + "|".join(escaped_keys) + r"|(?:Lora_|Embedding_|CLIP_)\d+\s+[^:]+:)"
 
             parts = re.split(split_pattern, metadata_text)
 
@@ -517,7 +546,7 @@ class MetadataValidator:
 
                 # Extract key: value from this part
                 # Allow spaces in keys for patterns like "Lora_0 Model name"
-                match = re.match(r'^([A-Za-z0-9 _\-]+):\s*(.*)', part, re.DOTALL)
+                match = re.match(r"^([A-Za-z0-9 _\-]+):\s*(.*)", part, re.DOTALL)
                 if match:
                     key = match.group(1).strip()
                     value = match.group(2).strip()
@@ -533,7 +562,7 @@ class MetadataValidator:
 
             for line in lines[metadata_start_idx:]:
                 # Check if line starts with a known key followed by a colon
-                match = re.match(r'^([A-Za-z0-9 _\-]+):\s*(.*)', line)
+                match = re.match(r"^([A-Za-z0-9 _\-]+):\s*(.*)", line)
                 if match:
                     potential_key = match.group(1).strip()
                     value = match.group(2)
@@ -550,7 +579,7 @@ class MetadataValidator:
                     if is_known_key:
                         # Save previous key-value if exists
                         if current_key:
-                            fields[current_key] = '\n'.join(current_value).strip()
+                            fields[current_key] = "\n".join(current_value).strip()
 
                         current_key = potential_key
                         current_value = []
@@ -566,116 +595,112 @@ class MetadataValidator:
 
             # Save last key-value
             if current_key:
-                fields[current_key] = '\n'.join(current_value).strip()
+                fields[current_key] = "\n".join(current_value).strip()
 
         return fields
 
     def validate_image(self, image_path: Path, workflow_name: str, expected: dict) -> dict:
         """Validate a single image's metadata."""
         result = {
-            'image_path': str(image_path),
-            'workflow_name': workflow_name,
-            'passed': False,
-            'errors': [],
-            'warnings': [],
-            'metadata_found': False,
-            'fields': {},
+            "image_path": str(image_path),
+            "workflow_name": workflow_name,
+            "passed": False,
+            "errors": [],
+            "warnings": [],
+            "metadata_found": False,
+            "fields": {},
         }
 
         # Check if this is a control image (without metadata)
         # Control images are saved using the default SaveImage node and are expected
         # to have no metadata or parameters field
-        is_control_image = 'without-meta' in image_path.name.lower()
+        is_control_image = "without-meta" in image_path.name.lower()
 
         # Read metadata
         metadata = MetadataReader.read_metadata(image_path)
 
         # Handle control images: they should have no metadata or parameters
         if is_control_image:
-            if not metadata or not metadata.get('parameters', ''):
+            if not metadata or not metadata.get("parameters", ""):
                 # Expected behavior for control images
-                result['passed'] = True
-                result['warnings'].append("Control image (without-meta) - no metadata expected")
+                result["passed"] = True
+                result["warnings"].append("Control image (without-meta) - no metadata expected")
                 return result
             # Control image unexpectedly has metadata - continue with normal validation
             # but add a warning
-            result['warnings'].append("Control image (without-meta) has unexpected metadata - validating anyway")
+            result["warnings"].append("Control image (without-meta) has unexpected metadata - validating anyway")
 
         # For non-control images, metadata is required
         if not metadata:
-            result['errors'].append("No metadata found in image")
+            result["errors"].append("No metadata found in image")
             return result
 
-        result['metadata_found'] = True
+        result["metadata_found"] = True
 
         # Get parameters string
-        params_str = metadata.get('parameters', '')
+        params_str = metadata.get("parameters", "")
         if not params_str:
-            result['errors'].append("No 'parameters' field found in metadata")
+            result["errors"].append("No 'parameters' field found in metadata")
             return result
 
         # Parse parameters
         fields = self.parse_parameters_string(params_str)
-        result['fields'] = fields
+        result["fields"] = fields
 
         # Check for required fields based on workflow
         required_fields = []
-        if expected.get('sampler_info'):
+        if expected.get("sampler_info"):
             # If workflow has samplers, we expect sampler metadata
-            sampler = expected['sampler_info'][0]  # Use first sampler
-            if sampler.get('steps'):
-                required_fields.append('Steps')
-            if sampler.get('sampler_name'):
-                required_fields.append('Sampler')
-            if sampler.get('cfg'):
-                required_fields.append('CFG scale')
-            if sampler.get('seed') is not None:
-                required_fields.append('Seed')
+            sampler = expected["sampler_info"][0]  # Use first sampler
+            if sampler.get("steps"):
+                required_fields.append("Steps")
+            if sampler.get("sampler_name"):
+                required_fields.append("Sampler")
+            if sampler.get("cfg"):
+                required_fields.append("CFG scale")
+            if sampler.get("seed") is not None:
+                required_fields.append("Seed")
 
         # Validate required fields
         for field in required_fields:
             if field not in fields:
-                result['errors'].append(f"Required field '{field}' not found in metadata")
+                result["errors"].append(f"Required field '{field}' not found in metadata")
 
         # Check for fallback indicator
-        if 'Metadata Fallback:' in params_str:
-            fallback_match = re.search(r'Metadata Fallback:\s*(\S+)', params_str)
+        if "Metadata Fallback:" in params_str:
+            fallback_match = re.search(r"Metadata Fallback:\s*(\S+)", params_str)
             if fallback_match:
                 fallback_stage = fallback_match.group(1)
-                result['warnings'].append(f"Metadata fallback occurred: {fallback_stage}")
-                result['fallback_stage'] = fallback_stage
+                result["warnings"].append(f"Metadata fallback occurred: {fallback_stage}")
+                result["fallback_stage"] = fallback_stage
 
         # Check for N/A values in any field (should never happen)
         for field_name, field_value in fields.items():
-            if field_value.strip() == 'N/A':
-                result['errors'].append(
-                    f"Field '{field_name}' contains 'N/A' value: {field_value}"
-                )
+            if field_value.strip() == "N/A":
+                result["errors"].append(f"Field '{field_name}' contains 'N/A' value: {field_value}")
 
         # Validate Hashes summary if present
-        if 'Hashes' in fields:
+        if "Hashes" in fields:
             try:
-                hashes_dict = json.loads(fields['Hashes'])
+                hashes_dict = json.loads(fields["Hashes"])
                 self._validate_hashes_summary(fields, hashes_dict, result)
             except json.JSONDecodeError:
-                result['errors'].append("Hashes field is not valid JSON")
+                result["errors"].append("Hashes field is not valid JSON")
 
         # Validate embedding fields
         self._validate_embedding_fields(fields, result)
 
         # Validate file format matches expectation
-        expected_format = expected.get('file_format', 'png')
-        actual_format = image_path.suffix.lower().lstrip('.')
-        if actual_format == 'jpg':
-            actual_format = 'jpeg'
+        expected_format = expected.get("file_format", "png")
+        actual_format = image_path.suffix.lower().lstrip(".")
+        if actual_format == "jpg":
+            actual_format = "jpeg"
 
         if expected_format != actual_format:
-            result['warnings'].append(
-                f"File format mismatch: expected {expected_format}, got {actual_format}"
-            )
+            result["warnings"].append(f"File format mismatch: expected {expected_format}, got {actual_format}")
 
         # Mark as passed if no errors
-        result['passed'] = len(result['errors']) == 0
+        result["passed"] = len(result["errors"]) == 0
 
         return result
 
@@ -685,54 +710,50 @@ class MetadataValidator:
         # LoRAs
         lora_indices = set()
         for key in fields.keys():
-            if key.startswith('Lora_') and 'Model name' in key:
+            if key.startswith("Lora_") and "Model name" in key:
                 # Extract index
-                match = re.match(r'Lora_(\d+) Model name', key)
+                match = re.match(r"Lora_(\d+) Model name", key)
                 if match:
                     lora_indices.add(int(match.group(1)))
 
         for idx in lora_indices:
-            model_name_key = f'Lora_{idx} Model name'
-            model_hash_key = f'Lora_{idx} Model hash'
+            model_name_key = f"Lora_{idx} Model name"
+            model_hash_key = f"Lora_{idx} Model hash"
 
             if model_name_key in fields:
                 model_name = fields[model_name_key]
                 # Remove extension if present
-                model_name_base = model_name.replace('.safetensors', '').replace('.pt', '').replace('.ckpt', '')
+                model_name_base = model_name.replace(".safetensors", "").replace(".pt", "").replace(".ckpt", "")
 
                 # Check if this LoRA is in the Hashes dict
-                lora_key = f'lora:{model_name_base}'
+                lora_key = f"lora:{model_name_base}"
                 if lora_key not in hashes_dict:
-                    result['errors'].append(
-                        f"LoRA '{model_name}' has metadata but is missing from Hashes summary"
-                    )
+                    result["errors"].append(f"LoRA '{model_name}' has metadata but is missing from Hashes summary")
                 else:
                     # Validate hash consistency
                     if model_hash_key in fields:
                         metadata_hash = fields[model_hash_key]
                         hashes_hash = hashes_dict[lora_key]
-                        if metadata_hash != 'N/A' and metadata_hash != hashes_hash:
-                            result['errors'].append(
+                        if metadata_hash != "N/A" and metadata_hash != hashes_hash:
+                            result["errors"].append(
                                 f"LoRA '{model_name}' hash mismatch: metadata has '{metadata_hash}' "
                                 f"but Hashes summary has '{hashes_hash}'"
                             )
 
-            if model_hash_key in fields and fields[model_hash_key] == 'N/A':
-                result['errors'].append(
-                    f"LoRA hash for Lora_{idx} is 'N/A' - hash should always be computed"
-                )
+            if model_hash_key in fields and fields[model_hash_key] == "N/A":
+                result["errors"].append(f"LoRA hash for Lora_{idx} is 'N/A' - hash should always be computed")
 
         # Embeddings
         embedding_indices = set()
         for key in fields.keys():
-            if key.startswith('Embedding_') and 'name' in key:
-                match = re.match(r'Embedding_(\d+) name', key)
+            if key.startswith("Embedding_") and "name" in key:
+                match = re.match(r"Embedding_(\d+) name", key)
                 if match:
                     embedding_indices.add(int(match.group(1)))
 
         for idx in embedding_indices:
-            name_key = f'Embedding_{idx} name'
-            hash_key = f'Embedding_{idx} hash'
+            name_key = f"Embedding_{idx} name"
+            hash_key = f"Embedding_{idx} hash"
 
             if name_key in fields:
                 emb_name = fields[name_key]
@@ -743,8 +764,8 @@ class MetadataValidator:
                 hash_value_in_hashes = None
 
                 for hash_key_name in hashes_dict.keys():
-                    if hash_key_name.startswith('embed:'):
-                        embed_name_in_hash = hash_key_name.replace('embed:', '')
+                    if hash_key_name.startswith("embed:"):
+                        embed_name_in_hash = hash_key_name.replace("embed:", "")
 
                         # Check if the name matches exactly
                         if embed_name_in_hash == emb_name:
@@ -753,7 +774,7 @@ class MetadataValidator:
                             break
                         # If it's just a number, that's wrong - should be the embedding name
                         elif embed_name_in_hash.isdigit():
-                            result['errors'].append(
+                            result["errors"].append(
                                 f"Embedding_{idx} '{emb_name}' is in Hashes with wrong key "
                                 f"'embed:{embed_name_in_hash}' (should be 'embed:{emb_name}')"
                             )
@@ -762,70 +783,65 @@ class MetadataValidator:
                             break
 
                 if not found_in_hashes:
-                    result['errors'].append(
+                    result["errors"].append(
                         f"Embedding_{idx} '{emb_name}' has metadata but is missing from Hashes summary"
                     )
 
                 # Validate hash consistency between metadata and Hashes summary
                 if found_in_hashes and hash_key in fields and hash_value_in_hashes:
                     metadata_hash = fields[hash_key]
-                    if metadata_hash != 'N/A' and metadata_hash != hash_value_in_hashes:
-                        result['errors'].append(
+                    if metadata_hash != "N/A" and metadata_hash != hash_value_in_hashes:
+                        result["errors"].append(
                             f"Embedding_{idx} hash mismatch: metadata has '{metadata_hash}' "
                             f"but Hashes summary has '{hash_value_in_hashes}'"
                         )
 
-            if hash_key in fields and fields[hash_key] == 'N/A':
-                result['errors'].append(
-                    f"Embedding hash for Embedding_{idx} is 'N/A' - hash should always be computed"
-                )
+            if hash_key in fields and fields[hash_key] == "N/A":
+                result["errors"].append(f"Embedding hash for Embedding_{idx} is 'N/A' - hash should always be computed")
 
         # Check model and VAE
-        if 'Model hash' in fields:
-            if fields['Model hash'] == 'N/A':
-                result['errors'].append("Model hash is 'N/A' - hash should always be computed")
-            elif 'model' in hashes_dict:
-                metadata_hash = fields['Model hash']
-                hashes_hash = hashes_dict['model']
+        if "Model hash" in fields:
+            if fields["Model hash"] == "N/A":
+                result["errors"].append("Model hash is 'N/A' - hash should always be computed")
+            elif "model" in hashes_dict:
+                metadata_hash = fields["Model hash"]
+                hashes_hash = hashes_dict["model"]
                 if metadata_hash != hashes_hash:
-                    result['errors'].append(
+                    result["errors"].append(
                         f"Model hash mismatch: metadata has '{metadata_hash}' "
                         f"but Hashes summary has '{hashes_hash}'"
                     )
 
-        if 'VAE hash' in fields:
-            if fields['VAE hash'] == 'N/A':
-                result['errors'].append("VAE hash is 'N/A' - hash should always be computed")
-            elif 'vae' in hashes_dict:
-                metadata_hash = fields['VAE hash']
-                hashes_hash = hashes_dict['vae']
+        if "VAE hash" in fields:
+            if fields["VAE hash"] == "N/A":
+                result["errors"].append("VAE hash is 'N/A' - hash should always be computed")
+            elif "vae" in hashes_dict:
+                metadata_hash = fields["VAE hash"]
+                hashes_hash = hashes_dict["vae"]
                 if metadata_hash != hashes_hash:
-                    result['errors'].append(
-                        f"VAE hash mismatch: metadata has '{metadata_hash}' "
-                        f"but Hashes summary has '{hashes_hash}'"
+                    result["errors"].append(
+                        f"VAE hash mismatch: metadata has '{metadata_hash}' " f"but Hashes summary has '{hashes_hash}'"
                     )
 
     def _validate_embedding_fields(self, fields: dict, result: dict):
         """Validate embedding-specific issues."""
         for key, value in fields.items():
-            if 'Embedding_' in key and 'name' in key:
+            if "Embedding_" in key and "name" in key:
                 # Check for trailing punctuation (commas, periods, semicolons, colons)
-                if value.rstrip(',.;:') != value:
-                    result['errors'].append(
-                        f"Embedding name '{key}' has trailing punctuation: '{value}'"
-                    )
+                if value.rstrip(",.;:") != value:
+                    result["errors"].append(f"Embedding name '{key}' has trailing punctuation: '{value}'")
 
                 # Check if this is actually a prompt (very long text suggests it's not an embedding)
                 if len(value) > 100:
-                    result['errors'].append(
+                    result["errors"].append(
                         f"Embedding name '{key}' appears to be a prompt (length={len(value)}), not an embedding name"
                     )
 
             # Check if embedding hash is also suspiciously long (suggests it's a prompt)
             # Normal hashes are typically 10-64 characters (sha256 truncated or full)
-            if 'Embedding_' in key and 'hash' in key:
+            if "Embedding_" in key and "hash" in key:
                 if len(value) > 70:
-                    result['errors'].append(
+                    result["errors"].append(
                         f"Embedding hash '{key}' appears to be a prompt (length={len(value)}), not a hash"
                     )
 
@@ -847,7 +863,7 @@ class MetadataValidator:
             pattern_lower = pattern.lower()
             # Match pattern as a whole word or separated by delimiters (_,-,.)
             # Regex: (^|[_\-.])pattern($|[_\-.])
-            regex = r'(^|[_\-.])' + re.escape(pattern_lower) + r'($|[_\-.])'
+            regex = r"(^|[_\-.])" + re.escape(pattern_lower) + r"($|[_\-.])"
             if re.search(regex, image_name):
                 return True
 
@@ -859,13 +875,13 @@ class MetadataValidator:
 
         # Special case: 1-scan-and-save-custom-metadata-rules.json doesn't create images
         # It only contains Metadata Rule Scanner + Save Custom Metadata Rules nodes
-        if workflow_file.name == '1-scan-and-save-custom-metadata-rules.json':
+        if workflow_file.name == "1-scan-and-save-custom-metadata-rules.json":
             print("  ℹ Info: This workflow generates metadata rules, not images (skipping)")
             return []
 
         # Load workflow
         try:
-            with open(workflow_file, encoding='utf-8') as f:
+            with open(workflow_file, encoding="utf-8") as f:
                 workflow = json.load(f)
         except Exception as e:
             print(f"  ✗ Error loading workflow: {e}")
@@ -874,16 +890,16 @@ class MetadataValidator:
         # Extract expected metadata
         expected = WorkflowAnalyzer.extract_expected_metadata(workflow, workflow_file.stem)
 
-        if not expected['has_save_node']:
+        if not expected["has_save_node"]:
             print("  ⚠ Warning: No Save Image node found in workflow")
             return []
 
         print(f"  Expected format: {expected.get('file_format', 'unknown')}")
-        if expected.get('sampler_info'):
+        if expected.get("sampler_info"):
             print(f"  Sampler nodes found: {len(expected['sampler_info'])}")
 
         # Show the filename patterns we're looking for
-        patterns = expected.get('filename_patterns', [])
+        patterns = expected.get("filename_patterns", [])
         if patterns:
             print(f"  Filename patterns: {', '.join(patterns)}")
 
@@ -906,23 +922,23 @@ class MetadataValidator:
             results.append(result)
 
             # Print result
-            status = "✓" if result['passed'] else "✗"
+            status = "✓" if result["passed"] else "✗"
             print(f"    {status} {image_path.name}")
 
-            for error in result['errors']:
+            for error in result["errors"]:
                 print(f"        Error: {error}")
 
-            for warning in result['warnings']:
+            for warning in result["warnings"]:
                 print(f"        Warning: {warning}")
 
-            if result['passed'] and result.get('fields'):
+            if result["passed"] and result.get("fields"):
                 # Show some key fields
-                fields = result['fields']
-                if 'Steps' in fields:
+                fields = result["fields"]
+                if "Steps" in fields:
                     print(f"        Steps: {fields['Steps']}")
-                if 'Sampler' in fields:
+                if "Sampler" in fields:
                     print(f"        Sampler: {fields['Sampler']}")
-                if 'Seed' in fields:
+                if "Seed" in fields:
                     print(f"        Seed: {fields['Seed']}")
 
         return results
@@ -953,7 +969,7 @@ class MetadataValidator:
 
         # Collect all images once (more efficient than searching for each workflow)
         print("\nScanning for images...")
-        image_suffixes = {'.png', '.jpg', '.jpeg', '.webp'}
+        image_suffixes = {".png", ".jpg", ".jpeg", ".webp"}
         all_images = [f for f in self.output_dir.rglob("*") if f.is_file() and f.suffix.lower() in image_suffixes]
         print(f"Found {len(all_images)} total image(s) in output directory")
 
@@ -977,24 +993,24 @@ class MetadataValidator:
 
                 # Track which images were validated
                 for result in results:
-                    validated_images.add(Path(result['image_path']))
+                    validated_images.add(Path(result["image_path"]))
             else:
                 # Check if this workflow was skipped (like 1-scan-and-save-custom-metadata-rules.json)
                 # or if it genuinely had no matching images
-                if workflow_file.name != '1-scan-and-save-custom-metadata-rules.json':
+                if workflow_file.name != "1-scan-and-save-custom-metadata-rules.json":
                     # Load workflow to check if it has a save node
                     try:
-                        with open(workflow_file, encoding='utf-8') as f:
+                        with open(workflow_file, encoding="utf-8") as f:
                             workflow = json.load(f)
                         expected = WorkflowAnalyzer.extract_expected_metadata(workflow, workflow_file.stem)
-                        if expected['has_save_node']:
+                        if expected["has_save_node"]:
                             workflows_without_images.add(workflow_file.name)
                     except Exception as e:
                         print(f"Warning: Failed to analyze workflow '{workflow_file.name}': {e}")
 
         # Calculate statistics
         total = len(all_results)
-        passed = sum(1 for r in all_results if r['passed'])
+        passed = sum(1 for r in all_results if r["passed"])
         failed = total - passed
         unmatched_images = set(all_images) - validated_images
 
@@ -1023,9 +1039,9 @@ class MetadataValidator:
         if failed > 0:
             print("\nFailed Images:")
             for result in all_results:
-                if not result['passed']:
+                if not result["passed"]:
                     print(f"  - {Path(result['image_path']).name} (workflow: {result['workflow_name']})")
-                    for error in result['errors']:
+                    for error in result["errors"]:
                         print(f"      {error}")
 
         print("=" * 70)
@@ -1073,7 +1089,6 @@ Examples:
         default=None,
         help="Path to write a copy of all console output (txt). Default: <output-folder>/validation_log.txt",
     )
-
 
     args = parser.parse_args()
 

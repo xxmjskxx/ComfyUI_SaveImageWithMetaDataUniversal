@@ -16,6 +16,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class ShowText:
     @classmethod
     def INPUT_TYPES(cls):  # noqa: N802

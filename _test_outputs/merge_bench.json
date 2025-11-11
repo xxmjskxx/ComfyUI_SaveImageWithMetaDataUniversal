@@ -1,0 +1,12 @@
+{
+  "legacy_avg_s": 0.10639942000270822,
+  "helper_avg_s": 0.11147700000437907,
+  "delta_s": 0.005077580001670856,
+  "delta_pct": 4.772187669389189,
+  "verdict": "OK (<=5% overhead)",
+  "config": {
+    "SAMPLES": 2000,
+    "MERGE_ITERS": 200,
+    "REPEAT": 5
+  }
+}

@@ -5,10 +5,12 @@ from pathlib import Path
 
 import pytest
 
-# Add comfyui_cli_tests directory to path to import validate_metadata
-sys.path.insert(0, str(Path(__file__).parent / 'comfyui_cli_tests'))
-
-from validate_metadata import MetadataValidator
+try:
+    from tests.comfyui_cli_tests.validate_metadata import MetadataValidator
+except ModuleNotFoundError:  # pragma: no cover - fallback for direct invocation
+    # Add comfyui_cli_tests directory to path to import validate_metadata when running the test directly
+    sys.path.insert(0, str(Path(__file__).parent / "comfyui_cli_tests"))
+    from validate_metadata import MetadataValidator  # type: ignore
 
 
 class TestWan21ChineseMetadata:
@@ -16,7 +18,7 @@ class TestWan21ChineseMetadata:
 
     def test_parse_wan21_metadata_with_chinese_characters(self):
         """Test parsing wan21 metadata with Chinese characters in embeddings and negative prompt."""
-        validator = MetadataValidator(Path('.'), Path('.'))
+        validator = MetadataValidator(Path("."), Path("."))
 
         # This is actual metadata from Wan21_00001_.png
         # Contains Chinese characters in negative prompt and embedding fields
@@ -45,67 +47,67 @@ class TestWan21ChineseMetadata:
         fields = validator.parse_parameters_string(params_str)
 
         # Verify all required fields are extracted
-        assert 'Steps' in fields
-        assert fields['Steps'] == '4'
+        assert "Steps" in fields
+        assert fields["Steps"] == "4"
 
-        assert 'Sampler' in fields
-        assert fields['Sampler'] == 'dpmpp_2m Karras'
+        assert "Sampler" in fields
+        assert fields["Sampler"] == "dpmpp_2m Karras"
 
-        assert 'CFG scale' in fields
-        assert fields['CFG scale'] == '1.0'
+        assert "CFG scale" in fields
+        assert fields["CFG scale"] == "1.0"
 
-        assert 'Seed' in fields
-        assert fields['Seed'] == '82628696717253'
+        assert "Seed" in fields
+        assert fields["Seed"] == "82628696717253"
 
-        assert 'Size' in fields
-        assert fields['Size'] == '1344x1504'
+        assert "Size" in fields
+        assert fields["Size"] == "1344x1504"
 
-        assert 'Model' in fields
-        assert 'Wan2_1-T2V-14B' in fields['Model']
+        assert "Model" in fields
+        assert "Wan2_1-T2V-14B" in fields["Model"]
 
         # Verify Chinese character fields are extracted
-        assert 'Embedding_0 name' in fields
-        assert '色调艳丽' in fields['Embedding_0 name']  # Chinese characters present
-        assert '静态' in fields['Embedding_0 name']
-        assert '细节模糊不清' in fields['Embedding_0 name']
+        assert "Embedding_0 name" in fields
+        assert "色调艳丽" in fields["Embedding_0 name"]  # Chinese characters present
+        assert "静态" in fields["Embedding_0 name"]
+        assert "细节模糊不清" in fields["Embedding_0 name"]
 
         # Verify other fields
-        assert 'VAE' in fields
-        assert 'Lora_0 Model name' in fields
-        assert 'CLIP_1 Model name' in fields
+        assert "VAE" in fields
+        assert "Lora_0 Model name" in fields
+        assert "CLIP_1 Model name" in fields
 
         # Verify we got a good number of fields
         assert len(fields) >= 20, f"Expected at least 20 fields, got {len(fields)}"
 
     def test_wan21_image_exists(self):
         """Test that the wan21 reference image exists."""
-        image_path = Path('tests/comfyui_cli_tests/dev_test_workflows/Wan21_00001_.png')
+        image_path = Path("tests/_test_outputs/Wan21_00006_.png")
         assert image_path.exists(), f"Wan21 reference image not found at {image_path}"
 
     def test_wan21_image_has_metadata(self):
         """Test that the wan21 image contains the expected metadata."""
         from PIL import Image
 
-        image_path = Path('tests/comfyui_cli_tests/dev_test_workflows/Wan21_00001_.png')
+        image_path = Path("tests/_test_outputs/Wan21_00006_.png")
         if not image_path.exists():
             pytest.skip("Wan21 reference image not available")
 
         img = Image.open(image_path)
 
         # Verify PNG info is present
-        assert hasattr(img, 'info'), "Image has no info attribute"
-        assert 'parameters' in img.info, "Image has no 'parameters' field"
+        assert hasattr(img, "info"), "Image has no info attribute"
+        assert "parameters" in img.info, "Image has no 'parameters' field"
 
-        params = img.info['parameters']
+        params = img.info["parameters"]
 
         # Verify it contains Chinese characters
-        assert '色调艳丽' in params, "Expected Chinese characters not found in parameters"
+        assert "色调艳丽" in params, "Expected Chinese characters not found in parameters"
 
         # Verify it contains expected English fields
-        assert 'Steps:' in params
-        assert 'Sampler:' in params
-        assert 'Seed:' in params
+        assert "Steps:" in params
+        assert "Sampler:" in params
+        assert "Seed:" in params
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

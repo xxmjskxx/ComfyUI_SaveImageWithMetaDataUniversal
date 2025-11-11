@@ -21,6 +21,7 @@ from logging import getLogger
 # from .meta import MetaField
 # from ..utils.color import cstr
 from ..utils.deserialize import deserialize_input
+
 # Ensure submodule attribute access like `from saveimage_unimeta.defs import formatters`
 # works reliably across environments/tests by importing the submodule here.
 from . import formatters as formatters  # re-exported via __all__ for direct import
@@ -32,8 +33,11 @@ from . import formatters as formatters  # re-exported via __all__ for direct imp
 # runtime checker used inside loaders to avoid missing test-isolated files.
 _TEST_MODE = _os.environ.get("METADATA_TEST_MODE", "").strip().lower() in {"1", "true", "yes", "on"}
 
+
 def _is_test_mode() -> bool:  # pragma: no cover - trivial logic
     return _os.environ.get("METADATA_TEST_MODE", "").strip().lower() in {"1", "true", "yes", "on"}
+
+
 if not _TEST_MODE:
     from .captures import CAPTURE_FIELD_LIST  # type: ignore
     from .samplers import SAMPLERS  # type: ignore
@@ -42,6 +46,7 @@ else:  # Provide minimal placeholders sufficient for tests importing enums/utili
     SAMPLERS = {}
 
 FORCED_INCLUDE_CLASSES: set[str] = set()
+
 
 def set_forced_include(raw: str) -> set[str]:  # pragma: no cover - simple setter
     """Parse and store forced include node class names.
@@ -58,6 +63,7 @@ def set_forced_include(raw: str) -> set[str]:  # pragma: no cover - simple sette
         FORCED_INCLUDE_CLASSES.update(parsed)
     return FORCED_INCLUDE_CLASSES
 
+
 def clear_forced_include() -> set[str]:  # pragma: no cover - simple helper
     """Clear all globally forced include node classes.
 
@@ -66,6 +72,7 @@ def clear_forced_include() -> set[str]:  # pragma: no cover - simple helper
     """
     FORCED_INCLUDE_CLASSES.clear()
     return FORCED_INCLUDE_CLASSES
+
 
 __all__ = [
     "CAPTURE_FIELD_LIST",
@@ -165,6 +172,7 @@ def load_extensions_only() -> None:
     _reset_to_defaults()
     _load_extensions()
 
+
 def _merge_extension_capture_entry(node_name: str, rules) -> None:
     """Merge a capture entry coming from an extension.
 
@@ -182,6 +190,7 @@ def _merge_extension_capture_entry(node_name: str, rules) -> None:
     else:
         existing.update(rules)  # type: ignore[assignment]
 
+
 def _merge_user_capture_entry(node_name: str, rules) -> None:
     """Merge a capture entry provided via user JSON.
 
@@ -193,6 +202,7 @@ def _merge_user_capture_entry(node_name: str, rules) -> None:
         CAPTURE_FIELD_LIST[node_name] = {}
     if isinstance(rules, Mapping):  # type: ignore[arg-type]
         CAPTURE_FIELD_LIST[node_name].update(rules)  # type: ignore[arg-type]
+
 
 def _merge_user_sampler_entry(key: str, val) -> None:
     """Merge a single user-provided sampler mapping into ``SAMPLERS``.
@@ -261,6 +271,7 @@ def load_user_definitions(required_classes: set | None = None, suppress_missing_
         if os.path.exists(legacy_caps):
             try:
                 import shutil as _shutil
+
                 _shutil.move(legacy_caps, USER_CAPTURES_FILE)
                 logger.info("[Metadata Loader] Migrated legacy user_captures.json to user_rules/.")
             except Exception as e:  # pragma: no cover - non critical
@@ -270,6 +281,7 @@ def load_user_definitions(required_classes: set | None = None, suppress_missing_
         if os.path.exists(legacy_samplers):
             try:
                 import shutil as _shutil
+
                 _shutil.move(legacy_samplers, USER_SAMPLERS_FILE)
                 logger.info("[Metadata Loader] Migrated legacy user_samplers.json to user_rules/.")
             except Exception as e:  # pragma: no cover
@@ -290,9 +302,7 @@ def load_user_definitions(required_classes: set | None = None, suppress_missing_
         else:
             if not suppress_missing_log:
                 missing = [ct for ct in required_classes if ct not in cover_set]
-                logger.info(
-                    "[Metadata Loader] Missing classes in defaults+ext: %s. Will merge user JSON.", missing
-                )
+                logger.info("[Metadata Loader] Missing classes in defaults+ext: %s. Will merge user JSON.", missing)
 
     if need_user_merge:
         if os.path.exists(USER_SAMPLERS_FILE):

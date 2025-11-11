@@ -12,9 +12,11 @@ from datetime import datetime
 try:  # pragma: no cover - normal runtime path
     import folder_paths  # type: ignore
 except ModuleNotFoundError:  # pragma: no cover - isolated test fallback
+
     class _FolderPathsStub:  # minimal surface used by this module
         def __init__(self):
             import os as _os
+
             self._out = _os.path.abspath("tests/_test_outputs")
             try:
                 _os.makedirs(self._out, exist_ok=True)
@@ -32,12 +34,15 @@ except ModuleNotFoundError:  # pragma: no cover - isolated test fallback
 
         def get_full_path(self, kind, name):  # noqa: D401
             return name
+
     folder_paths = _FolderPathsStub()  # type: ignore
 import numpy as np
 from ..utils.color import cstr
+
 try:  # Comfy runtime provides this; tests may not
     from comfy.cli_args import args  # type: ignore
 except (ImportError, ModuleNotFoundError):  # fall back in isolated tests
+
     class _ArgsStub:
         disable_metadata = False
 
@@ -48,6 +53,7 @@ from PIL.PngImagePlugin import PngInfo
 try:  # Normal runtime
     from .. import hook  # type: ignore
 except (ImportError, ModuleNotFoundError):  # circular or missing in isolated test
+
     class _HookStub:  # minimal attributes used
         current_save_image_node_id = 0
         current_prompt = {}
@@ -133,9 +139,7 @@ class SaveImageWithMetaDataUniversal:
                     "BOOLEAN",
                     {
                         "default": True,
-                        "tooltip": (
-                            "If using WebP, toggles lossless mode (ignores quality slider)."
-                        ),
+                        "tooltip": ("If using WebP, toggles lossless mode (ignores quality slider)."),
                     },
                 ),
                 "quality": (
@@ -144,9 +148,7 @@ class SaveImageWithMetaDataUniversal:
                         "default": 100,
                         "min": 1,
                         "max": 100,
-                        "tooltip": (
-                            "Quality for lossy formats (JPEG/WebP lossy). 100 = best quality, larger files."
-                        ),
+                        "tooltip": ("Quality for lossy formats (JPEG/WebP lossy). 100 = best quality, larger files."),
                     },
                 ),
                 "max_jpeg_exif_kb": (
@@ -169,9 +171,7 @@ class SaveImageWithMetaDataUniversal:
                     "BOOLEAN",
                     {
                         "default": False,
-                        "tooltip": (
-                            "Save the workflow as a JSON file alongside the image."
-                        ),
+                        "tooltip": ("Save the workflow as a JSON file alongside the image."),
                     },
                 ),
                 "add_counter_to_filename": (
@@ -217,9 +217,7 @@ class SaveImageWithMetaDataUniversal:
                     "BOOLEAN",
                     {
                         "default": True,
-                        "tooltip": (
-                            "If disabled, the workflow data will not be saved in the image metadata."
-                        ),
+                        "tooltip": ("If disabled, the workflow data will not be saved in the image metadata."),
                     },
                 ),
                 "include_lora_summary": (
@@ -332,12 +330,14 @@ class SaveImageWithMetaDataUniversal:
             required_classes.update(FORCED_INCLUDE_CLASSES)
         # Defer to node module export so tests can monkeypatch node.load_user_definitions
         from . import node as _node  # local import to avoid circular at module load
+
         _node.load_user_definitions(required_classes, suppress_missing_log=suppress_missing_class_log)
         # Ensure piexif references are patched via node module during tests
         piexif = _node.piexif  # noqa: F841 - used implicitly by subsequent code references
         # Apply unified hash logging preference
         try:
             from ..defs import formatters as _formatters_mod  # type: ignore
+
             # Reinitialize hash logger only when the mode actually changes
             try:
                 new_mode = (model_hash_log or "none").lower()
@@ -539,9 +539,7 @@ class SaveImageWithMetaDataUniversal:
                             else:
                                 # Stage 2 fallback: trimmed parameter string (minimal)
                                 trimmed_parameters = (
-                                    self._build_minimal_parameters(parameters)
-                                    if parameters
-                                    else parameters
+                                    self._build_minimal_parameters(parameters) if parameters else parameters
                                 )
                                 if trimmed_parameters and trimmed_parameters != parameters:
                                     uc_trim = piexif.helper.UserComment.dump(trimmed_parameters, encoding="unicode")
@@ -585,15 +583,11 @@ class SaveImageWithMetaDataUniversal:
                         logger.debug(
                             cstr("[SaveImageWithMetaData] JPEG save EXIF=%s size=%s fallback=%s").msg,
                             "yes" if "exif" in save_kwargs else "no",
-                            exif_size if 'exif_size' in locals() else 0,
+                            exif_size if "exif_size" in locals() else 0,
                             fallback_stage,
                         )
                 except ValueError as e:
-                    if (
-                        "EXIF data is too long" in str(e)
-                        and file_format in {"jpeg", "jpg"}
-                        and "exif" in save_kwargs
-                    ):
+                    if "EXIF data is too long" in str(e) and file_format in {"jpeg", "jpg"} and "exif" in save_kwargs:
                         logger.warning(
                             "[SaveImageWithMetaData] Pillow rejected EXIF (%s). Retrying with COM marker fallback.",
                             e,

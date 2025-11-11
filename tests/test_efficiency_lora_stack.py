@@ -23,11 +23,13 @@ def fixture_simple_input_data():
 def test_efficiency_stack_prefers_outputs(simple_input_data):
     node_id = 42
     outputs = {
-        node_id: ([
-            ("enabled_lora.safetensors", 0.75, 0.5),
-            ("disabled_lora.safetensors", 0.0, 0.0),
-            ("another_disabled", "0", "0.0"),
-        ],)
+        node_id: (
+            [
+                ("enabled_lora.safetensors", 0.75, 0.5),
+                ("disabled_lora.safetensors", 0.0, 0.0),
+                ("another_disabled", "0", "0.0"),
+            ],
+        )
     }
 
     names = eff.get_lora_model_name_stack(node_id, None, None, None, outputs, simple_input_data)
@@ -65,9 +67,11 @@ def test_efficiency_stack_falls_back_without_outputs(simple_input_data):
 def test_efficiency_stack_reports_empty_when_only_disabled_outputs(simple_input_data):
     node_id = 7
     outputs = {
-        node_id: ([
-            ("disabled_lora.safetensors", 0.0, 0.0),
-        ],)
+        node_id: (
+            [
+                ("disabled_lora.safetensors", 0.0, 0.0),
+            ],
+        )
     }
 
     names = eff.get_lora_model_name_stack(node_id, None, None, None, outputs, simple_input_data)

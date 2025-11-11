@@ -26,7 +26,7 @@ def _stack_from_outputs(node_id, outputs):
                 candidates.append(raw[key])
         if not candidates:
             candidates.extend(raw.values())
-    elif isinstance(raw, (list, tuple)):
+    elif isinstance(raw, list | tuple):
         candidates.extend(raw)
     else:
         candidates.append(raw)
@@ -43,7 +43,7 @@ def _stack_from_outputs(node_id, outputs):
         normalized = []
         saw_tuple = False
         for entry in stack:
-            if not isinstance(entry, (list, tuple)):
+            if not isinstance(entry, list | tuple):
                 continue
             saw_tuple = True
             if not entry:
@@ -127,9 +127,7 @@ def get_lora_data_stack(input_data, attribute):
     """
     global _LORA_STACK_SHIM_WARNED
     if not _LORA_STACK_SHIM_WARNED:
-        logger.warning(
-            "get_lora_data_stack is deprecated; use select_stack_by_prefix(..., counter_key='lora_count')."
-        )
+        logger.warning("get_lora_data_stack is deprecated; use select_stack_by_prefix(..., counter_key='lora_count').")
         _LORA_STACK_SHIM_WARNED = True
     # Backward compatibility shim; prefer select_stack_by_prefix above.
     return select_stack_by_prefix(input_data, attribute, counter_key="lora_count")

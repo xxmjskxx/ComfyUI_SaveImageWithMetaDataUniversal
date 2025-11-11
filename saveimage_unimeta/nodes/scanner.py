@@ -2,6 +2,7 @@
 
 This module was extracted from the legacy monolithic node.py to improve maintainability.
 """
+
 import json
 import logging
 import os
@@ -295,9 +296,7 @@ class MetadataRuleScanner:
                             "mask,find,resize,rotate,detailer,bus,scale,vision,text to,crop,xy,plot,controlnet,save,"
                             "trainlora,postshot"
                         ),
-                        "tooltip": (
-                            "Comma-separated keywords to exclude nodes whose class names contain any of them."
-                        ),
+                        "tooltip": ("Comma-separated keywords to exclude nodes whose class names contain any of them."),
                     },
                 )
             },
@@ -436,11 +435,7 @@ class MetadataRuleScanner:
         baseline_samplers = _BASELINE_CACHE.get("samplers", defs_mod.SAMPLERS)
 
         suggested_nodes, suggested_samplers = {}, {}
-        forced_node_names = {
-            cls.strip()
-            for cls in re.split(r"[\n,]", force_include_node_class or "")
-            if cls.strip()
-        }
+        forced_node_names = {cls.strip() for cls in re.split(r"[\n,]", force_include_node_class or "") if cls.strip()}
         exclude_list = [kw.strip().lower() for kw in exclude_keywords.split(",") if kw.strip()]
         all_nodes = {k: v for k, v in nodes.NODE_CLASS_MAPPINGS.items() if hasattr(v, "INPUT_TYPES")}
 
@@ -584,6 +579,7 @@ class MetadataRuleScanner:
                         for pat in patterns:
                             try:
                                 import re as _re
+
                                 if _re.search(pat, lower_name):
                                     return True
                             except Exception:
@@ -605,6 +601,7 @@ class MetadataRuleScanner:
                                 and groups
                             ):
                                 import re as _re
+
                                 name_simple = _re.sub(r"[ _-]+", "", lower_name)
                                 all_ok = True
                                 for kws, min_req in zip(groups, mins):
@@ -645,8 +642,7 @@ class MetadataRuleScanner:
 
                     context_kws = rule.get("required_context")
                     if context_kws and not any(
-                        any(ctx in name.lower() for ctx in context_kws)
-                        for name in all_input_names
+                        any(ctx in name.lower() for ctx in context_kws) for name in all_input_names
                     ):
                         continue
 
@@ -673,8 +669,7 @@ class MetadataRuleScanner:
 
                     if rule.get("is_multi"):
                         kws_norm = [
-                            kw.lower() if isinstance(kw, str) else str(kw).lower()
-                            for kw in rule.get("keywords", [])
+                            kw.lower() if isinstance(kw, str) else str(kw).lower() for kw in rule.get("keywords", [])
                         ]
                         regex_patterns = rule.get("keywords_regex") or []
                         matching_fields = []
@@ -695,6 +690,7 @@ class MetadataRuleScanner:
                                 for pat in regex_patterns:
                                     try:
                                         import re as _re
+
                                         if _re.search(pat, fn, _re.IGNORECASE):
                                             matched = True
                                             break
@@ -773,6 +769,7 @@ class MetadataRuleScanner:
                         for pat in regex_patterns:
                             try:
                                 import re as _re
+
                                 for name in lower_names_filtered.keys():
                                     if _re.search(pat, name, _re.IGNORECASE):
                                         best_field = name
@@ -831,7 +828,7 @@ class MetadataRuleScanner:
                         # Missing-lens: drop fields already in union baseline (defaults+ext+user JSON)
                         if missing_lens and final_map:
                             # Preserve forced metafields even if already in baseline; filter others.
-                            baseline_for_class = (baseline_captures.get(class_name, {}) or {})
+                            baseline_for_class = baseline_captures.get(class_name, {}) or {}
                             kept = {}
                             skipped_ct = 0
                             for mf, data in final_map.items():
@@ -865,7 +862,7 @@ class MetadataRuleScanner:
                                 tagged.setdefault("status", "new")
                                 tagged_map[mf] = tagged
                             if missing_lens and tagged_map:
-                                baseline_for_class = (baseline_captures.get(class_name, {}) or {})
+                                baseline_for_class = baseline_captures.get(class_name, {}) or {}
                                 filtered = {}
                                 for mf, data in tagged_map.items():
                                     if mf.name in force_include_set:
@@ -924,8 +921,7 @@ class MetadataRuleScanner:
         }
         if suggested_nodes:
             final_output["nodes"] = {
-                node: {mf.name: data for mf, data in rules.items()}
-                for node, rules in suggested_nodes.items()
+                node: {mf.name: data for mf, data in rules.items()} for node, rules in suggested_nodes.items()
             }
         for forced in forced_node_names:
             if forced not in final_output["nodes"]:
@@ -977,17 +973,10 @@ class MetadataRuleScanner:
             f"Existing fields included={total_existing_fields_included}",
             f"Skipped fields={total_skipped_fields}",
             f"BaselineCache=hit:{cache_hits}|miss:{cache_misses}",
-            "Force metafields="
-            + (
-                ",".join(sorted(force_include_set))
-                if force_include_set
-                else "None"
-            ),
+            "Force metafields=" + (",".join(sorted(force_include_set)) if force_include_set else "None"),
         ]
         if forced_node_names:
-            diff_chunks.append(
-                "Forced node classes=" + ",".join(sorted(forced_node_names))
-            )
+            diff_chunks.append("Forced node classes=" + ",".join(sorted(forced_node_names)))
         diff_report = "; ".join(diff_chunks)
 
         pretty_json = json.dumps(final_output, indent=4)

@@ -7,6 +7,7 @@ import importlib
 
 MODULE_PATH = "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.capture"
 
+
 def test_module_imports_without_comfy_runtime(monkeypatch):
     # Ensure env flags don't break import.
     monkeypatch.delenv("METADATA_DEBUG_PROMPTS", raising=False)
@@ -21,9 +22,7 @@ def test_clean_name_basic():
     assert Capture._clean_name(["C:/x/y/z.pt"]) == "z.pt"
     assert Capture._clean_name("\\\\network\\share\\model.ckpt", drop_extension=True) == "model"
     # When capture tuples include node id + field context, ensure we clean the value portion.
-    assert (
-        Capture._clean_name((42, "EasyNegative.safetensors", "text"), drop_extension=True) == "EasyNegative"
-    )
+    assert Capture._clean_name((42, "EasyNegative.safetensors", "text"), drop_extension=True) == "EasyNegative"
 
 
 def test_iter_values_and_extract_value():
@@ -40,15 +39,14 @@ def test_iter_values_and_extract_value():
 def test_get_inputs_fallback_flux(monkeypatch):
     """Simulate a minimal prompt graph where Flux fallback should capture T5/CLIP prompts."""
     cap = importlib.import_module(MODULE_PATH)
-    meta_mod = importlib.import_module(
-        "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.meta"
-    )
+    meta_mod = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.meta")
     MetaField = meta_mod.MetaField
 
     # Minimal fake hook state
     class DummyPromptExecuter:
         class Caches:
             outputs = {}
+
         caches = Caches()
 
     class DummyHook:
@@ -78,12 +76,9 @@ def test_get_inputs_fallback_flux(monkeypatch):
 
 def test_generate_pnginfo_version_stamp():
     cap = importlib.import_module(MODULE_PATH)
-    meta_mod = importlib.import_module(
-        "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.meta"
-    )
-    MetaField = meta_mod.MetaField
+    # meta_mod = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.meta")
+    # MetaField = meta_mod.MetaField
 
     # Provide minimal empty inputs
     pnginfo = cap.Capture.gen_pnginfo_dict({}, {}, False)
     assert "Metadata generator version" in pnginfo
-

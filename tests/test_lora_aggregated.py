@@ -10,6 +10,7 @@ def _prime(monkeypatch, prompt_text: str):
     class DummyPromptExecuter:
         class Caches:
             outputs = {}
+
         caches = Caches()
 
     class DummyHook:

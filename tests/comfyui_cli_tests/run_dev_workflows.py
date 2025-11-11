@@ -26,6 +26,7 @@ from pathlib import Path
 
 try:
     from send2trash import send2trash
+
     SEND2TRASH_AVAILABLE = True
 except ImportError:
     SEND2TRASH_AVAILABLE = False

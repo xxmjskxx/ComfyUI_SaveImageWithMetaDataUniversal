@@ -20,6 +20,7 @@ from .utils.color import cstr
 
 logger = logging.getLogger(__name__)
 
+
 def _trace_debug_enabled() -> bool:
     # Reuse the same flag as capture for prompt/sampler tracing verbosity.
     return os.environ.get("METADATA_DEBUG_PROMPTS", "").strip() != ""
@@ -28,7 +29,7 @@ def _trace_debug_enabled() -> bool:
 class Trace:
     @classmethod
     def trace(cls, start_node_id, prompt):
-    # logger.debug("[Trace] Attempting to trace node ID: %s", start_node_id)
+        # logger.debug("[Trace] Attempting to trace node ID: %s", start_node_id)
         if start_node_id not in prompt:
             # This check prevents the KeyError: -1
             logger.warning(
@@ -165,7 +166,7 @@ class Trace:
             try:
                 logger.debug(
                     cstr("[Trace] Filtered inputs by distance: %s").msg,
-                    {getattr(meta, 'name', str(meta)): v for meta, v in filtered_inputs.items()},
+                    {getattr(meta, "name", str(meta)): v for meta, v in filtered_inputs.items()},
                 )
             except Exception:
                 pass  # Logging failure should not break input filtering

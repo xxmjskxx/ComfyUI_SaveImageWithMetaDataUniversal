@@ -16,14 +16,17 @@ def test_lora_st_extension_indexing(monkeypatch):
         fake_path = os.path.join(temp_root, fake_name + ".st")
         with open(fake_path, "wb") as f:
             f.write(b"dummy lora contents")
+
         # Provide folder_paths.get_folder_paths mock
         def _mock_get_folder_paths(kind):  # noqa: D401
             if kind == "loras":
                 return [temp_root]
             return []
+
         monkeypatch.setattr(folder_paths, "get_folder_paths", _mock_get_folder_paths)
         # Reset internal index flags (module globals)
         from saveimage_unimeta.utils import lora as lora_mod  # type: ignore
+
         lora_mod._LORA_INDEX = None  # type: ignore
         lora_mod._LORA_INDEX_BUILT = False  # type: ignore
 

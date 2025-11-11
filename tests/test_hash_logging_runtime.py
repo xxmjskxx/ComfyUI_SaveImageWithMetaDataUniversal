@@ -24,13 +24,14 @@ def test_logging_initialization_and_hash_source(tmp_path, monkeypatch):
     model_file = _mk(tmp_path, "anonymodel.safetensors", "AAAA")
     # folder_paths stub
     import folder_paths  # type: ignore
+
     monkeypatch.setattr(
         folder_paths,
-        'get_full_path',
-        lambda kind, name: model_file if name.startswith('anonymodel') else None,
+        "get_full_path",
+        lambda kind, name: model_file if name.startswith("anonymodel") else None,
     )
     captured: list[str] = []
-    monkeypatch.setattr(formatters, '_log', lambda k, m, level=logging.INFO: captured.append(m))
+    monkeypatch.setattr(formatters, "_log", lambda k, m, level=logging.INFO: captured.append(m))
     formatters.set_hash_log_mode("debug")
     h1 = formatters.calc_model_hash("anonymodel", None)
     assert len(h1) == 10
@@ -46,15 +47,14 @@ def test_logging_initialization_and_hash_source(tmp_path, monkeypatch):
 def test_lora_numeric_suffix_debug_logging(tmp_path, monkeypatch):
     lora_file = _mk(tmp_path, "obscure_theme_pack_7.05.safetensors", "BBBB")
     import folder_paths  # type: ignore
+
     monkeypatch.setattr(
         folder_paths,
-        'get_full_path',
-        lambda kind, name: (
-            lora_file if name.startswith('obscure_theme_pack_7.05') else None
-        ),
+        "get_full_path",
+        lambda kind, name: (lora_file if name.startswith("obscure_theme_pack_7.05") else None),
     )
     captured: list[str] = []
-    monkeypatch.setattr(formatters, '_log', lambda k, m, level=logging.INFO: captured.append(m))
+    monkeypatch.setattr(formatters, "_log", lambda k, m, level=logging.INFO: captured.append(m))
     formatters.set_hash_log_mode("debug")
     h = formatters.calc_lora_hash("obscure_theme_pack_7.05", None)
     assert len(h) == 10
@@ -67,14 +67,15 @@ def test_lora_numeric_suffix_debug_logging(tmp_path, monkeypatch):
 def test_force_rehash_env(tmp_path, monkeypatch):
     model_file = _mk(tmp_path, "anothermodel.safetensors", "CCCC")
     import folder_paths  # type: ignore
+
     monkeypatch.setattr(
         folder_paths,
-        'get_full_path',
-        lambda kind, name: model_file if name.startswith('anothermodel') else None,
+        "get_full_path",
+        lambda kind, name: model_file if name.startswith("anothermodel") else None,
     )
     # Capture log messages
     recorded = []
-    monkeypatch.setattr(formatters, '_log', lambda k, m, level=logging.INFO: recorded.append(m))
+    monkeypatch.setattr(formatters, "_log", lambda k, m, level=logging.INFO: recorded.append(m))
     formatters.set_hash_log_mode("path")
     # First call writes sidecar
     h1 = formatters.calc_model_hash("anothermodel", None)
@@ -99,7 +100,7 @@ def test_force_rehash_env(tmp_path, monkeypatch):
 
 def test_unresolved_model_resolution_logging(monkeypatch):
     captured: list[str] = []
-    monkeypatch.setattr(formatters, '_log', lambda k, m, level=logging.INFO: captured.append(m))
+    monkeypatch.setattr(formatters, "_log", lambda k, m, level=logging.INFO: captured.append(m))
     formatters.set_hash_log_mode("detailed")
     h = formatters.calc_model_hash("nonexistent_foo_bar_baz", None)
     assert h == "N/A"

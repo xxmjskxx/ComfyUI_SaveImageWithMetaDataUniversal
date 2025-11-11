@@ -20,20 +20,21 @@ logger = logging.getLogger(__name__)
 
 
 class AnyType(str):
-        """Wildcard type that compares equal to any type name.
+    """Wildcard type that compares equal to any type name.
 
-        This mirrors a common ComfyUI pattern for accepting any input type by
-        using a custom string subclass that always returns True for equality
-        comparisons. We also override __ne__ for safety.
-        A special class that is always equal in not equal comparisons. Credit to
-        pythongosssss / rgthree.
-        """
+    This mirrors a common ComfyUI pattern for accepting any input type by
+    using a custom string subclass that always returns True for equality
+    comparisons. We also override __ne__ for safety.
+    A special class that is always equal in not equal comparisons. Credit to
+    pythongosssss / rgthree.
+    """
 
-        def __eq__(self, __value: object) -> bool:  # noqa: D401
-                return True
+    def __eq__(self, __value: object) -> bool:  # noqa: D401
+        return True
 
-        def __ne__(self, __value: object) -> bool:  # noqa: D401
-                return False
+    def __ne__(self, __value: object) -> bool:  # noqa: D401
+        return False
+
 
 any_type = AnyType("*")
 

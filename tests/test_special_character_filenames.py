@@ -30,6 +30,7 @@ try:  # runtime import (skip gracefully if minimal env)
         calc_unet_hash,
     )
     from saveimage_unimeta.utils.embedding import get_embedding_file_path
+
     FORMATTERS_AVAILABLE = True
 except (ImportError, ModuleNotFoundError) as e:  # narrow expected import failures
     logging.warning("Could not import formatters: %s", e)
@@ -108,6 +109,7 @@ def patch_folder_paths():
     def _apply(base_dir: str):
         mfp = _mock_folder_paths(base_dir)
         return patch("saveimage_unimeta.defs.formatters.folder_paths", mfp)
+
     return _apply
 
 

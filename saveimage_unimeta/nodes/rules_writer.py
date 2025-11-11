@@ -124,9 +124,7 @@ class SaveCustomMetadataRules:
     RETURN_NAMES = ("status",)
     FUNCTION = "save_rules"
     CATEGORY = "SaveImageWithMetaDataUniversal/rules"
-    DESCRIPTION = (
-        "Manage custom metadata capture rules: overwrite or append + backups + restore."
-    )
+    DESCRIPTION = "Manage custom metadata capture rules: overwrite or append + backups + restore."
     NODE_NAME = "Save Custom Metadata Rules"
     OUTPUT_NODE = True
 
@@ -185,9 +183,7 @@ class SaveCustomMetadataRules:
                     BACKUPS_ROOT, pre_ts, USER_CAPTURES_FILE, USER_SAMPLERS_FILE, GENERATED_EXT_FILE
                 )
                 if created_dir:
-                    logger.info(
-                        "[Metadata Loader] Created backup %s before restoring %s.", pre_ts, restore_backup_set
-                    )
+                    logger.info("[Metadata Loader] Created backup %s before restoring %s.", pre_ts, restore_backup_set)
                 metrics["restored"] = True
                 target_dir = os.path.join(BACKUPS_ROOT, restore_backup_set)
                 if not os.path.isdir(target_dir):
@@ -247,9 +243,7 @@ class SaveCustomMetadataRules:
 
             if backup_before_save:
                 ts = _timestamp()
-                if self._create_backup(
-                    BACKUPS_ROOT, ts, USER_CAPTURES_FILE, USER_SAMPLERS_FILE, GENERATED_EXT_FILE
-                ):
+                if self._create_backup(BACKUPS_ROOT, ts, USER_CAPTURES_FILE, USER_SAMPLERS_FILE, GENERATED_EXT_FILE):
                     metrics["backup"] = ts
                     if limit_backup_sets and limit_backup_sets > 0:
                         metrics["pruned"] = self._prune_backups(BACKUPS_ROOT, limit_backup_sets)
@@ -296,9 +290,7 @@ class SaveCustomMetadataRules:
                 try:
                     self._generate_python_extension(GENERATED_EXT_FILE, final_nodes, final_samplers)
                 except Exception as gen_err:  # pragma: no cover
-                    logger.warning(
-                        "[Metadata Loader] Could not generate python ext from rules: %s", gen_err
-                    )
+                    logger.warning("[Metadata Loader] Could not generate python ext from rules: %s", gen_err)
 
             self._warn_uninstalled_nodes(list(sanitized_nodes.keys()))
 
@@ -488,11 +480,7 @@ class SaveCustomMetadataRules:
             "    extract_embedding_names, extract_embedding_hashes\n"
             ")"
         )
-        lines.append(
-            "from ..validators import (\n"
-            "    is_positive_prompt, is_negative_prompt\n"
-            ")"
-        )
+        lines.append("from ..validators import (\n" "    is_positive_prompt, is_negative_prompt\n" ")")
         lines.append(
             "from ..selectors import (\n"
             "    select_stack_by_prefix,\n"
@@ -512,7 +500,9 @@ class SaveCustomMetadataRules:
         lines.append("        return []")
         lines.append("    model_strengths = select_stack_by_prefix(input_data, 'model_str', counter_key='lora_count')")
         lines.append("    if not model_strengths:")
-        lines.append("        model_strengths = select_stack_by_prefix(input_data, 'lora_wt', counter_key='lora_count')")
+        lines.append(
+            "        model_strengths = select_stack_by_prefix(input_data, 'lora_wt', counter_key='lora_count')"
+        )
         lines.append("    clip_strengths = select_stack_by_prefix(input_data, 'clip_str', counter_key='lora_count')")
         lines.append("    if not clip_strengths:")
         lines.append("        clip_strengths = select_stack_by_prefix(input_data, 'lora_wt', counter_key='lora_count')")
@@ -606,6 +596,7 @@ class SaveCustomMetadataRules:
     def _warn_uninstalled_nodes(node_names):  # best-effort detection
         try:
             from nodes import NODE_CLASS_MAPPINGS  # type: ignore
+
             missing = [n for n in node_names if n not in NODE_CLASS_MAPPINGS]
             if missing:
                 logger.warning(
@@ -618,7 +609,10 @@ class SaveCustomMetadataRules:
 
 def _timestamp() -> str:
     return time.strftime("%Y%m%d-%H%M%S", time.localtime())
+
+
 _TIMESTAMP_BASE_LENGTH = 15  # len('YYYYMMDD-HHMMSS')
+
 
 def _looks_like_timestamp(name: str) -> bool:
     """Return True for 'YYYYMMDD-HHMMSS' optionally followed by '-N' numeric suffix.
