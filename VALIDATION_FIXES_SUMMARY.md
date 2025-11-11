@@ -15,7 +15,7 @@ All issues from the problem statement have been resolved:
 ## Test Results
 
 ### New Tests Added
-- ✅ 22 comprehensive tests (13 unit + 9 integration)
+- ✅ 32 comprehensive tests (13 unit + 9 integration + 3 Chinese metadata + 7 quality validation)
 - ✅ All tests passing
 - ✅ Code coverage for all fixes
 
@@ -120,13 +120,19 @@ Before considering this complete, verify:
 - [x] Demo script works
 - [x] Code is linted and clean
 
-## Known Limitations
+## Known Limitations - UPDATE
 
-### Wan21 Workflow
-The problem statement notes metadata recording issues with Chinese characters in `wan21_text_to_image.json`. While the parser now correctly handles Chinese characters in prompts, deeper issues with this specific workflow may require:
-- Investigation of the workflow structure
-- Analysis of the nodes being used
-- Potential upstream fixes in node implementations
+### Wan21 Workflow - Metadata Generation Issues ⚠️
+Testing with the actual `Wan21_00001_.png` image reveals **metadata generation bugs**:
+- ⚠️ Workflow has NO embeddings, but 2 are recorded (prompts incorrectly captured as embeddings)
+- ⚠️ Embedding names/hashes contain prompts instead of actual embedding data  
+- ⚠️ Hashes summary uses wrong keys ("embed:3" instead of "embed:EmbeddingName")
+- ⚠️ Trailing punctuation in embedding names causes hash failures
+
+**Validation script now detects these issues**:
+- ✅ N/A values, prompts as embeddings, trailing punctuation
+- ✅ Missing or mismatched Hashes entries
+- ✅ Added 7 new tests for metadata quality validation
 
 ### Flux LoRA Manager
 API export issues for `flux-LoRA-Manager.json` are ComfyUI UI-related, not validation script issues. Users should:
@@ -138,7 +144,7 @@ API export issues for `flux-LoRA-Manager.json` are ComfyUI UI-related, not valid
 
 All issues from the problem statement have been successfully resolved:
 - ✅ **5 major issues fixed**
-- ✅ **22 new tests added**
+- ✅ **32 new tests added**
 - ✅ **6 new files created**
 - ✅ **2 core files enhanced**
 - ✅ **100% test pass rate**

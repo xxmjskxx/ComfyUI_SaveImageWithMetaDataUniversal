@@ -485,17 +485,13 @@ class MetadataValidator:
             metadata_text = params_str
 
         # Detect format: check if we have comma separators between known keys
-        # Count commas followed by known keys vs newlines followed by known keys
-        comma_key_count = 0
-        newline_key_count = 0
+        # Build combined regex patterns for comma and newline formats (more efficient)
+        escaped_keys = [re.escape(k) for k in known_keys]
+        comma_pattern = re.compile(r',\s*(?:' + '|'.join(escaped_keys) + r'):')
+        newline_pattern = re.compile(r'\n\s*(?:' + '|'.join(escaped_keys) + r'):')
 
-        for key in known_keys:
-            # Check for ", Key:" pattern (comma-separated format)
-            if re.search(r',\s*' + re.escape(key) + r':', metadata_text):
-                comma_key_count += 1
-            # Check for "\nKey:" pattern (newline-separated format)
-            if re.search(r'\n\s*' + re.escape(key) + r':', metadata_text):
-                newline_key_count += 1
+        comma_key_count = len(comma_pattern.findall(metadata_text))
+        newline_key_count = len(newline_pattern.findall(metadata_text))
 
         # Determine which format to use
         use_comma_format = comma_key_count > newline_key_count
@@ -649,6 +645,24 @@ class MetadataValidator:
                 result['warnings'].append(f"Metadata fallback occurred: {fallback_stage}")
                 result['fallback_stage'] = fallback_stage
 
+        # Check for N/A values in any field (should never happen)
+        for field_name, field_value in fields.items():
+            if field_value == 'N/A' or 'N/A' in field_value:
+                result['errors'].append(
+                    f"Field '{field_name}' contains 'N/A' value: {field_value}"
+                )
+
+        # Validate Hashes summary if present
+        if 'Hashes' in fields:
+            try:
+                hashes_dict = json.loads(fields['Hashes'])
+                self._validate_hashes_summary(fields, hashes_dict, result)
+            except json.JSONDecodeError:
+                result['errors'].append("Hashes field is not valid JSON")
+
+        # Validate embedding fields
+        self._validate_embedding_fields(fields, result)
+
         # Validate file format matches expectation
         expected_format = expected.get('file_format', 'png')
         actual_format = image_path.suffix.lower().lstrip('.')
@@ -664,6 +678,162 @@ class MetadataValidator:
         result['passed'] = len(result['errors']) == 0
 
         return result
+
+    def _validate_hashes_summary(self, fields: dict, hashes_dict: dict, result: dict):
+        """Validate that the Hashes summary matches the metadata entries."""
+        # Check that all models/VAEs/LoRAs/embeddings in metadata are in Hashes
+        # LoRAs
+        lora_indices = set()
+        for key in fields.keys():
+            if key.startswith('Lora_') and 'Model name' in key:
+                # Extract index
+                match = re.match(r'Lora_(\d+) Model name', key)
+                if match:
+                    lora_indices.add(int(match.group(1)))
+
+        for idx in lora_indices:
+            model_name_key = f'Lora_{idx} Model name'
+            model_hash_key = f'Lora_{idx} Model hash'
+
+            if model_name_key in fields:
+                model_name = fields[model_name_key]
+                # Remove extension if present
+                model_name_base = model_name.replace('.safetensors', '').replace('.pt', '').replace('.ckpt', '')
+
+                # Check if this LoRA is in the Hashes dict
+                lora_key = f'lora:{model_name_base}'
+                if lora_key not in hashes_dict:
+                    result['errors'].append(
+                        f"LoRA '{model_name}' has metadata but is missing from Hashes summary"
+                    )
+                else:
+                    # Validate hash consistency
+                    if model_hash_key in fields:
+                        metadata_hash = fields[model_hash_key]
+                        hashes_hash = hashes_dict[lora_key]
+                        if metadata_hash != 'N/A' and metadata_hash != hashes_hash:
+                            result['errors'].append(
+                                f"LoRA '{model_name}' hash mismatch: metadata has '{metadata_hash}' "
+                                f"but Hashes summary has '{hashes_hash}'"
+                            )
+
+            if model_hash_key in fields and fields[model_hash_key] == 'N/A':
+                result['errors'].append(
+                    f"LoRA hash for Lora_{idx} is 'N/A' - hash should always be computed"
+                )
+
+        # Embeddings
+        embedding_indices = set()
+        for key in fields.keys():
+            if key.startswith('Embedding_') and 'name' in key:
+                match = re.match(r'Embedding_(\d+) name', key)
+                if match:
+                    embedding_indices.add(int(match.group(1)))
+
+        for idx in embedding_indices:
+            name_key = f'Embedding_{idx} name'
+            hash_key = f'Embedding_{idx} hash'
+
+            if name_key in fields:
+                emb_name = fields[name_key]
+
+                # Check if this is actually a prompt (very long text suggests it's not an embedding)
+                if len(emb_name) > 100:
+                    result['errors'].append(
+                        f"Embedding_{idx} name appears to be a prompt (length={len(emb_name)}), not an embedding name"
+                    )
+
+                # Check if embedding is in Hashes dict
+                # The key should be embed:<name>, not embed:<wrong_index>
+                found_in_hashes = False
+                hash_value_in_hashes = None
+
+                for hash_key_name in hashes_dict.keys():
+                    if hash_key_name.startswith('embed:'):
+                        embed_name_in_hash = hash_key_name.replace('embed:', '')
+
+                        # Check if the name matches exactly
+                        if embed_name_in_hash == emb_name:
+                            found_in_hashes = True
+                            hash_value_in_hashes = hashes_dict[hash_key_name]
+                            break
+                        # If it's just a number, that's wrong - should be the embedding name
+                        elif embed_name_in_hash.isdigit():
+                            result['errors'].append(
+                                f"Embedding_{idx} '{emb_name}' is in Hashes with wrong key "
+                                f"'embed:{embed_name_in_hash}' (should be 'embed:{emb_name}')"
+                            )
+                            found_in_hashes = True  # Found but with wrong key
+                            hash_value_in_hashes = hashes_dict[hash_key_name]
+                            break
+
+                if not found_in_hashes:
+                    result['errors'].append(
+                        f"Embedding_{idx} '{emb_name}' has metadata but is missing from Hashes summary"
+                    )
+
+                # Validate hash consistency between metadata and Hashes summary
+                if found_in_hashes and hash_key in fields and hash_value_in_hashes:
+                    metadata_hash = fields[hash_key]
+                    if metadata_hash != 'N/A' and metadata_hash != hash_value_in_hashes:
+                        result['errors'].append(
+                            f"Embedding_{idx} hash mismatch: metadata has '{metadata_hash}' "
+                            f"but Hashes summary has '{hash_value_in_hashes}'"
+                        )
+
+            if hash_key in fields and fields[hash_key] == 'N/A':
+                result['errors'].append(
+                    f"Embedding hash for Embedding_{idx} is 'N/A' - hash should always be computed"
+                )
+
+        # Check model and VAE
+        if 'Model hash' in fields:
+            if fields['Model hash'] == 'N/A':
+                result['errors'].append("Model hash is 'N/A' - hash should always be computed")
+            elif 'model' in hashes_dict:
+                metadata_hash = fields['Model hash']
+                hashes_hash = hashes_dict['model']
+                if metadata_hash != hashes_hash:
+                    result['errors'].append(
+                        f"Model hash mismatch: metadata has '{metadata_hash}' "
+                        f"but Hashes summary has '{hashes_hash}'"
+                    )
+
+        if 'VAE hash' in fields:
+            if fields['VAE hash'] == 'N/A':
+                result['errors'].append("VAE hash is 'N/A' - hash should always be computed")
+            elif 'vae' in hashes_dict:
+                metadata_hash = fields['VAE hash']
+                hashes_hash = hashes_dict['vae']
+                if metadata_hash != hashes_hash:
+                    result['errors'].append(
+                        f"VAE hash mismatch: metadata has '{metadata_hash}' "
+                        f"but Hashes summary has '{hashes_hash}'"
+                    )
+
+    def _validate_embedding_fields(self, fields: dict, result: dict):
+        """Validate embedding-specific issues."""
+        for key, value in fields.items():
+            if 'Embedding_' in key and 'name' in key:
+                # Check for trailing commas or other punctuation
+                if value.rstrip(',') != value:
+                    result['errors'].append(
+                        f"Embedding name '{key}' has trailing punctuation: '{value}'"
+                    )
+
+                # Check if this is actually a prompt (very long text suggests it's not an embedding)
+                if len(value) > 100:
+                    result['errors'].append(
+                        f"Embedding name '{key}' appears to be a prompt (length={len(value)}), not an embedding name"
+                    )
+
+            # Check if embedding hash is also suspiciously long (suggests it's a prompt)
+            # Normal hashes are typically 10-64 characters (sha256 truncated or full)
+            if 'Embedding_' in key and 'hash' in key:
+                if len(value) > 70:
+                    result['errors'].append(
+                        f"Embedding hash '{key}' appears to be a prompt (length={len(value)}), not a hash"
+                    )
 
     def match_image_to_workflow(self, image_path: Path, filename_patterns: list[str]) -> bool:
         """Check if an image filename matches any of the workflow's filename patterns.
@@ -800,26 +970,39 @@ class MetadataValidator:
         # Validate each workflow's outputs
         all_results = []
         validated_images = set()
+        workflows_with_images = set()
+        workflows_without_images = set()
 
         for workflow_file in workflow_files:
             results = self.validate_workflow_outputs(workflow_file, all_images)
-            all_results.extend(results)
 
-            # Track which images were validated
-            for result in results:
-                validated_images.add(Path(result['image_path']))
+            # Track workflows that had matching images vs those that didn't
+            if results:
+                workflows_with_images.add(workflow_file.name)
+                all_results.extend(results)
 
-        # Report unmatched images
-        unmatched_images = set(all_images) - validated_images
-        if unmatched_images:
-            print(f"\n⚠ Warning: {len(unmatched_images)} image(s) did not match any workflow:")
-            for img in sorted(unmatched_images):
-                print(f"  - {img.name}")
+                # Track which images were validated
+                for result in results:
+                    validated_images.add(Path(result['image_path']))
+            else:
+                # Check if this workflow was skipped (like 1-scan-and-save-custom-metadata-rules.json)
+                # or if it genuinely had no matching images
+                if workflow_file.name != '1-scan-and-save-custom-metadata-rules.json':
+                    # Load workflow to check if it has a save node
+                    try:
+                        with open(workflow_file, encoding='utf-8') as f:
+                            workflow = json.load(f)
+                        expected = WorkflowAnalyzer.extract_expected_metadata(workflow, workflow_file.stem)
+                        if expected['has_save_node']:
+                            workflows_without_images.add(workflow_file.name)
+                    except Exception as e:
+                        print(f"Warning: Failed to analyze workflow '{workflow_file.name}': {e}")
 
         # Calculate statistics
         total = len(all_results)
         passed = sum(1 for r in all_results if r['passed'])
         failed = total - passed
+        unmatched_images = set(all_images) - validated_images
 
         # Print summary
         print("\n" + "=" * 70)
@@ -827,6 +1010,21 @@ class MetadataValidator:
         print(f"  Total Images Validated: {total}")
         print(f"  ✓ Passed:               {passed}")
         print(f"  ✗ Failed:               {failed}")
+        print(f"  ⚠ Unmatched Images:     {len(unmatched_images)}")
+        print(f"  ⚠ Unmatched Workflows:  {len(workflows_without_images)}")
+        print("=" * 70)
+
+        # Report unmatched images
+        if unmatched_images:
+            print(f"\nUnmatched Images ({len(unmatched_images)}):")
+            for img in sorted(unmatched_images):
+                print(f"  - {img.name}")
+
+        # Report unmatched workflows
+        if workflows_without_images:
+            print(f"\nUnmatched Workflows ({len(workflows_without_images)}):")
+            for wf in sorted(workflows_without_images):
+                print(f"  - {wf}")
 
         if failed > 0:
             print("\nFailed Images:")
