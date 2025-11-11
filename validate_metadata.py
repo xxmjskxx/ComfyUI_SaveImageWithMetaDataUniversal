@@ -257,7 +257,18 @@ class WorkflowAnalyzer:
 
     @staticmethod
     def resolve_filename_prefix(workflow: dict, filename_prefix: Any) -> str:
-        """Resolve filename_prefix which may be a string or a link to another node."""
+        """Resolve filename_prefix which may be a string or a link to another node.
+
+        Args:
+            workflow: Dictionary with string keys representing node IDs
+            filename_prefix: Either a string or a list [node_id, output_index] linking to another node
+
+        Returns:
+            The resolved filename prefix string. Returns empty string if:
+            - filename_prefix is a list but the linked node doesn't exist
+            - The linked node has no 'value' in its inputs
+            - filename_prefix is neither a string nor a list
+        """
         if isinstance(filename_prefix, list):
             # It's a link to another node [node_id, output_index]
             link_node_id = str(filename_prefix[0])
@@ -316,15 +327,19 @@ class WorkflowAnalyzer:
                     # Remove token patterns but keep the static text
                     # For example: "siwm-%model:10%" -> "siwm"
                     # For example: "%date:yyyy-MM-dd-hhmmss%-Flux-dual-clip" -> "Flux-dual-clip"
-                    import re
                     # Remove all %...% patterns
                     cleaned = re.sub(r'%[^%]+%', '', clean_part)
                     cleaned = cleaned.strip('-_')
 
                     # Only add non-generic patterns (not just "Test" or "Tests")
-                    if cleaned and cleaned.lower() not in {'test', 'tests'} and cleaned not in seen_patterns:
+                    # Require minimum length of 3 to avoid overly broad matches like "a" or "xy"
+                    # Use case-insensitive deduplication to match case-insensitive matching logic
+                    cleaned_lower = cleaned.lower()
+                    if (cleaned and len(cleaned) >= 3
+                            and cleaned_lower not in {'test', 'tests'}
+                            and cleaned_lower not in seen_patterns):
                         patterns.append(cleaned)
-                        seen_patterns.add(cleaned)
+                        seen_patterns.add(cleaned_lower)
 
         return patterns
 
@@ -485,17 +500,26 @@ class MetadataValidator:
         }
 
         # Check if this is a control image (without metadata)
+        # Control images are saved using the default SaveImage node and are expected
+        # to have no metadata or parameters field
         is_control_image = 'without-meta' in image_path.name.lower()
 
         # Read metadata
         metadata = MetadataReader.read_metadata(image_path)
 
-        if not metadata:
-            if is_control_image:
-                # Control images are expected to have no metadata
+        # Handle control images: they should have no metadata or parameters
+        if is_control_image:
+            if not metadata or not metadata.get('parameters', ''):
+                # Expected behavior for control images
                 result['passed'] = True
                 result['warnings'].append("Control image (without-meta) - no metadata expected")
                 return result
+            # Control image unexpectedly has metadata - continue with normal validation
+            # but add a warning
+            result['warnings'].append("Control image (without-meta) has unexpected metadata - validating anyway")
+
+        # For non-control images, metadata is required
+        if not metadata:
             result['errors'].append("No metadata found in image")
             return result
 
@@ -504,11 +528,6 @@ class MetadataValidator:
         # Get parameters string
         params_str = metadata.get('parameters', '')
         if not params_str:
-            if is_control_image:
-                # Control images are expected to have no parameters
-                result['passed'] = True
-                result['warnings'].append("Control image (without-meta) - no parameters expected")
-                return result
             result['errors'].append("No 'parameters' field found in metadata")
             return result
 
@@ -560,17 +579,25 @@ class MetadataValidator:
         return result
 
     def match_image_to_workflow(self, image_path: Path, filename_patterns: list[str]) -> bool:
-        """Check if an image filename matches any of the workflow's filename patterns."""
+        """Check if an image filename matches any of the workflow's filename patterns.
+
+        Uses word-boundary matching to avoid false positives like "eff" matching "jeff_image.png".
+        Patterns must match as whole words or be separated by delimiters (_, -, .).
+        """
         if not filename_patterns:
             # If no patterns, try to match workflow name from filename
             return False
 
-        image_name = image_path.name.lower()
+        # Remove file extension for matching
+        image_name = image_path.stem.lower()
 
         # Check each pattern
         for pattern in filename_patterns:
             pattern_lower = pattern.lower()
-            if pattern_lower in image_name:
+            # Match pattern as a whole word or separated by delimiters (_,-,.)
+            # Regex: (^|[_\-.])pattern($|[_\-.])
+            regex = r'(^|[_\-.])' + re.escape(pattern_lower) + r'($|[_\-.])'
+            if re.search(regex, image_name):
                 return True
 
         return False
