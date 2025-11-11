@@ -135,8 +135,12 @@ def collect_lora_stack(input_data):
         input_data (list[dict[str, list]]): List containing a dictionary with string keys and list values.
 
     Returns:
-        list[tuple[str, Any, Any]]: List of tuples (name, model_strength, clip_strength),
-            respecting toggles and None entries.
+        list[tuple[str, Any, Any]]: List of tuples (name, model_strength, clip_strength).
+
+    Filtering behavior:
+        - Entries with a toggle switch set to 'Off' (case-insensitive) are excluded.
+        - Entries with name set to 'None' (case-insensitive) or an empty string are excluded.
+        - Only entries with a valid name and enabled toggle are included in the result.
     """
     normalized = _build_normalized_map(input_data)
     if not normalized:

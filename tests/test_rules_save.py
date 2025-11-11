@@ -62,7 +62,7 @@ def test_rules_save_merge_updates_and_appends():
         "    },\n"
         "}\n"
     )
-    (st1,) = node.save_rules(base, append=False)
+    node.save_rules(base, append=False)
     assert os.path.exists(path)
 
     # Merge in an update to SAMPLERS and a new CAPTURE_FIELD_LIST entry
