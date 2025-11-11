@@ -12,6 +12,11 @@ from .formatters import (
 from .meta import MetaField
 from .validators import is_negative_prompt, is_positive_prompt
 
+
+def _passthrough(value, *_):
+    """Return value unchanged (helper for pre-hashed stub inputs)."""
+    return value
+
 # import os
 # import json
 
@@ -183,6 +188,24 @@ CAPTURE_FIELD_LIST = {
             "field_name": "prompt",
             "validate": is_negative_prompt,
         },
+    },
+    "MetadataTestSampler": {
+        MetaField.POSITIVE_PROMPT: {"field_name": "positive_prompt"},
+        MetaField.NEGATIVE_PROMPT: {"field_name": "negative_prompt"},
+        MetaField.SEED: {"field_name": "seed"},
+        MetaField.STEPS: {"field_name": "steps"},
+        MetaField.CFG: {"field_name": "cfg"},
+        MetaField.SAMPLER_NAME: {"field_name": "sampler_name"},
+        MetaField.SCHEDULER: {"field_name": "scheduler"},
+        MetaField.GUIDANCE: {"field_name": "guidance"},
+        MetaField.MODEL_NAME: {"field_name": "model_name"},
+        MetaField.MODEL_HASH: {"field_name": "model_hash", "format": _passthrough},
+        MetaField.VAE_NAME: {"field_name": "vae_name"},
+        MetaField.VAE_HASH: {"field_name": "vae_hash", "format": _passthrough},
+        MetaField.CLIP_MODEL_NAME: {"prefix": "clip_name"},
+        MetaField.IMAGE_WIDTH: {"field_name": "width"},
+        MetaField.IMAGE_HEIGHT: {"field_name": "height"},
+        MetaField.METADATA_GENERATOR_VERSION: {"field_name": "generator_version"},
     },
 }
 

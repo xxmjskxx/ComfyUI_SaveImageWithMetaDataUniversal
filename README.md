@@ -403,6 +403,7 @@ Deferred and exploratory concepts are documented in:
 | `METADATA_HASH_LOG_PROPAGATE` | `0` to suppress propagation to root logger (keep logs local); `1` (default) to propagate. |
 | `METADATA_FORCE_REHASH` | When set to `1`, recomputes hashes ignoring existing `.sha256` sidecars (diagnostics / mismatch recovery). |
 | `METADATA_DUMP_LORA_INDEX` | When set: dump LoRA index JSON after first build. Value `1` → `_lora_index_dump.json` in CWD; otherwise use as output path. |
+| `METADATA_ENABLE_TEST_NODES` | Enable lightweight stub nodes (e.g., `MetadataTestSampler`) for metadata-only workflows without loading real models. |
 
 Additional Support:
 * LoRA / model file extension recognition includes `.st` wherever `.safetensors` is accepted (hashing, detection, index building).

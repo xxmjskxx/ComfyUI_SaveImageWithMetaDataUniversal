@@ -85,6 +85,21 @@ By default, the script stops the server after execution. To keep it running:
 python tests/comfyui_cli_tests/run_dev_workflows.py --comfyui-path "/path/to/ComfyUI" --keep-server
 ```
 
+### Fast Metadata Stub Mode
+
+If you only need to exercise metadata saving (and not full image generation), enable the lightweight
+stub nodes and use the bundled `metadata-stub-basic.json` workflow. This avoids loading large
+checkpoints by producing synthetic black images while still yielding full metadata output.
+
+```bash
+python tests/comfyui_cli_tests/run_dev_workflows.py --comfyui-path "/path/to/ComfyUI" \
+  --enable-test-stubs --workflow-dir "tests/comfyui_cli_tests/dev_test_workflows"
+```
+
+The flag sets `METADATA_ENABLE_TEST_NODES=1` before ComfyUI starts so the optional
+`MetadataTestSampler` node becomes available. Any workflow built around this node finishes quickly
+and records the metadata fields supplied through its parameters.
+
 ## Command-Line Options
 
 ### run_dev_workflows.py Options

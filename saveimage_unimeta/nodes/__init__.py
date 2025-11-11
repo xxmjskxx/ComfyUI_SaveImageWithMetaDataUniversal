@@ -1,3 +1,5 @@
+import os
+
 from .save_image import SaveImageWithMetaDataUniversal  # extracted from node.py
 from .extra_metadata import CreateExtraMetaDataUniversal  # extracted from node.py
 from .rules_view import ShowGeneratedUserRules  # extracted from node.py
@@ -121,3 +123,16 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ShowText|unimeta": "Show Text (UniMeta)",
     "ShowAny|unimeta": "Show Any (Any to String)",
 }
+
+_enable_test_nodes = os.environ.get("METADATA_ENABLE_TEST_NODES", "").strip().lower()
+if _enable_test_nodes and _enable_test_nodes not in {"0", "false", "no"}:
+    try:  # pragma: no cover - exercised in runtime integration tests
+        from .testing_stubs import (
+            TEST_NODE_CLASS_MAPPINGS,
+            TEST_NODE_DISPLAY_NAME_MAPPINGS,
+        )
+
+        NODE_CLASS_MAPPINGS.update(TEST_NODE_CLASS_MAPPINGS)
+        NODE_DISPLAY_NAME_MAPPINGS.update(TEST_NODE_DISPLAY_NAME_MAPPINGS)
+    except Exception:  # noqa: BLE001 - fall back silently if stubs unavailable
+        pass

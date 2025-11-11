@@ -16,6 +16,7 @@ Requirements:
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import time
@@ -41,6 +42,7 @@ class WorkflowRunner:
         port: int = 8188,
         temp_dir: str | None = None,
         extra_args: list[str] | None = None,
+        env_patch: dict[str, str] | None = None,
     ):
         self.comfyui_path = Path(comfyui_path).resolve()
         self.python_exe = python_exe or sys.executable
@@ -48,6 +50,7 @@ class WorkflowRunner:
         self.port = port
         self.temp_dir = temp_dir
         self.extra_args = extra_args or []
+        self.env_patch = env_patch or {}
         self.server_process = None
         self.base_url = f"http://{host}:{port}"
 
@@ -84,11 +87,16 @@ class WorkflowRunner:
 
         try:
             # Start server in background
+            env = os.environ.copy()
+            if self.env_patch:
+                env.update(self.env_patch)
+
             self.server_process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 cwd=str(self.comfyui_path),
+                env=env,
             )
 
             # Wait for server to start
@@ -330,6 +338,15 @@ Examples:
         help="Skip cleaning the output folder before running workflows",
     )
 
+    parser.add_argument(
+        "--enable-test-stubs",
+        action="store_true",
+        help=(
+            "Enable fast metadata stub nodes (sets METADATA_ENABLE_TEST_NODES=1) so workflows "
+            "can use MetadataTestSampler instead of full diffusion models."
+        ),
+    )
+
     args = parser.parse_args()
 
     # Convert workflow_dir to absolute path relative to script location
@@ -339,6 +356,10 @@ Examples:
     # Parse extra args
     extra_args = args.extra_args.split() if args.extra_args else []
 
+    env_patch: dict[str, str] = {}
+    if args.enable_test_stubs:
+        env_patch["METADATA_ENABLE_TEST_NODES"] = "1"
+
     # Create runner
     runner = WorkflowRunner(
         comfyui_path=args.comfyui_path,
@@ -347,6 +368,7 @@ Examples:
         port=args.port,
         temp_dir=args.temp_dir,
         extra_args=extra_args,
+        env_patch=env_patch,
     )
 
     print("=" * 70)
