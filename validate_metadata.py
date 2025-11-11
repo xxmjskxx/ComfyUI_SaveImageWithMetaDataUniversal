@@ -283,6 +283,14 @@ class WorkflowAnalyzer:
 class MetadataValidator:
     """Validates image metadata against expected values."""
 
+    # Compiled regex patterns for known metadata key patterns (compiled once for efficiency)
+    KNOWN_KEY_PATTERNS = [
+        re.compile(r"^Lora_\d+$"),
+        re.compile(r"^Lora_\d+ hash$"),
+        re.compile(r"^Embedding_\d+$"),
+        re.compile(r"^Embedding_\d+ hash$"),
+    ]
+
     def __init__(self, workflow_dir: Path, output_dir: Path):
         self.workflow_dir = workflow_dir
         self.output_dir = output_dir
@@ -305,8 +313,6 @@ class MetadataValidator:
             "Guidance", "Scheduler", "Hashes", "Metadata generator version", "Batch index",
             "Batch size", "Metadata Fallback", "LoRAs"
         }
-        # Also match keys like "Lora_1", "Lora_2", "Embedding_1", etc.
-        known_key_patterns = [r"^Lora_\d+$", r"^Lora_\d+ hash$", r"^Embedding_\d+$", r"^Embedding_\d+ hash$"]
 
         fields = {}
         lines = params_str.strip().split('\n')
@@ -323,9 +329,9 @@ class MetadataValidator:
                 # Check if this is a known metadata key
                 is_known_key = potential_key in known_keys
                 if not is_known_key:
-                    # Check against patterns
-                    for pattern in known_key_patterns:
-                        if re.match(pattern, potential_key):
+                    # Check against compiled patterns (e.g., "Lora_1", "Embedding_2 hash")
+                    for pattern in self.KNOWN_KEY_PATTERNS:
+                        if pattern.match(potential_key):
                             is_known_key = True
                             break
 
@@ -335,7 +341,9 @@ class MetadataValidator:
                         fields[current_key] = '\n'.join(current_value).strip()
 
                     current_key = potential_key
-                    current_value = [value] if value else []
+                    current_value = []
+                    if value:
+                        current_value.append(value)
                     continue
 
             # If we get here, this line is either a continuation or not a field
