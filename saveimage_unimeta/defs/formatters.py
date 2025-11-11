@@ -199,6 +199,9 @@ def _hash_file(kind: str, path: str, truncate: int = 10) -> str | None:
 cache_model_hash = {}
 logger = logging.getLogger(__name__)
 
+_MAX_EMBEDDING_NAME_CHARS = 80
+_EMBEDDING_TRAILING_STRIP = " ,，。.;；:：!?！？、·"
+
 
 def _ckpt_name_to_path(name_like: Any) -> tuple[str, str | None]:
     """Unified resolver wrapper for backward compatibility."""
@@ -701,38 +704,51 @@ def get_scaled_height(scaled_by, input_data):
 
 
 def extract_embedding_names(text, input_data):
-    embedding_names, _ = _extract_embedding_names(text, input_data)
+    embedding_names, _, _ = _extract_embedding_candidates(text, input_data)
 
-    return [os.path.basename(embedding_name) for embedding_name in embedding_names]
+    return embedding_names
 
 
 def extract_embedding_hashes(text, input_data):
-    embedding_names, clip = _extract_embedding_names(text, input_data)
+    embedding_names, _, resolved_paths = _extract_embedding_candidates(text, input_data)
     mode = (HASH_LOG_MODE or "none").lower()
-    hashes = []
-    for embedding_name in embedding_names:
-        try:
-            embedding_file_path = get_embedding_file_path(embedding_name, clip)
-        except Exception:
-            embedding_file_path = None
-        if not embedding_file_path or not os.path.exists(embedding_file_path):
+    hashes: list[str] = []
+
+    for embedding_name, embedding_path in zip(embedding_names, resolved_paths):
+        if not embedding_path or not os.path.exists(embedding_path):
             if mode in {"detailed", "debug"}:
                 _warn_unresolved_once("embedding", embedding_name)
             hashes.append("N/A")
             continue
         if mode in {"filename", "path", "detailed", "debug"}:
-            _log("embedding", f"hashing {_fmt_display(embedding_file_path)} hash")
-        h = calc_hash(embedding_file_path)
+            _log("embedding", f"hashing {_fmt_display(embedding_path)} hash")
+        try:
+            hash_value = calc_hash(embedding_path)
+        except (OSError, TypeError, ValueError) as err:  # pragma: no cover - defensive
+            logger.debug("[Metadata Lib] Skipping embedding hash due to error: %r", err)
+            if mode in {"detailed", "debug"}:
+                _warn_unresolved_once("embedding", embedding_name)
+            hashes.append("N/A")
+            continue
         if mode == "debug":
-            _log("embedding", f"full hash {os.path.basename(embedding_file_path)}={h}")
-        hashes.append(h[:10])
+            _log("embedding", f"full hash {os.path.basename(embedding_path)}={hash_value}")
+        hashes.append(hash_value[:10] if isinstance(hash_value, str) else hash_value)
+
+    if len(hashes) != len(embedding_names):
+        logger.debug(
+            "[Metadata Lib] Embedding name/hash count mismatch filtered names=%s hashes=%s",
+            len(embedding_names),
+            len(hashes),
+        )
+
     return hashes
 
 
-def _extract_embedding_names(text, input_data):
+def _extract_embedding_candidates(text, input_data):
     embedding_identifier = "embedding:"
     clip_ = input_data[0]["clip"][0]
     clip = None
+    embedding_dir = None
     if clip_ is not None:
         tokenizer = clip_.tokenizer
         if isinstance(tokenizer, SD1Tokenizer):
@@ -745,22 +761,68 @@ def _extract_embedding_names(text, input_data):
             clip = tokenizer.clip_l
         elif isinstance(tokenizer, FluxTokenizer):
             clip = tokenizer.clip_l
-        if clip is not None and hasattr(clip, "embedding_identifier"):
-            embedding_identifier = clip.embedding_identifier
+        if clip is not None:
+            embedding_dir = getattr(clip, "embedding_directory", None)
+            ident = getattr(clip, "embedding_identifier", None)
+            if isinstance(ident, str) and ident.strip():
+                embedding_identifier = ident
     if not isinstance(text, str):
         text = "".join(str(item) if item is not None else "" for item in text)
     text = escape_important(text)
     parsed_weights = token_weights(text, 1.0)
 
     # tokenize words
-    embedding_names = []
+    if clip is None or not embedding_dir:
+        return [], clip, []
+
+    embedding_names: list[str] = []
+    resolved_paths: list[str] = []
+    seen: set[str] = set()
     for weighted_segment, weight in parsed_weights:
         to_tokenize = unescape_important(weighted_segment).replace("\n", " ").split(" ")
         to_tokenize = [x for x in to_tokenize if x != ""]
         for word in to_tokenize:
             # find an embedding, deal with the embedding
-            if word.startswith(embedding_identifier) and clip.embedding_directory is not None:
-                embedding_name = word[len(embedding_identifier) :].strip("\n")
-                embedding_names.append(embedding_name)
+            if not word.startswith(embedding_identifier):
+                continue
+            raw_name = word[len(embedding_identifier) :].strip()
+            if not raw_name:
+                continue
+            sanitized = raw_name.strip(_EMBEDDING_TRAILING_STRIP)
+            if not sanitized:
+                continue
+            display_name = os.path.basename(sanitized).strip(_EMBEDDING_TRAILING_STRIP)
+            if not display_name:
+                continue
+            if display_name.upper() == "N/A":
+                continue
+            if len(display_name) > _MAX_EMBEDDING_NAME_CHARS:
+                logger.debug(
+                    "[Metadata Lib] Skipping embedding candidate '%s' (length %s exceeds max)",
+                    display_name,
+                    len(display_name),
+                )
+                continue
+            cache_key = display_name.lower()
+            if cache_key in seen:
+                continue
+            try:
+                path = get_embedding_file_path(sanitized, clip)
+            except (OSError, TypeError, ValueError) as err:
+                logger.debug(
+                    "[Metadata Lib] Skipping embedding '%s' due to resolution error: %r",
+                    display_name,
+                    err,
+                )
+                continue
+            if not path:
+                logger.debug(
+                    "[Metadata Lib] Embedding '%s' could not be resolved to a file; skipping",
+                    display_name,
+                )
+                continue
+            seen.add(cache_key)
+            embedding_names.append(display_name)
+            resolved_paths.append(path)
 
-    return embedding_names, clip
+    return embedding_names, clip, resolved_paths
