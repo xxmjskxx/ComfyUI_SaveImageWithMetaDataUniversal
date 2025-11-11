@@ -154,6 +154,7 @@ tests/_test_outputs/user_rules/
 tests/debug_*.py
 tests/debug_*.txt
 web/disabled/metadata_rule_scanner/
+_test_outputs/
 ignore/
 # _test_outputs/
 img/alt_logo/
