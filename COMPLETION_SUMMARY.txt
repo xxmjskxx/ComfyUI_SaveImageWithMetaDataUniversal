@@ -35,9 +35,11 @@
     ├─ dev_test_workflows/large-workflow-jpeg-2kb.json
     └─ dev_test_workflows/large-workflow-jpeg-1kb.json
 
-  Test Suites (2)
+  Test Suites (4)
     ├─ tests/test_validate_metadata.py (13 tests)
-    └─ tests/test_validate_metadata_integration.py (9 tests)
+    ├─ tests/test_validate_metadata_integration.py (9 tests)
+    ├─ tests/test_wan21_chinese_metadata.py (3 tests)
+    └─ tests/test_validate_metadata_issues.py (10 tests)
 
   Documentation (3)
     ├─ VALIDATE_METADATA_FIXES.md (detailed guide)
