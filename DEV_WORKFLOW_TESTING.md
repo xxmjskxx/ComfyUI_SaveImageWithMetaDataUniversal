@@ -50,7 +50,7 @@ You can use workflows from `example_workflows/` as templates, but update the mod
 Single line command:
 
 ```bash
-python run_dev_workflows.py --comfyui-path "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI_windows_portable" --python-exe "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI_windows_portable\python_embeded\python.exe" --temp-dir "F:\StableDiffusion\ComfyUI" --extra-args="--windows-standalone-build"
+python run_dev_workflows.py --comfyui-path "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI_windows_portable" --python-exe "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI_windows_portable\python_embeded\python.exe" --temp-dir "F:\StableDiffusion\ComfyUI" --output-folder "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI\output\Test" --extra-args="--windows-standalone-build"
 ```
 
 Using the command format from your environment:
@@ -113,14 +113,7 @@ python run_dev_workflows.py --comfyui-path "/path/to/ComfyUI" --keep-server
 
 ## Example Workflows
 
-The `example_workflows/` folder contains sample workflows you can use as templates:
-
-- `flux.json` - FLUX model workflow
-- `lora_embedding_vae.json` - Workflow with LoRA, embeddings, and VAE
-- `extra_metadata.json` - Using extra metadata nodes
-- And more...
-
-Copy these to `dev_test_workflows/` and update model paths for your environment.
+The `dev_test_workflows/` folder contains test workflows.
 
 ## Troubleshooting
 
@@ -199,7 +192,7 @@ After running workflows, you can validate that the generated images contain the 
 
 **Windows:**
 ```bash
-python validate_metadata.py ^
+"C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI_windows_portable\python_embeded\python.exe" validate_metadata.py ^
   --output-folder "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI\output\Test"
 ```
 

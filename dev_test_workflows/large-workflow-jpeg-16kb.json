@@ -476,7 +476,7 @@
   },
   "1117": {
     "inputs": {
-      "filename_prefix": "Test\\ComfyUI-Large-Workflow-jpeg-16kb",
+      "filename_prefix": "Test\\Large-Workflow-jpeg-16kb",
       "sampler_selection_method": "Farthest",
       "sampler_selection_node_id": 0,
       "file_format": "jpeg",

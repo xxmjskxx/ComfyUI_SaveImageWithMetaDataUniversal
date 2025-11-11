@@ -209,7 +209,7 @@
   },
   "113": {
     "inputs": {
-      "filename_prefix": "Test\\USO-%date:yyyy-MM-dd%//%date:yyyy-MM-dd-hhmmss%",
+      "filename_prefix": "Test\\%date:yyyy-MM-dd%//%date:yyyy-MM-dd-hhmmss%-USO",
       "sampler_selection_method": "Farthest",
       "sampler_selection_node_id": 0,
       "file_format": "png",

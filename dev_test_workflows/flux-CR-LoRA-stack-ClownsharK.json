@@ -460,7 +460,7 @@
   },
   "1117": {
     "inputs": {
-      "filename_prefix": "ComfyUI",
+      "filename_prefix": "Test\\flux-CR-LoRA-stack-ClownsharK",
       "sampler_selection_method": "Farthest",
       "sampler_selection_node_id": 0,
       "file_format": "png",

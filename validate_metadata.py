@@ -15,6 +15,7 @@ Requirements:
 """
 
 import argparse
+import atexit
 import json
 import re
 import sys
@@ -33,6 +34,29 @@ try:
     PIEXIF_AVAILABLE = True
 except ImportError:
     PIEXIF_AVAILABLE = False
+
+
+class _Tee:
+    def __init__(self, stream, log_fp):
+        self._stream = stream
+        self._log_fp = log_fp
+    def write(self, data):
+        self._stream.write(data)
+        self._log_fp.write(data)
+    def flush(self):
+        self._stream.flush()
+        self._log_fp.flush()
+
+def setup_print_tee(log_file: Path):
+    # Ensure parent directory exists
+    log_file.parent.mkdir(parents=True, exist_ok=True)
+    # Open once; close at exit
+    log_fp = open(log_file, 'w', encoding='utf-8')
+    atexit.register(log_fp.close)
+
+    # Tee both stdout and stderr to the same file
+    sys.stdout = _Tee(sys.stdout, log_fp)
+    sys.stderr = _Tee(sys.stderr, log_fp)
 
 
 class MetadataReader:
@@ -585,12 +609,25 @@ Examples:
         help="Directory containing workflow JSON files (default: dev_test_workflows)",
     )
 
+    parser.add_argument(
+        "--log-file",
+        type=str,
+        default=None,
+        help="Path to write a copy of all console output (txt). Default: <output-folder>/validation_log.txt",
+    )
+
+
     args = parser.parse_args()
 
     # Convert to absolute paths
     script_dir = Path(__file__).parent
     workflow_dir = script_dir / args.workflow_dir
     output_dir = Path(args.output_folder)
+
+    # Setup logging
+    # Determine log file path
+    log_path = Path(args.log_file) if args.log_file else (output_dir / "validation_log.txt")
+    setup_print_tee(log_path)
 
     # Create validator and run
     validator = MetadataValidator(workflow_dir, output_dir)
