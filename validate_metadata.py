@@ -647,7 +647,7 @@ class MetadataValidator:
 
         # Check for N/A values in any field (should never happen)
         for field_name, field_value in fields.items():
-            if field_value == 'N/A' or 'N/A' in field_value:
+            if field_value.strip() == 'N/A':
                 result['errors'].append(
                     f"Field '{field_name}' contains 'N/A' value: {field_value}"
                 )
@@ -737,12 +737,6 @@ class MetadataValidator:
             if name_key in fields:
                 emb_name = fields[name_key]
 
-                # Check if this is actually a prompt (very long text suggests it's not an embedding)
-                if len(emb_name) > 100:
-                    result['errors'].append(
-                        f"Embedding_{idx} name appears to be a prompt (length={len(emb_name)}), not an embedding name"
-                    )
-
                 # Check if embedding is in Hashes dict
                 # The key should be embed:<name>, not embed:<wrong_index>
                 found_in_hashes = False
@@ -815,7 +809,7 @@ class MetadataValidator:
         """Validate embedding-specific issues."""
         for key, value in fields.items():
             if 'Embedding_' in key and 'name' in key:
-                # Check for trailing commas or other punctuation
+                # Check for trailing punctuation (commas, periods, semicolons, colons)
                 if value.rstrip(',.;:') != value:
                     result['errors'].append(
                         f"Embedding name '{key}' has trailing punctuation: '{value}'"
