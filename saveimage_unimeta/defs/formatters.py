@@ -746,30 +746,66 @@ def extract_embedding_hashes(text, input_data):
 
 def _extract_embedding_candidates(text, input_data):
     embedding_identifier = "embedding:"
-    clip_ = input_data[0]["clip"][0]
     clip = None
     embedding_dir = None
-    if clip_ is not None:
-        tokenizer = clip_.tokenizer
-        if isinstance(tokenizer, SD1Tokenizer):
-            clip = tokenizer.clip_l
-        elif isinstance(tokenizer, SD2Tokenizer):
-            clip = tokenizer.clip_h
-        elif isinstance(tokenizer, SDXLTokenizer):
-            clip = tokenizer.clip_l
-        elif isinstance(tokenizer, SD3Tokenizer):
-            clip = tokenizer.clip_l
-        elif isinstance(tokenizer, FluxTokenizer):
-            clip = tokenizer.clip_l
-        if clip is not None:
-            embedding_dir = getattr(clip, "embedding_directory", None)
-            ident = getattr(clip, "embedding_identifier", None)
-            if isinstance(ident, str) and ident.strip():
-                embedding_identifier = ident
+
+    try:
+        data_map = input_data[0] if isinstance(input_data, (list, tuple)) and input_data else input_data
+    except Exception:
+        data_map = None
+
+    clip_container = None
+    if isinstance(data_map, dict):
+        clip_container = data_map.get("clip")
+    elif isinstance(data_map, (list, tuple)) and data_map:
+        # Some runtimes wrap map in a tuple already assessed above.
+        maybe_map = data_map[0]
+        if isinstance(maybe_map, dict):
+            clip_container = maybe_map.get("clip")
+
+    if isinstance(clip_container, (list, tuple)) and clip_container:
+        clip_ = clip_container[0]
+    else:
+        clip_ = clip_container
+
+    try:
+        if clip_ is not None:
+            tokenizer = getattr(clip_, "tokenizer", None)
+            if isinstance(tokenizer, SD1Tokenizer):
+                clip = tokenizer.clip_l
+            elif isinstance(tokenizer, SD2Tokenizer):
+                clip = tokenizer.clip_h
+            elif isinstance(tokenizer, SDXLTokenizer):
+                clip = tokenizer.clip_l
+            elif isinstance(tokenizer, SD3Tokenizer):
+                clip = tokenizer.clip_l
+            elif isinstance(tokenizer, FluxTokenizer):
+                clip = tokenizer.clip_l
+            elif tokenizer is not None:
+                for attr in ("clip_l", "clip_h", "clip_g", "clip"):
+                    if hasattr(tokenizer, attr):
+                        clip = getattr(tokenizer, attr)
+                        if clip is not None:
+                            break
+            if clip is not None:
+                embedding_dir = getattr(clip, "embedding_directory", None)
+                ident = getattr(clip, "embedding_identifier", None)
+                if isinstance(ident, str) and ident.strip():
+                    embedding_identifier = ident
+    except Exception as err:  # pragma: no cover - defensive
+        logger.debug("[Metadata Lib] Failed resolving clip embedding context: %r", err)
+        clip = None
+        embedding_dir = None
+
     if not isinstance(text, str):
         text = "".join(str(item) if item is not None else "" for item in text)
-    text = escape_important(text)
-    parsed_weights = token_weights(text, 1.0)
+
+    try:
+        escaped = escape_important(text)
+        parsed_weights = token_weights(escaped, 1.0)
+    except Exception as err:  # pragma: no cover - defensive
+        logger.debug("[Metadata Lib] Failed parsing token weights for embeddings: %r", err)
+        return [], clip, []
 
     # tokenize words
     if clip is None or not embedding_dir:
@@ -779,7 +815,11 @@ def _extract_embedding_candidates(text, input_data):
     resolved_paths: list[str] = []
     seen: set[str] = set()
     for weighted_segment, weight in parsed_weights:
-        to_tokenize = unescape_important(weighted_segment).replace("\n", " ").split(" ")
+        try:
+            segment = unescape_important(weighted_segment)
+        except Exception:  # pragma: no cover - defensive
+            segment = weighted_segment
+        to_tokenize = segment.replace("\n", " ").split(" ")
         to_tokenize = [x for x in to_tokenize if x != ""]
         for word in to_tokenize:
             # find an embedding, deal with the embedding
@@ -790,6 +830,8 @@ def _extract_embedding_candidates(text, input_data):
                 continue
             sanitized = raw_name.strip(_EMBEDDING_TRAILING_STRIP)
             if not sanitized:
+                continue
+            if any(ch.isspace() for ch in sanitized):
                 continue
             display_name = os.path.basename(sanitized).strip(_EMBEDDING_TRAILING_STRIP)
             if not display_name:
