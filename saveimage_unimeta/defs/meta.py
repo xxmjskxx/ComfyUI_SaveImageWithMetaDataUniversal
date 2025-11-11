@@ -38,3 +38,5 @@ class MetaField(IntEnum):
     LORA_MODEL_HASH = 51
     LORA_STRENGTH_MODEL = 52
     LORA_STRENGTH_CLIP = 53
+    # Additional fields appended to preserve stable numbering
+    END_STEP = 54  # e.g., BNK_Unsampler end_at_step

@@ -21,6 +21,9 @@ from logging import getLogger
 # from .meta import MetaField
 # from ..utils.color import cstr
 from ..utils.deserialize import deserialize_input
+# Ensure submodule attribute access like `from saveimage_unimeta.defs import formatters`
+# works reliably across environments/tests by importing the submodule here.
+from . import formatters as formatters  # re-exported via __all__ for direct import
 
 # Test mode is enabled only for explicit truthy tokens, not any non-empty string ("0" should be false)
 # NOTE: Test mode is captured at import time for baseline import shaping, but
@@ -69,6 +72,8 @@ __all__ = [
     "FORCED_INCLUDE_CLASSES",
     "set_forced_include",
     "clear_forced_include",
+    # Submodules expected to be importable via package (tests rely on this)
+    "formatters",
 ]
 ###############################
 # Extension loading utilities #
@@ -106,8 +111,14 @@ def _load_extensions() -> None:
         package_name = f"custom_nodes.ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.ext.{module_name}"
         try:
             module = import_module(package_name)
-        except ModuleNotFoundError as e:  # pragma: no cover - unlikely once packaged
-            logger.warning("[Metadata Loader] Extension module not found '%s': %s", module_name, e)
+        except ModuleNotFoundError as e:  # pragma: no cover - expected when optional custom node not installed
+            # Extensions are optional - only needed if the corresponding custom node is installed
+            # Log at debug level since this is expected behavior, not an error
+            logger.debug(
+                "[Metadata Loader] Optional extension '%s' skipped (custom node not installed): %s",
+                module_name,
+                e,
+            )
             continue
         except ImportError as e:
             logger.warning("[Metadata Loader] Failed to import extension '%s': %s", module_name, e)
@@ -125,7 +136,7 @@ def _load_extensions() -> None:
                     module_name,
                 )
         except AttributeError:
-            pass
+            pass  # Extension doesn't define CAPTURE_FIELD_LIST - gracefully continue
 
         # Merge SAMPLERS: deep-merge per node key similar to captures
         try:
@@ -146,7 +157,7 @@ def _load_extensions() -> None:
                     module_name,
                 )
         except AttributeError:
-            pass
+            pass  # Extension doesn't define SAMPLERS - gracefully continue
 
 
 def load_extensions_only() -> None:

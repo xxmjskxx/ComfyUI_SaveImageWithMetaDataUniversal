@@ -15,6 +15,8 @@ Avoid adding heavy deps; prefer extending formatters.
 ## Dev Workflows
 Run lint: `ruff check .`  (keep code style consistent).
 Run tests (if present): `pytest -q` (multiline parameter mode via `METADATA_TEST_MODE=1`).
+Keep all test scripts in 'tests'.
+Write any test file outputs to '_test_outputs'.
 Manual debug: set `METADATA_DEBUG_PROMPTS=1` or temporarily raise logger level for module.
 Validate JPEG fallback: lower `max_jpeg_exif_kb` (e.g. 8) and confirm staged marker progression.
 
@@ -35,11 +37,13 @@ Exact match in `SAMPLERS` else heuristic: rule includes `MetaField.SAMPLER_NAME`
 Selection method (`SAMPLER_SELECTION_METHOD`): Farthest | Nearest | By node ID.
 
 ## Environment Flags (Runtime Evaluated)
-`METADATA_NO_HASH_DETAIL`, `METADATA_NO_LORA_SUMMARY`, `METADATA_TEST_MODE`, `METADATA_DEBUG_PROMPTS`.
+`METADATA_NO_HASH_DETAIL`, `METADATA_NO_LORA_SUMMARY`, `METADATA_TEST_MODE`, `METADATA_DEBUG_PROMPTS`,
+`METADATA_HASH_LOG_MODE`, `METADATA_HASH_LOG_PROPAGATE`, `METADATA_FORCE_REHASH`, `METADATA_DUMP_LORA_INDEX`.
 UI param `include_lora_summary` overrides env. Test mode switches to multiline parameters.
+Hash log modes: none|filename|path|detailed|debug. Propagate off with `METADATA_HASH_LOG_PROPAGATE=0` to keep noise local. `METADATA_FORCE_REHASH=1` bypasses sidecar reuse for mismatch debugging. `METADATA_DUMP_LORA_INDEX` dumps LoRA index JSON (value `1` → `_lora_index_dump.json`).
 
 ## Hashing & Caching
-Model / VAE / LoRA hashes via helpers in `formatters.py`; truncated sha256 (10 chars). Sidecar `.sha256` reused if present; create if absent.
+Model / VAE / LoRA hashes via helpers in `formatters.py`; truncated sha256 (10 chars). Sidecar `.sha256` reused if present; create if absent. Full 64‑char digest only in sidecar / debug log. Force recompute with `METADATA_FORCE_REHASH=1`.
 
 ## Filename Tokens
 `%seed%`, `%width%`, `%height%`, `%pprompt%[:n]`, `%nprompt%[:n]`, `%model%[:n]`, `%date%` or `%date:pattern%` (yyyy, MM, dd, hh, mm, ss).

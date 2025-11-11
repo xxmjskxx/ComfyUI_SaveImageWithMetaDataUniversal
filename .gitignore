@@ -139,35 +139,47 @@ cython_debug/
 #.idea/
 *.pyc
 
-# Custom
+
+# Local-only capture rules (created with `Metadata Rule Scanner` + `Save Custom Metadata Rules` nodes) and legacy folders
 saveimage_unimeta/user_captures.json
 saveimage_unimeta/user_samplers.json
 saveimage_unimeta/defs/ext/generated_user_rules.py
-_test_outputs/
-# .github/copilot-instructions.md
-# .github/instructions/
-saveimage_unimeta/defs/ext/mjsk_PCLazyLoraLoader.py
-.pytest_cache/
-.ruff_cache/
-web/disabled/metadata_rule_scanner/
-ignore/
-img/alt_logo/
-img/ignore/
 saveimage_unimeta/py/
 saveimage_unimeta/user_rules/backups/
 saveimage_unimeta/user_rules/user_captures.json
 saveimage_unimeta/user_rules/user_samplers.json
+
+# Debug files in tests directory
+_test_outputs/
+tests/debug_*.py
+tests/debug_*.txt
+web/disabled/metadata_rule_scanner/
+ignore/
+img/alt_logo/
+img/ignore/
+
+# Local settings files
+# .github/copilot-instructions.md
+# .github/instructions/
+saveimage_unimeta/defs/ext/mjsk_PCLazyLoraLoader.py
 scripts/
 .vscode/
-docs/HEURISTICS_CHANGES.md
-docs/releases/
+.vscode/settings.json
+.vscode
+.pytest_cache/
+.ruff_cache/
 tasksync/
+user_rules/
 
-# Local development/testing files (not committed)
+# Local development/testing files
 # /dev_test_workflows/
 run_dev_workflows.bat
 validate_metadata.bat
 
 # Ephemeral local drafting files (root only). Keep actual published notes in docs/.
+docs/HEURISTICS_CHANGES.md
+docs/releases/
 /RELEASE_NOTES_*.md
 /PR_DRAFT_*.md
+docs/releases/RELEASE_NOTES_*1.2*.md
+docs/releases/PR_DRAFT_*1.2*.md
