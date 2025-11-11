@@ -225,7 +225,7 @@ A typical testing workflow looks like this:
 **Windows:**
 ```batch
 @echo off
-REM Step 1: Cleans output folder and runs workflows
+REM Step 1: Clean output folder and run workflows
 python run_dev_workflows.py ^
   --comfyui-path "C:\StableDiffusion\ComfyUI" ^
   --python-exe "C:\StableDiffusion\python_embeded\python.exe" ^
