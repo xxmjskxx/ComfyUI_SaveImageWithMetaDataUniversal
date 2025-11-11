@@ -245,7 +245,7 @@ python validate_metadata.py ^
 ```bash
 #!/bin/bash
 
-# Step 1: Cleans output folder and runs workflows
+# Step 1: Clean output folder and run workflows
 python run_dev_workflows.py \
   --comfyui-path "/path/to/ComfyUI" \
   --output-folder "/path/to/ComfyUI/output/Test"
