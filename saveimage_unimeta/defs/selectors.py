@@ -128,7 +128,16 @@ def _resolve_counter(normalized_map) -> int | None:
 
 
 def collect_lora_stack(input_data):
-    """Return list of (name, model_strength, clip_strength) respecting toggles and None entries."""
+    """
+    Collect LoRA stack from input data.
+
+    Args:
+        input_data (list[dict[str, list]]): List containing a dictionary with string keys and list values.
+
+    Returns:
+        list[tuple[str, Any, Any]]: List of tuples (name, model_strength, clip_strength),
+            respecting toggles and None entries.
+    """
     normalized = _build_normalized_map(input_data)
     if not normalized:
         return []

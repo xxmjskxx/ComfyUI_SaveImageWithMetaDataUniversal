@@ -244,7 +244,7 @@ class MetadataTestSampler:
     DESCRIPTION = "Produce a solid-colour image for metadata validation workflows."
 
     @staticmethod
-    def generate(
+    def generate(  # noqa: ARG004
         positive_prompt: str,
         negative_prompt: str,
         model_name: str,
@@ -269,26 +269,8 @@ class MetadataTestSampler:
         clip_name3: str = "",
         clip_name4: str = "",
     ):
-        # suppress unused-variable warnings: the Save node reads these via the prompt graph
-        _ = (
-            positive_prompt,
-            negative_prompt,
-            model_name,
-            model_hash,
-            vae_name,
-            vae_hash,
-            clip_name1,
-            clip_name2,
-            clip_name3,
-            clip_name4,
-            seed,
-            steps,
-            cfg,
-            sampler_name,
-            scheduler,
-            guidance,
-            generator_version,
-        )
+        # These parameters are intentionally unused in this stub node.
+        # The Save node reads them via the prompt graph for metadata capture.
         images = _make_batch(batch_size, height, width, (colour_r, colour_g, colour_b))
         return (images,)
 

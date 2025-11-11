@@ -240,6 +240,8 @@ class Capture:
         """
         try:
             if isinstance(value, list | tuple):  # noqa: UP038
+                # When capture tuples include node id + field context (2+ elements),
+                # extract the value portion at index 1 rather than the node id at index 0.
                 if len(value) >= 2:
                     value = value[1]
                 elif len(value) == 1:
