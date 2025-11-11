@@ -1,7 +1,11 @@
 import pytest
 
 from saveimage_unimeta.defs.selectors import (
+    collect_lora_stack,
     select_by_prefix,
+    select_lora_clip_strengths,
+    select_lora_model_strengths,
+    select_lora_names,
     select_stack_by_prefix,
 )
 
@@ -87,3 +91,49 @@ def test_select_by_prefix_basic_behavior():
     data = _mk_input({"x_1": ["A"], "x_2": ["B"], "x_3": ["None"], "y": ["C"]})
     out = select_by_prefix(data, "x_")
     assert out == ["A", "B"]
+
+
+def test_collect_lora_stack_respects_toggles_and_none():
+    data = _mk_input(
+        {
+            "lora_count": [3],
+            "lora_name_1": ["foo.safetensors"],
+            "model_weight_1": ["0.0"],
+            "clip_weight_1": ["0.0"],
+            "switch_1": ["On"],
+            "lora_name_2": ["bar.safetensors"],
+            "model_weight_2": [0.75],
+            "clip_weight_2": [0.33],
+            "switch_2": ["Off"],
+            "lora_name_3": ["None"],
+            "model_weight_3": [1.0],
+            "clip_weight_3": [1.0],
+            "switch_3": ["On"],
+        }
+    )
+
+    stack = collect_lora_stack(data)
+    assert stack == [("foo.safetensors", "0.0", "0.0")]
+    assert select_lora_names(data) == ["foo.safetensors"]
+    assert select_lora_model_strengths(data) == ["0.0"]
+    assert select_lora_clip_strengths(data) == ["0.0"]
+
+
+def test_collect_lora_stack_falls_back_to_model_strength_for_clip():
+    data = _mk_input(
+        {
+            "lora_count": [2],
+            "lora_name_1": ["alpha.safetensors"],
+            "lora_wt_1": [0.5],
+            "switch_1": ["On"],
+            "lora_name_2": ["beta.safetensors"],
+            "lora_wt_2": [1.25],
+            "switch_2": ["On"],
+        }
+    )
+
+    stack = collect_lora_stack(data)
+    assert stack == [
+        ("alpha.safetensors", 0.5, 0.5),
+        ("beta.safetensors", 1.25, 1.25),
+    ]
