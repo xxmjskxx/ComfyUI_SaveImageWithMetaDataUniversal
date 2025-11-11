@@ -1,3 +1,4 @@
+import logging
 import os
 
 from .save_image import SaveImageWithMetaDataUniversal  # extracted from node.py
@@ -9,6 +10,8 @@ from .rules_writer import SaveCustomMetadataRules  # moved out of legacy node.py
 from .show_text import ShowText  # local unimeta variant (separate file for clarity)
 from .show_any import ShowAnyToString  # new any->string display node
 from ..defs import set_forced_include
+
+logger = logging.getLogger(__name__)
 
 
 class MetadataForceInclude:
@@ -137,5 +140,5 @@ if _enable_test_nodes and _enable_test_nodes not in {"0", "false", "no"}:
 
         NODE_CLASS_MAPPINGS.update(TEST_NODE_CLASS_MAPPINGS)
         NODE_DISPLAY_NAME_MAPPINGS.update(TEST_NODE_DISPLAY_NAME_MAPPINGS)
-    except Exception:  # noqa: BLE001 - fall back silently if stubs unavailable
-        pass
+    except Exception as err:  # noqa: BLE001 - fall back silently if stubs unavailable
+        logger.debug("Failed to import test stubs: %r", err)

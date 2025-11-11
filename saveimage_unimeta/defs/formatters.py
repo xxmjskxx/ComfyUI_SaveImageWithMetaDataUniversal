@@ -756,6 +756,21 @@ def extract_embedding_hashes(text, input_data):
     return hashes
 
 
+def _resolve_dict_from_nested(data):
+    """Extract dict from potentially nested list/tuple structures."""
+    if isinstance(data, dict):
+        return data
+    if isinstance(data, list | tuple) and data:
+        first_elem = data[0]
+        if isinstance(first_elem, dict):
+            return first_elem
+        # Recurse once more for deeply nested structures
+        if isinstance(first_elem, list | tuple) and first_elem:
+            if isinstance(first_elem[0], dict):
+                return first_elem[0]
+    return None
+
+
 def _extract_embedding_candidates(text, input_data):
     embedding_identifier = "embedding:"
     clip = None
@@ -766,14 +781,8 @@ def _extract_embedding_candidates(text, input_data):
     except Exception:
         data_map = None
 
-    clip_container = None
-    if isinstance(data_map, dict):
-        clip_container = data_map.get("clip")
-    elif isinstance(data_map, list | tuple) and data_map:
-        # Some runtimes wrap map in a tuple already assessed above.
-        maybe_map = data_map[0]
-        if isinstance(maybe_map, dict):
-            clip_container = maybe_map.get("clip")
+    resolved_dict = _resolve_dict_from_nested(data_map)
+    clip_container = resolved_dict.get("clip") if resolved_dict else None
 
     if isinstance(clip_container, list | tuple) and clip_container:
         clip_ = clip_container[0]
@@ -807,14 +816,13 @@ def _extract_embedding_candidates(text, input_data):
     except Exception as err:  # pragma: no cover - defensive
         logger.debug("[Metadata Lib] Failed resolving clip embedding context: %r", err)
         clip = None
-        embedding_dir = None
 
     if not isinstance(text, str):
         text = "".join(str(item) if item is not None else "" for item in text)
 
     try:
         escaped = escape_important(text)
-        parsed_weights = token_weights(escaped, 1.0)
+        parsed_weights = token_weights(escaped)
     except Exception as err:  # pragma: no cover - defensive
         logger.debug("[Metadata Lib] Failed parsing token weights for embeddings: %r", err)
         return [], clip, []
