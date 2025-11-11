@@ -25,6 +25,7 @@
   * [Feature Overview](#feature-overview)
   * [Node UI Parameters](#node-ui-parameters-key-additions)
   * [Sampler Selection Method](#sampler-selection-method)
+  * [Multi-Sampler Metadata](#multi-sampler-metadata)
   * [Metadata to be given](#metadata-to-be-given)
 * Metadata & Encoding
   * [JPEG Metadata Size & Fallback Behavior](#jpeg-metadata-size--fallback-behavior)
@@ -143,6 +144,47 @@
   - **Farthest** Selects the farthest KSampler node from this node.
   - **Nearest** Selects the nearest KSampler node to this node.
   - **By node ID** Selects the KSampler node whose node ID is set in `sampler_selection_node_id`.
+
+</details>
+
+## Multi-Sampler Metadata
+<details>
+<summary><strong>More:</strong></summary>
+
+When multiple samplers are detected in a workflow (such as Wan2.2 MoE workflows or other multi-stage setups), the system automatically captures per-sampler details:
+
+### Detection Strategy
+- **Tier A (Explicit)**: Known sampler nodes from the built-in `SAMPLERS` list (e.g., `KSampler`, `KSamplerAdvanced`)
+- **Tier B (Rule-backed)**: Custom nodes with capture rules that include both `SAMPLER_NAME` and either `STEPS` or `START_STEP`+`END_STEP` fields
+
+### Primary Sampler Selection
+When multiple samplers are found, primary selection follows these rules:
+1. **Tier precedence**: Tier A (explicit) over Tier B (rule-backed)
+2. **Within same tier**: Widest range (for segments) or largest steps (for full runs)
+3. **Tie-breaker**: Farthest distance from save node, then lowest node ID
+
+### Output Format
+For workflows with >1 sampler:
+- **Structured metadata**: `Samplers detail` field with JSON-like array of sampler info
+- **Parameter augmentation**: `Samplers:` line appended showing name(range) format
+- **Range notation**: Segments show `(start-end)`, full runs show `(0-steps-1)` only when segments present
+
+Example parameter output:
+```
+Steps: 60, Sampler: Euler a, CFG scale: 7.0, Seed: 12345
+Samplers: Euler a (0-29) | DPM++ 2M (30-49) | Heun (50-59)
+```
+
+### JPEG Fallback Behavior
+- **Full**: Both structured metadata and parameter tail included
+- **Reduced-EXIF**: Only parameter tail (structured detail removed)
+- **Minimal**: Both removed (follows existing allowlist)
+
+### Adding Custom Samplers
+To enable multi-sampler detection for custom nodes:
+1. Add capture rules with `SAMPLER_NAME` field
+2. Include either `STEPS` or both `START_STEP` + `END_STEP` fields
+3. For segment samplers, ensure both start/end fields are present for proper range calculation
 
 </details>
 

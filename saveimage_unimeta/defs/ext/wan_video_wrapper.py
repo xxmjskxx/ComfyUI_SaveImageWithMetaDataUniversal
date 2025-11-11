@@ -88,6 +88,7 @@ CAPTURE_FIELD_LIST = {
     },
     # Sampler: captures steps, cfg, shift, seed, denoise; splits combined scheduler field
     # which may carry both sampler and scheduler information.
+    # Wan2.2 MoE support: also captures start_step and end_step for segment-aware rendering.
     "WanVideo Sampler": {
         MetaField.SEED: {"field_name": "seed"},
         MetaField.STEPS: {"field_name": "steps"},
