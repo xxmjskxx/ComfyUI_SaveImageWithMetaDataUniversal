@@ -1,20 +1,4 @@
 {
-  "22": {
-    "inputs": {
-      "model": [
-        "1034",
-        0
-      ],
-      "conditioning": [
-        "1031",
-        0
-      ]
-    },
-    "class_type": "BasicGuider",
-    "_meta": {
-      "title": "BasicGuider"
-    }
-  },
   "51": {
     "inputs": {
       "samples": [
@@ -29,18 +13,6 @@
     "class_type": "VAEDecode",
     "_meta": {
       "title": "VAE Decode"
-    }
-  },
-  "183": {
-    "inputs": {
-      "noise_seed": [
-        "1040",
-        0
-      ]
-    },
-    "class_type": "RandomNoise",
-    "_meta": {
-      "title": "Image Seed"
     }
   },
   "663": {
@@ -85,64 +57,6 @@
       "title": "Choose Preset Resolution"
     }
   },
-  "879": {
-    "inputs": {
-      "text_0": "In a semi-realistic oil painting style, with bold brushstrokes and vivid colors, a tall and thin character stands majestically in a beautiful, lush, and vibrant forest, set against a solid color background that gradates from deep blues to emerald greens, evoking a sense of mysticism and wonder. Backlighting creates a dramatic, atmospheric glow, with rays of light filtering through the dense foliage, casting intricate patterns on the forest floor and imbuing the scene with an otherworldly aura..,oil painting, semi realistic, fantasy, anime style, solid color background, tall thin character, beautiful lush vibrant forest, backlighting, dramatic atmospheric glow, countless small tiny clumsy gentle spirits, great forest spirit",
-      "text": [
-        "886",
-        0
-      ]
-    },
-    "class_type": "ShowText|pysssss",
-    "_meta": {
-      "title": "Show Text 🐍"
-    }
-  },
-  "886": {
-    "inputs": {
-      "delimiter": ".,",
-      "clean_whitespace": "true",
-      "text_a": [
-        "986",
-        0
-      ],
-      "text_b": [
-        "987",
-        0
-      ]
-    },
-    "class_type": "Text Concatenate",
-    "_meta": {
-      "title": "Text Concatenate"
-    }
-  },
-  "888": {
-    "inputs": {
-      "prompt": "<lora:FluxMythR3alisticF:0.175> R3alisticF,<lora:retrograde-90s:0.533> retr0grade90s,<lora:ck-nc-luminal-genesis-000016:0.237> A digital anime artwork in the style of cklg,<lora:ck-shadow-circuit-000021:0.357> in the style of cksc,"
-    },
-    "class_type": "SeargePromptText",
-    "_meta": {
-      "title": "Append"
-    }
-  },
-  "986": {
-    "inputs": {
-      "prompt": "In a semi-realistic oil painting style, with bold brushstrokes and vivid colors, a tall and thin character stands majestically in a beautiful, lush, and vibrant forest, set against a solid color background that gradates from deep blues to emerald greens, evoking a sense of mysticism and wonder. Backlighting creates a dramatic, atmospheric glow, with rays of light filtering through the dense foliage, casting intricate patterns on the forest floor and imbuing the scene with an otherworldly aura."
-    },
-    "class_type": "SeargePromptText",
-    "_meta": {
-      "title": "Append"
-    }
-  },
-  "987": {
-    "inputs": {
-      "prompt": "oil painting, semi realistic, fantasy, anime style, solid color background, tall thin character, beautiful lush vibrant forest, backlighting, dramatic atmospheric glow, countless small tiny clumsy gentle spirits, great forest spirit"
-    },
-    "class_type": "SeargePromptText",
-    "_meta": {
-      "title": "Append"
-    }
-  },
   "1001": {
     "inputs": {
       "text": "oil painting, semi realistic, fantasy, anime style, solid color background, tall thin character, beautiful lush vibrant forest, backlighting, dramatic atmospheric glow, countless small tiny clumsy gentle spirits, great forest spirit, intricate highly detailed, natural fantastical elements, leaves flowers feathers, hair clothing, delicate translucent wings, gentle mystical business, forest secret heartbeat, branches arms, leaves hair, ethereal benevolent connection, natural world, deep abiding, magic, hushed reverence, wonder, mysticism, otherworldly aura, vibrant colors, bold brushstrokes, gradating background, blues emerald greens, slender athletic build, elegant arm, beckoning summoning, reverence awe, drinking in essence, character attire, mesmerizing blend, organic growth, R3alisticF, retr0grade90s, A digital anime artwork in the style of cklg, in the style of cksc,",
@@ -172,7 +86,7 @@
   "1016": {
     "inputs": {
       "sage_attention": "auto",
-      "allow_compile": false,
+      "allow_compile": true,
       "model": [
         "693",
         0
@@ -246,17 +160,6 @@
       "title": "ConditioningZeroOut"
     }
   },
-  "1029": {
-    "inputs": {
-      "add_noise": false,
-      "noise_seed": 258012155729038,
-      "cfg": 8
-    },
-    "class_type": "SamplerCustom",
-    "_meta": {
-      "title": "SamplerCustom"
-    }
-  },
   "1031": {
     "inputs": {
       "guidance": 3.5,
@@ -301,91 +204,6 @@
       "title": "Seed (rgthree)"
     }
   },
-  "1041": {
-    "inputs": {
-      "prompt_positive": "",
-      "prompt_negative": "BASE_NEGATIVE",
-      "style_positive": "REFINER_POSTIVE",
-      "style_negative": "REFINER_NEGATIVE",
-      "preset": "preset 1"
-    },
-    "class_type": "CR SDXL Prompt Mixer",
-    "_meta": {
-      "title": "CR SDXL Prompt Mixer (Legacy)"
-    }
-  },
-  "1042": {
-    "inputs": {
-      "steps_to_run": -1,
-      "cfg": 5.5,
-      "sampler_mode": "resample"
-    },
-    "class_type": "SharkChainsampler_Beta",
-    "_meta": {
-      "title": "SharkChainsampler"
-    }
-  },
-  "1047": {
-    "inputs": {
-      "prompt_positive": "",
-      "prompt_negative": "",
-      "style_positive": "style_pos",
-      "style_negative": "style_neg",
-      "preset": "default with no style text"
-    },
-    "class_type": "CR SDXL Prompt Mix Presets",
-    "_meta": {
-      "title": "🌟 CR SDXL Prompt Mix Presets"
-    }
-  },
-  "1048": {
-    "inputs": {
-      "width": 1024,
-      "height": 1024,
-      "crop_w": 0,
-      "crop_h": 0,
-      "target_width": 1024,
-      "target_height": 1024,
-      "positive_g": "",
-      "positive_l": "",
-      "negative_g": "",
-      "negative_l": "NEG_L"
-    },
-    "class_type": "CLIP Positive-Negative XL w/Text (WLSH)",
-    "_meta": {
-      "title": "CLIP Positive-Negative XL w/Text (WLSH)"
-    }
-  },
-  "1049": {
-    "inputs": {
-      "width": 1024,
-      "height": 1024,
-      "crop_w": 0,
-      "crop_h": 0,
-      "target_width": 1024,
-      "target_height": 1024,
-      "positive_g": "",
-      "positive_l": "POS_L",
-      "negative_g": "NEG_G",
-      "negative_l": "NEG_L"
-    },
-    "class_type": "CLIP Positive-Negative XL (WLSH)",
-    "_meta": {
-      "title": "CLIP Positive-Negative XL (WLSH)"
-    }
-  },
-  "1050": {
-    "inputs": {
-      "text": "",
-      "blur": 7,
-      "threshold": 0.4,
-      "dilation_factor": 4
-    },
-    "class_type": "CLIPSeg",
-    "_meta": {
-      "title": "CLIPSeg"
-    }
-  },
   "1061": {
     "inputs": {
       "switch_1": "On",
@@ -424,38 +242,6 @@
     "class_type": "CR Apply LoRA Stack",
     "_meta": {
       "title": "💊 CR Apply LoRA Stack"
-    }
-  },
-  "1083": {
-    "inputs": {
-      "cfg_conds": 8,
-      "cfg_cond2_negative": 8,
-      "style": "regular"
-    },
-    "class_type": "DualCFGGuider",
-    "_meta": {
-      "title": "DualCFGGuider"
-    }
-  },
-  "1084": {
-    "inputs": {
-      "batch_size": 1,
-      "grad_accumulation_steps": 1,
-      "steps": 16,
-      "learning_rate": 0.0005,
-      "rank": 8,
-      "optimizer": "AdamW",
-      "loss_function": "MSE",
-      "seed": 553837860558804,
-      "training_dtype": "bf16",
-      "lora_dtype": "bf16",
-      "algorithm": "LoRA",
-      "gradient_checkpointing": true,
-      "existing_lora": "[None]"
-    },
-    "class_type": "TrainLoraNode",
-    "_meta": {
-      "title": "Train LoRA"
     }
   },
   "1117": {

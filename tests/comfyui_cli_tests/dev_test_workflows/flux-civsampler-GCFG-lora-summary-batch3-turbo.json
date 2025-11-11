@@ -202,7 +202,7 @@
   "2:24": {
     "inputs": {
       "sage_attention": "auto",
-      "allow_compile": false,
+      "allow_compile": true,
       "model": [
         "2:23",
         0

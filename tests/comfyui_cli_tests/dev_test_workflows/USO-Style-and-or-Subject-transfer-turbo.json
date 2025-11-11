@@ -184,7 +184,7 @@
       "lora_name": "flux\\uso\\uso-flux1-dit-lora-v1.safetensors",
       "strength_model": 1,
       "model": [
-        "1",
+        "115",
         0
       ]
     },
@@ -246,6 +246,33 @@
     "class_type": "LoraLoaderModelOnly",
     "_meta": {
       "title": "LoraLoaderModelOnly"
+    }
+  },
+  "115": {
+    "inputs": {
+      "sage_attention": "auto",
+      "allow_compile": true,
+      "model": [
+        "116",
+        0
+      ]
+    },
+    "class_type": "PathchSageAttentionKJ",
+    "_meta": {
+      "title": "Patch Sage Attention KJ"
+    }
+  },
+  "116": {
+    "inputs": {
+      "backend": "inductor",
+      "model": [
+        "1",
+        0
+      ]
+    },
+    "class_type": "TorchCompileModel",
+    "_meta": {
+      "title": "TorchCompileModel"
     }
   },
   "44:38": {
