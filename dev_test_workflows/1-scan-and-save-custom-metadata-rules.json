@@ -1,8 +1,8 @@
 {
-  "16": {
+  "1": {
     "inputs": {
-      "exclude_keywords": "mask,find,resize,rotate,detailer,bus,scale,vision,text to,crop,xy,plot,controlnet,save,trainlora,postshot,loramanager",
-      "include_existing": true,
+      "exclude_keywords": "mask,find,resize,rotate,detailer,bus,scale,vision,text to,crop,xy,plot,controlnet,save,trainlora,postshot",
+      "include_existing": false,
       "mode": "all",
       "force_include_metafields": "",
       "force_include_node_class": ""
@@ -12,22 +12,10 @@
       "title": "Metadata Rule Scanner"
     }
   },
-  "17": {
-    "inputs": {
-      "text": [
-        "16",
-        0
-      ]
-    },
-    "class_type": "ShowText|unimeta",
-    "_meta": {
-      "title": "Show Text (UniMeta)"
-    }
-  },
-  "18": {
+  "2": {
     "inputs": {
       "rules_json_string": [
-        "17",
+        "1",
         0
       ],
       "save_mode": "overwrite",
@@ -40,18 +28,6 @@
     "class_type": "SaveCustomMetadataRules",
     "_meta": {
       "title": "Save Custom Metadata Rules"
-    }
-  },
-  "31": {
-    "inputs": {
-      "text": [
-        "18",
-        0
-      ]
-    },
-    "class_type": "ShowText|unimeta",
-    "_meta": {
-      "title": "Show Text (UniMeta)"
     }
   }
 }

@@ -17,7 +17,6 @@ The existing workflows test:
 - ✅ Efficiency nodes integration
 - ✅ Style/subject transfer nodes
 - ✅ 8. Shift Parameters (Flux-specific)
-- ✅ 10. Multiple Encoder
 - ✅ 12. VAE Metadata
 - ✅ 13. Embedding Resolution
 
@@ -27,7 +26,9 @@ New workflows have been added, or existing ones modified, which test:
 - ✅ 3. Batch Processing
 - ✅ 6. Clip Skip
 - ✅ 7. Denoise Strength
+- ✅ 10. Multiple Encoder
 - ✅ 11. Inline LoRA Tags
+- ✅ 16. High Seed Value Test
 
 Existing workflows test this, but not extensively:
 - ✅ 9. Scheduler Variations
@@ -37,7 +38,6 @@ Still missing/underrepresented test cases:
 - ❌ 4. Sampler Selection Method Test
 - ❌ 5. Hash Detail Flag Test
 - ❌ 14. No Hash Detail + No LoRA Summary Test
-- ❌ 16. High Seed Value Test
 - ❌ 17. Zero Denoise Test
 - ❌ 18. Model Hash Caching Test
 
