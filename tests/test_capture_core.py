@@ -15,14 +15,20 @@ def test_module_imports_without_comfy_runtime(monkeypatch):
 
 
 def test_clean_name_basic():
-    from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.capture import Capture
+    capture_mod = importlib.import_module(MODULE_PATH)
+    Capture = capture_mod.Capture
     assert Capture._clean_name("C:/models/foo/bar.safetensors", drop_extension=True) == "bar"
     assert Capture._clean_name(["C:/x/y/z.pt"]) == "z.pt"
     assert Capture._clean_name("\\\\network\\share\\model.ckpt", drop_extension=True) == "model"
+    # When capture tuples include node id + field context, ensure we clean the value portion.
+    assert (
+        Capture._clean_name((42, "EasyNegative.safetensors", "text"), drop_extension=True) == "EasyNegative"
+    )
 
 
 def test_iter_values_and_extract_value():
-    from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.capture import Capture
+    capture_mod = importlib.import_module(MODULE_PATH)
+    Capture = capture_mod.Capture
     data = [(1, "val1"), (2, "val2", "extra"), "bare", (3, ["nested"])]
     vals = list(Capture._iter_values(data))
     # "bare" stays as string, nested list returns list object
@@ -33,8 +39,11 @@ def test_iter_values_and_extract_value():
 
 def test_get_inputs_fallback_flux(monkeypatch):
     """Simulate a minimal prompt graph where Flux fallback should capture T5/CLIP prompts."""
-    from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta import capture as cap
-    from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.meta import MetaField
+    cap = importlib.import_module(MODULE_PATH)
+    meta_mod = importlib.import_module(
+        "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.meta"
+    )
+    MetaField = meta_mod.MetaField
 
     # Minimal fake hook state
     class DummyPromptExecuter:
@@ -68,8 +77,11 @@ def test_get_inputs_fallback_flux(monkeypatch):
 
 
 def test_generate_pnginfo_version_stamp():
-    from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta import capture as cap
-    from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.meta import MetaField
+    cap = importlib.import_module(MODULE_PATH)
+    meta_mod = importlib.import_module(
+        "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.meta"
+    )
+    MetaField = meta_mod.MetaField
 
     # Provide minimal empty inputs
     pnginfo = cap.Capture.gen_pnginfo_dict({}, {}, False)
