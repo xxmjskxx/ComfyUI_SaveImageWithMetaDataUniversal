@@ -1,7 +1,7 @@
 {
   "1": {
     "inputs": {
-      "filename_prefix": "Test\\Embedding-ComfyUI-without-meta",
+      "filename_prefix": "Test\\Embedding-without-meta",
       "images": [
         "3",
         0

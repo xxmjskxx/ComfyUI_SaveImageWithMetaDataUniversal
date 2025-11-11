@@ -196,20 +196,9 @@
       "title": "TextEncodeQwenImageEditPlus"
     }
   },
-  "112": {
-    "inputs": {
-      "width": 1024,
-      "height": 1024,
-      "batch_size": 1
-    },
-    "class_type": "EmptySD3LatentImage",
-    "_meta": {
-      "title": "EmptySD3LatentImage"
-    }
-  },
   "115": {
     "inputs": {
-      "filename_prefix": "Tests\\Qwen-Edit",
+      "filename_prefix": "Test\\Qwen-Edit",
       "sampler_selection_method": "Farthest",
       "sampler_selection_node_id": 0,
       "file_format": "png",
