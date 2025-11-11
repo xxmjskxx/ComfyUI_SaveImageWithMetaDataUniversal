@@ -9,7 +9,6 @@ This script demonstrates the key improvements made to the validation script:
 """
 
 from pathlib import Path
-import sys
 
 # Import the validator
 from validate_metadata import MetadataValidator, WorkflowAnalyzer
@@ -94,7 +93,7 @@ def demo_filename_patterns():
         }
     }
     patterns = WorkflowAnalyzer.extract_filename_patterns(workflow1)
-    print(f"Input: 'Test\\\\flux-turbo'")
+    print("Input: 'Test\\\\flux-turbo'")
     print(f"Extracted: {patterns}")
     print(f"Status: {'✅' if 'flux-turbo' in patterns else '❌'}")
 
@@ -108,7 +107,7 @@ def demo_filename_patterns():
         }
     }
     patterns = WorkflowAnalyzer.extract_filename_patterns(workflow2)
-    print(f"Input: 'Test\\\\siwm-%model:10%/%pprompt:20%-%nprompt:20%'")
+    print("Input: 'Test\\\\siwm-%model:10%/%pprompt:20%-%nprompt:20%'")
     print(f"Extracted: {patterns}")
     print(f"Status: {'✅' if 'siwm' in patterns else '❌'}")
 
@@ -126,7 +125,7 @@ def demo_filename_patterns():
         }
     }
     patterns = WorkflowAnalyzer.extract_filename_patterns(workflow3)
-    print(f"Input: Two nodes with 'Test\\\\workflow-one' and 'Test\\\\control-image'")
+    print("Input: Two nodes with 'Test\\\\workflow-one' and 'Test\\\\control-image'")
     print(f"Extracted: {patterns}")
     status = '✅' if 'workflow-one' in patterns and 'control-image' in patterns else '❌'
     print(f"Status: {status}")
