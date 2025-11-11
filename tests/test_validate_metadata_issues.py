@@ -173,6 +173,68 @@ Steps: 20, Sampler: euler, Seed: 123, Embedding_0 name: EasyNegative,,, Embeddin
         # Should detect that LoRA is missing from Hashes
         assert any('missing from Hashes' in err and 'test_lora' in err for err in result['errors'])
 
+    def test_detect_hash_mismatch_embedding(self):
+        """Test that hash mismatches between metadata and Hashes are detected for embeddings."""
+        validator = MetadataValidator(Path('.'), Path('.'))
+
+        params_str = (
+            "test prompt\nNegative prompt: bad\n"
+            "Steps: 20, Sampler: euler, Seed: 123, "
+            "Embedding_0 name: TestEmbed, Embedding_0 hash: abc123, "
+            'Hashes: {"model": "def456", "embed:TestEmbed": "xyz789"}'
+        )
+
+        fields = validator.parse_parameters_string(params_str)
+        result = {'errors': [], 'warnings': []}
+
+        if 'Hashes' in fields:
+            hashes_dict = json.loads(fields['Hashes'])
+            validator._validate_hashes_summary(fields, hashes_dict, result)
+
+        # Should detect hash mismatch
+        assert any('hash mismatch' in err.lower() for err in result['errors'])
+
+    def test_detect_hash_mismatch_lora(self):
+        """Test that hash mismatches between metadata and Hashes are detected for LoRAs."""
+        validator = MetadataValidator(Path('.'), Path('.'))
+
+        params_str = (
+            "test prompt\nNegative prompt: bad\n"
+            "Steps: 20, Sampler: euler, Seed: 123, "
+            "Lora_0 Model name: test_lora.safetensors, Lora_0 Model hash: abc123, "
+            'Hashes: {"model": "def456", "lora:test_lora": "xyz789"}'
+        )
+
+        fields = validator.parse_parameters_string(params_str)
+        result = {'errors': [], 'warnings': []}
+
+        if 'Hashes' in fields:
+            hashes_dict = json.loads(fields['Hashes'])
+            validator._validate_hashes_summary(fields, hashes_dict, result)
+
+        # Should detect hash mismatch
+        assert any('hash mismatch' in err.lower() for err in result['errors'])
+
+    def test_detect_hash_mismatch_model(self):
+        """Test that hash mismatches between metadata and Hashes are detected for models."""
+        validator = MetadataValidator(Path('.'), Path('.'))
+
+        params_str = (
+            "test prompt\nNegative prompt: bad\n"
+            "Steps: 20, Sampler: euler, Seed: 123, Model hash: abc123, "
+            'Hashes: {"model": "xyz789"}'
+        )
+
+        fields = validator.parse_parameters_string(params_str)
+        result = {'errors': [], 'warnings': []}
+
+        if 'Hashes' in fields:
+            hashes_dict = json.loads(fields['Hashes'])
+            validator._validate_hashes_summary(fields, hashes_dict, result)
+
+        # Should detect hash mismatch
+        assert any('hash mismatch' in err.lower() for err in result['errors'])
+
 
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])

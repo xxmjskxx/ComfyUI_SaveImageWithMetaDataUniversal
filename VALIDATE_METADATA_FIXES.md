@@ -111,7 +111,7 @@ python validate_metadata.py --output-folder "./output/Test" --log-file "./valida
 
 ### Wan21 Workflow - METADATA GENERATION ISSUES IDENTIFIED ⚠️
 
-**Important Update**: The wan21 workflow has **metadata generation issues** (not parsing issues):
+**Important Update**: The wan21 workflow includes **metadata generation issues** (not parsing issues):
 
 **Issues Found**:
 1. **Phantom embeddings**: The workflow contains NO embedding nodes, yet 2 embeddings are being recorded

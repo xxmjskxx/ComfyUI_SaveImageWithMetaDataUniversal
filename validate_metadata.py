@@ -485,17 +485,13 @@ class MetadataValidator:
             metadata_text = params_str
 
         # Detect format: check if we have comma separators between known keys
-        # Count commas followed by known keys vs newlines followed by known keys
-        comma_key_count = 0
-        newline_key_count = 0
+        # Build combined regex patterns for comma and newline formats (more efficient)
+        escaped_keys = [re.escape(k) for k in known_keys]
+        comma_pattern = re.compile(r',\s*(?:' + '|'.join(escaped_keys) + r'):')
+        newline_pattern = re.compile(r'\n\s*(?:' + '|'.join(escaped_keys) + r'):')
 
-        for key in known_keys:
-            # Check for ", Key:" pattern (comma-separated format)
-            if re.search(r',\s*' + re.escape(key) + r':', metadata_text):
-                comma_key_count += 1
-            # Check for "\nKey:" pattern (newline-separated format)
-            if re.search(r'\n\s*' + re.escape(key) + r':', metadata_text):
-                newline_key_count += 1
+        comma_key_count = len(comma_pattern.findall(metadata_text))
+        newline_key_count = len(newline_pattern.findall(metadata_text))
 
         # Determine which format to use
         use_comma_format = comma_key_count > newline_key_count
@@ -710,6 +706,16 @@ class MetadataValidator:
                     result['errors'].append(
                         f"LoRA '{model_name}' has metadata but is missing from Hashes summary"
                     )
+                else:
+                    # Validate hash consistency
+                    if model_hash_key in fields:
+                        metadata_hash = fields[model_hash_key]
+                        hashes_hash = hashes_dict[lora_key]
+                        if metadata_hash != 'N/A' and metadata_hash != hashes_hash:
+                            result['errors'].append(
+                                f"LoRA '{model_name}' hash mismatch: metadata has '{metadata_hash}' "
+                                f"but Hashes summary has '{hashes_hash}'"
+                            )
 
             if model_hash_key in fields and fields[model_hash_key] == 'N/A':
                 result['errors'].append(
@@ -740,6 +746,7 @@ class MetadataValidator:
                 # Check if embedding is in Hashes dict
                 # The key should be embed:<name>, not embed:<wrong_index>
                 found_in_hashes = False
+                hash_value_in_hashes = None
 
                 for hash_key_name in hashes_dict.keys():
                     if hash_key_name.startswith('embed:'):
@@ -748,6 +755,7 @@ class MetadataValidator:
                         # Check if the name matches exactly
                         if embed_name_in_hash == emb_name:
                             found_in_hashes = True
+                            hash_value_in_hashes = hashes_dict[hash_key_name]
                             break
                         # If it's just a number, that's wrong - should be the embedding name
                         elif embed_name_in_hash.isdigit():
@@ -756,6 +764,7 @@ class MetadataValidator:
                                 f"'embed:{embed_name_in_hash}' (should be 'embed:{emb_name}')"
                             )
                             found_in_hashes = True  # Found but with wrong key
+                            hash_value_in_hashes = hashes_dict[hash_key_name]
                             break
 
                 if not found_in_hashes:
@@ -763,24 +772,51 @@ class MetadataValidator:
                         f"Embedding_{idx} '{emb_name}' has metadata but is missing from Hashes summary"
                     )
 
+                # Validate hash consistency between metadata and Hashes summary
+                if found_in_hashes and hash_key in fields and hash_value_in_hashes:
+                    metadata_hash = fields[hash_key]
+                    if metadata_hash != 'N/A' and metadata_hash != hash_value_in_hashes:
+                        result['errors'].append(
+                            f"Embedding_{idx} hash mismatch: metadata has '{metadata_hash}' "
+                            f"but Hashes summary has '{hash_value_in_hashes}'"
+                        )
+
             if hash_key in fields and fields[hash_key] == 'N/A':
                 result['errors'].append(
                     f"Embedding hash for Embedding_{idx} is 'N/A' - hash should always be computed"
                 )
 
         # Check model and VAE
-        if 'Model hash' in fields and fields['Model hash'] == 'N/A':
-            result['errors'].append("Model hash is 'N/A' - hash should always be computed")
+        if 'Model hash' in fields:
+            if fields['Model hash'] == 'N/A':
+                result['errors'].append("Model hash is 'N/A' - hash should always be computed")
+            elif 'model' in hashes_dict:
+                metadata_hash = fields['Model hash']
+                hashes_hash = hashes_dict['model']
+                if metadata_hash != hashes_hash:
+                    result['errors'].append(
+                        f"Model hash mismatch: metadata has '{metadata_hash}' "
+                        f"but Hashes summary has '{hashes_hash}'"
+                    )
 
-        if 'VAE hash' in fields and fields['VAE hash'] == 'N/A':
-            result['errors'].append("VAE hash is 'N/A' - hash should always be computed")
+        if 'VAE hash' in fields:
+            if fields['VAE hash'] == 'N/A':
+                result['errors'].append("VAE hash is 'N/A' - hash should always be computed")
+            elif 'vae' in hashes_dict:
+                metadata_hash = fields['VAE hash']
+                hashes_hash = hashes_dict['vae']
+                if metadata_hash != hashes_hash:
+                    result['errors'].append(
+                        f"VAE hash mismatch: metadata has '{metadata_hash}' "
+                        f"but Hashes summary has '{hashes_hash}'"
+                    )
 
     def _validate_embedding_fields(self, fields: dict, result: dict):
         """Validate embedding-specific issues."""
         for key, value in fields.items():
             if 'Embedding_' in key and 'name' in key:
                 # Check for trailing commas or other punctuation
-                if value.endswith(',') or value.endswith(',,'):
+                if value.rstrip(',') != value:
                     result['errors'].append(
                         f"Embedding name '{key}' has trailing punctuation: '{value}'"
                     )

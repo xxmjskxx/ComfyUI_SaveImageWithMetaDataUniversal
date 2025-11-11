@@ -162,6 +162,12 @@ def demo_jpeg_fallback():
         filepath = Path(f"dev_test_workflows/{filename}")
         exists = "✅" if filepath.exists() else "❌"
         print(f"{exists} {filename:35} (max_jpeg_exif_kb={kb_size}, expected: {expected_stage})")
+        if not filepath.exists():
+            print(
+                f"    ⚠️  Warning: '{filename}' not found. This is expected if you have not created the "
+                "workflow file yet."
+            )
+            print("    To test fallback stages, create the file or run the appropriate workflow generation step.")
 
     print("\nMinimum max_jpeg_exif_kb changed from 4 to 1 ✅")
 
