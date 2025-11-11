@@ -1,0 +1,57 @@
+{
+  "16": {
+    "inputs": {
+      "exclude_keywords": "mask,find,resize,rotate,detailer,bus,scale,vision,text to,crop,xy,plot,controlnet,save,trainlora,postshot,loramanager",
+      "include_existing": true,
+      "mode": "all",
+      "force_include_metafields": "",
+      "force_include_node_class": ""
+    },
+    "class_type": "MetadataRuleScanner",
+    "_meta": {
+      "title": "Metadata Rule Scanner"
+    }
+  },
+  "17": {
+    "inputs": {
+      "text": [
+        "16",
+        0
+      ]
+    },
+    "class_type": "ShowText|unimeta",
+    "_meta": {
+      "title": "Show Text (UniMeta)"
+    }
+  },
+  "18": {
+    "inputs": {
+      "rules_json_string": [
+        "17",
+        0
+      ],
+      "save_mode": "overwrite",
+      "backup_before_save": true,
+      "restore_backup_set": "none",
+      "replace_conflicts": false,
+      "rebuild_python_rules": true,
+      "limit_backup_sets": 20
+    },
+    "class_type": "SaveCustomMetadataRules",
+    "_meta": {
+      "title": "Save Custom Metadata Rules"
+    }
+  },
+  "31": {
+    "inputs": {
+      "text": [
+        "18",
+        0
+      ]
+    },
+    "class_type": "ShowText|unimeta",
+    "_meta": {
+      "title": "Show Text (UniMeta)"
+    }
+  }
+}

@@ -37,6 +37,7 @@
   * [Troubleshooting / FAQ](#troubleshooting--faq)
   * [Design / Future Ideas](#design--future-ideas)
   * [Changelog](#changelog)
+  * [Development & Testing](#development--testing)
   * [Contributing](#contributing-summary)
   * [AI Assistant Instructions](.github/copilot-instructions.md)
 
@@ -422,6 +423,19 @@ Stable output characteristics to aid tooling & reproducibility:
 ### Changelog
 - Refactor notice: legacy monolithic module removed; see [Changelog](#changelog) for new direct import paths.
 See `CHANGELOG.md` for a summarized list of notable changes (e.g. JPEG fallback staging, 64KB EXIF cap enforcement, dynamic rule scanner separation, logging overhaul, documentation structure).
+
+### Development & Testing
+
+For testing workflows locally, see `DEV_WORKFLOW_TESTING.md` for:
+- Running workflows from the command line with `run_dev_workflows.py`
+- Automatically cleaning test output folders
+- Validating generated image metadata with `validate_metadata.py`
+- Complete testing workflow examples
+
+For workflow test coverage suggestions, see `WORKFLOW_TEST_SUGGESTIONS.md` which includes:
+- Analysis of current test coverage
+- 18 specific workflow test recommendations
+- Priority guidelines for comprehensive testing
 
 ### Contributing (Summary)
 Run lint & tests before submitting PRs:

@@ -1,0 +1,243 @@
+{
+  "1": {
+    "inputs": {
+      "ckpt_name": "StableDiffusion\\Originals\\sd1.5\\cyberrealistic_v50.safetensors",
+      "vae_name": "Baked VAE",
+      "clip_skip": -1,
+      "lora_name": "None",
+      "lora_model_strength": 1,
+      "lora_clip_strength": 1,
+      "positive": "1girl, hatsune miku, upper body, smile, looking at viewer, masterpiece, best quality",
+      "negative": "lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, artist name",
+      "token_normalization": "none",
+      "weight_interpretation": "comfy",
+      "empty_latent_width": 1024,
+      "empty_latent_height": 1024,
+      "batch_size": 1
+    },
+    "class_type": "Efficient Loader",
+    "_meta": {
+      "title": "Efficient Loader"
+    }
+  },
+  "3": {
+    "inputs": {
+      "seed": 123,
+      "steps": 20,
+      "cfg": 7,
+      "sampler_name": "euler_ancestral",
+      "scheduler": "normal",
+      "denoise": 1,
+      "preview_method": "none",
+      "vae_decode": "true",
+      "model": [
+        "1",
+        0
+      ],
+      "positive": [
+        "1",
+        1
+      ],
+      "negative": [
+        "1",
+        2
+      ],
+      "latent_image": [
+        "1",
+        3
+      ],
+      "optional_vae": [
+        "1",
+        4
+      ]
+    },
+    "class_type": "KSampler (Efficient)",
+    "_meta": {
+      "title": "KSampler (Efficient)"
+    }
+  },
+  "4": {
+    "inputs": {
+      "base_ckpt_name": "StableDiffusion\\Originals\\sd1.5\\cyberrealistic_v33.safetensors",
+      "base_clip_skip": -2,
+      "refiner_ckpt_name": "None",
+      "refiner_clip_skip": -2,
+      "positive_ascore": 6,
+      "negative_ascore": 2,
+      "vae_name": "Baked VAE",
+      "positive": "1girl, hatsune miku, upper body, smile, looking at viewer, masterpiece, best quality",
+      "negative": "lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, artist name",
+      "token_normalization": "none",
+      "weight_interpretation": "comfy",
+      "empty_latent_width": 832,
+      "empty_latent_height": 1216,
+      "batch_size": 1
+    },
+    "class_type": "Eff. Loader SDXL",
+    "_meta": {
+      "title": "Eff. Loader SDXL"
+    }
+  },
+  "5": {
+    "inputs": {
+      "noise_seed": 789,
+      "steps": 20,
+      "cfg": 7,
+      "sampler_name": "euler_ancestral",
+      "scheduler": "normal",
+      "start_at_step": 0,
+      "refine_at_step": -1,
+      "preview_method": "none",
+      "vae_decode": "true",
+      "sdxl_tuple": [
+        "4",
+        0
+      ],
+      "latent_image": [
+        "4",
+        1
+      ],
+      "optional_vae": [
+        "4",
+        2
+      ]
+    },
+    "class_type": "KSampler SDXL (Eff.)",
+    "_meta": {
+      "title": "KSampler SDXL (Eff.)"
+    }
+  },
+  "6": {
+    "inputs": {
+      "add_noise": "enable",
+      "noise_seed": 456,
+      "steps": 25,
+      "cfg": 7,
+      "sampler_name": "euler_ancestral",
+      "scheduler": "normal",
+      "start_at_step": 0,
+      "end_at_step": 10000,
+      "return_with_leftover_noise": "disable",
+      "preview_method": "none",
+      "vae_decode": "true",
+      "model": [
+        "1",
+        0
+      ],
+      "positive": [
+        "1",
+        1
+      ],
+      "negative": [
+        "1",
+        2
+      ],
+      "latent_image": [
+        "1",
+        3
+      ],
+      "optional_vae": [
+        "1",
+        4
+      ]
+    },
+    "class_type": "KSampler Adv. (Efficient)",
+    "_meta": {
+      "title": "KSampler Adv. (Efficient)"
+    }
+  },
+  "11": {
+    "inputs": {
+      "filename_prefix": "Test\\eff-without-meta",
+      "images": [
+        "3",
+        5
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    }
+  },
+  "15": {
+    "inputs": {
+      "filename_prefix": "Test\\eff-ComfyUI",
+      "sampler_selection_method": "Farthest",
+      "sampler_selection_node_id": 0,
+      "file_format": "png",
+      "lossless_webp": true,
+      "quality": 100,
+      "max_jpeg_exif_kb": 60,
+      "save_workflow_json": false,
+      "add_counter_to_filename": true,
+      "civitai_sampler": false,
+      "guidance_as_cfg": false,
+      "save_workflow_image": true,
+      "include_lora_summary": false,
+      "suppress_missing_class_log": true,
+      "model_hash_log": "none",
+      "images": [
+        "3",
+        5
+      ]
+    },
+    "class_type": "SaveImageWithMetaDataUniversal",
+    "_meta": {
+      "title": "Save Image w/ Metadata Universal"
+    }
+  },
+  "16": {
+    "inputs": {
+      "filename_prefix": "Test\\eff_adv",
+      "sampler_selection_method": "Farthest",
+      "sampler_selection_node_id": 0,
+      "file_format": "png",
+      "lossless_webp": true,
+      "quality": 100,
+      "max_jpeg_exif_kb": 60,
+      "save_workflow_json": false,
+      "add_counter_to_filename": true,
+      "civitai_sampler": false,
+      "guidance_as_cfg": false,
+      "save_workflow_image": true,
+      "include_lora_summary": false,
+      "suppress_missing_class_log": true,
+      "model_hash_log": "none",
+      "images": [
+        "6",
+        5
+      ]
+    },
+    "class_type": "SaveImageWithMetaDataUniversal",
+    "_meta": {
+      "title": "Save Image w/ Metadata Universal"
+    }
+  },
+  "17": {
+    "inputs": {
+      "filename_prefix": "Test\\eff_xl",
+      "sampler_selection_method": "Farthest",
+      "sampler_selection_node_id": 0,
+      "file_format": "png",
+      "lossless_webp": true,
+      "quality": 100,
+      "max_jpeg_exif_kb": 60,
+      "save_workflow_json": false,
+      "add_counter_to_filename": true,
+      "civitai_sampler": false,
+      "guidance_as_cfg": false,
+      "save_workflow_image": true,
+      "include_lora_summary": false,
+      "suppress_missing_class_log": true,
+      "model_hash_log": "none",
+      "images": [
+        "5",
+        3
+      ]
+    },
+    "class_type": "SaveImageWithMetaDataUniversal",
+    "_meta": {
+      "title": "Save Image w/ Metadata Universal"
+    }
+  }
+}
