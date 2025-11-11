@@ -233,8 +233,13 @@ class Capture:
             A cleaned name (best-effort) or the literal string "unknown" if normalization fails.
         """
         try:
-            if isinstance(value, list | tuple) and len(value) >= 1:  # noqa: UP038
-                value = value[0]
+            if isinstance(value, list | tuple):  # noqa: UP038
+                if len(value) >= 2:
+                    value = value[1]
+                elif len(value) == 1:
+                    value = value[0]
+                else:
+                    return "unknown"
             if not isinstance(value, str):
                 value = str(value)
             # Normalize path separators first (support mixed or escaped sequences)
