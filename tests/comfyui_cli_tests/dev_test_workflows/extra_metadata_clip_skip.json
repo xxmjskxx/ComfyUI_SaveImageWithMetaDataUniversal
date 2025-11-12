@@ -1,0 +1,207 @@
+{
+  "1": {
+    "inputs": {
+      "samples": [
+        "7",
+        0
+      ],
+      "vae": [
+        "9",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "2": {
+    "inputs": {
+      "resolution": "832x1216 (0.68)",
+      "batch_size": 1,
+      "width_override": 0,
+      "height_override": 0
+    },
+    "class_type": "SDXLEmptyLatentSizePicker+",
+    "_meta": {
+      "title": "🔧 Empty Latent Size Picker"
+    }
+  },
+  "3": {
+    "inputs": {
+      "text": "1girl, hatsune miku, vocaloid, aqua hair, aqua eyes, twintails, aqua necktie, cyan shirt, sleeveless, detached sleeves, black sleeves, upper body, smile, looking at viewer, waving, masterpiece, best quality, very aesthetic, absurdres",
+      "clip": [
+        "12",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "4": {
+    "inputs": {
+      "text": "lowres, (bad), text, error, fewer, extra, missing, worst quality, jpeg artifacts, low quality, watermark, unfinished, displeasing, oldest, early, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract]",
+      "clip": [
+        "12",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "5": {
+    "inputs": {
+      "key1": "custom_key",
+      "value1": "custom_value",
+      "key2": "hello",
+      "value2": "world",
+      "key3": "",
+      "value3": "",
+      "key4": "",
+      "value4": ""
+    },
+    "class_type": "CreateExtraMetaDataUniversal",
+    "_meta": {
+      "title": "Create Extra MetaData"
+    }
+  },
+  "6": {
+    "inputs": {
+      "key1": "custom_w",
+      "value1": [
+        "10",
+        0
+      ],
+      "key2": "custom_h",
+      "value2": [
+        "11",
+        0
+      ],
+      "key3": "",
+      "value3": "",
+      "key4": "",
+      "value4": "",
+      "extra_metadata": [
+        "5",
+        0
+      ]
+    },
+    "class_type": "CreateExtraMetaDataUniversal",
+    "_meta": {
+      "title": "Create Extra MetaData"
+    }
+  },
+  "7": {
+    "inputs": {
+      "seed": 999999999999999,
+      "steps": 20,
+      "cfg": 8,
+      "sampler_name": "euler_ancestral",
+      "scheduler": "karras",
+      "denoise": 1,
+      "model": [
+        "9",
+        0
+      ],
+      "positive": [
+        "3",
+        0
+      ],
+      "negative": [
+        "4",
+        0
+      ],
+      "latent_image": [
+        "2",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler"
+    }
+  },
+  "8": {
+    "inputs": {
+      "filename_prefix": "Test\\extra_metadata_clip_skip",
+      "sampler_selection_method": "Farthest",
+      "sampler_selection_node_id": 0,
+      "file_format": "png",
+      "lossless_webp": true,
+      "quality": 100,
+      "max_jpeg_exif_kb": 60,
+      "save_workflow_json": false,
+      "add_counter_to_filename": true,
+      "civitai_sampler": false,
+      "guidance_as_cfg": false,
+      "save_workflow_image": true,
+      "include_lora_summary": false,
+      "suppress_missing_class_log": true,
+      "model_hash_log": "none",
+      "images": [
+        "1",
+        0
+      ],
+      "extra_metadata": [
+        "6",
+        0
+      ]
+    },
+    "class_type": "SaveImageWithMetaDataUniversal",
+    "_meta": {
+      "title": "Save Image w/ Metadata Universal"
+    }
+  },
+  "9": {
+    "inputs": {
+      "ckpt_name": "StableDiffusion\\Originals\\sd1.5\\cyberrealistic_v33.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "Load Checkpoint"
+    }
+  },
+  "10": {
+    "inputs": {
+      "text_0": "832",
+      "value": [
+        "2",
+        1
+      ]
+    },
+    "class_type": "ShowAny|unimeta",
+    "_meta": {
+      "title": "Show Any (Any to String)"
+    }
+  },
+  "11": {
+    "inputs": {
+      "text_0": "1216",
+      "value": [
+        "2",
+        2
+      ]
+    },
+    "class_type": "ShowAny|unimeta",
+    "_meta": {
+      "title": "Show Any (Any to String)"
+    }
+  },
+  "12": {
+    "inputs": {
+      "stop_at_clip_layer": -2,
+      "clip": [
+        "9",
+        1
+      ]
+    },
+    "class_type": "CLIPSetLastLayer",
+    "_meta": {
+      "title": "CLIP Set Last Layer"
+    }
+  }
+}
