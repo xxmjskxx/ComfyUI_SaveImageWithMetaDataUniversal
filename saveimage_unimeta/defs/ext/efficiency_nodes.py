@@ -76,46 +76,37 @@ def _is_advanced_mode(input_data) -> bool:
         return False
 
 
-def get_lora_model_name_stack(node_id, obj, prompt, extra_data, outputs, input_data):
+def _get_unified_stack(node_id, outputs, input_data):
+    """Get unified LoRA stack, trying outputs first, then input_data.
+
+    Returns:
+        list[tuple]: List of (name, model_strength, clip_strength) tuples, or empty list.
+    """
     stack = _stack_from_outputs(node_id, outputs)
     if stack is None:
         stack = collect_lora_stack(input_data)
-    if stack:
-        return [entry[0] for entry in stack]
-    return select_stack_by_prefix(input_data, "lora_name", counter_key="lora_count")
+    return stack if stack else []
+
+
+def get_lora_model_name_stack(node_id, obj, prompt, extra_data, outputs, input_data):
+    stack = _get_unified_stack(node_id, outputs, input_data)
+    return [entry[0] for entry in stack]
 
 
 def get_lora_model_hash_stack(node_id, obj, prompt, extra_data, outputs, input_data):
-    stack = _stack_from_outputs(node_id, outputs)
-    if stack is None:
-        stack = collect_lora_stack(input_data)
-    if stack:
-        names = [entry[0] for entry in stack]
-    else:
-        names = select_stack_by_prefix(input_data, "lora_name", counter_key="lora_count")
+    stack = _get_unified_stack(node_id, outputs, input_data)
+    names = [entry[0] for entry in stack]
     return [calc_lora_hash(model_name, input_data) for model_name in names]
 
 
 def get_lora_strength_model_stack(node_id, obj, prompt, extra_data, outputs, input_data):
-    stack = _stack_from_outputs(node_id, outputs)
-    if stack is None:
-        stack = collect_lora_stack(input_data)
-    if stack:
-        return [entry[1] for entry in stack]
-    if _is_advanced_mode(input_data):
-        return select_stack_by_prefix(input_data, "model_str", counter_key="lora_count")
-    return select_stack_by_prefix(input_data, "lora_wt", counter_key="lora_count")
+    stack = _get_unified_stack(node_id, outputs, input_data)
+    return [entry[1] for entry in stack]
 
 
 def get_lora_strength_clip_stack(node_id, obj, prompt, extra_data, outputs, input_data):
-    stack = _stack_from_outputs(node_id, outputs)
-    if stack is None:
-        stack = collect_lora_stack(input_data)
-    if stack:
-        return [entry[2] for entry in stack]
-    if _is_advanced_mode(input_data):
-        return select_stack_by_prefix(input_data, "clip_str", counter_key="lora_count")
-    return select_stack_by_prefix(input_data, "lora_wt", counter_key="lora_count")
+    stack = _get_unified_stack(node_id, outputs, input_data)
+    return [entry[2] for entry in stack]
 
 
 def get_lora_data_stack(input_data, attribute):
@@ -148,6 +139,42 @@ SAMPLERS = {
     },
 }
 
+def _get_efficient_loader_lora_name(node_id, obj, prompt, extra_data, outputs, input_data):
+    """Get lora name from Efficient Loader, filtering out None values."""
+    if not input_data or not isinstance(input_data, list) or not input_data[0]:
+        return []
+    lora_name = input_data[0].get("lora_name", [None])[0]
+    if lora_name is None or str(lora_name).strip() == "" or str(lora_name).strip().lower() == "none":
+        return []
+    return [lora_name]
+
+
+def _get_efficient_loader_lora_hash(node_id, obj, prompt, extra_data, outputs, input_data):
+    """Get lora hash from Efficient Loader, filtering out None values."""
+    names = _get_efficient_loader_lora_name(node_id, obj, prompt, extra_data, outputs, input_data)
+    return [calc_lora_hash(name, input_data) for name in names]
+
+
+def _get_efficient_loader_lora_model_strength(node_id, obj, prompt, extra_data, outputs, input_data):
+    """Get lora model strength from Efficient Loader, filtering out None values."""
+    names = _get_efficient_loader_lora_name(node_id, obj, prompt, extra_data, outputs, input_data)
+    if not names:
+        return []
+    if not input_data or not isinstance(input_data, list) or not input_data[0]:
+        return []
+    return [input_data[0].get("lora_wt", [None])[0]]
+
+
+def _get_efficient_loader_lora_clip_strength(node_id, obj, prompt, extra_data, outputs, input_data):
+    """Get lora clip strength from Efficient Loader, filtering out None values."""
+    names = _get_efficient_loader_lora_name(node_id, obj, prompt, extra_data, outputs, input_data)
+    if not names:
+        return []
+    if not input_data or not isinstance(input_data, list) or not input_data[0]:
+        return []
+    return [input_data[0].get("lora_wt", [None])[0]]
+
+
 CAPTURE_FIELD_LIST = {
     "Efficient Loader": {
         MetaField.MODEL_NAME: {"field_name": "ckpt_name"},
@@ -157,6 +184,10 @@ CAPTURE_FIELD_LIST = {
         MetaField.NEGATIVE_PROMPT: {"field_name": "negative"},
         MetaField.IMAGE_WIDTH: {"field_name": "empty_latent_width"},
         MetaField.IMAGE_HEIGHT: {"field_name": "empty_latent_height"},
+        MetaField.LORA_MODEL_NAME: {"selector": _get_efficient_loader_lora_name},
+        MetaField.LORA_MODEL_HASH: {"selector": _get_efficient_loader_lora_hash},
+        MetaField.LORA_STRENGTH_MODEL: {"selector": _get_efficient_loader_lora_model_strength},
+        MetaField.LORA_STRENGTH_CLIP: {"selector": _get_efficient_loader_lora_clip_strength},
     },
     "Eff. Loader SDXL": {
         MetaField.MODEL_NAME: {"field_name": "base_ckpt_name"},
