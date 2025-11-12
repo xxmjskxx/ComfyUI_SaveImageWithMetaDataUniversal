@@ -387,22 +387,22 @@ class WorkflowAnalyzer:
         """
         if node_id not in workflow:
             return None, None
-        
+
         node = workflow[node_id]
         inputs = node.get("inputs", {})
-        
+
         if input_key not in inputs:
             return None, None
-        
+
         value = inputs[input_key]
         # If it's a list, it's a connection [node_id, output_index]
         if isinstance(value, list) and len(value) >= 1:
             source_id = str(value[0])
             if source_id in workflow:
                 return source_id, workflow[source_id]
-        
+
         return None, None
-    
+
     @staticmethod
     def extract_lora_stack_info(workflow: dict, lora_stack_id: str) -> list[dict]:
         """Extract LoRA information from a LoRA Stacker node.
@@ -411,18 +411,18 @@ class WorkflowAnalyzer:
         """
         if lora_stack_id not in workflow:
             return []
-        
+
         lora_stack_node = workflow[lora_stack_id]
         stack_inputs = lora_stack_node.get("inputs", {})
-        
+
         mode = stack_inputs.get("input_mode", "simple")
         count = int(stack_inputs.get("lora_count", 0))
-        
+
         loras = []
         for i in range(1, count + 1):
             name_key = f'lora_name_{i}'
             lora_name = stack_inputs.get(name_key)
-            
+
             if lora_name and lora_name != "None":
                 if mode == "advanced":
                     model_str = stack_inputs.get(f'model_str_{i}', 1.0)
@@ -431,15 +431,15 @@ class WorkflowAnalyzer:
                     lora_wt = stack_inputs.get(f'lora_wt_{i}', 1.0)
                     model_str = lora_wt
                     clip_str = lora_wt
-                
+
                 loras.append({
                     "name": lora_name,
                     "model_strength": model_str,
                     "clip_strength": clip_str
                 })
-        
+
         return loras
-    
+
     @staticmethod
     def extract_expected_metadata_for_save_node(workflow: dict, save_node_id: str, save_node: dict) -> dict[str, Any]:
         """Extract complete expected metadata for a specific Save Image node by tracing its connections.
@@ -455,7 +455,7 @@ class WorkflowAnalyzer:
             "filename_prefix": "",
             "file_format": "png",
         }
-        
+
         # Get save node settings
         save_inputs = save_node.get("inputs", {})
         expected["filename_prefix"] = WorkflowAnalyzer.resolve_filename_prefix(
@@ -465,15 +465,15 @@ class WorkflowAnalyzer:
         expected["save_workflow_json"] = save_inputs.get("save_workflow_json", False)
         expected["include_lora_summary"] = save_inputs.get("include_lora_summary", False)
         expected["max_jpeg_exif_kb"] = save_inputs.get("max_jpeg_exif_kb", 60)
-        
+
         # Trace to sampler
         sampler_id, sampler_node = WorkflowAnalyzer.trace_node_input(workflow, save_node_id, "images")
         if not sampler_node:
             return expected
-        
+
         expected["sampler_node_id"] = sampler_id
         expected["sampler_class_type"] = sampler_node.get("class_type")
-        
+
         # Extract sampler parameters
         sampler_inputs = sampler_node.get("inputs", {})
         expected["seed"] = sampler_inputs.get("seed", sampler_inputs.get("noise_seed"))
@@ -483,50 +483,50 @@ class WorkflowAnalyzer:
         expected["scheduler"] = sampler_inputs.get("scheduler")
         expected["denoise"] = sampler_inputs.get("denoise")
         expected["guidance"] = sampler_inputs.get("guidance")
-        
+
         # Trace to loader (could be through 'model' or 'sdxl_tuple' input)
         loader_id, loader_node = None, None
         for input_key in ['model', 'sdxl_tuple']:
             loader_id, loader_node = WorkflowAnalyzer.trace_node_input(workflow, sampler_id, input_key)
             if loader_node:
                 break
-        
+
         if not loader_node:
             return expected
-        
+
         expected["loader_node_id"] = loader_id
         expected["loader_class_type"] = loader_node.get("class_type")
-        
+
         # Extract loader parameters
         loader_inputs = loader_node.get("inputs", {})
-        
+
         # Model name
         expected["model_name"] = loader_inputs.get("ckpt_name", loader_inputs.get("base_ckpt_name", loader_inputs.get("unet_name")))
-        
+
         # VAE
         expected["vae_name"] = loader_inputs.get("vae_name")
-        
+
         # CLIP skip
         expected["clip_skip"] = loader_inputs.get("clip_skip", loader_inputs.get("base_clip_skip"))
-        
+
         # Weight dtype
         expected["weight_dtype"] = loader_inputs.get("weight_dtype")
-        
+
         # Image dimensions
         expected["image_width"] = loader_inputs.get("empty_latent_width", loader_inputs.get("width"))
         expected["image_height"] = loader_inputs.get("empty_latent_height", loader_inputs.get("height"))
-        
+
         # Batch size
         expected["batch_size"] = loader_inputs.get("batch_size")
-        
+
         # Prompts
         expected["positive_prompt"] = loader_inputs.get("positive")
         expected["negative_prompt"] = loader_inputs.get("negative")
-        
+
         # T5/CLIP prompts for dual CLIP
         expected["t5_prompt"] = loader_inputs.get("t5xxl")
         expected["clip_prompt"] = loader_inputs.get("clip_l")
-        
+
         # Inline LoRA from loader
         inline_lora = loader_inputs.get("lora_name")
         if inline_lora and inline_lora != "None":
@@ -535,13 +535,13 @@ class WorkflowAnalyzer:
                 "model_strength": loader_inputs.get("lora_model_strength", loader_inputs.get("lora_wt", 1.0)),
                 "clip_strength": loader_inputs.get("lora_clip_strength", loader_inputs.get("lora_wt", 1.0))
             }
-        
+
         # LoRA Stack
         lora_stack_ref = loader_inputs.get("lora_stack")
         if isinstance(lora_stack_ref, list) and len(lora_stack_ref) >= 1:
             lora_stack_id = str(lora_stack_ref[0])
             expected["lora_stack"] = WorkflowAnalyzer.extract_lora_stack_info(workflow, lora_stack_id)
-        
+
         return expected
 
     @staticmethod
@@ -565,7 +565,7 @@ class WorkflowAnalyzer:
         save_nodes = WorkflowAnalyzer.find_save_nodes(workflow)
         if save_nodes:
             expected["has_save_node"] = True
-            
+
             # Extract complete metadata expectations for each save node
             for save_node_id, save_node in save_nodes:
                 save_node_expected = WorkflowAnalyzer.extract_expected_metadata_for_save_node(
@@ -835,7 +835,7 @@ class MetadataValidator:
 
     def _validate_expected_fields(self, fields: dict, expected_metadata: dict, result: dict):
         """Comprehensively validate that actual metadata matches all expected values."""
-        
+
         def compare_numeric(expected, actual, field_name):
             """Compare numeric values, handling int/float differences."""
             try:
@@ -847,7 +847,7 @@ class MetadataValidator:
                 # If conversion fails, do string comparison
                 if str(expected) != str(actual):
                     result["errors"].append(f"{field_name} mismatch: expected '{expected}', got '{actual}'")
-        
+
         # Validate seed
         if expected_metadata.get("seed") is not None:
             expected_seed = str(expected_metadata["seed"])
@@ -856,7 +856,7 @@ class MetadataValidator:
                 compare_numeric(expected_seed, actual_seed, "Seed")
             else:
                 result["errors"].append(f"Seed missing, expected '{expected_seed}'")
-        
+
         # Validate steps
         if expected_metadata.get("steps") is not None:
             expected_steps = str(expected_metadata["steps"])
@@ -865,7 +865,7 @@ class MetadataValidator:
                 compare_numeric(expected_steps, actual_steps, "Steps")
             else:
                 result["errors"].append(f"Steps missing, expected '{expected_steps}'")
-        
+
         # Validate CFG
         if expected_metadata.get("cfg") is not None:
             expected_cfg = str(expected_metadata["cfg"])
@@ -874,33 +874,33 @@ class MetadataValidator:
                 compare_numeric(expected_cfg, actual_cfg, "CFG scale")
             else:
                 result["errors"].append(f"CFG scale missing, expected '{expected_cfg}'")
-        
+
         # Validate sampler name (note: may be transformed by scheduler)
         if expected_metadata.get("sampler_name"):
             # Just check that Sampler field exists
             if "Sampler" not in fields:
                 result["errors"].append(f"Sampler field missing, expected sampler '{expected_metadata['sampler_name']}'")
-        
+
         # Validate scheduler
         if expected_metadata.get("scheduler"):
             # Scheduler is typically combined with sampler name in output
             if "Sampler" not in fields:
                 result["errors"].append(f"Sampler field missing, expected scheduler '{expected_metadata['scheduler']}'")
-        
+
         # Validate denoise
         if expected_metadata.get("denoise") is not None:
             expected_denoise = str(expected_metadata["denoise"])
             actual_denoise = fields.get("Denoise", "")
             if actual_denoise:
                 compare_numeric(expected_denoise, actual_denoise, "Denoise")
-        
+
         # Validate guidance (for Flux models)
         if expected_metadata.get("guidance") is not None:
             expected_guidance = str(expected_metadata["guidance"])
             actual_guidance = fields.get("Guidance", "")
             if actual_guidance:
                 compare_numeric(expected_guidance, actual_guidance, "Guidance")
-        
+
         # Validate model name (compare just the base filename)
         if expected_metadata.get("model_name"):
             actual_model = fields.get("Model", "")
@@ -908,7 +908,7 @@ class MetadataValidator:
             expected_model_path = expected_metadata["model_name"].replace("\\", "/")
             expected_model_basename = Path(expected_model_path).stem
             actual_model_basename = Path(actual_model).stem if actual_model else ""
-            
+
             # Only report error if basenames don't match (ignore path differences)
             if actual_model_basename and actual_model_basename != expected_model_basename:
                 result["errors"].append(
@@ -916,7 +916,7 @@ class MetadataValidator:
                 )
             elif not actual_model:
                 result["errors"].append(f"Model missing, expected '{expected_model_basename}'")
-        
+
         # Validate VAE name
         if expected_metadata.get("vae_name") and expected_metadata["vae_name"] != "Baked VAE":
             actual_vae = fields.get("VAE", "")
@@ -926,7 +926,7 @@ class MetadataValidator:
                 result["errors"].append(
                     f"VAE mismatch: expected '{expected_vae_basename}', got '{actual_vae_basename}'"
                 )
-        
+
         # Validate clip skip (note: stored as absolute value in metadata)
         if expected_metadata.get("clip_skip") is not None:
             expected_clip_skip = abs(int(expected_metadata["clip_skip"]))
@@ -940,7 +940,7 @@ class MetadataValidator:
                         )
                 except ValueError:
                     result["errors"].append(f"Clip skip invalid value: '{actual_clip_skip}'")
-        
+
         # Validate image dimensions
         if expected_metadata.get("image_width") and expected_metadata.get("image_height"):
             expected_size = f"{expected_metadata['image_width']}x{expected_metadata['image_height']}"
@@ -949,7 +949,7 @@ class MetadataValidator:
                 result["warnings"].append(
                     f"Size mismatch: expected '{expected_size}', got '{actual_size}'"
                 )
-        
+
         # Validate LoRA stack
         if expected_metadata.get("lora_stack"):
             expected_loras = expected_metadata["lora_stack"]
@@ -960,37 +960,37 @@ class MetadataValidator:
                 match = re.match(r"Lora_(\d+) Model name", key)
                 if match:
                     lora_indices.add(int(match.group(1)))
-            
+
             actual_lora_count = len(lora_indices)
             expected_lora_count = len(expected_loras)
-            
+
             if actual_lora_count != expected_lora_count:
                 result["errors"].append(
                     f"LoRA count mismatch: expected {expected_lora_count} LoRAs, got {actual_lora_count}"
                 )
-            
+
             # Validate each LoRA
             for idx, expected_lora in enumerate(expected_loras):
                 lora_name_key = f"Lora_{idx} Model name"
                 lora_model_str_key = f"Lora_{idx} Model strength"
                 lora_clip_str_key = f"Lora_{idx} Clip strength"
-                
+
                 if lora_name_key in fields:
                     actual_lora_name = fields[lora_name_key]
                     expected_lora_basename = Path(expected_lora["name"]).stem
                     actual_lora_basename = Path(actual_lora_name).stem if actual_lora_name else ""
-                    
+
                     if actual_lora_basename != expected_lora_basename:
                         result["errors"].append(
                             f"LoRA {idx} name mismatch: expected '{expected_lora_basename}', got '{actual_lora_basename}'"
                         )
-                    
+
                     # Validate strengths (use numeric comparison)
                     if lora_model_str_key in fields:
                         actual_model_str = fields[lora_model_str_key]
                         expected_model_str = str(expected_lora["model_strength"])
                         compare_numeric(expected_model_str, actual_model_str, f"LoRA {idx} model strength")
-                    
+
                     if lora_clip_str_key in fields:
                         actual_clip_str = fields[lora_clip_str_key]
                         expected_clip_str = str(expected_lora["clip_strength"])
@@ -1474,7 +1474,7 @@ class MetadataValidator:
         # Show summary
         num_save_nodes = len(expected.get("save_nodes", []))
         print(f"  Found {num_save_nodes} Save Image node(s)")
-        
+
         # Show the filename patterns we're looking for
         patterns = expected.get("filename_patterns", [])
         if patterns:
@@ -1507,7 +1507,7 @@ class MetadataValidator:
                             cleaned = re.sub(r"%[^%]+%", "", part).strip("-_/")
                             if cleaned and len(cleaned) >= 3:
                                 static_parts.append(cleaned.lower())
-                        
+
                         # Check if image name contains any static part
                         image_name_lower = image_path.stem.lower()
                         for static_part in static_parts:
@@ -1516,11 +1516,11 @@ class MetadataValidator:
                                 break
                         if best_save_node_match:
                             break
-                
+
                 # If no match found, use first save node
                 if not best_save_node_match and expected["save_nodes"]:
                     best_save_node_match = expected["save_nodes"][0]
-            
+
             # Validate with the matched save node's expected metadata
             result = self.validate_image(image_path, workflow_file.stem, expected, best_save_node_match)
             results.append(result)
