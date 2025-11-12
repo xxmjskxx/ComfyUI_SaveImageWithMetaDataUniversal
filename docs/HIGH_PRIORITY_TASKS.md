@@ -90,7 +90,10 @@ Additionally, here is validation from the CR Lora stack workflow:
         - Error: LoRA '80sFantasyMovieMJ7Flux.safetensors' hash mismatch: metadata has '67a9c045d0' but Hashes summary has '30f425fe15'
         - Error: LoRA 'closeupfilm.safetensors' hash mismatch: metadata has '67a9c045d0' but Hashes summary has 'f5481e1d05'
 
-If, at any point, after making changes to how metadata is traced, generated, captured, and recorded, you would like to stop and check the results of your changes, just stop and let me know. I will generate new 'saveimage_unimeta/defs/ext/generated_user_rules.py', 'saveimage_unimeta/user_rules/user_captures.json', and 'saveimage_unimeta/user_rules/user_samplers.json' files for you in my ComfyUI testing environment and push them to the branch you are working on. Once I've given you access to the new files, I will let you know to resume, and then you can analyze the updated files to see if your recent changes had the desired effect regarding how metadata is traced, generated, captured, and correcting existing bugs with these functionalities.
+### IMPORTANT:
+#### If, at any point, after making some changes to how metadata is traced, generated, captured, and recorded, you would like to stop and check the results of your changes, just stop, make a PR, and let me know. I will generate new 'saveimage_unimeta/defs/ext/generated_user_rules.py', 'saveimage_unimeta/user_rules/user_captures.json', and 'saveimage_unimeta/user_rules/user_samplers.json' files for you in my ComfyUI testing environment and push them to the branch you are working on. 
+#### Once I've given you access to the new files, I will let you know to resume, and then you can analyze the updated files to see if your recent changes had the desired effect regarding how metadata is traced, generated, captured, and correcting existing bugs with these functionalities. 
+#### It will likely be important to stop and check like this every so often, since you don't have access to a ComfyUI environment in which to perform these actions yourself. Your task is to only work on the 7 tasks laid out in this document until you reach a point where you need the 'user_rules' documents to be refreshed. At that time, your task will be completed. At that time, you can push your results to your working branch.
 
 ### 2. The other result of the recent changes you made to 'saveimage_unimeta\defs\ext\efficiency_nodes.py' is broken metadata recording in workflows that used to work. Two of the save nodes in the 'efficiency-nodes.json' workflow now fail, when they used to pass.
 
@@ -161,9 +164,9 @@ I think this validation error may be incorrect. Here is a snippet of the metadat
 
 This looks fine to me, but I could be mistaken. Perhaps it's because the Hashes section only has one key value pair? I'm not sure.
 
-### 6. Hash validation
+### 6. Hash validation against .sha256 sidecar files
 
-I would like to add an additional step to to the verification script 'tests\comfyui_cli_tests\validate_metadata.py' to verify all hashes (loras, unet/ckpt, vae, embedding) found in the metadata of all images being validated against their sidecar '.sha256' files. Additionally, ensure the sidecar files contain the full hash and the metadata has the hash truncated to the first 10 characters.
+I would like to add an additional step to to the validation script 'tests\comfyui_cli_tests\validate_metadata.py' to verify all hashes (loras, unet/ckpt, vae, embedding) which are read/found in the metadata of all images being validated. The hashes in the metadata should be validated against their sidecar '.sha256' files. Additionally, verify the sidecar files contain the full hash and that the hashes in metadata have always been truncated to the first 10 characters.
 
 ### 7. Exception
 
@@ -175,4 +178,5 @@ Exception ignored in: Exception ignored in sys.unraisablehook
 ```
 
 I'm not sure if this exception is something that should be addressed, or irrelevant.
+
 
