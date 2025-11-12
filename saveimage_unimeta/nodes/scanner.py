@@ -398,13 +398,13 @@ class MetadataRuleScanner:
             """Return mtimes for user rule JSON files.
 
             Mirrors path preference logic of loader/writer: in METADATA_TEST_MODE, if an
-            existing _test_outputs/user_rules directory is present, prefer it. This keeps
+            existing tests/_test_outputs/user_rules directory is present, prefer it. This keeps
             scanner cache invalidation coherent during isolated tests.
             """
             try:
                 pack_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
                 test_mode = os.environ.get("METADATA_TEST_MODE", "").strip().lower() in {"1", "true", "yes", "on"}
-                preferred = os.path.join(pack_dir, "_test_outputs", "user_rules")
+                preferred = os.path.join(pack_dir, "tests/_test_outputs", "user_rules")
                 if test_mode and os.path.isdir(preferred):
                     user_dir = preferred
                 else:

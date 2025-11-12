@@ -1,0 +1,447 @@
+{
+  "1": {
+    "inputs": {
+      "unet_name": "flux\\flux1-dev-fp8-e4m3fn.safetensors",
+      "weight_dtype": "fp8_e4m3fn_fast"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "Load Diffusion Model"
+    }
+  },
+  "3": {
+    "inputs": {
+      "clip_name1": "flux\\t5xxl_fp16.safetensors",
+      "clip_name2": "flux\\clip_l.safetensors",
+      "type": "flux",
+      "device": "default"
+    },
+    "class_type": "DualCLIPLoader",
+    "_meta": {
+      "title": "DualCLIPLoader"
+    }
+  },
+  "4": {
+    "inputs": {
+      "vae_name": "ae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "5": {
+    "inputs": {
+      "samples": [
+        "7",
+        1
+      ],
+      "vae": [
+        "4",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "7": {
+    "inputs": {
+      "noise": [
+        "14",
+        0
+      ],
+      "guider": [
+        "13",
+        0
+      ],
+      "sampler": [
+        "28:11",
+        0
+      ],
+      "sigmas": [
+        "28:12",
+        0
+      ],
+      "latent_image": [
+        "28:27",
+        0
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "SamplerCustomAdvanced"
+    }
+  },
+  "8": {
+    "inputs": {
+      "text": "The man walked in the forest.",
+      "clip": [
+        "3",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "13": {
+    "inputs": {
+      "model": [
+        "28:9",
+        0
+      ],
+      "conditioning": [
+        "28:10",
+        0
+      ]
+    },
+    "class_type": "BasicGuider",
+    "_meta": {
+      "title": "BasicGuider"
+    }
+  },
+  "14": {
+    "inputs": {
+      "noise_seed": [
+        "35",
+        0
+      ]
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "RandomNoise"
+    }
+  },
+  "24": {
+    "inputs": {
+      "image": "ref2.webp"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Style_IMG_1"
+    }
+  },
+  "35": {
+    "inputs": {
+      "seed": -1
+    },
+    "class_type": "Seed (rgthree)",
+    "_meta": {
+      "title": "Seed (rgthree)"
+    }
+  },
+  "36": {
+    "inputs": {
+      "rgthree_comparer": {
+        "images": [
+          {
+            "name": "A",
+            "selected": true,
+            "url": "/api/view?filename=rgthree.compare._temp_zamyx_00001_.png&type=temp&subfolder=&rand=0.6982558206564512"
+          }
+        ]
+      },
+      "image_a": [
+        "5",
+        0
+      ]
+    },
+    "class_type": "Image Comparer (rgthree)",
+    "_meta": {
+      "title": "Image Comparer (rgthree)"
+    }
+  },
+  "48": {
+    "inputs": {
+      "image": "ref2.webp"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Style_IMG_2"
+    }
+  },
+  "81": {
+    "inputs": {},
+    "class_type": "PreviewImage",
+    "_meta": {
+      "title": "Preview Image"
+    }
+  },
+  "82": {
+    "inputs": {
+      "image": "ref1.webp"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Content_IMG"
+    }
+  },
+  "88": {
+    "inputs": {
+      "lora_name": "flux\\uso\\uso-flux1-dit-lora-v1.safetensors",
+      "strength_model": 1,
+      "model": [
+        "115",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "LoraLoaderModelOnly"
+    }
+  },
+  "90": {
+    "inputs": {
+      "upscale_method": "area",
+      "largest_size": 512,
+      "image": [
+        "82",
+        0
+      ]
+    },
+    "class_type": "ImageScaleToMaxDimension",
+    "_meta": {
+      "title": "ImageScaleToMaxDimension"
+    }
+  },
+  "113": {
+    "inputs": {
+      "filename_prefix": "Test\\%date:yyyy-MM-dd%//%date:yyyy-MM-dd-hhmmss%-USO",
+      "sampler_selection_method": "Farthest",
+      "sampler_selection_node_id": 0,
+      "file_format": "png",
+      "lossless_webp": true,
+      "quality": 100,
+      "max_jpeg_exif_kb": 60,
+      "save_workflow_json": false,
+      "add_counter_to_filename": true,
+      "civitai_sampler": false,
+      "guidance_as_cfg": false,
+      "save_workflow_image": true,
+      "include_lora_summary": false,
+      "suppress_missing_class_log": true,
+      "model_hash_log": "none",
+      "images": [
+        "5",
+        0
+      ]
+    },
+    "class_type": "SaveImageWithMetaDataUniversal",
+    "_meta": {
+      "title": "Save Image w/ Metadata Universal"
+    }
+  },
+  "114": {
+    "inputs": {
+      "lora_name": "flux\\turbos\\FLUX.1-Turbo-Alpha.safetensors",
+      "strength_model": 0.8,
+      "model": [
+        "88",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "LoraLoaderModelOnly"
+    }
+  },
+  "115": {
+    "inputs": {
+      "sage_attention": "auto",
+      "allow_compile": false,
+      "model": [
+        "116",
+        0
+      ]
+    },
+    "class_type": "PathchSageAttentionKJ",
+    "_meta": {
+      "title": "Patch Sage Attention KJ"
+    }
+  },
+  "116": {
+    "inputs": {
+      "backend": "inductor",
+      "model": [
+        "1",
+        0
+      ]
+    },
+    "class_type": "TorchCompileModel",
+    "_meta": {
+      "title": "TorchCompileModel"
+    }
+  },
+  "44:38": {
+    "inputs": {
+      "clip_name": "sigclip_vision_patch14_384.safetensors"
+    },
+    "class_type": "CLIPVisionLoader",
+    "_meta": {
+      "title": "Load CLIP Vision"
+    }
+  },
+  "44:39": {
+    "inputs": {
+      "name": "uso-flux1-projector-v1.safetensors"
+    },
+    "class_type": "ModelPatchLoader",
+    "_meta": {
+      "title": "ModelPatchLoader"
+    }
+  },
+  "43:44": {
+    "inputs": {},
+    "class_type": "USOStyleReference",
+    "_meta": {
+      "title": "USOStyleReference"
+    }
+  },
+  "28:11": {
+    "inputs": {
+      "sampler_name": "euler"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "KSamplerSelect"
+    }
+  },
+  "28:27": {
+    "inputs": {
+      "dimensions": "1024 x 1024  (square)",
+      "clip_scale": 1,
+      "batch_size": 1
+    },
+    "class_type": "SDXL Empty Latent Image (rgthree)",
+    "_meta": {
+      "title": "SDXL Empty Latent Image (rgthree)"
+    }
+  },
+  "43:41": {
+    "inputs": {
+      "crop": "center",
+      "clip_vision": [
+        "44:38",
+        0
+      ],
+      "image": [
+        "24",
+        0
+      ]
+    },
+    "class_type": "CLIPVisionEncode",
+    "_meta": {
+      "title": "CLIP Vision Encode"
+    }
+  },
+  "46:41": {
+    "inputs": {
+      "crop": "center",
+      "clip_vision": [
+        "44:38",
+        0
+      ],
+      "image": [
+        "48",
+        0
+      ]
+    },
+    "class_type": "CLIPVisionEncode",
+    "_meta": {
+      "title": "CLIP Vision Encode"
+    }
+  },
+  "28:10": {
+    "inputs": {
+      "guidance": 4,
+      "conditioning": [
+        "8",
+        0
+      ]
+    },
+    "class_type": "FluxGuidance",
+    "_meta": {
+      "title": "FluxGuidance"
+    }
+  },
+  "43:40": {
+    "inputs": {
+      "model": [
+        "114",
+        0
+      ],
+      "model_patch": [
+        "44:39",
+        0
+      ],
+      "clip_vision_output": [
+        "43:41",
+        0
+      ]
+    },
+    "class_type": "USOStyleReference",
+    "_meta": {
+      "title": "USOStyleReference"
+    }
+  },
+  "46:40": {
+    "inputs": {
+      "model": [
+        "43:40",
+        0
+      ],
+      "model_patch": [
+        "44:39",
+        0
+      ],
+      "clip_vision_output": [
+        "46:41",
+        0
+      ]
+    },
+    "class_type": "USOStyleReference",
+    "_meta": {
+      "title": "USOStyleReference"
+    }
+  },
+  "28:9": {
+    "inputs": {
+      "max_shift": 1.15,
+      "base_shift": 0.5,
+      "width": [
+        "28:27",
+        1
+      ],
+      "height": [
+        "28:27",
+        2
+      ],
+      "model": [
+        "46:40",
+        0
+      ]
+    },
+    "class_type": "ModelSamplingFlux",
+    "_meta": {
+      "title": "ModelSamplingFlux"
+    }
+  },
+  "28:12": {
+    "inputs": {
+      "scheduler": "simple",
+      "steps": 8,
+      "denoise": 1,
+      "model": [
+        "28:9",
+        0
+      ]
+    },
+    "class_type": "BasicScheduler",
+    "_meta": {
+      "title": "BasicScheduler"
+    }
+  }
+}

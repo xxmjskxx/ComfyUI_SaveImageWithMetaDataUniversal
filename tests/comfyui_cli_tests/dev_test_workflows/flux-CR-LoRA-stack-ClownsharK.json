@@ -1,0 +1,274 @@
+{
+  "51": {
+    "inputs": {
+      "samples": [
+        "1027",
+        0
+      ],
+      "vae": [
+        "663",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "663": {
+    "inputs": {
+      "vae_name": "ae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "693": {
+    "inputs": {
+      "unet_name": "flux\\flux1-dev-fp8-e4m3fn.safetensors",
+      "weight_dtype": "fp8_e4m3fn"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "Load Diffusion Model"
+    }
+  },
+  "694": {
+    "inputs": {
+      "clip_name1": "flux\\t5xxl_fp8_e4m3fn_scaled.safetensors",
+      "clip_name2": "flux\\Long-ViT-L-14-REG-TE-only-HF-format.safetensors",
+      "type": "flux",
+      "device": "default"
+    },
+    "class_type": "DualCLIPLoader",
+    "_meta": {
+      "title": "DualCLIPLoader"
+    }
+  },
+  "725": {
+    "inputs": {
+      "dimensions": " 832 x 1216  (portrait)",
+      "clip_scale": 1,
+      "batch_size": 1
+    },
+    "class_type": "SDXL Empty Latent Image (rgthree)",
+    "_meta": {
+      "title": "Choose Preset Resolution"
+    }
+  },
+  "1001": {
+    "inputs": {
+      "text": "oil painting, semi realistic, fantasy, anime style, solid color background, tall thin character, beautiful lush vibrant forest, backlighting, dramatic atmospheric glow, countless small tiny clumsy gentle spirits, great forest spirit, intricate highly detailed, natural fantastical elements, leaves flowers feathers, hair clothing, delicate translucent wings, gentle mystical business, forest secret heartbeat, branches arms, leaves hair, ethereal benevolent connection, natural world, deep abiding, magic, hushed reverence, wonder, mysticism, otherworldly aura, vibrant colors, bold brushstrokes, gradating background, blues emerald greens, slender athletic build, elegant arm, beckoning summoning, reverence awe, drinking in essence, character attire, mesmerizing blend, organic growth, R3alisticF, retr0grade90s, A digital anime artwork in the style of cklg, in the style of cksc,",
+      "clip": [
+        "1062",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "1015": {
+    "inputs": {
+      "backend": "inductor",
+      "model": [
+        "1016",
+        0
+      ]
+    },
+    "class_type": "TorchCompileModel",
+    "_meta": {
+      "title": "TorchCompileModel"
+    }
+  },
+  "1016": {
+    "inputs": {
+      "sage_attention": "auto",
+      "allow_compile": false,
+      "model": [
+        "693",
+        0
+      ]
+    },
+    "class_type": "PathchSageAttentionKJ",
+    "_meta": {
+      "title": "Patch Sage Attention KJ"
+    }
+  },
+  "1017": {
+    "inputs": {
+      "patch_order": "object_patch_first",
+      "full_load": "auto",
+      "model": [
+        "1015",
+        0
+      ]
+    },
+    "class_type": "PatchModelPatcherOrder",
+    "_meta": {
+      "title": "Patch Model Patcher Order"
+    }
+  },
+  "1027": {
+    "inputs": {
+      "eta": 0.5,
+      "sampler_name": "linear/euler",
+      "scheduler": "bong_tangent",
+      "steps": 2,
+      "steps_to_run": -1,
+      "denoise": 1,
+      "cfg": 1,
+      "seed": [
+        "1040",
+        0
+      ],
+      "sampler_mode": "standard",
+      "bongmath": true,
+      "model": [
+        "1034",
+        0
+      ],
+      "positive": [
+        "1031",
+        0
+      ],
+      "negative": [
+        "1028",
+        0
+      ],
+      "latent_image": [
+        "725",
+        0
+      ]
+    },
+    "class_type": "ClownsharKSampler_Beta",
+    "_meta": {
+      "title": "ClownsharKSampler"
+    }
+  },
+  "1028": {
+    "inputs": {
+      "conditioning": [
+        "1031",
+        0
+      ]
+    },
+    "class_type": "ConditioningZeroOut",
+    "_meta": {
+      "title": "ConditioningZeroOut"
+    }
+  },
+  "1031": {
+    "inputs": {
+      "guidance": 3.5,
+      "conditioning": [
+        "1001",
+        0
+      ]
+    },
+    "class_type": "FluxGuidance",
+    "_meta": {
+      "title": "FluxGuidance"
+    }
+  },
+  "1034": {
+    "inputs": {
+      "max_shift": 1.15,
+      "base_shift": 0.5,
+      "width": [
+        "725",
+        1
+      ],
+      "height": [
+        "725",
+        2
+      ],
+      "model": [
+        "1062",
+        0
+      ]
+    },
+    "class_type": "ModelSamplingFlux",
+    "_meta": {
+      "title": "ModelSamplingFlux"
+    }
+  },
+  "1040": {
+    "inputs": {
+      "seed": -1
+    },
+    "class_type": "Seed (rgthree)",
+    "_meta": {
+      "title": "Seed (rgthree)"
+    }
+  },
+  "1061": {
+    "inputs": {
+      "switch_1": "On",
+      "lora_name_1": "flux\\film\\80sFantasyMovieMJ7Flux.safetensors",
+      "model_weight_1": 0.96,
+      "clip_weight_1": 1.02,
+      "switch_2": "On",
+      "lora_name_2": "flux\\fashion\\closeupfilm.safetensors",
+      "model_weight_2": 1.05,
+      "clip_weight_2": 0.98,
+      "switch_3": "Off",
+      "lora_name_3": "flux\\artstyle\\style\\aidmaAbadonedHorror-FLUX-V0.1.safetensors",
+      "model_weight_3": 1,
+      "clip_weight_3": 1
+    },
+    "class_type": "CR LoRA Stack",
+    "_meta": {
+      "title": "💊 CR LoRA Stack"
+    }
+  },
+  "1062": {
+    "inputs": {
+      "model": [
+        "1017",
+        0
+      ],
+      "clip": [
+        "694",
+        0
+      ],
+      "lora_stack": [
+        "1061",
+        0
+      ]
+    },
+    "class_type": "CR Apply LoRA Stack",
+    "_meta": {
+      "title": "💊 CR Apply LoRA Stack"
+    }
+  },
+  "1117": {
+    "inputs": {
+      "filename_prefix": "Test\\flux-CR-LoRA-stack-ClownsharK",
+      "sampler_selection_method": "Farthest",
+      "sampler_selection_node_id": 0,
+      "file_format": "png",
+      "lossless_webp": true,
+      "quality": 100,
+      "max_jpeg_exif_kb": 60,
+      "save_workflow_json": false,
+      "add_counter_to_filename": true,
+      "civitai_sampler": true,
+      "guidance_as_cfg": true,
+      "save_workflow_image": true,
+      "include_lora_summary": false,
+      "suppress_missing_class_log": false,
+      "model_hash_log": "none",
+      "images": [
+        "51",
+        0
+      ]
+    },
+    "class_type": "SaveImageWithMetaDataUniversal",
+    "_meta": {
+      "title": "Save Image w/ Metadata Universal"
+    }
+  }
+}

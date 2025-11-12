@@ -5,7 +5,7 @@ import types
 # Early stub for folder_paths (must precede any package imports that expect it)
 if "folder_paths" not in sys.modules:  # pragma: no cover - test bootstrap
     fp_mod = types.ModuleType("folder_paths")
-    _DEF_OUT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "_test_outputs"))
+    _DEF_OUT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "tests/_test_outputs"))
     try:
         os.makedirs(_DEF_OUT, exist_ok=True)
     except OSError:
@@ -26,7 +26,7 @@ _ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-_TEST_OUTPUT_DIR = os.path.join(_ROOT, "_test_outputs")
+_TEST_OUTPUT_DIR = os.path.join(_ROOT, "tests/_test_outputs")
 os.makedirs(_TEST_OUTPUT_DIR, exist_ok=True)
 
 # Coverage helper: create an empty placeholder generated_user_rules.py so that
