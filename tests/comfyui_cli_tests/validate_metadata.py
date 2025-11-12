@@ -43,12 +43,28 @@ class _Tee:
         self._log_fp = log_fp
 
     def write(self, data):
-        self._stream.write(data)
-        self._log_fp.write(data)
+        try:
+            self._stream.write(data)
+        except (ValueError, AttributeError):
+            # Stream might be closed during shutdown
+            pass
+        try:
+            if self._log_fp and not self._log_fp.closed:
+                self._log_fp.write(data)
+        except (ValueError, AttributeError):
+            # Log file might be closed during shutdown
+            pass
 
     def flush(self):
-        self._stream.flush()
-        self._log_fp.flush()
+        try:
+            self._stream.flush()
+        except (ValueError, AttributeError):
+            pass
+        try:
+            if self._log_fp and not self._log_fp.closed:
+                self._log_fp.flush()
+        except (ValueError, AttributeError):
+            pass
 
 
 def setup_print_tee(log_file: Path):
@@ -56,7 +72,18 @@ def setup_print_tee(log_file: Path):
     log_file.parent.mkdir(parents=True, exist_ok=True)
     # Open once; close at exit
     log_fp = open(log_file, "w", encoding="utf-8")
-    atexit.register(log_fp.close)
+
+    # Safe close function that handles exceptions during shutdown
+    def safe_close():
+        try:
+            if log_fp and not log_fp.closed:
+                log_fp.flush()
+                log_fp.close()
+        except Exception:
+            # Ignore exceptions during shutdown
+            pass
+
+    atexit.register(safe_close)
 
     # Tee both stdout and stderr to the same file
     sys.stdout = _Tee(sys.stdout, log_fp)
@@ -430,10 +457,79 @@ class MetadataValidator:
         re.compile(r"^CLIP_\d+\s+.+$"),  # Matches "CLIP_1 Model name", etc.
     ]
 
-    def __init__(self, workflow_dir: Path, output_dir: Path):
+    def __init__(self, workflow_dir: Path, output_dir: Path, comfyui_models_path: Path | None = None):
         self.workflow_dir = workflow_dir
         self.output_dir = output_dir
+        self.comfyui_models_path = comfyui_models_path
         self.results = []
+
+    def _extract_json_value(self, text: str) -> str:
+        """Extract JSON object or array from the beginning of text.
+
+        This handles cases where JSON is followed by other metadata fields.
+        For example: '{"model": "abc"}, custom_field: value' -> '{"model": "abc"}'
+        """
+        text = text.strip()
+        if not text:
+            return text
+
+        # Track brace/bracket depth to find where JSON ends
+        if text[0] == "{":
+            depth = 0
+            in_string = False
+            escape_next = False
+
+            for i, char in enumerate(text):
+                if escape_next:
+                    escape_next = False
+                    continue
+
+                if char == "\\":
+                    escape_next = True
+                    continue
+
+                if char == '"' and not escape_next:
+                    in_string = not in_string
+                    continue
+
+                if not in_string:
+                    if char == "{":
+                        depth += 1
+                    elif char == "}":
+                        depth -= 1
+                        if depth == 0:
+                            # Found the end of the JSON object
+                            return text[: i + 1]
+
+        elif text[0] == "[":
+            depth = 0
+            in_string = False
+            escape_next = False
+
+            for i, char in enumerate(text):
+                if escape_next:
+                    escape_next = False
+                    continue
+
+                if char == "\\":
+                    escape_next = True
+                    continue
+
+                if char == '"' and not escape_next:
+                    in_string = not in_string
+                    continue
+
+                if not in_string:
+                    if char == "[":
+                        depth += 1
+                    elif char == "]":
+                        depth -= 1
+                        if depth == 0:
+                            # Found the end of the JSON array
+                            return text[: i + 1]
+
+        # If not JSON or couldn't parse, return as-is
+        return text
 
     def parse_parameters_string(self, params_str: str) -> dict[str, str]:
         """Parse the parameters string into a dictionary of fields.
@@ -550,6 +646,10 @@ class MetadataValidator:
                 if match:
                     key = match.group(1).strip()
                     value = match.group(2).strip()
+
+                    # Special handling for Hashes field: extract just the JSON portion
+                    if key == "Hashes":
+                        value = self._extract_json_value(value)
 
                     # Verify it's a known key or matches a pattern
                     is_known = key in known_keys or any(pattern.match(key) for pattern in self.KNOWN_KEY_PATTERNS)
@@ -687,6 +787,9 @@ class MetadataValidator:
             except json.JSONDecodeError:
                 result["errors"].append("Hashes field is not valid JSON")
 
+        # Validate hashes against sidecar files (if models path provided)
+        self._validate_hashes_against_sidecars(fields, self.comfyui_models_path, result)
+
         # Validate embedding fields
         self._validate_embedding_fields(fields, result)
 
@@ -823,6 +926,141 @@ class MetadataValidator:
                         f"VAE hash mismatch: metadata has '{metadata_hash}' " f"but Hashes summary has '{hashes_hash}'"
                     )
 
+    def _validate_hash_against_sidecar(
+        self, artifact_name: str, metadata_hash: str, artifact_type: str, comfyui_models_path: Path | None, result: dict
+    ):
+        """Validate hash from metadata against .sha256 sidecar file.
+
+        Args:
+            artifact_name: Name of the model/lora/vae/embedding file
+            metadata_hash: Hash from the metadata (should be 10 chars)
+            artifact_type: Type of artifact ("model", "lora", "vae", "embedding")
+            comfyui_models_path: Path to ComfyUI models directory (optional)
+            result: Result dict to append errors to
+        """
+        if not comfyui_models_path or not comfyui_models_path.exists():
+            # Silently skip if models path not available
+            return
+
+        # Validate metadata hash is 10 characters
+        if len(metadata_hash) != 10:
+            result["errors"].append(
+                f"{artifact_type.title()} '{artifact_name}' hash in metadata is not 10 characters: '{metadata_hash}'"
+            )
+            return
+
+        # Try to find the artifact file
+        # Common subdirectories for different artifact types
+        search_dirs = {
+            "model": ["checkpoints", "unet", "diffusion_models"],
+            "lora": ["loras"],
+            "vae": ["vae"],
+            "embedding": ["embeddings"],
+        }
+
+        artifact_path = None
+        for subdir in search_dirs.get(artifact_type, []):
+            search_path = comfyui_models_path / subdir
+            if search_path.exists():
+                # Search recursively for the artifact
+                for candidate in search_path.rglob(artifact_name):
+                    if candidate.is_file():
+                        artifact_path = candidate
+                        break
+                if artifact_path:
+                    break
+
+        if not artifact_path:
+            # Artifact not found - this is OK, might be in a different location
+            return
+
+        # Check for sidecar file
+        sidecar_path = artifact_path.with_suffix(artifact_path.suffix + ".sha256")
+        if not sidecar_path.exists():
+            result["warnings"].append(f"{artifact_type.title()} '{artifact_name}' has no .sha256 sidecar file")
+            return
+
+        # Read sidecar file
+        try:
+            with open(sidecar_path, encoding="utf-8") as f:
+                sidecar_hash = f.read().strip()
+
+            # Validate sidecar hash is 64 characters
+            if len(sidecar_hash) != 64:
+                result["errors"].append(
+                    f"{artifact_type.title()} '{artifact_name}' sidecar hash is not 64 characters: '{sidecar_hash}'"
+                )
+                return
+
+            # Validate sidecar hash is hex
+            if not all(c in "0123456789abcdefABCDEF" for c in sidecar_hash):
+                result["errors"].append(
+                    f"{artifact_type.title()} '{artifact_name}' sidecar hash is not valid hex: '{sidecar_hash}'"
+                )
+                return
+
+            # Validate metadata hash matches first 10 characters of sidecar hash
+            if metadata_hash.lower() != sidecar_hash[:10].lower():
+                result["errors"].append(
+                    f"{artifact_type.title()} '{artifact_name}' hash mismatch: "
+                    f"metadata has '{metadata_hash}' but sidecar first 10 chars are '{sidecar_hash[:10]}'"
+                )
+
+        except Exception as e:
+            result["warnings"].append(f"Failed to read sidecar file for '{artifact_name}': {e}")
+
+    def _validate_hashes_against_sidecars(
+        self, fields: dict, comfyui_models_path: Path | None, result: dict
+    ):
+        """Validate all hashes in metadata against their .sha256 sidecar files."""
+        if not comfyui_models_path:
+            return
+
+        # Validate model hash
+        if "Model" in fields and "Model hash" in fields:
+            self._validate_hash_against_sidecar(
+                fields["Model"], fields["Model hash"], "model", comfyui_models_path, result
+            )
+
+        # Validate VAE hash
+        if "VAE" in fields and "VAE hash" in fields:
+            self._validate_hash_against_sidecar(
+                fields["VAE"], fields["VAE hash"], "vae", comfyui_models_path, result
+            )
+
+        # Validate LoRA hashes
+        lora_indices = set()
+        for key in fields.keys():
+            if key.startswith("Lora_") and "Model name" in key:
+                match = re.match(r"Lora_(\d+) Model name", key)
+                if match:
+                    lora_indices.add(int(match.group(1)))
+
+        for idx in lora_indices:
+            model_name_key = f"Lora_{idx} Model name"
+            model_hash_key = f"Lora_{idx} Model hash"
+            if model_name_key in fields and model_hash_key in fields:
+                if fields[model_hash_key] != "N/A":
+                    self._validate_hash_against_sidecar(
+                        fields[model_name_key], fields[model_hash_key], "lora", comfyui_models_path, result
+                    )
+
+        # Validate embedding hashes
+        embedding_indices = set()
+        for key in fields.keys():
+            if key.startswith("Embedding_") and "hash" in key:
+                match = re.match(r"Embedding_(\d+) hash", key)
+                if match:
+                    embedding_indices.add(int(match.group(1)))
+
+        for idx in embedding_indices:
+            name_key = f"Embedding_{idx} name"
+            hash_key = f"Embedding_{idx} hash"
+            if name_key in fields and hash_key in fields:
+                self._validate_hash_against_sidecar(
+                    fields[name_key], fields[hash_key], "embedding", comfyui_models_path, result
+                )
+
     def _validate_embedding_fields(self, fields: dict, result: dict):
         """Validate embedding-specific issues."""
         for key, value in fields.items():
@@ -845,14 +1083,42 @@ class MetadataValidator:
                         f"Embedding hash '{key}' appears to be a prompt (length={len(value)}), not a hash"
                     )
 
-    def match_image_to_workflow(self, image_path: Path, filename_patterns: list[str]) -> bool:
+    def match_image_to_workflow(
+        self, image_path: Path, filename_patterns: list[str], expected: dict[str, Any] | None = None
+    ) -> bool:
         """Check if an image filename matches any of the workflow's filename patterns.
 
         Uses word-boundary matching to avoid false positives like "eff" matching "jeff_image.png".
         Patterns must match as whole words or be separated by delimiters (_, -, .).
+
+        If no static patterns exist, falls back to checking if the image is in a subdirectory
+        structure that matches the workflow's filename_prefix path pattern, or matches based
+        on seed values if available.
         """
         if not filename_patterns:
-            # If no patterns, try to match workflow name from filename
+            # If no patterns but we have expected metadata with a filename_prefix containing
+            # path separators, check if the image is in a subdirectory structure
+            if expected and expected.get("filename_prefix"):
+                prefix = expected["filename_prefix"]
+                # Check if prefix indicates subdirectory usage (contains / or \)
+                if "/" in prefix or "\\" in prefix:
+                    # Get relative path from output directory
+                    try:
+                        rel_path = image_path.relative_to(self.output_dir)
+                        # If image is in a subdirectory (not directly in output_dir), consider it a match
+                        if len(rel_path.parts) > 1:
+                            return True
+                    except ValueError:
+                        pass
+
+                # Try to match based on seed if available
+                if expected.get("sampler_info"):
+                    for sampler in expected["sampler_info"]:
+                        seed = sampler.get("seed")
+                        if seed is not None:
+                            # Check if seed appears in filename
+                            if str(seed) in image_path.stem:
+                                return True
             return False
 
         # Remove file extension for matching
@@ -906,7 +1172,7 @@ class MetadataValidator:
         # Filter images that match this workflow
         matching_images = []
         for image_path in all_images:
-            if self.match_image_to_workflow(image_path, patterns):
+            if self.match_image_to_workflow(image_path, patterns, expected):
                 matching_images.append(image_path)
 
         if not matching_images:
@@ -1090,12 +1356,20 @@ Examples:
         help="Path to write a copy of all console output (txt). Default: <output-folder>/validation_log.txt",
     )
 
+    parser.add_argument(
+        "--models-path",
+        type=str,
+        default=None,
+        help="Path to ComfyUI models directory for validating hashes against .sha256 sidecar files (optional)",
+    )
+
     args = parser.parse_args()
 
     # Convert to absolute paths
     script_dir = Path(__file__).parent
     workflow_dir = script_dir / args.workflow_dir
     output_dir = Path(args.output_folder)
+    models_path = Path(args.models_path) if args.models_path else None
 
     # Setup logging
     # Determine log file path
@@ -1103,7 +1377,7 @@ Examples:
     setup_print_tee(log_path)
 
     # Create validator and run
-    validator = MetadataValidator(workflow_dir, output_dir)
+    validator = MetadataValidator(workflow_dir, output_dir, models_path)
     total, passed, failed = validator.run_validation()
 
     # Exit with appropriate code
