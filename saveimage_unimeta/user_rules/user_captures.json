@@ -1,0 +1,4605 @@
+{
+    "KSampler": {
+        "SEED": {
+            "field_name": "seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        },
+        "DENOISE": {
+            "field_name": "denoise"
+        }
+    },
+    "CheckpointLoaderSimple": {
+        "MODEL_NAME": {
+            "field_name": "ckpt_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "ckpt_name",
+            "format": "calc_model_hash"
+        }
+    },
+    "VAELoader": {
+        "VAE_NAME": {
+            "field_name": "vae_name"
+        },
+        "VAE_HASH": {
+            "field_name": "vae_name",
+            "format": "calc_vae_hash"
+        }
+    },
+    "EmptyLatentImage": {
+        "IMAGE_WIDTH": {
+            "field_name": "width"
+        },
+        "IMAGE_HEIGHT": {
+            "field_name": "height"
+        }
+    },
+    "KSamplerAdvanced": {
+        "SEED": {
+            "field_name": "noise_seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        }
+    },
+    "LatentCrop": {
+        "IMAGE_WIDTH": {
+            "field_name": "width"
+        },
+        "IMAGE_HEIGHT": {
+            "field_name": "height"
+        }
+    },
+    "LoraLoader": {
+        "LORA_MODEL_NAME": {
+            "field_name": "lora_name"
+        },
+        "LORA_MODEL_HASH": {
+            "field_name": "lora_name",
+            "format": "calc_lora_hash"
+        },
+        "LORA_STRENGTH_MODEL": {
+            "fields": [
+                "strength_clip",
+                "strength_model"
+            ]
+        },
+        "LORA_STRENGTH_CLIP": {
+            "fields": [
+                "strength_clip",
+                "strength_model"
+            ]
+        }
+    },
+    "CLIPLoader": {
+        "CLIP_MODEL_NAME": {
+            "field_name": "clip_name"
+        }
+    },
+    "UNETLoader": {
+        "MODEL_NAME": {
+            "field_name": "unet_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "unet_name",
+            "format": "calc_unet_hash"
+        },
+        "WEIGHT_DTYPE": {
+            "field_name": "weight_dtype"
+        }
+    },
+    "DualCLIPLoader": {
+        "CLIP_MODEL_NAME": {
+            "fields": [
+                "clip_name1",
+                "clip_name2"
+            ]
+        }
+    },
+    "DiffControlNetLoader": {
+        "MODEL_NAME": {
+            "field_name": "model"
+        },
+        "MODEL_HASH": {
+            "field_name": "model",
+            "format": "calc_unet_hash"
+        }
+    },
+    "StyleModelLoader": {
+        "MODEL_NAME": {
+            "field_name": "style_model_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "style_model_name",
+            "format": "calc_unet_hash"
+        }
+    },
+    "unCLIPCheckpointLoader": {
+        "MODEL_NAME": {
+            "field_name": "ckpt_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "ckpt_name",
+            "format": "calc_model_hash"
+        }
+    },
+    "CheckpointLoader": {
+        "MODEL_NAME": {
+            "field_name": "ckpt_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "ckpt_name",
+            "format": "calc_model_hash"
+        }
+    },
+    "DiffusersLoader": {
+        "MODEL_NAME": {
+            "field_name": "model_path"
+        },
+        "MODEL_HASH": {
+            "field_name": "model_path",
+            "format": "calc_unet_hash"
+        }
+    },
+    "LoraLoaderModelOnly": {
+        "LORA_MODEL_NAME": {
+            "field_name": "lora_name"
+        },
+        "LORA_MODEL_HASH": {
+            "field_name": "lora_name",
+            "format": "calc_lora_hash"
+        },
+        "LORA_STRENGTH_MODEL": {
+            "field_name": "strength_model"
+        },
+        "LORA_STRENGTH_CLIP": {
+            "field_name": "strength_model"
+        }
+    },
+    "HypernetworkLoader": {
+        "MODEL_NAME": {
+            "field_name": "model"
+        },
+        "MODEL_HASH": {
+            "field_name": "model",
+            "format": "calc_unet_hash"
+        }
+    },
+    "VAESave": {
+        "VAE_NAME": {
+            "field_name": "vae"
+        },
+        "VAE_HASH": {
+            "field_name": "vae",
+            "format": "calc_vae_hash"
+        }
+    },
+    "SamplerCustom": {
+        "SEED": {
+            "field_name": "noise_seed"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler"
+        }
+    },
+    "BasicScheduler": {
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        },
+        "DENOISE": {
+            "field_name": "denoise"
+        }
+    },
+    "SDTurboScheduler": {
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "DENOISE": {
+            "field_name": "denoise"
+        }
+    },
+    "KSamplerSelect": {
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        }
+    },
+    "CFGGuider": {
+        "CFG": {
+            "field_name": "cfg"
+        }
+    },
+    "DualCFGGuider": {
+        "CFG": {
+            "field_name": "cfg_conds"
+        }
+    },
+    "SamplerCustomAdvanced": {
+        "SAMPLER_NAME": {
+            "field_name": "sampler"
+        }
+    },
+    "ModelSamplingStableCascade": {
+        "SHIFT": {
+            "field_name": "shift"
+        }
+    },
+    "ModelSamplingSD3": {
+        "SHIFT": {
+            "field_name": "shift"
+        }
+    },
+    "ModelSamplingAuraFlow": {
+        "SHIFT": {
+            "field_name": "shift"
+        }
+    },
+    "ModelSamplingFlux": {
+        "MAX_SHIFT": {
+            "field_name": "max_shift"
+        },
+        "BASE_SHIFT": {
+            "field_name": "base_shift"
+        }
+    },
+    "ImageOnlyCheckpointLoader": {
+        "MODEL_NAME": {
+            "field_name": "ckpt_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "ckpt_name",
+            "format": "calc_model_hash"
+        }
+    },
+    "VideoLinearCFGGuidance": {
+        "CFG": {
+            "field_name": "min_cfg"
+        }
+    },
+    "VideoTriangleCFGGuidance": {
+        "CFG": {
+            "field_name": "min_cfg"
+        }
+    },
+    "TrainLoraNode": {
+        "LORA_MODEL_NAME": {
+            "fields": [
+                "existing_lora",
+                "lora_dtype"
+            ]
+        },
+        "LORA_MODEL_HASH": {
+            "fields": [
+                "existing_lora",
+                "lora_dtype"
+            ],
+            "format": "calc_lora_hash"
+        }
+    },
+    "SaveLoRANode": {
+        "LORA_MODEL_NAME": {
+            "field_name": "lora"
+        },
+        "LORA_MODEL_HASH": {
+            "field_name": "lora",
+            "format": "calc_lora_hash"
+        }
+    },
+    "LoraModelLoader": {
+        "LORA_MODEL_NAME": {
+            "field_name": "lora"
+        },
+        "LORA_MODEL_HASH": {
+            "field_name": "lora",
+            "format": "calc_lora_hash"
+        }
+    },
+    "PhotoMakerLoader": {
+        "MODEL_NAME": {
+            "field_name": "photomaker_model_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "photomaker_model_name",
+            "format": "calc_unet_hash"
+        }
+    },
+    "PhotoMakerEncode": {
+        "POSITIVE_PROMPT": {
+            "field_name": "text",
+            "validate": "is_positive_prompt"
+        },
+        "NEGATIVE_PROMPT": {
+            "field_name": "text",
+            "validate": "is_negative_prompt"
+        }
+    },
+    "StableCascade_EmptyLatentImage": {
+        "IMAGE_WIDTH": {
+            "field_name": "width"
+        },
+        "IMAGE_HEIGHT": {
+            "field_name": "height"
+        }
+    },
+    "AlignYourStepsScheduler": {
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "DENOISE": {
+            "field_name": "denoise"
+        }
+    },
+    "TripleCLIPLoader": {
+        "CLIP_MODEL_NAME": {
+            "fields": [
+                "clip_name1",
+                "clip_name2",
+                "clip_name3"
+            ]
+        }
+    },
+    "EmptySD3LatentImage": {
+        "IMAGE_WIDTH": {
+            "field_name": "width"
+        },
+        "IMAGE_HEIGHT": {
+            "field_name": "height"
+        }
+    },
+    "GITSScheduler": {
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "DENOISE": {
+            "field_name": "denoise"
+        }
+    },
+    "EmptyHunyuanLatentVideo": {
+        "IMAGE_WIDTH": {
+            "field_name": "width"
+        },
+        "IMAGE_HEIGHT": {
+            "field_name": "height"
+        }
+    },
+    "EmptyHunyuanImageLatent": {
+        "IMAGE_WIDTH": {
+            "field_name": "width"
+        },
+        "IMAGE_HEIGHT": {
+            "field_name": "height"
+        }
+    },
+    "FluxGuidance": {
+        "GUIDANCE": {
+            "field_name": "guidance"
+        }
+    },
+    "LoraSave": {
+        "LORA_MODEL_NAME": {
+            "field_name": "lora_type"
+        },
+        "LORA_MODEL_HASH": {
+            "field_name": "lora_type",
+            "format": "calc_lora_hash"
+        }
+    },
+    "EmptyMochiLatentVideo": {
+        "IMAGE_WIDTH": {
+            "field_name": "width"
+        },
+        "IMAGE_HEIGHT": {
+            "field_name": "height"
+        }
+    },
+    "EmptyLTXVLatentVideo": {
+        "IMAGE_WIDTH": {
+            "field_name": "width"
+        },
+        "IMAGE_HEIGHT": {
+            "field_name": "height"
+        }
+    },
+    "ModelSamplingLTXV": {
+        "MAX_SHIFT": {
+            "field_name": "max_shift"
+        },
+        "BASE_SHIFT": {
+            "field_name": "base_shift"
+        }
+    },
+    "CreateHookLora": {
+        "LORA_MODEL_NAME": {
+            "field_name": "lora_name"
+        },
+        "LORA_MODEL_HASH": {
+            "field_name": "lora_name",
+            "format": "calc_lora_hash"
+        },
+        "LORA_STRENGTH_MODEL": {
+            "fields": [
+                "strength_clip",
+                "strength_model"
+            ]
+        },
+        "LORA_STRENGTH_CLIP": {
+            "fields": [
+                "strength_clip",
+                "strength_model"
+            ]
+        }
+    },
+    "CreateHookLoraModelOnly": {
+        "LORA_MODEL_NAME": {
+            "field_name": "lora_name"
+        },
+        "LORA_MODEL_HASH": {
+            "field_name": "lora_name",
+            "format": "calc_lora_hash"
+        },
+        "LORA_STRENGTH_MODEL": {
+            "field_name": "strength_model"
+        },
+        "LORA_STRENGTH_CLIP": {
+            "field_name": "strength_model"
+        }
+    },
+    "Load3D": {
+        "MODEL_NAME": {
+            "field_name": "model_file"
+        },
+        "MODEL_HASH": {
+            "field_name": "model_file",
+            "format": "calc_unet_hash"
+        },
+        "IMAGE_WIDTH": {
+            "field_name": "width"
+        },
+        "IMAGE_HEIGHT": {
+            "field_name": "height"
+        }
+    },
+    "Load3DAnimation": {
+        "MODEL_NAME": {
+            "field_name": "model_file"
+        },
+        "MODEL_HASH": {
+            "field_name": "model_file",
+            "format": "calc_unet_hash"
+        },
+        "IMAGE_WIDTH": {
+            "field_name": "width"
+        },
+        "IMAGE_HEIGHT": {
+            "field_name": "height"
+        }
+    },
+    "EmptyCosmosLatentVideo": {
+        "IMAGE_WIDTH": {
+            "field_name": "width"
+        },
+        "IMAGE_HEIGHT": {
+            "field_name": "height"
+        }
+    },
+    "CosmosImageToVideoLatent": {
+        "IMAGE_WIDTH": {
+            "field_name": "width"
+        },
+        "IMAGE_HEIGHT": {
+            "field_name": "height"
+        }
+    },
+    "CosmosPredict2ImageToVideoLatent": {
+        "IMAGE_WIDTH": {
+            "field_name": "width"
+        },
+        "IMAGE_HEIGHT": {
+            "field_name": "height"
+        }
+    },
+    "RenormCFG": {
+        "CFG": {
+            "field_name": "cfg_trunc"
+        }
+    },
+    "Wan22ImageToVideoLatent": {
+        "IMAGE_WIDTH": {
+            "field_name": "width"
+        },
+        "IMAGE_HEIGHT": {
+            "field_name": "height"
+        }
+    },
+    "EmptyLatentHunyuan3Dv2": {
+        "IMAGE_WIDTH": {
+            "field_name": "resolution"
+        },
+        "IMAGE_HEIGHT": {
+            "field_name": "resolution"
+        }
+    },
+    "OptimalStepsScheduler": {
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "DENOISE": {
+            "field_name": "denoise"
+        }
+    },
+    "QuadrupleCLIPLoader": {
+        "CLIP_MODEL_NAME": {
+            "fields": [
+                "clip_name1",
+                "clip_name2",
+                "clip_name3",
+                "clip_name4"
+            ]
+        }
+    },
+    "EmptyChromaRadianceLatentImage": {
+        "IMAGE_WIDTH": {
+            "field_name": "width"
+        },
+        "IMAGE_HEIGHT": {
+            "field_name": "height"
+        }
+    },
+    "ByteDanceSeedreamNode": {
+        "SEED": {
+            "field_name": "seed"
+        },
+        "IMAGE_WIDTH": {
+            "field_name": "width"
+        },
+        "IMAGE_HEIGHT": {
+            "field_name": "height"
+        }
+    },
+    "ACELoRALoader": {
+        "LORA_MODEL_NAME": {
+            "fields": [
+                "lora_name",
+                "lora_weight"
+            ]
+        },
+        "LORA_MODEL_HASH": {
+            "fields": [
+                "lora_name",
+                "lora_weight"
+            ],
+            "format": "calc_lora_hash"
+        },
+        "LORA_STRENGTH_MODEL": {
+            "field_name": "lora_weight"
+        },
+        "LORA_STRENGTH_CLIP": {
+            "field_name": "lora_weight"
+        }
+    },
+    "ACEModelLoader": {
+        "MODEL_NAME": {
+            "field_name": "text_encoder_checkpoint"
+        },
+        "MODEL_HASH": {
+            "field_name": "text_encoder_checkpoint",
+            "format": "calc_model_hash"
+        }
+    },
+    "LoraLoaderFromString": {
+        "LORA_MODEL_NAME": {
+            "field_name": "lora_name"
+        },
+        "LORA_MODEL_HASH": {
+            "field_name": "lora_name",
+            "format": "calc_lora_hash"
+        },
+        "LORA_STRENGTH_MODEL": {
+            "field_name": "strength_model"
+        },
+        "LORA_STRENGTH_CLIP": {
+            "field_name": "strength_model"
+        }
+    },
+    "LoadLoraByName": {
+        "LORA_MODEL_NAME": {
+            "field_name": "lora_name"
+        },
+        "LORA_MODEL_HASH": {
+            "field_name": "lora_name",
+            "format": "calc_lora_hash"
+        },
+        "LORA_STRENGTH_MODEL": {
+            "fields": [
+                "strength_clip",
+                "strength_model"
+            ]
+        },
+        "LORA_STRENGTH_CLIP": {
+            "fields": [
+                "strength_clip",
+                "strength_model"
+            ]
+        }
+    },
+    "LoadLoraModelOnlyByName": {
+        "LORA_MODEL_NAME": {
+            "field_name": "lora_name"
+        },
+        "LORA_MODEL_HASH": {
+            "field_name": "lora_name",
+            "format": "calc_lora_hash"
+        },
+        "LORA_STRENGTH_MODEL": {
+            "field_name": "strength_model"
+        },
+        "LORA_STRENGTH_CLIP": {
+            "field_name": "strength_model"
+        }
+    },
+    "EnhancedLoadDiffusionModel": {
+        "MODEL_NAME": {
+            "field_name": "unet_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "unet_name",
+            "format": "calc_unet_hash"
+        },
+        "WEIGHT_DTYPE": {
+            "field_name": "weight_dtype"
+        }
+    },
+    "VelocatorLoadAndQuantizeDiffusionModel": {
+        "MODEL_NAME": {
+            "field_name": "unet_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "unet_name",
+            "format": "calc_unet_hash"
+        },
+        "WEIGHT_DTYPE": {
+            "field_name": "weight_dtype"
+        }
+    },
+    "VelocatorLoadAndQuantizeClip": {
+        "CLIP_MODEL_NAME": {
+            "fields": [
+                "clip_name1",
+                "clip_name2",
+                "clip_name3"
+            ]
+        },
+        "WEIGHT_DTYPE": {
+            "field_name": "weight_dtype"
+        }
+    },
+    "ACEPlusLoader": {
+        "MODEL_NAME": {
+            "field_name": "unet_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "unet_name",
+            "format": "calc_unet_hash"
+        },
+        "WEIGHT_DTYPE": {
+            "field_name": "weight_dtype"
+        }
+    },
+    "Automatic CFG - Preset Loader": {
+        "MODEL_NAME": {
+            "field_name": "model"
+        },
+        "MODEL_HASH": {
+            "field_name": "model",
+            "format": "calc_unet_hash"
+        }
+    },
+    "Automatic CFG - Advanced": {
+        "CFG": {
+            "field_name": "latent_intensity_rescale_cfg"
+        }
+    },
+    "LoraLoader|pysssss": {
+        "LORA_MODEL_NAME": {
+            "field_name": "lora_name"
+        },
+        "LORA_MODEL_HASH": {
+            "field_name": "lora_name",
+            "format": "calc_lora_hash"
+        },
+        "LORA_STRENGTH_MODEL": {
+            "fields": [
+                "strength_clip",
+                "strength_model"
+            ]
+        },
+        "LORA_STRENGTH_CLIP": {
+            "fields": [
+                "strength_clip",
+                "strength_model"
+            ]
+        }
+    },
+    "CheckpointLoader|pysssss": {
+        "MODEL_NAME": {
+            "field_name": "ckpt_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "ckpt_name",
+            "format": "calc_model_hash"
+        }
+    },
+    "DownloadAndLoadDepthCrafterModel": {
+        "MODEL_NAME": {
+            "field_name": "enable_model_cpu_offload"
+        },
+        "MODEL_HASH": {
+            "field_name": "enable_model_cpu_offload",
+            "format": "calc_unet_hash"
+        }
+    },
+    "DetailDaemonSamplerNode": {
+        "CFG": {
+            "field_name": "cfg_scale_override"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler"
+        }
+    },
+    "LyingSigmaSampler": {
+        "SAMPLER_NAME": {
+            "field_name": "sampler"
+        }
+    },
+    "InFluxModelSamplingPred": {
+        "MAX_SHIFT": {
+            "field_name": "max_shift"
+        },
+        "BASE_SHIFT": {
+            "field_name": "base_shift"
+        }
+    },
+    "OutFluxModelSamplingPred": {
+        "MAX_SHIFT": {
+            "field_name": "max_shift"
+        },
+        "BASE_SHIFT": {
+            "field_name": "base_shift"
+        }
+    },
+    "FluxDeGuidance": {
+        "GUIDANCE": {
+            "field_name": "guidance"
+        }
+    },
+    "FluxForwardODESampler": {
+        "SEED": {
+            "field_name": "seed"
+        }
+    },
+    "FlowEditSampler": {
+        "SEED": {
+            "field_name": "seed"
+        },
+        "STEPS": {
+            "field_name": "refine_steps"
+        }
+    },
+    "UnetLoaderGGUF": {
+        "MODEL_NAME": {
+            "field_name": "unet_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "unet_name",
+            "format": "calc_unet_hash"
+        }
+    },
+    "CLIPLoaderGGUF": {
+        "CLIP_MODEL_NAME": {
+            "field_name": "clip_name"
+        }
+    },
+    "DualCLIPLoaderGGUF": {
+        "CLIP_MODEL_NAME": {
+            "fields": [
+                "clip_name1",
+                "clip_name2"
+            ]
+        }
+    },
+    "TripleCLIPLoaderGGUF": {
+        "CLIP_MODEL_NAME": {
+            "fields": [
+                "clip_name1",
+                "clip_name2",
+                "clip_name3"
+            ]
+        }
+    },
+    "QuadrupleCLIPLoaderGGUF": {
+        "CLIP_MODEL_NAME": {
+            "fields": [
+                "clip_name1",
+                "clip_name2",
+                "clip_name3",
+                "clip_name4"
+            ]
+        }
+    },
+    "UnetLoaderGGUFAdvanced": {
+        "MODEL_NAME": {
+            "field_name": "unet_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "unet_name",
+            "format": "calc_unet_hash"
+        }
+    },
+    "DownloadAndLoadGIMMVFIModel": {
+        "MODEL_NAME": {
+            "field_name": "model"
+        },
+        "MODEL_HASH": {
+            "field_name": "model",
+            "format": "calc_unet_hash"
+        }
+    },
+    "OffsetLatentImage": {
+        "IMAGE_WIDTH": {
+            "field_name": "width"
+        },
+        "IMAGE_HEIGHT": {
+            "field_name": "height"
+        }
+    },
+    "Checkpoint Loader with Name (Image Saver)": {
+        "MODEL_NAME": {
+            "field_name": "ckpt_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "ckpt_name",
+            "format": "calc_model_hash"
+        }
+    },
+    "UNet loader with Name (Image Saver)": {
+        "MODEL_NAME": {
+            "field_name": "unet_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "unet_name",
+            "format": "calc_unet_hash"
+        },
+        "WEIGHT_DTYPE": {
+            "field_name": "weight_dtype"
+        }
+    },
+    "Sampler Selector (Image Saver)": {
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        }
+    },
+    "Scheduler Selector (Image Saver)": {
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        }
+    },
+    "Scheduler Selector (inspire) (Image Saver)": {
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        }
+    },
+    "Scheduler Selector (Eff.) (Image Saver)": {
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        }
+    },
+    "Seed Generator (Image Saver)": {
+        "SEED": {
+            "field_name": "seed"
+        }
+    },
+    "Cfg Literal (Image Saver)": {
+        "CFG": {
+            "field_name": "cfg"
+        }
+    },
+    "SchedulerToString (Image Saver)": {
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        }
+    },
+    "SchedulerInspireToString (Image Saver)": {
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        }
+    },
+    "SchedulerEfficiencyToString (Image Saver)": {
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        }
+    },
+    "SamplerToString (Image Saver)": {
+        "SAMPLER_NAME": {
+            "field_name": "sampler"
+        }
+    },
+    "SAMLoader": {
+        "MODEL_NAME": {
+            "field_name": "model_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "model_name",
+            "format": "calc_unet_hash"
+        }
+    },
+    "CfgScheduleHookProvider": {
+        "CFG": {
+            "field_name": "target_cfg"
+        }
+    },
+    "UnsamplerHookProvider": {
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        }
+    },
+    "KSamplerProvider": {
+        "SEED": {
+            "field_name": "seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        },
+        "DENOISE": {
+            "field_name": "denoise"
+        }
+    },
+    "TiledKSamplerProvider": {
+        "SEED": {
+            "field_name": "seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        },
+        "DENOISE": {
+            "field_name": "denoise"
+        }
+    },
+    "KSamplerAdvancedProvider": {
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        }
+    },
+    "ImpactWildcardEncode": {
+        "POSITIVE_PROMPT": {
+            "field_name": "populated_text",
+            "validate": "is_positive_prompt"
+        },
+        "NEGATIVE_PROMPT": {
+            "field_name": "populated_text",
+            "validate": "is_negative_prompt"
+        }
+    },
+    "ImpactKSamplerBasicPipe": {
+        "SEED": {
+            "field_name": "seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        },
+        "DENOISE": {
+            "field_name": "denoise"
+        }
+    },
+    "ImpactKSamplerAdvancedBasicPipe": {
+        "SEED": {
+            "field_name": "noise_seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        }
+    },
+    "RegionalSampler": {
+        "SEED": {
+            "field_name": "seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "base_sampler"
+        },
+        "DENOISE": {
+            "field_name": "denoise"
+        }
+    },
+    "RegionalSamplerAdvanced": {
+        "SEED": {
+            "field_name": "noise_seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "base_sampler"
+        }
+    },
+    "ImpactSchedulerAdapter": {
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        }
+    },
+    "GITSSchedulerFuncProvider": {
+        "DENOISE": {
+            "field_name": "denoise"
+        }
+    },
+    "XY Input: Lora Block Weight //Inspire": {
+        "LORA_MODEL_NAME": {
+            "field_name": "lora_name"
+        },
+        "LORA_MODEL_HASH": {
+            "field_name": "lora_name",
+            "format": "calc_lora_hash"
+        },
+        "LORA_STRENGTH_MODEL": {
+            "fields": [
+                "heatmap_strength",
+                "strength_clip",
+                "strength_model"
+            ]
+        },
+        "LORA_STRENGTH_CLIP": {
+            "fields": [
+                "heatmap_strength",
+                "strength_clip",
+                "strength_model"
+            ]
+        }
+    },
+    "LoraLoaderBlockWeight //Inspire": {
+        "LORA_MODEL_NAME": {
+            "field_name": "lora_name"
+        },
+        "LORA_MODEL_HASH": {
+            "field_name": "lora_name",
+            "format": "calc_lora_hash"
+        },
+        "LORA_STRENGTH_MODEL": {
+            "fields": [
+                "strength_clip",
+                "strength_model"
+            ]
+        },
+        "LORA_STRENGTH_CLIP": {
+            "fields": [
+                "strength_clip",
+                "strength_model"
+            ]
+        }
+    },
+    "LoraBlockInfo //Inspire": {
+        "LORA_MODEL_NAME": {
+            "field_name": "lora_name"
+        },
+        "LORA_MODEL_HASH": {
+            "field_name": "lora_name",
+            "format": "calc_lora_hash"
+        }
+    },
+    "LoadLBW //Inspire": {
+        "MODEL_NAME": {
+            "field_name": "lbw_model"
+        },
+        "MODEL_HASH": {
+            "field_name": "lbw_model",
+            "format": "calc_unet_hash"
+        }
+    },
+    "KSampler //Inspire": {
+        "SEED": {
+            "field_name": "seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        },
+        "DENOISE": {
+            "field_name": "denoise"
+        }
+    },
+    "KSamplerAdvanced //Inspire": {
+        "SEED": {
+            "field_name": "noise_seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        }
+    },
+    "KSamplerPipe //Inspire": {
+        "SEED": {
+            "field_name": "seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        },
+        "DENOISE": {
+            "field_name": "denoise"
+        }
+    },
+    "KSamplerAdvancedPipe //Inspire": {
+        "SEED": {
+            "field_name": "noise_seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        }
+    },
+    "SeedLogger //Inspire": {
+        "SEED": {
+            "field_name": "seed"
+        }
+    },
+    "GlobalSampler //Inspire": {
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        }
+    },
+    "WildcardEncode //Inspire": {
+        "POSITIVE_PROMPT": {
+            "field_name": "populated_text",
+            "validate": "is_positive_prompt"
+        },
+        "NEGATIVE_PROMPT": {
+            "field_name": "populated_text",
+            "validate": "is_negative_prompt"
+        }
+    },
+    "SeedExplorer //Inspire": {
+        "SEED": {
+            "field_name": "additional_seed"
+        }
+    },
+    "KSamplerProgress //Inspire": {
+        "SEED": {
+            "field_name": "seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        },
+        "DENOISE": {
+            "field_name": "denoise"
+        }
+    },
+    "KSamplerAdvancedProgress //Inspire": {
+        "SEED": {
+            "field_name": "noise_seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        }
+    },
+    "ScheduledCFGGuider //Inspire": {
+        "CFG": {
+            "field_name": "from_cfg"
+        }
+    },
+    "ScheduledPerpNegCFGGuider //Inspire": {
+        "CFG": {
+            "field_name": "from_cfg"
+        }
+    },
+    "CheckpointLoaderSimpleShared //Inspire": {
+        "MODEL_NAME": {
+            "field_name": "ckpt_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "ckpt_name",
+            "format": "calc_model_hash"
+        }
+    },
+    "LoadDiffusionModelShared //Inspire": {
+        "MODEL_NAME": {
+            "field_name": "model_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "model_name",
+            "format": "calc_unet_hash"
+        },
+        "WEIGHT_DTYPE": {
+            "field_name": "weight_dtype"
+        }
+    },
+    "DownloadAndLoadCLIPSeg": {
+        "MODEL_NAME": {
+            "field_name": "model"
+        },
+        "MODEL_HASH": {
+            "field_name": "model",
+            "format": "calc_unet_hash"
+        }
+    },
+    "EmptyLatentImagePresets": {
+        "IMAGE_WIDTH": {
+            "field_name": "dimensions"
+        },
+        "IMAGE_HEIGHT": {
+            "field_name": "dimensions"
+        }
+    },
+    "EmptyLatentImageCustomPresets": {
+        "IMAGE_WIDTH": {
+            "field_name": "dimensions"
+        },
+        "IMAGE_HEIGHT": {
+            "field_name": "dimensions"
+        }
+    },
+    "DiffusionModelSelector": {
+        "MODEL_NAME": {
+            "field_name": "model_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "model_name",
+            "format": "calc_unet_hash"
+        }
+    },
+    "LoadResAdapterNormalization": {
+        "MODEL_NAME": {
+            "field_name": "model"
+        },
+        "MODEL_HASH": {
+            "field_name": "model",
+            "format": "calc_unet_hash"
+        }
+    },
+    "Intrinsic_lora_sampling": {
+        "LORA_MODEL_NAME": {
+            "field_name": "lora_name"
+        },
+        "LORA_MODEL_HASH": {
+            "field_name": "lora_name",
+            "format": "calc_lora_hash"
+        }
+    },
+    "DiTBlockLoraLoader": {
+        "LORA_MODEL_NAME": {
+            "fields": [
+                "lora_name",
+                "opt_lora_path"
+            ]
+        },
+        "LORA_MODEL_HASH": {
+            "fields": [
+                "lora_name",
+                "opt_lora_path"
+            ],
+            "format": "calc_lora_hash"
+        },
+        "LORA_STRENGTH_MODEL": {
+            "field_name": "strength_model"
+        },
+        "LORA_STRENGTH_CLIP": {
+            "field_name": "strength_model"
+        }
+    },
+    "CheckpointLoaderKJ": {
+        "MODEL_NAME": {
+            "field_name": "ckpt_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "ckpt_name",
+            "format": "calc_model_hash"
+        },
+        "WEIGHT_DTYPE": {
+            "field_name": "weight_dtype"
+        }
+    },
+    "DiffusionModelLoaderKJ": {
+        "MODEL_NAME": {
+            "field_name": "model_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "model_name",
+            "format": "calc_unet_hash"
+        },
+        "WEIGHT_DTYPE": {
+            "field_name": "weight_dtype"
+        }
+    },
+    "TorchCompileVAE": {
+        "VAE_NAME": {
+            "field_name": "vae"
+        },
+        "VAE_HASH": {
+            "field_name": "vae",
+            "format": "calc_vae_hash"
+        }
+    },
+    "VAELoaderKJ": {
+        "VAE_NAME": {
+            "field_name": "vae_name"
+        },
+        "VAE_HASH": {
+            "field_name": "vae_name",
+            "format": "calc_vae_hash"
+        },
+        "WEIGHT_DTYPE": {
+            "field_name": "weight_dtype"
+        }
+    },
+    "ScheduledCFGGuidance": {
+        "CFG": {
+            "field_name": "cfg"
+        }
+    },
+    "GGUFLoaderKJ": {
+        "MODEL_NAME": {
+            "field_name": "model_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "model_name",
+            "format": "calc_unet_hash"
+        }
+    },
+    "LoraExtractKJ": {
+        "LORA_MODEL_NAME": {
+            "field_name": "lora_type"
+        },
+        "LORA_MODEL_HASH": {
+            "field_name": "lora_type",
+            "format": "calc_lora_hash"
+        }
+    },
+    "LoraReduceRankKJ": {
+        "LORA_MODEL_NAME": {
+            "field_name": "lora_name"
+        },
+        "LORA_MODEL_HASH": {
+            "field_name": "lora_name",
+            "format": "calc_lora_hash"
+        }
+    },
+    "Prompt (LoraManager)": {
+        "POSITIVE_PROMPT": {
+            "field_name": "text",
+            "validate": "is_positive_prompt"
+        },
+        "NEGATIVE_PROMPT": {
+            "field_name": "text",
+            "validate": "is_negative_prompt"
+        }
+    },
+    "WanVideo Lora Select (LoraManager)": {
+        "LORA_MODEL_NAME": {
+            "field_name": "merge_loras"
+        },
+        "LORA_MODEL_HASH": {
+            "field_name": "merge_loras",
+            "format": "calc_lora_hash"
+        }
+    },
+    "NAGCFGGuider": {
+        "CFG": {
+            "field_name": "cfg"
+        }
+    },
+    "KSamplerWithNAG": {
+        "SEED": {
+            "field_name": "seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        },
+        "DENOISE": {
+            "field_name": "denoise"
+        }
+    },
+    "KSamplerWithNAG (Advanced)": {
+        "SEED": {
+            "field_name": "noise_seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        }
+    },
+    "SamplerCustomWithNAG": {
+        "SEED": {
+            "field_name": "noise_seed"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler"
+        }
+    },
+    "SeedVR2LoadDiTModel": {
+        "MODEL_NAME": {
+            "field_name": "model"
+        },
+        "MODEL_HASH": {
+            "field_name": "model",
+            "format": "calc_unet_hash"
+        }
+    },
+    "SeedVR2LoadVAEModel": {
+        "MODEL_NAME": {
+            "field_name": "model"
+        },
+        "MODEL_HASH": {
+            "field_name": "model",
+            "format": "calc_unet_hash"
+        }
+    },
+    "DownloadAndLoadSAM2Model": {
+        "MODEL_NAME": {
+            "field_name": "model"
+        },
+        "MODEL_HASH": {
+            "field_name": "model",
+            "format": "calc_unet_hash"
+        }
+    },
+    "KRestartSamplerCustomNoise": {
+        "SEED": {
+            "field_name": "noise_seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        }
+    },
+    "RestartSamplerCustomNoise": {
+        "SAMPLER_NAME": {
+            "field_name": "sampler"
+        }
+    },
+    "SonarLatentOperationSetSeed": {
+        "SEED": {
+            "field_name": "seed"
+        }
+    },
+    "SamplerConfigOverride": {
+        "SAMPLER_NAME": {
+            "field_name": "sampler"
+        }
+    },
+    "VHS_LoadVideo": {
+        "VAE_NAME": {
+            "field_name": "vae"
+        },
+        "VAE_HASH": {
+            "field_name": "vae",
+            "format": "calc_vae_hash"
+        }
+    },
+    "VHS_LoadVideoPath": {
+        "VAE_NAME": {
+            "field_name": "vae"
+        },
+        "VAE_HASH": {
+            "field_name": "vae",
+            "format": "calc_vae_hash"
+        }
+    },
+    "VHS_LoadVideoFFmpeg": {
+        "VAE_NAME": {
+            "field_name": "vae"
+        },
+        "VAE_HASH": {
+            "field_name": "vae",
+            "format": "calc_vae_hash"
+        }
+    },
+    "VHS_LoadVideoFFmpegPath": {
+        "VAE_NAME": {
+            "field_name": "vae"
+        },
+        "VAE_HASH": {
+            "field_name": "vae",
+            "format": "calc_vae_hash"
+        }
+    },
+    "VHS_LoadImagePath": {
+        "VAE_NAME": {
+            "field_name": "vae"
+        },
+        "VAE_HASH": {
+            "field_name": "vae",
+            "format": "calc_vae_hash"
+        }
+    },
+    "WanVideoScheduler": {
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        }
+    },
+    "WanVideoDiffusionForcingSampler": {
+        "SEED": {
+            "field_name": "seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        },
+        "DENOISE": {
+            "field_name": "denoise_strength"
+        }
+    },
+    "DownloadAndLoadWav2VecModel": {
+        "MODEL_NAME": {
+            "field_name": "model"
+        },
+        "MODEL_HASH": {
+            "field_name": "model",
+            "format": "calc_unet_hash"
+        }
+    },
+    "FantasyTalkingModelLoader": {
+        "MODEL_NAME": {
+            "field_name": "model"
+        },
+        "MODEL_HASH": {
+            "field_name": "model",
+            "format": "calc_unet_hash"
+        }
+    },
+    "FantasyPortraitModelLoader": {
+        "MODEL_NAME": {
+            "field_name": "model"
+        },
+        "MODEL_HASH": {
+            "field_name": "model",
+            "format": "calc_unet_hash"
+        }
+    },
+    "WanVideoUni3C_ControlnetLoader": {
+        "MODEL_NAME": {
+            "field_name": "model"
+        },
+        "MODEL_HASH": {
+            "field_name": "model",
+            "format": "calc_unet_hash"
+        }
+    },
+    "WanVideoControlnetLoader": {
+        "MODEL_NAME": {
+            "field_name": "model"
+        },
+        "MODEL_HASH": {
+            "field_name": "model",
+            "format": "calc_unet_hash"
+        }
+    },
+    "MultiTalkModelLoader": {
+        "MODEL_NAME": {
+            "field_name": "model"
+        },
+        "MODEL_HASH": {
+            "field_name": "model",
+            "format": "calc_unet_hash"
+        }
+    },
+    "Wav2VecModelLoader": {
+        "MODEL_NAME": {
+            "field_name": "model"
+        },
+        "MODEL_HASH": {
+            "field_name": "model",
+            "format": "calc_unet_hash"
+        }
+    },
+    "WanVideoModelLoader": {
+        "MODEL_NAME": {
+            "field_name": "model"
+        },
+        "MODEL_HASH": {
+            "field_name": "model",
+            "format": "calc_unet_hash"
+        },
+        "LORA_MODEL_NAME": {
+            "field_name": "lora"
+        },
+        "LORA_MODEL_HASH": {
+            "field_name": "lora",
+            "format": "calc_lora_hash"
+        }
+    },
+    "WanVideoVAELoader": {
+        "MODEL_NAME": {
+            "field_name": "model_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "model_name",
+            "format": "calc_unet_hash"
+        }
+    },
+    "WanVideoLoraSelect": {
+        "LORA_MODEL_NAME": {
+            "fields": [
+                "lora",
+                "merge_loras",
+                "prev_lora"
+            ]
+        },
+        "LORA_MODEL_HASH": {
+            "fields": [
+                "lora",
+                "merge_loras",
+                "prev_lora"
+            ],
+            "format": "calc_lora_hash"
+        }
+    },
+    "WanVideoLoraSelectByName": {
+        "LORA_MODEL_NAME": {
+            "fields": [
+                "lora_name",
+                "merge_loras",
+                "prev_lora"
+            ]
+        },
+        "LORA_MODEL_HASH": {
+            "fields": [
+                "lora_name",
+                "merge_loras",
+                "prev_lora"
+            ],
+            "format": "calc_lora_hash"
+        },
+        "LORA_STRENGTH_MODEL": {
+            "field_name": "strength"
+        },
+        "LORA_STRENGTH_CLIP": {
+            "field_name": "strength"
+        }
+    },
+    "WanVideoSetLoRAs": {
+        "LORA_MODEL_NAME": {
+            "field_name": "lora"
+        },
+        "LORA_MODEL_HASH": {
+            "field_name": "lora",
+            "format": "calc_lora_hash"
+        }
+    },
+    "WanVideoTinyVAELoader": {
+        "MODEL_NAME": {
+            "field_name": "model_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "model_name",
+            "format": "calc_unet_hash"
+        }
+    },
+    "WanVideoVACEModelSelect": {
+        "MODEL_NAME": {
+            "field_name": "vace_model"
+        },
+        "MODEL_HASH": {
+            "field_name": "vace_model",
+            "format": "calc_unet_hash"
+        }
+    },
+    "WanVideoExtraModelSelect": {
+        "MODEL_NAME": {
+            "field_name": "extra_model"
+        },
+        "MODEL_HASH": {
+            "field_name": "extra_model",
+            "format": "calc_unet_hash"
+        }
+    },
+    "WanVideoLoraSelectMulti": {
+        "LORA_MODEL_NAME": {
+            "fields": [
+                "lora_0",
+                "lora_1",
+                "lora_2",
+                "lora_3",
+                "lora_4",
+                "merge_loras",
+                "prev_lora"
+            ]
+        },
+        "LORA_MODEL_HASH": {
+            "fields": [
+                "lora_0",
+                "lora_1",
+                "lora_2",
+                "lora_3",
+                "lora_4",
+                "merge_loras",
+                "prev_lora"
+            ],
+            "format": "calc_lora_hash"
+        }
+    },
+    "CreateCFGScheduleFloatList": {
+        "CFG": {
+            "field_name": "cfg_scale_start"
+        }
+    },
+    "QwenLoader": {
+        "MODEL_NAME": {
+            "field_name": "model"
+        },
+        "MODEL_HASH": {
+            "field_name": "model",
+            "format": "calc_unet_hash"
+        }
+    },
+    "LoadVQVAE": {
+        "MODEL_NAME": {
+            "field_name": "model_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "model_name",
+            "format": "calc_unet_hash"
+        }
+    },
+    "WhisperModelLoader": {
+        "MODEL_NAME": {
+            "field_name": "model"
+        },
+        "MODEL_HASH": {
+            "field_name": "model",
+            "format": "calc_unet_hash"
+        }
+    },
+    "WanVideoSampler": {
+        "SEED": {
+            "field_name": "seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        },
+        "DENOISE": {
+            "field_name": "denoise_strength"
+        }
+    },
+    "WanVideoSamplerSettings": {
+        "SEED": {
+            "field_name": "seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        },
+        "DENOISE": {
+            "field_name": "denoise_strength"
+        }
+    },
+    "WanVideoSamplerFromSettings": {
+        "SAMPLER_NAME": {
+            "field_name": "sampler_inputs"
+        }
+    },
+    "LoadLynxResampler": {
+        "MODEL_NAME": {
+            "field_name": "model_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "model_name",
+            "format": "calc_unet_hash"
+        }
+    },
+    "OviMMAudioVAELoader": {
+        "VAE_NAME": {
+            "field_name": "vae"
+        },
+        "VAE_HASH": {
+            "field_name": "vae",
+            "format": "calc_vae_hash"
+        }
+    },
+    "WanVideoOviCFG": {
+        "CFG": {
+            "field_name": "ovi_audio_cfg"
+        }
+    },
+    "WanVideoFlashVSRDecoderLoader": {
+        "MODEL_NAME": {
+            "field_name": "model_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "model_name",
+            "format": "calc_unet_hash"
+        }
+    },
+    "CR Select Model": {
+        "MODEL_NAME": {
+            "field_name": "ckpt_name3"
+        },
+        "MODEL_HASH": {
+            "field_name": "ckpt_name3",
+            "format": "calc_model_hash"
+        }
+    },
+    "CR Seed": {
+        "SEED": {
+            "field_name": "seed"
+        }
+    },
+    "CR Load LoRA": {
+        "LORA_MODEL_NAME": {
+            "field_name": "lora_name"
+        },
+        "LORA_MODEL_HASH": {
+            "field_name": "lora_name",
+            "format": "calc_lora_hash"
+        },
+        "LORA_STRENGTH_MODEL": {
+            "fields": [
+                "strength_clip",
+                "strength_model"
+            ]
+        },
+        "LORA_STRENGTH_CLIP": {
+            "fields": [
+                "strength_clip",
+                "strength_model"
+            ]
+        }
+    },
+    "CR LoRA Stack": {
+        "LORA_MODEL_NAME": {
+            "fields": [
+                "lora_name_1",
+                "lora_name_2",
+                "lora_name_3",
+                "lora_stack"
+            ]
+        },
+        "LORA_MODEL_HASH": {
+            "fields": [
+                "lora_name_1",
+                "lora_name_2",
+                "lora_name_3",
+                "lora_stack"
+            ],
+            "format": "calc_lora_hash"
+        },
+        "LORA_STRENGTH_MODEL": {
+            "fields": [
+                "clip_weight_1",
+                "model_weight_1",
+                "clip_weight_2",
+                "model_weight_2",
+                "clip_weight_3",
+                "model_weight_3"
+            ]
+        },
+        "LORA_STRENGTH_CLIP": {
+            "fields": [
+                "clip_weight_1",
+                "model_weight_1",
+                "clip_weight_2",
+                "model_weight_2",
+                "clip_weight_3",
+                "model_weight_3"
+            ]
+        }
+    },
+    "CR Random LoRA Stack": {
+        "LORA_MODEL_NAME": {
+            "fields": [
+                "lora_name_1",
+                "lora_name_2",
+                "lora_name_3",
+                "lora_stack"
+            ]
+        },
+        "LORA_MODEL_HASH": {
+            "fields": [
+                "lora_name_1",
+                "lora_name_2",
+                "lora_name_3",
+                "lora_stack"
+            ],
+            "format": "calc_lora_hash"
+        },
+        "LORA_STRENGTH_MODEL": {
+            "fields": [
+                "clip_weight_1",
+                "model_weight_1",
+                "clip_weight_2",
+                "model_weight_2",
+                "clip_weight_3",
+                "model_weight_3"
+            ]
+        },
+        "LORA_STRENGTH_CLIP": {
+            "fields": [
+                "clip_weight_1",
+                "model_weight_1",
+                "clip_weight_2",
+                "model_weight_2",
+                "clip_weight_3",
+                "model_weight_3"
+            ]
+        }
+    },
+    "CR Random Weight LoRA": {
+        "LORA_MODEL_NAME": {
+            "fields": [
+                "lora_name",
+                "lora_stack"
+            ]
+        },
+        "LORA_MODEL_HASH": {
+            "fields": [
+                "lora_name",
+                "lora_stack"
+            ],
+            "format": "calc_lora_hash"
+        },
+        "LORA_STRENGTH_MODEL": {
+            "fields": [
+                "clip_weight",
+                "weight_max",
+                "weight_min"
+            ]
+        },
+        "LORA_STRENGTH_CLIP": {
+            "fields": [
+                "clip_weight",
+                "weight_max",
+                "weight_min"
+            ]
+        }
+    },
+    "CR Apply LoRA Stack": {
+        "LORA_MODEL_NAME": {
+            "field_name": "lora_stack"
+        },
+        "LORA_MODEL_HASH": {
+            "field_name": "lora_stack",
+            "format": "calc_lora_hash"
+        }
+    },
+    "CR Module Pipe Loader": {
+        "MODEL_NAME": {
+            "field_name": "model"
+        },
+        "MODEL_HASH": {
+            "field_name": "model",
+            "format": "calc_unet_hash"
+        },
+        "VAE_NAME": {
+            "field_name": "vae"
+        },
+        "VAE_HASH": {
+            "field_name": "vae",
+            "format": "calc_vae_hash"
+        }
+    },
+    "CR Load Scheduled Models": {
+        "MODEL_NAME": {
+            "field_name": "default_model"
+        },
+        "MODEL_HASH": {
+            "field_name": "default_model",
+            "format": "calc_unet_hash"
+        }
+    },
+    "CR Load Scheduled LoRAs": {
+        "LORA_MODEL_NAME": {
+            "fields": [
+                "default_lora",
+                "lora_list"
+            ]
+        },
+        "LORA_MODEL_HASH": {
+            "fields": [
+                "default_lora",
+                "lora_list"
+            ],
+            "format": "calc_lora_hash"
+        }
+    },
+    "CR Encode Scheduled Prompts": {
+        "POSITIVE_PROMPT": {
+            "field_name": "current_prompt",
+            "validate": "is_positive_prompt"
+        },
+        "NEGATIVE_PROMPT": {
+            "field_name": "current_prompt",
+            "validate": "is_negative_prompt"
+        }
+    },
+    "CR Cycle LoRAs": {
+        "LORA_MODEL_NAME": {
+            "field_name": "lora_list"
+        },
+        "LORA_MODEL_HASH": {
+            "field_name": "lora_list",
+            "format": "calc_lora_hash"
+        }
+    },
+    "CR LoRA List": {
+        "LORA_MODEL_NAME": {
+            "fields": [
+                "lora_name1",
+                "lora_name2",
+                "lora_name3",
+                "lora_list"
+            ]
+        },
+        "LORA_MODEL_HASH": {
+            "fields": [
+                "lora_name1",
+                "lora_name2",
+                "lora_name3",
+                "lora_list"
+            ],
+            "format": "calc_lora_hash"
+        },
+        "LORA_STRENGTH_MODEL": {
+            "fields": [
+                "clip_strength_1",
+                "model_strength_1",
+                "clip_strength_2",
+                "model_strength_2",
+                "clip_strength_3",
+                "model_strength_3"
+            ]
+        },
+        "LORA_STRENGTH_CLIP": {
+            "fields": [
+                "clip_strength_1",
+                "model_strength_1",
+                "clip_strength_2",
+                "model_strength_2",
+                "clip_strength_3",
+                "model_strength_3"
+            ]
+        }
+    },
+    "KSamplerVariationsStochastic+": {
+        "SEED": {
+            "field_name": "noise_seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        }
+    },
+    "KSamplerVariationsWithNoise+": {
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        },
+        "DENOISE": {
+            "field_name": "denoise"
+        }
+    },
+    "FluxSamplerParams+": {
+        "SAMPLER_NAME": {
+            "field_name": "sampler"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        }
+    },
+    "LorasForFluxParams+": {
+        "LORA_MODEL_NAME": {
+            "field_name": "lora_1"
+        },
+        "LORA_MODEL_HASH": {
+            "field_name": "lora_1",
+            "format": "calc_lora_hash"
+        }
+    },
+    "ModelSamplingSD3Advanced+": {
+        "SHIFT": {
+            "field_name": "shift"
+        }
+    },
+    "SDXLEmptyLatentSizePicker+": {
+        "IMAGE_WIDTH": {
+            "field_name": "resolution"
+        },
+        "IMAGE_HEIGHT": {
+            "field_name": "resolution"
+        }
+    },
+    "DitCheckpointLoader": {
+        "MODEL_NAME": {
+            "field_name": "ckpt_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "ckpt_name",
+            "format": "calc_model_hash"
+        }
+    },
+    "DiTCondLabelSelect": {
+        "MODEL_NAME": {
+            "field_name": "model"
+        },
+        "MODEL_HASH": {
+            "field_name": "model",
+            "format": "calc_unet_hash"
+        }
+    },
+    "PixArtCheckpointLoader": {
+        "MODEL_NAME": {
+            "field_name": "ckpt_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "ckpt_name",
+            "format": "calc_model_hash"
+        }
+    },
+    "PixArtCheckpointLoaderSimple": {
+        "MODEL_NAME": {
+            "field_name": "ckpt_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "ckpt_name",
+            "format": "calc_model_hash"
+        }
+    },
+    "PixArtResolutionSelect": {
+        "MODEL_NAME": {
+            "field_name": "model"
+        },
+        "MODEL_HASH": {
+            "field_name": "model",
+            "format": "calc_unet_hash"
+        }
+    },
+    "PixArtLoraLoader": {
+        "LORA_MODEL_NAME": {
+            "field_name": "lora_name"
+        },
+        "LORA_MODEL_HASH": {
+            "field_name": "lora_name",
+            "format": "calc_lora_hash"
+        },
+        "LORA_STRENGTH_MODEL": {
+            "field_name": "strength"
+        },
+        "LORA_STRENGTH_CLIP": {
+            "field_name": "strength"
+        }
+    },
+    "HYDiTCheckpointLoader": {
+        "MODEL_NAME": {
+            "field_name": "ckpt_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "ckpt_name",
+            "format": "calc_model_hash"
+        }
+    },
+    "ExtraVAELoader": {
+        "VAE_NAME": {
+            "field_name": "vae_name"
+        },
+        "VAE_HASH": {
+            "field_name": "vae_name",
+            "format": "calc_vae_hash"
+        }
+    },
+    "EmptyDCAELatentImage": {
+        "IMAGE_WIDTH": {
+            "field_name": "width"
+        },
+        "IMAGE_HEIGHT": {
+            "field_name": "height"
+        }
+    },
+    "MiaoBiCLIPLoader": {
+        "CLIP_MODEL_NAME": {
+            "field_name": "clip_name"
+        }
+    },
+    "MiaoBiDiffusersLoader": {
+        "MODEL_NAME": {
+            "field_name": "model_path"
+        },
+        "MODEL_HASH": {
+            "field_name": "model_path",
+            "format": "calc_unet_hash"
+        }
+    },
+    "OverrideVAEDevice": {
+        "VAE_NAME": {
+            "field_name": "vae"
+        },
+        "VAE_HASH": {
+            "field_name": "vae",
+            "format": "calc_vae_hash"
+        }
+    },
+    "SanaCheckpointLoader": {
+        "MODEL_NAME": {
+            "field_name": "ckpt_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "ckpt_name",
+            "format": "calc_model_hash"
+        }
+    },
+    "SanaResolutionSelect": {
+        "MODEL_NAME": {
+            "field_name": "model"
+        },
+        "MODEL_HASH": {
+            "field_name": "model",
+            "format": "calc_unet_hash"
+        }
+    },
+    "EmptySanaLatentImage": {
+        "IMAGE_WIDTH": {
+            "field_name": "width"
+        },
+        "IMAGE_HEIGHT": {
+            "field_name": "height"
+        }
+    },
+    "GemmaLoader": {
+        "MODEL_NAME": {
+            "field_name": "model_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "model_name",
+            "format": "calc_unet_hash"
+        }
+    },
+    "FL_KsamplerSettings": {
+        "STEPS": {
+            "field_name": "Pass_2_steps"
+        },
+        "CFG": {
+            "field_name": "Pass_1_CFG"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        },
+        "DENOISE": {
+            "field_name": "Pass_2_denoise"
+        }
+    },
+    "FL_HFHubModelUploader": {
+        "MODEL_NAME": {
+            "field_name": "model_file_path"
+        },
+        "MODEL_HASH": {
+            "field_name": "model_file_path",
+            "format": "calc_unet_hash"
+        }
+    },
+    "FL_KsamplerPlus": {
+        "SEED": {
+            "field_name": "seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        },
+        "DENOISE": {
+            "field_name": "denoise"
+        }
+    },
+    "FL_KsamplerPlusV2": {
+        "SEED": {
+            "field_name": "seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        },
+        "DENOISE": {
+            "field_name": "denoise"
+        }
+    },
+    "FL_KsamplerBasic": {
+        "SEED": {
+            "field_name": "seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        },
+        "DENOISE": {
+            "field_name": "denoise"
+        }
+    },
+    "FL_FractalKSampler": {
+        "SEED": {
+            "field_name": "seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        },
+        "DENOISE": {
+            "field_name": "denoise"
+        }
+    },
+    "FL_KSamplerXYZPlot": {
+        "SEED": {
+            "field_name": "seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        },
+        "DENOISE": {
+            "field_name": "denoise"
+        }
+    },
+    "FL_HF_UploaderAbsolute": {
+        "LORA_MODEL_NAME": {
+            "field_name": "lora_file"
+        },
+        "LORA_MODEL_HASH": {
+            "field_name": "lora_file",
+            "format": "calc_lora_hash"
+        }
+    },
+    "FL_API_Base64_ImageLoader": {
+        "IMAGE_WIDTH": {
+            "field_name": "resize_width"
+        },
+        "IMAGE_HEIGHT": {
+            "field_name": "resize_height"
+        }
+    },
+    "FL_Fal_Seedance_i2v": {
+        "SEED": {
+            "field_name": "seed"
+        }
+    },
+    "FL_Fal_Seedream_Edit": {
+        "SEED": {
+            "field_name": "seed"
+        }
+    },
+    "FL_UnloadModel": {
+        "MODEL_NAME": {
+            "field_name": "model"
+        },
+        "MODEL_HASH": {
+            "field_name": "model",
+            "format": "calc_unet_hash"
+        }
+    },
+    "LoadAudioModel (DD)": {
+        "MODEL_NAME": {
+            "field_name": "model"
+        },
+        "MODEL_HASH": {
+            "field_name": "model",
+            "format": "calc_unet_hash"
+        }
+    },
+    "LayerUtility: Seed": {
+        "SEED": {
+            "field_name": "seed"
+        }
+    },
+    "LayerUtility: LoadVQAModel": {
+        "MODEL_NAME": {
+            "field_name": "model"
+        },
+        "MODEL_HASH": {
+            "field_name": "model",
+            "format": "calc_unet_hash"
+        }
+    },
+    "LayerUtility: LoadJoyCaption2Model": {
+        "MODEL_NAME": {
+            "field_name": "llm_model"
+        },
+        "MODEL_HASH": {
+            "field_name": "llm_model",
+            "format": "calc_unet_hash"
+        },
+        "LORA_MODEL_NAME": {
+            "field_name": "vlm_lora"
+        },
+        "LORA_MODEL_HASH": {
+            "field_name": "vlm_lora",
+            "format": "calc_lora_hash"
+        }
+    },
+    "LayerUtility: LoadJoyCaptionBeta1Model": {
+        "MODEL_NAME": {
+            "field_name": "model"
+        },
+        "MODEL_HASH": {
+            "field_name": "model",
+            "format": "calc_unet_hash"
+        }
+    },
+    "LayerUtility: LoadSmolLM2Model": {
+        "MODEL_NAME": {
+            "field_name": "model"
+        },
+        "MODEL_HASH": {
+            "field_name": "model",
+            "format": "calc_unet_hash"
+        }
+    },
+    "LayerUtility: LoadSmolVLMModel": {
+        "MODEL_NAME": {
+            "field_name": "model"
+        },
+        "MODEL_HASH": {
+            "field_name": "model",
+            "format": "calc_unet_hash"
+        }
+    },
+    "mjsk_Checkpoint_Selector": {
+        "MODEL_NAME": {
+            "field_name": "ckpt_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "ckpt_name",
+            "format": "calc_model_hash"
+        }
+    },
+    "mjsk_MiDaS_Model_Loader": {
+        "MODEL_NAME": {
+            "field_name": "midas_model"
+        },
+        "MODEL_HASH": {
+            "field_name": "midas_model",
+            "format": "calc_unet_hash"
+        }
+    },
+    "mjsk_PromptWithTokenCounter": {
+        "POSITIVE_PROMPT": {
+            "field_name": "text",
+            "validate": "is_positive_prompt"
+        },
+        "NEGATIVE_PROMPT": {
+            "field_name": "text",
+            "validate": "is_negative_prompt"
+        }
+    },
+    "BNK_NoisyLatentImage": {
+        "IMAGE_WIDTH": {
+            "field_name": "width"
+        },
+        "IMAGE_HEIGHT": {
+            "field_name": "height"
+        }
+    },
+    "BNK_Unsampler": {
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        }
+    },
+    "SAMModelLoader (segment anything)": {
+        "MODEL_NAME": {
+            "field_name": "model_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "model_name",
+            "format": "calc_unet_hash"
+        }
+    },
+    "GroundingDinoModelLoader (segment anything)": {
+        "MODEL_NAME": {
+            "field_name": "model_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "model_name",
+            "format": "calc_unet_hash"
+        }
+    },
+    "Load Whisper (mtb)": {
+        "MODEL_NAME": {
+            "field_name": "model_size"
+        },
+        "MODEL_HASH": {
+            "field_name": "model_size",
+            "format": "calc_unet_hash"
+        }
+    },
+    "Load Face Enhance Model (mtb)": {
+        "MODEL_NAME": {
+            "field_name": "model_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "model_name",
+            "format": "calc_unet_hash"
+        }
+    },
+    "Load Face Swap Model (mtb)": {
+        "MODEL_NAME": {
+            "field_name": "faceswap_model"
+        },
+        "MODEL_HASH": {
+            "field_name": "faceswap_model",
+            "format": "calc_unet_hash"
+        }
+    },
+    "Load Face Analysis Model (mtb)": {
+        "MODEL_NAME": {
+            "field_name": "faceswap_model"
+        },
+        "MODEL_HASH": {
+            "field_name": "faceswap_model",
+            "format": "calc_unet_hash"
+        }
+    },
+    "FluxSampler": {
+        "SEED": {
+            "field_name": "noise_seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        },
+        "DENOISE": {
+            "field_name": "denoise"
+        }
+    },
+    "KSampler (Efficient)": {
+        "SEED": {
+            "field_name": "seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        },
+        "DENOISE": {
+            "field_name": "denoise"
+        }
+    },
+    "KSampler Adv. (Efficient)": {
+        "SEED": {
+            "field_name": "noise_seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        }
+    },
+    "KSampler SDXL (Eff.)": {
+        "SEED": {
+            "field_name": "noise_seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        }
+    },
+    "Efficient Loader": {
+        "MODEL_NAME": {
+            "field_name": "ckpt_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "ckpt_name",
+            "format": "calc_model_hash"
+        },
+        "VAE_NAME": {
+            "field_name": "vae_name"
+        },
+        "VAE_HASH": {
+            "field_name": "vae_name",
+            "format": "calc_vae_hash"
+        },
+        "IMAGE_WIDTH": {
+            "field_name": "empty_latent_width"
+        },
+        "IMAGE_HEIGHT": {
+            "field_name": "empty_latent_height"
+        },
+        "LORA_MODEL_NAME": {
+            "fields": [
+                "lora_clip_strength",
+                "lora_model_strength",
+                "lora_name",
+                "lora_stack"
+            ]
+        },
+        "LORA_MODEL_HASH": {
+            "fields": [
+                "lora_clip_strength",
+                "lora_model_strength",
+                "lora_name",
+                "lora_stack"
+            ],
+            "format": "calc_lora_hash"
+        },
+        "LORA_STRENGTH_MODEL": {
+            "fields": [
+                "lora_clip_strength",
+                "lora_model_strength"
+            ]
+        },
+        "LORA_STRENGTH_CLIP": {
+            "fields": [
+                "lora_clip_strength",
+                "lora_model_strength"
+            ]
+        }
+    },
+    "Eff. Loader SDXL": {
+        "MODEL_NAME": {
+            "field_name": "base_ckpt_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "base_ckpt_name",
+            "format": "calc_model_hash"
+        },
+        "VAE_NAME": {
+            "field_name": "vae_name"
+        },
+        "VAE_HASH": {
+            "field_name": "vae_name",
+            "format": "calc_vae_hash"
+        },
+        "IMAGE_WIDTH": {
+            "field_name": "empty_latent_width"
+        },
+        "IMAGE_HEIGHT": {
+            "field_name": "empty_latent_height"
+        },
+        "LORA_MODEL_NAME": {
+            "field_name": "lora_stack"
+        },
+        "LORA_MODEL_HASH": {
+            "field_name": "lora_stack",
+            "format": "calc_lora_hash"
+        }
+    },
+    "LoRA Stacker": {
+        "LORA_MODEL_NAME": {
+            "fields": [
+                "lora_name_1",
+                "lora_wt_1",
+                "lora_name_2",
+                "lora_wt_2",
+                "lora_name_3",
+                "lora_wt_3",
+                "lora_name_4",
+                "lora_wt_4",
+                "lora_name_5",
+                "lora_wt_5",
+                "lora_name_6",
+                "lora_wt_6",
+                "lora_name_7",
+                "lora_wt_7",
+                "lora_name_8",
+                "lora_wt_8",
+                "lora_name_9",
+                "lora_wt_9",
+                "lora_name_10",
+                "lora_wt_10",
+                "lora_name_11",
+                "lora_wt_11",
+                "lora_name_12",
+                "lora_wt_12",
+                "lora_name_13",
+                "lora_wt_13",
+                "lora_name_14",
+                "lora_wt_14",
+                "lora_name_15",
+                "lora_wt_15",
+                "lora_name_16",
+                "lora_wt_16",
+                "lora_name_17",
+                "lora_wt_17",
+                "lora_name_18",
+                "lora_wt_18",
+                "lora_name_19",
+                "lora_wt_19",
+                "lora_name_20",
+                "lora_wt_20",
+                "lora_name_21",
+                "lora_wt_21",
+                "lora_name_22",
+                "lora_wt_22",
+                "lora_name_23",
+                "lora_wt_23",
+                "lora_name_24",
+                "lora_wt_24",
+                "lora_name_25",
+                "lora_wt_25",
+                "lora_name_26",
+                "lora_wt_26",
+                "lora_name_27",
+                "lora_wt_27",
+                "lora_name_28",
+                "lora_wt_28",
+                "lora_name_29",
+                "lora_wt_29",
+                "lora_name_30",
+                "lora_wt_30",
+                "lora_name_31",
+                "lora_wt_31",
+                "lora_name_32",
+                "lora_wt_32",
+                "lora_name_33",
+                "lora_wt_33",
+                "lora_name_34",
+                "lora_wt_34",
+                "lora_name_35",
+                "lora_wt_35",
+                "lora_name_36",
+                "lora_wt_36",
+                "lora_name_37",
+                "lora_wt_37",
+                "lora_name_38",
+                "lora_wt_38",
+                "lora_name_39",
+                "lora_wt_39",
+                "lora_name_40",
+                "lora_wt_40",
+                "lora_name_41",
+                "lora_wt_41",
+                "lora_name_42",
+                "lora_wt_42",
+                "lora_name_43",
+                "lora_wt_43",
+                "lora_name_44",
+                "lora_wt_44",
+                "lora_name_45",
+                "lora_wt_45",
+                "lora_name_46",
+                "lora_wt_46",
+                "lora_name_47",
+                "lora_wt_47",
+                "lora_name_48",
+                "lora_wt_48",
+                "lora_name_49",
+                "lora_wt_49",
+                "lora_name_50",
+                "lora_wt_50",
+                "lora_count",
+                "lora_stack"
+            ]
+        },
+        "LORA_MODEL_HASH": {
+            "fields": [
+                "lora_name_1",
+                "lora_wt_1",
+                "lora_name_2",
+                "lora_wt_2",
+                "lora_name_3",
+                "lora_wt_3",
+                "lora_name_4",
+                "lora_wt_4",
+                "lora_name_5",
+                "lora_wt_5",
+                "lora_name_6",
+                "lora_wt_6",
+                "lora_name_7",
+                "lora_wt_7",
+                "lora_name_8",
+                "lora_wt_8",
+                "lora_name_9",
+                "lora_wt_9",
+                "lora_name_10",
+                "lora_wt_10",
+                "lora_name_11",
+                "lora_wt_11",
+                "lora_name_12",
+                "lora_wt_12",
+                "lora_name_13",
+                "lora_wt_13",
+                "lora_name_14",
+                "lora_wt_14",
+                "lora_name_15",
+                "lora_wt_15",
+                "lora_name_16",
+                "lora_wt_16",
+                "lora_name_17",
+                "lora_wt_17",
+                "lora_name_18",
+                "lora_wt_18",
+                "lora_name_19",
+                "lora_wt_19",
+                "lora_name_20",
+                "lora_wt_20",
+                "lora_name_21",
+                "lora_wt_21",
+                "lora_name_22",
+                "lora_wt_22",
+                "lora_name_23",
+                "lora_wt_23",
+                "lora_name_24",
+                "lora_wt_24",
+                "lora_name_25",
+                "lora_wt_25",
+                "lora_name_26",
+                "lora_wt_26",
+                "lora_name_27",
+                "lora_wt_27",
+                "lora_name_28",
+                "lora_wt_28",
+                "lora_name_29",
+                "lora_wt_29",
+                "lora_name_30",
+                "lora_wt_30",
+                "lora_name_31",
+                "lora_wt_31",
+                "lora_name_32",
+                "lora_wt_32",
+                "lora_name_33",
+                "lora_wt_33",
+                "lora_name_34",
+                "lora_wt_34",
+                "lora_name_35",
+                "lora_wt_35",
+                "lora_name_36",
+                "lora_wt_36",
+                "lora_name_37",
+                "lora_wt_37",
+                "lora_name_38",
+                "lora_wt_38",
+                "lora_name_39",
+                "lora_wt_39",
+                "lora_name_40",
+                "lora_wt_40",
+                "lora_name_41",
+                "lora_wt_41",
+                "lora_name_42",
+                "lora_wt_42",
+                "lora_name_43",
+                "lora_wt_43",
+                "lora_name_44",
+                "lora_wt_44",
+                "lora_name_45",
+                "lora_wt_45",
+                "lora_name_46",
+                "lora_wt_46",
+                "lora_name_47",
+                "lora_wt_47",
+                "lora_name_48",
+                "lora_wt_48",
+                "lora_name_49",
+                "lora_wt_49",
+                "lora_name_50",
+                "lora_wt_50",
+                "lora_count",
+                "lora_stack"
+            ],
+            "format": "calc_lora_hash"
+        },
+        "LORA_STRENGTH_MODEL": {
+            "fields": [
+                "lora_wt_1",
+                "model_str_1",
+                "lora_wt_2",
+                "model_str_2",
+                "lora_wt_3",
+                "model_str_3",
+                "lora_wt_4",
+                "model_str_4",
+                "lora_wt_5",
+                "model_str_5",
+                "lora_wt_6",
+                "model_str_6",
+                "lora_wt_7",
+                "model_str_7",
+                "lora_wt_8",
+                "model_str_8",
+                "lora_wt_9",
+                "model_str_9",
+                "lora_wt_10",
+                "model_str_10",
+                "lora_wt_11",
+                "model_str_11",
+                "lora_wt_12",
+                "model_str_12",
+                "lora_wt_13",
+                "model_str_13",
+                "lora_wt_14",
+                "model_str_14",
+                "lora_wt_15",
+                "model_str_15",
+                "lora_wt_16",
+                "model_str_16",
+                "lora_wt_17",
+                "model_str_17",
+                "lora_wt_18",
+                "model_str_18",
+                "lora_wt_19",
+                "model_str_19",
+                "lora_wt_20",
+                "model_str_20",
+                "lora_wt_21",
+                "model_str_21",
+                "lora_wt_22",
+                "model_str_22",
+                "lora_wt_23",
+                "model_str_23",
+                "lora_wt_24",
+                "model_str_24",
+                "lora_wt_25",
+                "model_str_25",
+                "lora_wt_26",
+                "model_str_26",
+                "lora_wt_27",
+                "model_str_27",
+                "lora_wt_28",
+                "model_str_28",
+                "lora_wt_29",
+                "model_str_29",
+                "lora_wt_30",
+                "model_str_30",
+                "lora_wt_31",
+                "model_str_31",
+                "lora_wt_32",
+                "model_str_32",
+                "lora_wt_33",
+                "model_str_33",
+                "lora_wt_34",
+                "model_str_34",
+                "lora_wt_35",
+                "model_str_35",
+                "lora_wt_36",
+                "model_str_36",
+                "lora_wt_37",
+                "model_str_37",
+                "lora_wt_38",
+                "model_str_38",
+                "lora_wt_39",
+                "model_str_39",
+                "lora_wt_40",
+                "model_str_40",
+                "lora_wt_41",
+                "model_str_41",
+                "lora_wt_42",
+                "model_str_42",
+                "lora_wt_43",
+                "model_str_43",
+                "lora_wt_44",
+                "model_str_44",
+                "lora_wt_45",
+                "model_str_45",
+                "lora_wt_46",
+                "model_str_46",
+                "lora_wt_47",
+                "model_str_47",
+                "lora_wt_48",
+                "model_str_48",
+                "lora_wt_49",
+                "model_str_49",
+                "lora_wt_50",
+                "model_str_50"
+            ]
+        },
+        "LORA_STRENGTH_CLIP": {
+            "fields": [
+                "clip_str_1",
+                "lora_wt_1",
+                "clip_str_2",
+                "lora_wt_2",
+                "clip_str_3",
+                "lora_wt_3",
+                "clip_str_4",
+                "lora_wt_4",
+                "clip_str_5",
+                "lora_wt_5",
+                "clip_str_6",
+                "lora_wt_6",
+                "clip_str_7",
+                "lora_wt_7",
+                "clip_str_8",
+                "lora_wt_8",
+                "clip_str_9",
+                "lora_wt_9",
+                "clip_str_10",
+                "lora_wt_10",
+                "clip_str_11",
+                "lora_wt_11",
+                "clip_str_12",
+                "lora_wt_12",
+                "clip_str_13",
+                "lora_wt_13",
+                "clip_str_14",
+                "lora_wt_14",
+                "clip_str_15",
+                "lora_wt_15",
+                "clip_str_16",
+                "lora_wt_16",
+                "clip_str_17",
+                "lora_wt_17",
+                "clip_str_18",
+                "lora_wt_18",
+                "clip_str_19",
+                "lora_wt_19",
+                "clip_str_20",
+                "lora_wt_20",
+                "clip_str_21",
+                "lora_wt_21",
+                "clip_str_22",
+                "lora_wt_22",
+                "clip_str_23",
+                "lora_wt_23",
+                "clip_str_24",
+                "lora_wt_24",
+                "clip_str_25",
+                "lora_wt_25",
+                "clip_str_26",
+                "lora_wt_26",
+                "clip_str_27",
+                "lora_wt_27",
+                "clip_str_28",
+                "lora_wt_28",
+                "clip_str_29",
+                "lora_wt_29",
+                "clip_str_30",
+                "lora_wt_30",
+                "clip_str_31",
+                "lora_wt_31",
+                "clip_str_32",
+                "lora_wt_32",
+                "clip_str_33",
+                "lora_wt_33",
+                "clip_str_34",
+                "lora_wt_34",
+                "clip_str_35",
+                "lora_wt_35",
+                "clip_str_36",
+                "lora_wt_36",
+                "clip_str_37",
+                "lora_wt_37",
+                "clip_str_38",
+                "lora_wt_38",
+                "clip_str_39",
+                "lora_wt_39",
+                "clip_str_40",
+                "lora_wt_40",
+                "clip_str_41",
+                "lora_wt_41",
+                "clip_str_42",
+                "lora_wt_42",
+                "clip_str_43",
+                "lora_wt_43",
+                "clip_str_44",
+                "lora_wt_44",
+                "clip_str_45",
+                "lora_wt_45",
+                "clip_str_46",
+                "lora_wt_46",
+                "clip_str_47",
+                "lora_wt_47",
+                "clip_str_48",
+                "lora_wt_48",
+                "clip_str_49",
+                "lora_wt_49",
+                "clip_str_50",
+                "lora_wt_50"
+            ]
+        }
+    },
+    "XY Input: Sampler/Scheduler": {
+        "SAMPLER_NAME": {
+            "field_name": "sampler_27"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler_32"
+        }
+    },
+    "XY Input: LoRA": {
+        "LORA_MODEL_NAME": {
+            "fields": [
+                "lora_name_1",
+                "lora_name_2",
+                "lora_name_3",
+                "lora_name_4",
+                "lora_name_5",
+                "lora_name_6",
+                "lora_name_7",
+                "lora_name_8",
+                "lora_name_9",
+                "lora_name_10",
+                "lora_name_11",
+                "lora_name_12",
+                "lora_name_13",
+                "lora_name_14",
+                "lora_name_15",
+                "lora_name_16",
+                "lora_name_17",
+                "lora_name_18",
+                "lora_name_19",
+                "lora_name_20",
+                "lora_name_21",
+                "lora_name_22",
+                "lora_name_23",
+                "lora_name_24",
+                "lora_name_25",
+                "lora_name_26",
+                "lora_name_27",
+                "lora_name_28",
+                "lora_name_29",
+                "lora_name_30",
+                "lora_name_31",
+                "lora_name_32",
+                "lora_name_33",
+                "lora_name_34",
+                "lora_name_35",
+                "lora_name_36",
+                "lora_name_37",
+                "lora_name_38",
+                "lora_name_39",
+                "lora_name_40",
+                "lora_name_41",
+                "lora_name_42",
+                "lora_name_43",
+                "lora_name_44",
+                "lora_name_45",
+                "lora_name_46",
+                "lora_name_47",
+                "lora_name_48",
+                "lora_name_49",
+                "lora_name_50",
+                "lora_count",
+                "lora_stack"
+            ]
+        },
+        "LORA_MODEL_HASH": {
+            "fields": [
+                "lora_name_1",
+                "lora_name_2",
+                "lora_name_3",
+                "lora_name_4",
+                "lora_name_5",
+                "lora_name_6",
+                "lora_name_7",
+                "lora_name_8",
+                "lora_name_9",
+                "lora_name_10",
+                "lora_name_11",
+                "lora_name_12",
+                "lora_name_13",
+                "lora_name_14",
+                "lora_name_15",
+                "lora_name_16",
+                "lora_name_17",
+                "lora_name_18",
+                "lora_name_19",
+                "lora_name_20",
+                "lora_name_21",
+                "lora_name_22",
+                "lora_name_23",
+                "lora_name_24",
+                "lora_name_25",
+                "lora_name_26",
+                "lora_name_27",
+                "lora_name_28",
+                "lora_name_29",
+                "lora_name_30",
+                "lora_name_31",
+                "lora_name_32",
+                "lora_name_33",
+                "lora_name_34",
+                "lora_name_35",
+                "lora_name_36",
+                "lora_name_37",
+                "lora_name_38",
+                "lora_name_39",
+                "lora_name_40",
+                "lora_name_41",
+                "lora_name_42",
+                "lora_name_43",
+                "lora_name_44",
+                "lora_name_45",
+                "lora_name_46",
+                "lora_name_47",
+                "lora_name_48",
+                "lora_name_49",
+                "lora_name_50",
+                "lora_count",
+                "lora_stack"
+            ],
+            "format": "calc_lora_hash"
+        },
+        "LORA_STRENGTH_MODEL": {
+            "fields": [
+                "model_str_1",
+                "model_str_2",
+                "model_str_3",
+                "model_str_4",
+                "model_str_5",
+                "model_str_6",
+                "model_str_7",
+                "model_str_8",
+                "model_str_9",
+                "model_str_10",
+                "model_str_11",
+                "model_str_12",
+                "model_str_13",
+                "model_str_14",
+                "model_str_15",
+                "model_str_16",
+                "model_str_17",
+                "model_str_18",
+                "model_str_19",
+                "model_str_20",
+                "model_str_21",
+                "model_str_22",
+                "model_str_23",
+                "model_str_24",
+                "model_str_25",
+                "model_str_26",
+                "model_str_27",
+                "model_str_28",
+                "model_str_29",
+                "model_str_30",
+                "model_str_31",
+                "model_str_32",
+                "model_str_33",
+                "model_str_34",
+                "model_str_35",
+                "model_str_36",
+                "model_str_37",
+                "model_str_38",
+                "model_str_39",
+                "model_str_40",
+                "model_str_41",
+                "model_str_42",
+                "model_str_43",
+                "model_str_44",
+                "model_str_45",
+                "model_str_46",
+                "model_str_47",
+                "model_str_48",
+                "model_str_49",
+                "model_str_50",
+                "clip_strength",
+                "model_strength"
+            ]
+        },
+        "LORA_STRENGTH_CLIP": {
+            "fields": [
+                "clip_str_1",
+                "clip_str_2",
+                "clip_str_3",
+                "clip_str_4",
+                "clip_str_5",
+                "clip_str_6",
+                "clip_str_7",
+                "clip_str_8",
+                "clip_str_9",
+                "clip_str_10",
+                "clip_str_11",
+                "clip_str_12",
+                "clip_str_13",
+                "clip_str_14",
+                "clip_str_15",
+                "clip_str_16",
+                "clip_str_17",
+                "clip_str_18",
+                "clip_str_19",
+                "clip_str_20",
+                "clip_str_21",
+                "clip_str_22",
+                "clip_str_23",
+                "clip_str_24",
+                "clip_str_25",
+                "clip_str_26",
+                "clip_str_27",
+                "clip_str_28",
+                "clip_str_29",
+                "clip_str_30",
+                "clip_str_31",
+                "clip_str_32",
+                "clip_str_33",
+                "clip_str_34",
+                "clip_str_35",
+                "clip_str_36",
+                "clip_str_37",
+                "clip_str_38",
+                "clip_str_39",
+                "clip_str_40",
+                "clip_str_41",
+                "clip_str_42",
+                "clip_str_43",
+                "clip_str_44",
+                "clip_str_45",
+                "clip_str_46",
+                "clip_str_47",
+                "clip_str_48",
+                "clip_str_49",
+                "clip_str_50",
+                "clip_strength",
+                "model_strength"
+            ]
+        }
+    },
+    "XY Input: LoRA Plot": {
+        "LORA_MODEL_NAME": {
+            "fields": [
+                "lora_name",
+                "lora_stack"
+            ]
+        },
+        "LORA_MODEL_HASH": {
+            "fields": [
+                "lora_name",
+                "lora_stack"
+            ],
+            "format": "calc_lora_hash"
+        },
+        "LORA_STRENGTH_MODEL": {
+            "fields": [
+                "clip_strength",
+                "model_strength"
+            ]
+        },
+        "LORA_STRENGTH_CLIP": {
+            "fields": [
+                "clip_strength",
+                "model_strength"
+            ]
+        }
+    },
+    "XY Input: LoRA Stacks": {
+        "LORA_MODEL_NAME": {
+            "fields": [
+                "lora_stack_1",
+                "lora_stack_2",
+                "lora_stack_3",
+                "lora_stack_4",
+                "lora_stack_5"
+            ]
+        },
+        "LORA_MODEL_HASH": {
+            "fields": [
+                "lora_stack_1",
+                "lora_stack_2",
+                "lora_stack_3",
+                "lora_stack_4",
+                "lora_stack_5"
+            ],
+            "format": "calc_lora_hash"
+        }
+    },
+    "LoRA Stack to String converter": {
+        "LORA_MODEL_NAME": {
+            "field_name": "lora_stack"
+        },
+        "LORA_MODEL_HASH": {
+            "field_name": "lora_stack",
+            "format": "calc_lora_hash"
+        }
+    },
+    "FBGSampler": {
+        "CFG": {
+            "field_name": "cfg_scale"
+        },
+        "GUIDANCE": {
+            "field_name": "max_guidance_scale"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_mode"
+        }
+    },
+    "ClipLoaderGGUF": {
+        "CLIP_MODEL_NAME": {
+            "field_name": "clip_name"
+        }
+    },
+    "DualClipLoaderGGUF": {
+        "CLIP_MODEL_NAME": {
+            "fields": [
+                "clip_name1",
+                "clip_name2"
+            ]
+        }
+    },
+    "TripleClipLoaderGGUF": {
+        "CLIP_MODEL_NAME": {
+            "fields": [
+                "clip_name1",
+                "clip_name2",
+                "clip_name3"
+            ]
+        }
+    },
+    "QuadrupleClipLoaderGGUF": {
+        "CLIP_MODEL_NAME": {
+            "fields": [
+                "clip_name1",
+                "clip_name2",
+                "clip_name3",
+                "clip_name4"
+            ]
+        }
+    },
+    "VaeGGUF": {
+        "VAE_NAME": {
+            "field_name": "vae_name"
+        },
+        "VAE_HASH": {
+            "field_name": "vae_name",
+            "format": "calc_vae_hash"
+        }
+    },
+    "Load Remote Models": {
+        "MODEL_NAME": {
+            "field_name": "Sort_Models"
+        },
+        "MODEL_HASH": {
+            "field_name": "Sort_Models",
+            "format": "calc_unet_hash"
+        }
+    },
+    "FluxLoader": {
+        "MODEL_NAME": {
+            "field_name": "model_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "model_name",
+            "format": "calc_unet_hash"
+        },
+        "VAE_NAME": {
+            "field_name": "vae_name"
+        },
+        "VAE_HASH": {
+            "field_name": "vae_name",
+            "format": "calc_vae_hash"
+        },
+        "WEIGHT_DTYPE": {
+            "field_name": "weight_dtype"
+        }
+    },
+    "SD35Loader": {
+        "MODEL_NAME": {
+            "field_name": "model_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "model_name",
+            "format": "calc_unet_hash"
+        },
+        "VAE_NAME": {
+            "field_name": "vae_name"
+        },
+        "VAE_HASH": {
+            "field_name": "vae_name",
+            "format": "calc_vae_hash"
+        },
+        "WEIGHT_DTYPE": {
+            "field_name": "weight_dtype"
+        }
+    },
+    "ClownModelLoader": {
+        "MODEL_NAME": {
+            "field_name": "model_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "model_name",
+            "format": "calc_unet_hash"
+        },
+        "VAE_NAME": {
+            "field_name": "vae_name"
+        },
+        "VAE_HASH": {
+            "field_name": "vae_name",
+            "format": "calc_vae_hash"
+        },
+        "WEIGHT_DTYPE": {
+            "field_name": "weight_dtype"
+        }
+    },
+    "SeedGenerator": {
+        "SEED": {
+            "field_name": "seed"
+        }
+    },
+    "LatentNoiseBatch_perlin": {
+        "IMAGE_WIDTH": {
+            "field_name": "width"
+        },
+        "IMAGE_HEIGHT": {
+            "field_name": "height"
+        }
+    },
+    "EmptyLatentImage64": {
+        "IMAGE_WIDTH": {
+            "field_name": "width"
+        },
+        "IMAGE_HEIGHT": {
+            "field_name": "height"
+        }
+    },
+    "EmptyLatentImageCustom": {
+        "IMAGE_WIDTH": {
+            "field_name": "width"
+        },
+        "IMAGE_HEIGHT": {
+            "field_name": "height"
+        }
+    },
+    "VAEStyleTransferLatent": {
+        "VAE_NAME": {
+            "field_name": "vae"
+        },
+        "VAE_HASH": {
+            "field_name": "vae",
+            "format": "calc_vae_hash"
+        }
+    },
+    "SigmasSchedulePreview": {
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        }
+    },
+    "ModelSamplingAdvanced": {
+        "SHIFT": {
+            "field_name": "shift"
+        }
+    },
+    "ModelSamplingAdvancedResolution": {
+        "MAX_SHIFT": {
+            "field_name": "max_shift"
+        },
+        "BASE_SHIFT": {
+            "field_name": "base_shift"
+        }
+    },
+    "ClownScheduler": {
+        "STEPS": {
+            "field_name": "total_steps"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        }
+    },
+    "ClownOptions_SwapSampler_Beta": {
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        }
+    },
+    "SharkOptions_UltraCascade_Latent_Beta": {
+        "IMAGE_WIDTH": {
+            "field_name": "width"
+        },
+        "IMAGE_HEIGHT": {
+            "field_name": "height"
+        }
+    },
+    "ClownSamplerSelector_Beta": {
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        }
+    },
+    "SharkSampler_Beta": {
+        "SEED": {
+            "field_name": "seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        },
+        "DENOISE": {
+            "field_name": "denoise"
+        }
+    },
+    "SharkChainsampler_Beta": {
+        "STEPS": {
+            "field_name": "steps_to_run"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler"
+        }
+    },
+    "ClownsharKSampler_Beta": {
+        "SEED": {
+            "field_name": "seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        },
+        "DENOISE": {
+            "field_name": "denoise"
+        }
+    },
+    "ClownsharkChainsampler_Beta": {
+        "STEPS": {
+            "field_name": "steps_to_run"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        }
+    },
+    "ClownSampler_Beta": {
+        "SEED": {
+            "field_name": "seed"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        }
+    },
+    "ClownSamplerAdvanced_Beta": {
+        "SEED": {
+            "field_name": "noise_seed_sde"
+        },
+        "STEPS": {
+            "field_name": "implicit_substeps"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        }
+    },
+    "BongSampler": {
+        "SEED": {
+            "field_name": "seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        },
+        "DENOISE": {
+            "field_name": "denoise"
+        }
+    },
+    "Legacy_ClownSampler": {
+        "SEED": {
+            "field_name": "noise_seed"
+        },
+        "STEPS": {
+            "field_name": "implicit_steps"
+        },
+        "CFG": {
+            "field_name": "cfgpp"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "noise_sampler_type"
+        }
+    },
+    "Legacy_SharkSampler": {
+        "SEED": {
+            "field_name": "noise_seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        },
+        "DENOISE": {
+            "field_name": "denoise"
+        }
+    },
+    "Legacy_ClownsharKSampler": {
+        "SEED": {
+            "field_name": "noise_seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        },
+        "DENOISE": {
+            "field_name": "denoise"
+        }
+    },
+    "Legacy_ClownsharKSamplerGuides": {
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        },
+        "DENOISE": {
+            "field_name": "denoise"
+        }
+    },
+    "ClownSampler": {
+        "SEED": {
+            "field_name": "noise_seed_sde"
+        },
+        "STEPS": {
+            "field_name": "implicit_steps"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        }
+    },
+    "ClownSamplerAdvanced": {
+        "SEED": {
+            "field_name": "noise_seed_sde"
+        },
+        "STEPS": {
+            "field_name": "implicit_steps"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        }
+    },
+    "ClownsharKSampler": {
+        "SEED": {
+            "field_name": "noise_seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        },
+        "DENOISE": {
+            "field_name": "denoise"
+        }
+    },
+    "ClownsharKSamplerGuides": {
+        "SCHEDULER": {
+            "field_name": "guide_weight_scheduler"
+        }
+    },
+    "ClownsharKSamplerGuide": {
+        "SCHEDULER": {
+            "field_name": "guide_weight_scheduler"
+        }
+    },
+    "ClownsharKSamplerOptions": {
+        "SEED": {
+            "field_name": "noise_seed"
+        }
+    },
+    "SamplerOptions_TimestepScaling": {
+        "SAMPLER_NAME": {
+            "field_name": "sampler"
+        }
+    },
+    "SamplerOptions_GarbageCollection": {
+        "SAMPLER_NAME": {
+            "field_name": "sampler"
+        }
+    },
+    "UltraSharkSampler": {
+        "SEED": {
+            "field_name": "noise_seed"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler"
+        }
+    },
+    "UltraSharkSampler Tiled": {
+        "SEED": {
+            "field_name": "noise_seed"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler"
+        }
+    },
+    "Lora Loader Stack (rgthree)": {
+        "LORA_MODEL_NAME": {
+            "fields": [
+                "lora_01",
+                "lora_02",
+                "lora_03",
+                "lora_04"
+            ]
+        },
+        "LORA_MODEL_HASH": {
+            "fields": [
+                "lora_01",
+                "lora_02",
+                "lora_03",
+                "lora_04"
+            ],
+            "format": "calc_lora_hash"
+        }
+    },
+    "Seed (rgthree)": {
+        "SEED": {
+            "field_name": "seed"
+        }
+    },
+    "Power Prompt (rgthree)": {
+        "POSITIVE_PROMPT": {
+            "field_name": "prompt",
+            "validate": "is_positive_prompt"
+        },
+        "NEGATIVE_PROMPT": {
+            "field_name": "prompt",
+            "validate": "is_negative_prompt"
+        }
+    },
+    "Power Prompt - Simple (rgthree)": {
+        "POSITIVE_PROMPT": {
+            "field_name": "prompt",
+            "validate": "is_positive_prompt"
+        },
+        "NEGATIVE_PROMPT": {
+            "field_name": "prompt",
+            "validate": "is_negative_prompt"
+        }
+    },
+    "KSampler Config (rgthree)": {
+        "STEPS": {
+            "field_name": "steps_total"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        }
+    },
+    "SDXL Empty Latent Image (rgthree)": {
+        "IMAGE_WIDTH": {
+            "field_name": "dimensions"
+        },
+        "IMAGE_HEIGHT": {
+            "field_name": "dimensions"
+        }
+    },
+    "SDXL Power Prompt - Positive (rgthree)": {
+        "POSITIVE_PROMPT": {
+            "field_name": "prompt_l",
+            "validate": "is_positive_prompt"
+        },
+        "NEGATIVE_PROMPT": {
+            "field_name": "prompt_l",
+            "validate": "is_negative_prompt"
+        }
+    },
+    "SDXL Power Prompt - Simple / Negative (rgthree)": {
+        "POSITIVE_PROMPT": {
+            "field_name": "prompt_l",
+            "validate": "is_positive_prompt"
+        },
+        "NEGATIVE_PROMPT": {
+            "field_name": "prompt_l",
+            "validate": "is_negative_prompt"
+        }
+    },
+    "SeargeLoras": {
+        "LORA_MODEL_NAME": {
+            "fields": [
+                "lora_1",
+                "lora_1_strength",
+                "lora_2",
+                "lora_2_strength",
+                "lora_3",
+                "lora_3_strength",
+                "lora_4",
+                "lora_4_strength",
+                "lora_5",
+                "lora_5_strength"
+            ]
+        },
+        "LORA_MODEL_HASH": {
+            "fields": [
+                "lora_1",
+                "lora_1_strength",
+                "lora_2",
+                "lora_2_strength",
+                "lora_3",
+                "lora_3_strength",
+                "lora_4",
+                "lora_4_strength",
+                "lora_5",
+                "lora_5_strength"
+            ],
+            "format": "calc_lora_hash"
+        }
+    },
+    "SeargeModelSelector": {
+        "MODEL_NAME": {
+            "field_name": "refiner_checkpoint"
+        },
+        "MODEL_HASH": {
+            "field_name": "refiner_checkpoint",
+            "format": "calc_model_hash"
+        }
+    },
+    "SeargeSDXLSampler": {
+        "SEED": {
+            "field_name": "noise_seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        },
+        "DENOISE": {
+            "field_name": "denoise"
+        }
+    },
+    "SeargeSDXLSampler2": {
+        "SEED": {
+            "field_name": "noise_seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        },
+        "DENOISE": {
+            "field_name": "denoise"
+        }
+    },
+    "SeargeSDXLSamplerV3": {
+        "SEED": {
+            "field_name": "noise_seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        },
+        "DENOISE": {
+            "field_name": "denoise"
+        }
+    },
+    "SeargeSDXLImage2ImageSampler": {
+        "SEED": {
+            "field_name": "noise_seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        },
+        "DENOISE": {
+            "field_name": "denoise"
+        }
+    },
+    "SeargeSDXLImage2ImageSampler2": {
+        "SEED": {
+            "field_name": "noise_seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        },
+        "DENOISE": {
+            "field_name": "denoise"
+        }
+    },
+    "SeargeSamplerInputs": {
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        }
+    },
+    "SeargeCheckpointLoader": {
+        "MODEL_NAME": {
+            "field_name": "ckpt_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "ckpt_name",
+            "format": "calc_model_hash"
+        }
+    },
+    "SeargeVAELoader": {
+        "VAE_NAME": {
+            "field_name": "vae_name"
+        },
+        "VAE_HASH": {
+            "field_name": "vae_name",
+            "format": "calc_vae_hash"
+        }
+    },
+    "SeargeLoraLoader": {
+        "LORA_MODEL_NAME": {
+            "field_name": "lora_name"
+        },
+        "LORA_MODEL_HASH": {
+            "field_name": "lora_name",
+            "format": "calc_lora_hash"
+        },
+        "LORA_STRENGTH_MODEL": {
+            "fields": [
+                "strength_clip",
+                "strength_model"
+            ]
+        },
+        "LORA_STRENGTH_CLIP": {
+            "fields": [
+                "strength_clip",
+                "strength_model"
+            ]
+        }
+    },
+    "FaceProcessorLoader": {
+        "MODEL_NAME": {
+            "field_name": "yolo_model_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "yolo_model_name",
+            "format": "calc_unet_hash"
+        }
+    },
+    "BLIP Model Loader": {
+        "MODEL_NAME": {
+            "field_name": "vqa_model_id"
+        },
+        "MODEL_HASH": {
+            "field_name": "vqa_model_id",
+            "format": "calc_unet_hash"
+        }
+    },
+    "Checkpoint Loader": {
+        "MODEL_NAME": {
+            "field_name": "ckpt_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "ckpt_name",
+            "format": "calc_model_hash"
+        }
+    },
+    "Checkpoint Loader (Simple)": {
+        "MODEL_NAME": {
+            "field_name": "ckpt_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "ckpt_name",
+            "format": "calc_model_hash"
+        }
+    },
+    "CLIPSeg Model Loader": {
+        "MODEL_NAME": {
+            "field_name": "model"
+        },
+        "MODEL_HASH": {
+            "field_name": "model",
+            "format": "calc_unet_hash"
+        }
+    },
+    "Diffusers Model Loader": {
+        "MODEL_NAME": {
+            "field_name": "model_path"
+        },
+        "MODEL_HASH": {
+            "field_name": "model_path",
+            "format": "calc_unet_hash"
+        }
+    },
+    "Lora Loader": {
+        "LORA_MODEL_NAME": {
+            "field_name": "lora_name"
+        },
+        "LORA_MODEL_HASH": {
+            "field_name": "lora_name",
+            "format": "calc_lora_hash"
+        },
+        "LORA_STRENGTH_MODEL": {
+            "fields": [
+                "strength_clip",
+                "strength_model"
+            ]
+        },
+        "LORA_STRENGTH_CLIP": {
+            "fields": [
+                "strength_clip",
+                "strength_model"
+            ]
+        }
+    },
+    "KSampler (WAS)": {
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        },
+        "DENOISE": {
+            "field_name": "denoise"
+        }
+    },
+    "KSampler Cycle": {
+        "SEED": {
+            "field_name": "seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        },
+        "DENOISE": {
+            "field_name": "cycle_denoise"
+        }
+    },
+    "Load Lora": {
+        "LORA_MODEL_NAME": {
+            "field_name": "lora_name"
+        },
+        "LORA_MODEL_HASH": {
+            "field_name": "lora_name",
+            "format": "calc_lora_hash"
+        },
+        "LORA_STRENGTH_MODEL": {
+            "fields": [
+                "strength_clip",
+                "strength_model"
+            ]
+        },
+        "LORA_STRENGTH_CLIP": {
+            "fields": [
+                "strength_clip",
+                "strength_model"
+            ]
+        }
+    },
+    "MiDaS Model Loader": {
+        "MODEL_NAME": {
+            "field_name": "midas_model"
+        },
+        "MODEL_HASH": {
+            "field_name": "midas_model",
+            "format": "calc_unet_hash"
+        }
+    },
+    "Seed": {
+        "SEED": {
+            "field_name": "seed"
+        }
+    },
+    "SAM Model Loader": {
+        "MODEL_NAME": {
+            "field_name": "model_size"
+        },
+        "MODEL_HASH": {
+            "field_name": "model_size",
+            "format": "calc_unet_hash"
+        }
+    },
+    "unCLIP Checkpoint Loader": {
+        "MODEL_NAME": {
+            "field_name": "ckpt_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "ckpt_name",
+            "format": "calc_model_hash"
+        }
+    },
+    "Checkpoint Loader w/Name (WLSH)": {
+        "MODEL_NAME": {
+            "field_name": "ckpt_name"
+        },
+        "MODEL_HASH": {
+            "field_name": "ckpt_name",
+            "format": "calc_model_hash"
+        }
+    },
+    "KSamplerAdvanced (WLSH)": {
+        "SEED": {
+            "field_name": "seed"
+        },
+        "STEPS": {
+            "field_name": "steps"
+        },
+        "CFG": {
+            "field_name": "cfg"
+        },
+        "SAMPLER_NAME": {
+            "field_name": "sampler_name"
+        },
+        "SCHEDULER": {
+            "field_name": "scheduler"
+        },
+        "DENOISE": {
+            "field_name": "denoise"
+        }
+    },
+    "CLIP Positive-Negative (WLSH)": {
+        "POSITIVE_PROMPT": {
+            "field_name": "positive_text",
+            "validate": "is_positive_prompt"
+        },
+        "NEGATIVE_PROMPT": {
+            "field_name": "positive_text",
+            "validate": "is_negative_prompt"
+        }
+    },
+    "CLIP Positive-Negative XL (WLSH)": {
+        "POSITIVE_PROMPT": {
+            "field_name": "positive_g",
+            "validate": "is_positive_prompt"
+        },
+        "NEGATIVE_PROMPT": {
+            "field_name": "negative_g",
+            "validate": "is_negative_prompt"
+        }
+    },
+    "Empty Latent by Size (WLSH)": {
+        "IMAGE_WIDTH": {
+            "field_name": "width"
+        },
+        "IMAGE_HEIGHT": {
+            "field_name": "height"
+        }
+    },
+    "SDXL Quick Empty Latent (WLSH)": {
+        "IMAGE_WIDTH": {
+            "field_name": "resolution"
+        },
+        "IMAGE_HEIGHT": {
+            "field_name": "resolution"
+        }
+    },
+    "Seed and Int (WLSH)": {
+        "SEED": {
+            "field_name": "seed"
+        }
+    }
+}
