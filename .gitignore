@@ -141,13 +141,13 @@ cython_debug/
 
 
 # Local-only capture rules (created with `Metadata Rule Scanner` + `Save Custom Metadata Rules` nodes) and legacy folders
-saveimage_unimeta/user_captures.json
-saveimage_unimeta/user_samplers.json
-saveimage_unimeta/defs/ext/generated_user_rules.py
-saveimage_unimeta/py/
+# saveimage_unimeta/user_captures.json
+# saveimage_unimeta/user_samplers.json
+# saveimage_unimeta/defs/ext/generated_user_rules.py
+# saveimage_unimeta/py/
 saveimage_unimeta/user_rules/backups/
-saveimage_unimeta/user_rules/user_captures.json
-saveimage_unimeta/user_rules/user_samplers.json
+# saveimage_unimeta/user_rules/user_captures.json
+# saveimage_unimeta/user_rules/user_samplers.json
 
 # Debug files in tests directory
 tests/_test_outputs/user_rules/
@@ -171,7 +171,7 @@ scripts/
 .pytest_cache/
 .ruff_cache/
 tasksync/
-user_rules/
+# user_rules/
 
 # Local development/testing files
 # /dev_test_workflows/

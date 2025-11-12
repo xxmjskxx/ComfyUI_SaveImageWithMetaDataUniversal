@@ -254,6 +254,7 @@ HEURISTIC_RULES = [
             r"^strength_model_?\d{0,2}$",
             r"^lora_strength_?\d{0,2}$",
             r"^lora_wt_?\d{0,2}$",
+            r"^model_str_?\d{0,2}$",
             r"^strength_0?\d$",
         ),
         "required_context": ["lora_name"],

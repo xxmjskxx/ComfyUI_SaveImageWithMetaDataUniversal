@@ -79,7 +79,7 @@
     "inputs": {
       "shift": 3,
       "model": [
-        "89",
+        "117",
         0
       ]
     },
@@ -240,6 +240,20 @@
     "class_type": "Image Comparer (rgthree)",
     "_meta": {
       "title": "Image Comparer (rgthree)"
+    }
+  },
+  "117": {
+    "inputs": {
+      "sage_attention": "disabled",
+      "allow_compile": false,
+      "model": [
+        "89",
+        0
+      ]
+    },
+    "class_type": "PathchSageAttentionKJ",
+    "_meta": {
+      "title": "Patch Sage Attention KJ"
     }
   }
 }
