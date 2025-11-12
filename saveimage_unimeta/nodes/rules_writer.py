@@ -143,11 +143,11 @@ class SaveCustomMetadataRules:
         # Path constants (shared with loader semantics)
         PY_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # noqa: N806
         # Test isolation parity with loader: if METADATA_TEST_MODE and an existing
-        # _test_outputs/user_rules directory is present, prefer it so writer output
+        # tests/_test_outputs/user_rules directory is present, prefer it so writer output
         # does not pollute real tree. (Do not auto-create to avoid unintended
         # divergence from loader semantics which only prefers when it already exists.)
         test_mode = os.environ.get("METADATA_TEST_MODE", "").strip().lower() in {"1", "true", "yes", "on"}
-        preferred_test_dir = os.path.join(PY_DIR, "_test_outputs", "user_rules")
+        preferred_test_dir = os.path.join(PY_DIR, "tests/_test_outputs", "user_rules")
         if test_mode and os.path.isdir(preferred_test_dir):
             USER_RULES_DIR = preferred_test_dir  # noqa: N806
         else:

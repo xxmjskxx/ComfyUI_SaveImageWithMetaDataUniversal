@@ -5,9 +5,26 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 _No changes yet._
 
+## [1.2.2] - 2025-11-12
+### Fixed
+- Resolved AttributeError encountered in certain image save flows in ComfyUI builds that use `get_cache` (capture pipeline robustness improvements).
+- Issue #29: Added missing `get_cache` method (alias) preventing AttributeError on newer ComfyUI builds.
+- Lint compliance adjustments to test metadata validation script (`validate_metadata.py`) for ruff 120 char limit.
+- Minor sampler name recovery heuristics documented (no breaking changes).
+
+### Changed
+- Improved error message formatting for LoRA name mismatches and missing LoRAs.
+- Structured internal functions now use wrapped long lines for readability within tooling constraints.
+- Added ComfyUI cli test scripts and workflows to `tests\comfyui_cli_tests`.
+- Changed all references of `_test_outputs` to `tests/_test_outputs`.
+- Update version in `aveimage_unimeta/capture.py` to 1.2.2.
+
+### Internal
+- Follow‑up to undocumented 1.2.1; consolidates sampler fallback and validation script lint compliance.
+
 ## [1.2.1] - 2025-10-15
 ### Added
-- Compatibility wrapper `_OutputCacheCompat` for evolving ComfyUI API (supports `get_output_cache` and `get_cache`).
+- Compatibility wrapper `_OutputCacheCompat` for evolving ComfyUI API (supports `get_output_cache`).
 - Expanded CLI workflow validation utilities (`tests/comfyui_cli_tests/validate_metadata.py`, workflow JSON fixtures) covering sampler, prompt, LoRA, embedding, size, and fallback scenarios.
 - Additional workflow test JSONs for large JPEG/WebP metadata fallback edge cases and dual‑prompt Flux variants.
 - Test `test_output_cache_compat.py` ensuring wrapper behavior.
@@ -18,25 +35,11 @@ _No changes yet._
 - Cleaned test imports & trimmed legacy artifacts for faster CI feedback.
 
 ### Fixed
-- Issue #29: Added missing `get_cache` method (alias) preventing AttributeError on newer ComfyUI builds.
 - Minor path and casing inconsistencies in workflow test fixtures.
 - Early fallback handling for missing Flux dual prompts (T5 / CLIP) in validation paths.
 
 ### Internal
 - Foundation work preparing for 1.2.2 capture robustness; this release documents previously unrecorded changes between v1.2.0 and v1.2.2.
-
-## [1.2.2] - 2025-11-12
-### Fixed
-- Resolved AttributeError encountered in certain image save flows (capture pipeline robustness improvements).
-- Lint compliance adjustments to test metadata validation script (`validate_metadata.py`) for ruff 120 char limit.
-- Minor sampler name recovery heuristics documented (no breaking changes).
-
-### Changed
-- Improved error message formatting for LoRA name mismatches and missing LoRAs.
-- Structured internal functions now use wrapped long lines for readability within tooling constraints.
-
-### Internal
-- Follow‑up to undocumented 1.2.1; consolidates sampler fallback and validation script lint compliance.
 
 ## [1.2.0] - 2025-09-26
 ### Added

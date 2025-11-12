@@ -91,7 +91,7 @@ class _OutputCacheCompat:
 
 
 # Versioning and feature flags
-CAPTURE_VERSION = "1.0.0"
+CAPTURE_VERSION = "1.2.2"
 
 
 # Dynamic flag function so tests can toggle at runtime instead of snapshot at import
