@@ -4,7 +4,9 @@ Below are 7 interrelated tasks, split into to main categories. Each of the 7 tas
 
 ## A. Fix bugs with metadata tracing, generation, recording
 
-### 1. The recent changes you made to 'saveimage_unimeta\defs\ext\efficiency_nodes.py' didn't seem to help with the 'LoRA Stacker' efficiency node. Here's some relevant validation log info:
+### 1. The recent changes you made to 'saveimage_unimeta\defs\ext\efficiency_nodes.py' didn't seem to help with the 'LoRA Stacker' efficiency node. 
+
+Here's some relevant validation log info:
 
 - Validating workflow: flux-eff-LoRA-stack-ClownsharK.json
   - Expected format: png
