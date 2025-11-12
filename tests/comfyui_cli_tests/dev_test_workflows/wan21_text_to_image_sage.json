@@ -89,7 +89,7 @@
     "inputs": {
       "shift": 8,
       "model": [
-        "14",
+        "13",
         0
       ]
     },
@@ -179,25 +179,6 @@
     "class_type": "PathchSageAttentionKJ",
     "_meta": {
       "title": "Patch Sage Attention KJ"
-    }
-  },
-  "14": {
-    "inputs": {
-      "backend": "inductor",
-      "fullgraph": false,
-      "mode": "default",
-      "dynamic": false,
-      "compile_transformer_blocks_only": true,
-      "dynamo_cache_size_limit": 64,
-      "force_parameter_static_shapes": true,
-      "model": [
-        "13",
-        0
-      ]
-    },
-    "class_type": "TorchCompileModelWanVideoV2",
-    "_meta": {
-      "title": "TorchCompileModelWanVideoV2"
     }
   }
 }

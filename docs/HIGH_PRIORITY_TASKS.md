@@ -4,7 +4,9 @@ Below are 7 interrelated tasks, split into to main categories. Each of the 7 tas
 
 ## A. Fix bugs with metadata tracing, generation, recording
 
-### 1. The recent changes you made to 'saveimage_unimeta\defs\ext\efficiency_nodes.py' didn't seem to help with the 'LoRA Stacker' efficiency node. Here's some relevant validation log info:
+### 1. The recent changes you made to 'saveimage_unimeta\defs\ext\efficiency_nodes.py' didn't seem to help with the 'LoRA Stacker' efficiency node. 
+
+Here's some relevant validation log info:
 
 - Validating workflow: flux-eff-LoRA-stack-ClownsharK.json
   - Expected format: png
@@ -27,6 +29,7 @@ Problems:
 - Hashes in the 'Hashes' section have 'None' recorded. 
 
 I've pushed these files to the repo: 'saveimage_unimeta/defs/ext/generated_user_rules.py', 'saveimage_unimeta/user_rules/user_captures.json', 'saveimage_unimeta/user_rules/user_samplers.json'. I will delete them later because each user has to generate their own rules based on the nodes they have installed, but for now you can use these files to reference how the nodes are creating capture rules during a given commit so you can better understand what changes need to be made. 'generated_user_rules.py' should likely be the most useful.
+Note: most samplers have been explicitly defined in the 'saveimage_unimeta\defs\samplers.py' file, so 'saveimage_unimeta/user_rules/user_samplers.json' actually has very little useful information. So, 'user_captures.json' and especially 'generated_user_rules.py' will be the most helpful.
 
 As you'll see, when you analyze the above files, the capture rules for the 'LoRA Stacker' node are completely wrong and a mess after your recent edits.
 
@@ -178,5 +181,4 @@ Exception ignored in: Exception ignored in sys.unraisablehook
 ```
 
 I'm not sure if this exception is something that should be addressed, or irrelevant.
-
 
