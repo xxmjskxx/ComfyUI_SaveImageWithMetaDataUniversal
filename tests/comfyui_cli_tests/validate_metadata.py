@@ -382,8 +382,8 @@ class WorkflowAnalyzer:
     @staticmethod
     def trace_node_input(workflow: dict, node_id: str, input_key: str) -> tuple[str | None, dict | None]:
         """Trace back through a node input connection to find the source node.
-        
-        Returns: (source_node_id, source_node) or (None, None) if not found
+
+        Returns: (source_node_id, source_node) or (None, None) if not found.
         """
         if node_id not in workflow:
             return None, None
@@ -406,8 +406,8 @@ class WorkflowAnalyzer:
     @staticmethod
     def extract_lora_stack_info(workflow: dict, lora_stack_id: str) -> list[dict]:
         """Extract LoRA information from a LoRA Stacker node.
-        
-        Returns: List of dicts with {name, model_strength, clip_strength}
+
+        Returns list of dicts with {name, model_strength, clip_strength}.
         """
         if lora_stack_id not in workflow:
             return []
@@ -442,13 +442,9 @@ class WorkflowAnalyzer:
 
     @staticmethod
     def extract_expected_metadata_for_save_node(workflow: dict, save_node_id: str, save_node: dict) -> dict[str, Any]:
-        """Extract complete expected metadata for a specific Save Image node by tracing its connections.
-        
-        Returns a dict with all expected metadata fields including:
-        - Basic save node settings (file_format, etc.)
-        - Sampler parameters (seed, steps, cfg, sampler_name, scheduler, denoise)
-        - Loader parameters (model, vae, clip_skip, dimensions, prompts)
-        - LoRA information (names, strengths)
+        """Extract expected metadata for one Save Image node by tracing connections.
+
+        Includes: save node settings, sampler params, loader params, LoRA info.
         """
         expected = {
             "save_node_id": save_node_id,
@@ -501,7 +497,13 @@ class WorkflowAnalyzer:
         loader_inputs = loader_node.get("inputs", {})
 
         # Model name
-        expected["model_name"] = loader_inputs.get("ckpt_name", loader_inputs.get("base_ckpt_name", loader_inputs.get("unet_name")))
+        expected["model_name"] = loader_inputs.get(
+            "ckpt_name",
+            loader_inputs.get(
+                "base_ckpt_name",
+                loader_inputs.get("unet_name"),
+            ),
+        )
 
         # VAE
         expected["vae_name"] = loader_inputs.get("vae_name")
@@ -879,7 +881,9 @@ class MetadataValidator:
         if expected_metadata.get("sampler_name"):
             # Just check that Sampler field exists
             if "Sampler" not in fields:
-                result["errors"].append(f"Sampler field missing, expected sampler '{expected_metadata['sampler_name']}'")
+                result["errors"].append(
+                    f"Sampler field missing, expected sampler '{expected_metadata['sampler_name']}'"
+                )
 
         # Validate scheduler
         if expected_metadata.get("scheduler"):
@@ -981,9 +985,11 @@ class MetadataValidator:
                     actual_lora_basename = Path(actual_lora_name).stem if actual_lora_name else ""
 
                     if actual_lora_basename != expected_lora_basename:
-                        result["errors"].append(
-                            f"LoRA {idx} name mismatch: expected '{expected_lora_basename}', got '{actual_lora_basename}'"
+                        msg = (
+                            f"LoRA {idx} name mismatch: expected '{expected_lora_basename}', "
+                            f"got '{actual_lora_basename}'"
                         )
+                        result["errors"].append(msg)
 
                     # Validate strengths (use numeric comparison)
                     if lora_model_str_key in fields:
@@ -996,16 +1002,24 @@ class MetadataValidator:
                         expected_clip_str = str(expected_lora["clip_strength"])
                         compare_numeric(expected_clip_str, actual_clip_str, f"LoRA {idx} clip strength")
                 else:
-                    result["errors"].append(f"Expected LoRA {idx} ('{expected_lora['name']}') not found in metadata")
+                    result["errors"].append(
+                        f"Expected LoRA {idx} ('{expected_lora['name']}') not found in metadata"
+                    )
 
-    def validate_image(self, image_path: Path, workflow_name: str, expected: dict, expected_save_node: dict | None = None) -> dict:
+    def validate_image(
+        self,
+        image_path: Path,
+        workflow_name: str,
+        expected: dict,
+        expected_save_node: dict | None = None,
+    ) -> dict:
         """Validate a single image's metadata.
-        
+
         Args:
-            image_path: Path to the image file
-            workflow_name: Name of the workflow
-            expected: Overall expected metadata from workflow
-            expected_save_node: Specific expected metadata for this save node (if known)
+            image_path: Path to the image file.
+            workflow_name: Workflow name.
+            expected: Overall expected metadata.
+            expected_save_node: Specific expected metadata for the save node.
         """
         result = {
             "image_path": str(image_path),

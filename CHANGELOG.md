@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 _No changes yet._
 
+## [1.2.1] - 2025-10-15
+### Added
+- Compatibility wrapper `_OutputCacheCompat` for evolving ComfyUI API (supports `get_output_cache` and `get_cache`).
+- Expanded CLI workflow validation utilities (`tests/comfyui_cli_tests/validate_metadata.py`, workflow JSON fixtures) covering sampler, prompt, LoRA, embedding, size, and fallback scenarios.
+- Additional workflow test JSONs for large JPEG/WebP metadata fallback edge cases and dual‑prompt Flux variants.
+- Test `test_output_cache_compat.py` ensuring wrapper behavior.
+
+### Changed
+- Refined capture traversal to gracefully skip absent prompt executer caches without aborting image save.
+- Improved sampler name recovery heuristics (graph introspection + token scan) prior to 1.2.2 robustness tweaks.
+- Cleaned test imports & trimmed legacy artifacts for faster CI feedback.
+
+### Fixed
+- Issue #29: Added missing `get_cache` method (alias) preventing AttributeError on newer ComfyUI builds.
+- Minor path and casing inconsistencies in workflow test fixtures.
+- Early fallback handling for missing Flux dual prompts (T5 / CLIP) in validation paths.
+
+### Internal
+- Foundation work preparing for 1.2.2 capture robustness; this release documents previously unrecorded changes between v1.2.0 and v1.2.2.
+
+## [1.2.2] - 2025-11-12
+### Fixed
+- Resolved AttributeError encountered in certain image save flows (capture pipeline robustness improvements).
+- Lint compliance adjustments to test metadata validation script (`validate_metadata.py`) for ruff 120 char limit.
+- Minor sampler name recovery heuristics documented (no breaking changes).
+
+### Changed
+- Improved error message formatting for LoRA name mismatches and missing LoRAs.
+- Structured internal functions now use wrapped long lines for readability within tooling constraints.
+
+### Internal
+- Follow‑up to undocumented 1.2.1; consolidates sampler fallback and validation script lint compliance.
+
 ## [1.2.0] - 2025-09-26
 ### Added
 - Tests: missing-only lens behavior, forced sampler role retention, scanner cache path parity.
@@ -106,7 +139,9 @@ Note: 1.0.0 was the first public registry release; this minor release formalizes
 
 ---
 
-[Unreleased]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.2.2...HEAD
+[1.2.2]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.2.1...v1.2.2
+[1.2.1]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.1.2...v1.2.0
 
 ## [0.1.0] - 2025-09-20 (Initial Internal Release)

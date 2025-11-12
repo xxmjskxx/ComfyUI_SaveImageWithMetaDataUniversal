@@ -3,7 +3,7 @@ name = "SaveImageWithMetaDataUniversal"
 description = """
 Node for saving PNGs, WEBPs, and JPEGs with rich automatically captured metadata from any node: prompts, model/VAE/LoRA names & hashes, sampler & scheduler (Civitai-compatible), optional workflow embedding, dynamic rule scanning + forced include system, deterministic ordering, filename tokens, and staged JPEG metadata fallback.
 """
-version = "1.2.0"
+version = "1.2.2"
 license = { file = "LICENSE" }
 
 [project.urls]
