@@ -5,10 +5,24 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 _No changes yet._
 
+## [1.2.3] - 2025-11-13
+### Fixed
+- Resolved AttributeError in ComfyUI 0.3.65+ cache flows (compat wrapper + capture robustness).
+- Added missing `get_cache` alias ensuring forward compatibility (Issue #29 continuity from prior groundwork).
+- Minor README clarifications (rerun nodes note) and typo corrections.
+
+### Changed
+- Path normalization (`_test_outputs` → `tests/_test_outputs`) carried forward; documentation note on workflow rerun behavior.
+
+### Internal
+- Merge PR #51 and #52 consolidated compatibility work introduced earlier but not present in v1.2.2 tag.
+- Backfills release notes accuracy for earlier mistaken attribution.
+
+### Notes
+- This release contains the compatibility fix previously (incorrectly) listed under 1.2.2. See 1.2.2 Errata.
+
 ## [1.2.2] - 2025-11-12
 ### Fixed
-- Resolved AttributeError encountered in certain image save flows in ComfyUI builds that use `get_cache` (capture pipeline robustness improvements).
-- Issue #29: Added missing `get_cache` method (alias) preventing AttributeError on newer ComfyUI builds.
 - Lint compliance adjustments to test metadata validation script (`validate_metadata.py`) for ruff 120 char limit.
 - Minor sampler name recovery heuristics documented (no breaking changes).
 
@@ -21,6 +35,8 @@ _No changes yet._
 
 ### Internal
 - Follow‑up to undocumented 1.2.1; consolidates sampler fallback and validation script lint compliance.
+### Errata
+- The ComfyUI 0.3.65+ AttributeError fix and `get_cache` alias were not in the v1.2.2 tag; they landed later and are correctly part of 1.2.3.
 
 ## [1.2.1] - 2025-10-15
 ### Added
@@ -143,6 +159,7 @@ Note: 1.0.0 was the first public registry release; this minor release formalizes
 ---
 
 [Unreleased]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.2.2...HEAD
+[1.2.3]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.2.2...v1.2.3
 [1.2.2]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.1.2...v1.2.0
