@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 _No changes yet._
 
+## [1.2.4] - 2025-11-12
+### Changed
+- Changelog corrected to accurately attribute ComfyUI 0.3.65+ compatibility fix to 1.2.3 (added Errata under 1.2.2).
+
+### Internal
+- Merge PR #53 (documentation alignment); no functional code changes beyond prior releases.
+
+### Notes
+- Pure documentation / release metadata correction; users on 1.2.3 already have the fix.
+
 ## [1.2.3] - 2025-11-13
 ### Fixed
 - Resolved AttributeError in ComfyUI 0.3.65+ cache flows (compat wrapper + capture robustness).
@@ -158,7 +168,8 @@ Note: 1.0.0 was the first public registry release; this minor release formalizes
 
 ---
 
-[Unreleased]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.2.2...HEAD
+[Unreleased]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.2.4...HEAD
+[1.2.4]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.2.3...v1.2.4
 [1.2.3]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.2.2...v1.2.3
 [1.2.2]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.2.0...v1.2.1
