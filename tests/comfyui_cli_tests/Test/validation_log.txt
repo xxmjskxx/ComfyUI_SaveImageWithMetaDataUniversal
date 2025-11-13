@@ -1,8 +1,8 @@
 ======================================================================
 ComfyUI Metadata Validation
 ======================================================================
-Workflow Dir: C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI\custom_nodes\ComfyUI_SaveImageWithMetaDataUniversal\tests\comfyui_cli_tests\dev_test_workflows
-Output Dir:   tests\comfyui_cli_tests\Test
+Workflow Dir: /home/runner/work/ComfyUI_SaveImageWithMetaDataUniversal/ComfyUI_SaveImageWithMetaDataUniversal/tests/comfyui_cli_tests/dev_test_workflows
+Output Dir:   tests/comfyui_cli_tests/Test
 ======================================================================
 
 Scanning for images...
@@ -14,17 +14,18 @@ Validating workflow: efficiency-nodes.json
   Found 4 matching image(s)
     ✓ eff-without-meta_00004_.png (0 checks)
         Warning: Control image (without-meta) - no metadata expected
-    ✗ eff_adv_00002_.png (32 checks)
-        Error: LoRA count mismatch: expected 2 LoRAs, got 4
-        Error: LoRA 0 name mismatch: expected 'Majora_Zelda', got '1'
-        Error: LoRA 1 name mismatch: expected 'ootlink-nvwls-v1', got 'None'
-        Error: LoRA '1.0' has metadata but is missing from Hashes summary
     ✗ eff_basic_00004_.png (27 checks)
         Error: Field 'Lora_0 Model hash' contains 'N/A' value: N/A
         Error: LoRA '1.0' has metadata but is missing from Hashes summary
         Error: LoRA hash for Lora_0 is 'N/A' - hash should always be computed
+    ✗ eff_adv_00002_.png (32 checks)
+        Error: LoRA count mismatch: expected 2 LoRAs, got 4
+        Error: LoRA 0 name mismatch: expected 'LoRA\sd15\zelda\Majora_Zelda', got '1'
+        Error: LoRA 1 name mismatch: expected 'LoRA\sd15\zelda\ootlink-nvwls-v1', got 'None'
+        Error: LoRA '1.0' has metadata but is missing from Hashes summary
     ✗ eff_xl_00002_.png (30 checks)
         Error: LoRA count mismatch: expected 1 LoRAs, got 3
+        Error: LoRA 0 name mismatch: expected 'LoRA\xl\style\dark_gothic_fantasy_xl_3.01', got 'dark_gothic_fantasy_xl_3.01'
         Error: Field 'Lora_1 Model hash' contains 'N/A' value: N/A
         Error: LoRA '1.0' has metadata but is missing from Hashes summary
         Error: LoRA hash for Lora_1 is 'N/A' - hash should always be computed
@@ -33,12 +34,12 @@ Validating workflow: embedding_lora_vae_upscale_dual_sampler.json
   Found 1 Save Image node(s)
   Filename patterns: Embedding-Vae, Embedding-without-meta
   Found 2 matching image(s)
+    ✓ Embedding-without-meta_00001_.png (0 checks)
+        Warning: Control image (without-meta) - no metadata expected
     ✓ Embedding-Vae_00001_.png (21 checks)
         Steps: 20
         Sampler: dpmpp_2m Karras
         Seed: 123
-    ✓ Embedding-without-meta_00001_.png (0 checks)
-        Warning: Control image (without-meta) - no metadata expected
 
 Validating workflow: extra_metadata_clip_skip.json
   Found 1 Save Image node(s)
@@ -54,23 +55,6 @@ Validating workflow: filename_format_denoise.json
   Filename patterns: x_-siwm
   ⚠ Warning: No matching images found for this workflow
 
-Validating workflow: flux-civsampler-GCFG-lora-summary-batch3-turbo.json
-  Found 1 Save Image node(s)
-  Filename patterns: Flux-batch3-LoRA-summ-GCFG
-  Found 3 matching image(s)
-    ✓ 2025-11-11-214826-Flux-batch3-LoRA-summ-GCFG_00001_.png (18 checks)
-        Steps: 8
-        Sampler: Euler
-        Seed: 664708685477459
-    ✓ 2025-11-11-214826-Flux-batch3-LoRA-summ-GCFG_00002_.png (18 checks)
-        Steps: 8
-        Sampler: Euler
-        Seed: 664708685477459
-    ✓ 2025-11-11-214826-Flux-batch3-LoRA-summ-GCFG_00003_.png (18 checks)
-        Steps: 8
-        Sampler: Euler
-        Seed: 664708685477459
-
 Validating workflow: flux-CR-LoRA-stack-ClownsharK.json
   Found 1 Save Image node(s)
   Filename patterns: flux-CR-LoRA-stack-ClownsharK
@@ -78,6 +62,32 @@ Validating workflow: flux-CR-LoRA-stack-ClownsharK.json
     ✗ flux-CR-LoRA-stack-ClownsharK_00001_.png (20 checks)
         Error: LoRA '80sFantasyMovieMJ7Flux.safetensors' hash mismatch: metadata has '67a9c045d0' but Hashes summary has '30f425fe15'
         Error: LoRA 'closeupfilm.safetensors' hash mismatch: metadata has '67a9c045d0' but Hashes summary has 'f5481e1d05'
+
+Validating workflow: flux-PC-LoRA-inline-Inspire-KSampler.json
+  Found 1 Save Image node(s)
+  Filename patterns: flux-PC-LoRA-inline-Inspire-KSampler
+  Found 1 matching image(s)
+    ✓ flux-PC-LoRA-inline-Inspire-KSampler_00001_.png (22 checks)
+        Steps: 1
+        Sampler: deis Karras
+        Seed: 458302250093559
+
+Validating workflow: flux-civsampler-GCFG-lora-summary-batch3-turbo.json
+  Found 1 Save Image node(s)
+  Filename patterns: Flux-batch3-LoRA-summ-GCFG
+  Found 3 matching image(s)
+    ✓ 2025-11-11-214826-Flux-batch3-LoRA-summ-GCFG_00002_.png (18 checks)
+        Steps: 8
+        Sampler: Euler
+        Seed: 664708685477459
+    ✓ 2025-11-11-214826-Flux-batch3-LoRA-summ-GCFG_00001_.png (18 checks)
+        Steps: 8
+        Sampler: Euler
+        Seed: 664708685477459
+    ✓ 2025-11-11-214826-Flux-batch3-LoRA-summ-GCFG_00003_.png (18 checks)
+        Steps: 8
+        Sampler: Euler
+        Seed: 664708685477459
 
 Validating workflow: flux-dual-clip-turbo.json
   Found 1 Save Image node(s)
@@ -98,15 +108,6 @@ Validating workflow: flux-eff-LoRA-stack-ClownsharK.json
         Error: LoRA 'FluxProtectorsOfNature.safetensors' hash mismatch: metadata has 'a1e0040929' but Hashes summary has '7118fb84e6'
         Error: LoRA '1.0' has metadata but is missing from Hashes summary
         Error: LoRA hash for Lora_3 is 'N/A' - hash should always be computed
-
-Validating workflow: flux-PC-LoRA-inline-Inspire-KSampler.json
-  Found 1 Save Image node(s)
-  Filename patterns: flux-PC-LoRA-inline-Inspire-KSampler
-  Found 1 matching image(s)
-    ✓ flux-PC-LoRA-inline-Inspire-KSampler_00001_.png (22 checks)
-        Steps: 1
-        Sampler: deis Karras
-        Seed: 458302250093559
 
 Validating workflow: flux-turbo.json
   Found 1 Save Image node(s)
@@ -201,17 +202,18 @@ Unmatched Workflows (1):
   - filename_format_denoise.json
 
 Failed Images:
-  - eff_adv_00002_.png (workflow: efficiency-nodes)
-      LoRA count mismatch: expected 2 LoRAs, got 4
-      LoRA 0 name mismatch: expected 'Majora_Zelda', got '1'
-      LoRA 1 name mismatch: expected 'ootlink-nvwls-v1', got 'None'
-      LoRA '1.0' has metadata but is missing from Hashes summary
   - eff_basic_00004_.png (workflow: efficiency-nodes)
       Field 'Lora_0 Model hash' contains 'N/A' value: N/A
       LoRA '1.0' has metadata but is missing from Hashes summary
       LoRA hash for Lora_0 is 'N/A' - hash should always be computed
+  - eff_adv_00002_.png (workflow: efficiency-nodes)
+      LoRA count mismatch: expected 2 LoRAs, got 4
+      LoRA 0 name mismatch: expected 'LoRA\sd15\zelda\Majora_Zelda', got '1'
+      LoRA 1 name mismatch: expected 'LoRA\sd15\zelda\ootlink-nvwls-v1', got 'None'
+      LoRA '1.0' has metadata but is missing from Hashes summary
   - eff_xl_00002_.png (workflow: efficiency-nodes)
       LoRA count mismatch: expected 1 LoRAs, got 3
+      LoRA 0 name mismatch: expected 'LoRA\xl\style\dark_gothic_fantasy_xl_3.01', got 'dark_gothic_fantasy_xl_3.01'
       Field 'Lora_1 Model hash' contains 'N/A' value: N/A
       LoRA '1.0' has metadata but is missing from Hashes summary
       LoRA hash for Lora_1 is 'N/A' - hash should always be computed

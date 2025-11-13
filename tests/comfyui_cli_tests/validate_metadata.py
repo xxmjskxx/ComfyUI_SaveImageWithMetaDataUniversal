@@ -59,11 +59,13 @@ class _Tee:
         try:
             self._stream.flush()
         except (ValueError, AttributeError):
+            # Stream might be closed during shutdown, ignore flush errors
             pass
         try:
             if self._log_fp and not self._log_fp.closed:
                 self._log_fp.flush()
         except (ValueError, AttributeError):
+            # Log file might be closed during shutdown, ignore flush errors
             pass
 
 
@@ -382,7 +384,7 @@ class WorkflowAnalyzer:
     @staticmethod
     def trace_node_input(workflow: dict, node_id: str, input_key: str) -> tuple[str | None, dict | None]:
         """Trace back through a node input connection to find the source node.
-        
+
         Returns: (source_node_id, source_node) or (None, None) if not found
         """
         if node_id not in workflow:
@@ -406,7 +408,7 @@ class WorkflowAnalyzer:
     @staticmethod
     def extract_lora_stack_info(workflow: dict, lora_stack_id: str) -> list[dict]:
         """Extract LoRA information from a LoRA Stacker node.
-        
+
         Returns: List of dicts with {name, model_strength, clip_strength}
         """
         if lora_stack_id not in workflow:
@@ -443,7 +445,7 @@ class WorkflowAnalyzer:
     @staticmethod
     def extract_expected_metadata_for_save_node(workflow: dict, save_node_id: str, save_node: dict) -> dict[str, Any]:
         """Extract complete expected metadata for a specific Save Image node by tracing its connections.
-        
+
         Returns a dict with all expected metadata fields including:
         - Basic save node settings (file_format, etc.)
         - Sampler parameters (seed, steps, cfg, sampler_name, scheduler, denoise)
@@ -501,7 +503,9 @@ class WorkflowAnalyzer:
         loader_inputs = loader_node.get("inputs", {})
 
         # Model name
-        expected["model_name"] = loader_inputs.get("ckpt_name", loader_inputs.get("base_ckpt_name", loader_inputs.get("unet_name")))
+        expected["model_name"] = loader_inputs.get(
+            "ckpt_name", loader_inputs.get("base_ckpt_name", loader_inputs.get("unet_name"))
+        )
 
         # VAE
         expected["vae_name"] = loader_inputs.get("vae_name")
@@ -838,7 +842,7 @@ class MetadataValidator:
 
         # Track validation checks performed
         checks_performed = 0
-        
+
         def compare_numeric(expected, actual, field_name):
             """Compare numeric values, handling int/float differences."""
             nonlocal checks_performed
@@ -852,7 +856,7 @@ class MetadataValidator:
                 # If conversion fails, do string comparison
                 if str(expected) != str(actual):
                     result["errors"].append(f"{field_name} mismatch: expected '{expected}', got '{actual}'")
-        
+
         def check_field_present(field_name):
             """Check if field is present and count it."""
             nonlocal checks_performed
@@ -890,7 +894,9 @@ class MetadataValidator:
         if expected_metadata.get("sampler_name"):
             # Just check that Sampler field exists
             if "Sampler" not in fields:
-                result["errors"].append(f"Sampler field missing, expected sampler '{expected_metadata['sampler_name']}'")
+                result["errors"].append(
+                    f"Sampler field missing, expected sampler '{expected_metadata['sampler_name']}'"
+                )
 
         # Validate scheduler
         if expected_metadata.get("scheduler"):
@@ -993,7 +999,8 @@ class MetadataValidator:
 
                     if actual_lora_basename != expected_lora_basename:
                         result["errors"].append(
-                            f"LoRA {idx} name mismatch: expected '{expected_lora_basename}', got '{actual_lora_basename}'"
+                            f"LoRA {idx} name mismatch: expected '{expected_lora_basename}', "
+                            f"got '{actual_lora_basename}'"
                         )
 
                     # Validate strengths (use numeric comparison)
@@ -1008,41 +1015,41 @@ class MetadataValidator:
                         compare_numeric(expected_clip_str, actual_clip_str, f"LoRA {idx} clip strength")
                 else:
                     result["errors"].append(f"Expected LoRA {idx} ('{expected_lora['name']}') not found in metadata")
-        
+
         # Validate prompts if present
         if expected_metadata.get("positive_prompt"):
             if check_field_present("Positive prompt"):
                 # Prompts are at the beginning, just verify they exist
                 pass
-        
+
         if expected_metadata.get("negative_prompt"):
             if check_field_present("Negative prompt"):
                 pass
-        
+
         # Validate hashes are present (not N/A)
         if expected_metadata.get("model_name"):
             if check_field_present("Model hash"):
                 model_hash = fields.get("Model hash", "")
                 if model_hash == "N/A":
                     result["errors"].append("Model hash is 'N/A' - should be computed")
-        
+
         if expected_metadata.get("vae_name") and expected_metadata["vae_name"] != "Baked VAE":
             if check_field_present("VAE hash"):
                 vae_hash = fields.get("VAE hash", "")
                 if vae_hash == "N/A":
                     result["errors"].append("VAE hash is 'N/A' - should be computed")
-        
+
         # Validate batch size if present
         if expected_metadata.get("batch_size"):
             if check_field_present("Batch size"):
                 pass
-        
+
         # Validate ALL fields that are actually present in metadata
         # Check for presence of common metadata fields
         common_fields = ["Steps", "Sampler", "CFG scale", "Seed", "Size", "Model", "Model hash",
                         "Denoise", "Clip skip", "VAE", "VAE hash", "Hashes",
                         "Metadata generator version", "Positive prompt", "Negative prompt"]
-        
+
         for field in common_fields:
             if check_field_present(field):
                 # Field exists, validate it's not empty or N/A
@@ -1050,7 +1057,7 @@ class MetadataValidator:
                 if field.endswith(" hash") and value == "N/A":
                     # Already caught above, don't double-count
                     pass
-        
+
         # Count all Lora fields in actual metadata
         lora_field_patterns = [r"Lora_\d+ Model name", r"Lora_\d+ Model hash",
                               r"Lora_\d+ Model strength", r"Lora_\d+ Clip strength"]
@@ -1059,17 +1066,19 @@ class MetadataValidator:
                 if re.match(pattern, field_name):
                     checks_performed += 1
                     break
-        
+
         # Count all CLIP model fields
         if check_field_present("CLIP_1 Model name") or check_field_present("CLIP_2 Model name"):
             pass
-        
+
         # Store check count in result
         result["checks_performed"] = checks_performed
 
-    def validate_image(self, image_path: Path, workflow_name: str, expected: dict, expected_save_node: dict | None = None) -> dict:
+    def validate_image(
+        self, image_path: Path, workflow_name: str, expected: dict, expected_save_node: dict | None = None
+    ) -> dict:
         """Validate a single image's metadata.
-        
+
         Args:
             image_path: Path to the image file
             workflow_name: Name of the workflow
@@ -1489,6 +1498,7 @@ class MetadataValidator:
                         if len(rel_path.parts) > 1:
                             return True
                     except ValueError:
+                        # Image path is not relative to output_dir, continue with other matching strategies
                         pass
 
                 # Try to match based on seed if available
