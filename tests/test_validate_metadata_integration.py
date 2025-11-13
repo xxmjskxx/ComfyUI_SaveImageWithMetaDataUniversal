@@ -69,13 +69,13 @@ class TestValidateMetadataIntegration:
         # Should have save node
         assert expected["has_save_node"]
 
-        # Should have sampler info
-        assert len(expected["sampler_info"]) > 0
+        # Should have save nodes with metadata
+        assert len(expected["save_nodes"]) > 0
 
-        # First sampler should have steps, cfg, seed
-        sampler = expected["sampler_info"][0]
-        assert sampler.get("steps") is not None
-        assert sampler.get("cfg") is not None
+        # First save node should have steps, cfg, seed
+        save_node = expected["save_nodes"][0]
+        assert save_node.get("steps") is not None
+        assert save_node.get("cfg") is not None
 
     def test_flux_workflows(self):
         """Test various flux workflows."""
@@ -85,7 +85,7 @@ class TestValidateMetadataIntegration:
         ]
 
         for workflow_name in flux_workflows:
-            workflow_file = Path(f"dev_test_workflows/{workflow_name}")
+            workflow_file = Path(f"tests/comfyui_cli_tests/dev_test_workflows/{workflow_name}")
 
             if not workflow_file.exists():
                 pytest.skip(f"Workflow file not found: {workflow_file}")
@@ -98,8 +98,8 @@ class TestValidateMetadataIntegration:
             # Should have save node
             assert expected["has_save_node"]
 
-            # Should have sampler
-            assert len(expected["sampler_info"]) > 0
+            # Should have save nodes with metadata
+            assert len(expected["save_nodes"]) > 0
 
 
 class TestMetadataParserWithRealFormats:

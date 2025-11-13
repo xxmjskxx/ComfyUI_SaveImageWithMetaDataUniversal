@@ -363,8 +363,12 @@ class WorkflowAnalyzer:
                     # For example: "%date:yyyy-MM-dd-hhmmss%-Flux-dual-clip" -> "Flux-dual-clip"
                     # Remove all %...% patterns
                     cleaned = re.sub(r"%[^%]+%", "", clean_part)
-                    # Also remove any remaining separators from token removal
-                    cleaned = cleaned.strip("-_/")
+                    # Remove dimension separators (x between width/height tokens leaves stray "x")
+                    # This handles cases like "%width%x%height%" -> "x" -> ""
+                    cleaned = re.sub(r"^[x_\-/]+", "", cleaned)  # Remove leading separators and x
+                    cleaned = re.sub(r"[x_\-/]+$", "", cleaned)  # Remove trailing separators and x
+                    # Final cleanup of any remaining multiple separators
+                    cleaned = re.sub(r"[_\-/]+", "-", cleaned).strip("-")
 
                     # Only add non-generic patterns (not just "Test" or "Tests")
                     # Require minimum length of 3 to avoid overly broad matches like "a" or "xy"
@@ -468,13 +472,26 @@ class WorkflowAnalyzer:
         expected["include_lora_summary"] = save_inputs.get("include_lora_summary", False)
         expected["max_jpeg_exif_kb"] = save_inputs.get("max_jpeg_exif_kb", 60)
 
-        # Trace to sampler
+        # Trace to sampler (may need to trace through intermediate nodes like VAEDecode)
         sampler_id, sampler_node = WorkflowAnalyzer.trace_node_input(workflow, save_node_id, "images")
         if not sampler_node:
             return expected
 
         expected["sampler_node_id"] = sampler_id
         expected["sampler_class_type"] = sampler_node.get("class_type")
+
+        # If we hit a VAEDecode or other intermediate node, trace back to find the actual sampler
+        intermediate_nodes = ["VAEDecode", "VAEEncode", "ImageScale", "LatentUpscale"]
+        if sampler_node.get("class_type") in intermediate_nodes:
+            # Trace back through the 'samples' or 'latent_image' input
+            for input_key in ["samples", "latent_image"]:
+                actual_sampler_id, actual_sampler_node = WorkflowAnalyzer.trace_node_input(workflow, sampler_id, input_key)
+                if actual_sampler_node:
+                    sampler_id = actual_sampler_id
+                    sampler_node = actual_sampler_node
+                    expected["sampler_node_id"] = sampler_id
+                    expected["sampler_class_type"] = sampler_node.get("class_type")
+                    break
 
         # Extract sampler parameters
         sampler_inputs = sampler_node.get("inputs", {})
