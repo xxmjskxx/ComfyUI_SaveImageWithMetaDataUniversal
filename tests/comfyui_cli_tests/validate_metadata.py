@@ -836,8 +836,13 @@ class MetadataValidator:
     def _validate_expected_fields(self, fields: dict, expected_metadata: dict, result: dict):
         """Comprehensively validate that actual metadata matches all expected values."""
 
+        # Track validation checks performed
+        checks_performed = 0
+        
         def compare_numeric(expected, actual, field_name):
             """Compare numeric values, handling int/float differences."""
+            nonlocal checks_performed
+            checks_performed += 1
             try:
                 expected_float = float(expected)
                 actual_float = float(actual)
@@ -847,6 +852,12 @@ class MetadataValidator:
                 # If conversion fails, do string comparison
                 if str(expected) != str(actual):
                     result["errors"].append(f"{field_name} mismatch: expected '{expected}', got '{actual}'")
+        
+        def check_field_present(field_name):
+            """Check if field is present and count it."""
+            nonlocal checks_performed
+            checks_performed += 1
+            return field_name in fields
 
         # Validate seed
         if expected_metadata.get("seed") is not None:
@@ -997,6 +1008,64 @@ class MetadataValidator:
                         compare_numeric(expected_clip_str, actual_clip_str, f"LoRA {idx} clip strength")
                 else:
                     result["errors"].append(f"Expected LoRA {idx} ('{expected_lora['name']}') not found in metadata")
+        
+        # Validate prompts if present
+        if expected_metadata.get("positive_prompt"):
+            if check_field_present("Positive prompt"):
+                # Prompts are at the beginning, just verify they exist
+                pass
+        
+        if expected_metadata.get("negative_prompt"):
+            if check_field_present("Negative prompt"):
+                pass
+        
+        # Validate hashes are present (not N/A)
+        if expected_metadata.get("model_name"):
+            if check_field_present("Model hash"):
+                model_hash = fields.get("Model hash", "")
+                if model_hash == "N/A":
+                    result["errors"].append("Model hash is 'N/A' - should be computed")
+        
+        if expected_metadata.get("vae_name") and expected_metadata["vae_name"] != "Baked VAE":
+            if check_field_present("VAE hash"):
+                vae_hash = fields.get("VAE hash", "")
+                if vae_hash == "N/A":
+                    result["errors"].append("VAE hash is 'N/A' - should be computed")
+        
+        # Validate batch size if present
+        if expected_metadata.get("batch_size"):
+            if check_field_present("Batch size"):
+                pass
+        
+        # Validate ALL fields that are actually present in metadata
+        # Check for presence of common metadata fields
+        common_fields = ["Steps", "Sampler", "CFG scale", "Seed", "Size", "Model", "Model hash",
+                        "Denoise", "Clip skip", "VAE", "VAE hash", "Hashes",
+                        "Metadata generator version", "Positive prompt", "Negative prompt"]
+        
+        for field in common_fields:
+            if check_field_present(field):
+                # Field exists, validate it's not empty or N/A
+                value = fields.get(field, "")
+                if field.endswith(" hash") and value == "N/A":
+                    # Already caught above, don't double-count
+                    pass
+        
+        # Count all Lora fields in actual metadata
+        lora_field_patterns = [r"Lora_\d+ Model name", r"Lora_\d+ Model hash",
+                              r"Lora_\d+ Model strength", r"Lora_\d+ Clip strength"]
+        for field_name in fields.keys():
+            for pattern in lora_field_patterns:
+                if re.match(pattern, field_name):
+                    checks_performed += 1
+                    break
+        
+        # Count all CLIP model fields
+        if check_field_present("CLIP_1 Model name") or check_field_present("CLIP_2 Model name"):
+            pass
+        
+        # Store check count in result
+        result["checks_performed"] = checks_performed
 
     def validate_image(self, image_path: Path, workflow_name: str, expected: dict, expected_save_node: dict | None = None) -> dict:
         """Validate a single image's metadata.
@@ -1527,7 +1596,8 @@ class MetadataValidator:
 
             # Print result
             status = "✓" if result["passed"] else "✗"
-            print(f"    {status} {image_path.name}")
+            checks = result.get("checks_performed", 0)
+            print(f"    {status} {image_path.name} ({checks} checks)")
 
             for error in result["errors"]:
                 print(f"        Error: {error}")

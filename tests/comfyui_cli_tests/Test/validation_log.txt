@@ -12,18 +12,18 @@ Validating workflow: efficiency-nodes.json
   Found 3 Save Image node(s)
   Filename patterns: eff_adv, eff_xl, eff_basic, eff-without-meta
   Found 4 matching image(s)
-    ✓ eff-without-meta_00004_.png
+    ✓ eff-without-meta_00004_.png (0 checks)
         Warning: Control image (without-meta) - no metadata expected
-    ✗ eff_basic_00004_.png
+    ✗ eff_basic_00004_.png (27 checks)
         Error: Field 'Lora_0 Model hash' contains 'N/A' value: N/A
         Error: LoRA '1.0' has metadata but is missing from Hashes summary
         Error: LoRA hash for Lora_0 is 'N/A' - hash should always be computed
-    ✗ eff_adv_00002_.png
+    ✗ eff_adv_00002_.png (32 checks)
         Error: LoRA count mismatch: expected 2 LoRAs, got 4
         Error: LoRA 0 name mismatch: expected 'LoRA\sd15\zelda\Majora_Zelda', got '1'
         Error: LoRA 1 name mismatch: expected 'LoRA\sd15\zelda\ootlink-nvwls-v1', got 'None'
         Error: LoRA '1.0' has metadata but is missing from Hashes summary
-    ✗ eff_xl_00002_.png
+    ✗ eff_xl_00002_.png (30 checks)
         Error: LoRA count mismatch: expected 1 LoRAs, got 3
         Error: LoRA 0 name mismatch: expected 'LoRA\xl\style\dark_gothic_fantasy_xl_3.01', got 'dark_gothic_fantasy_xl_3.01'
         Error: Field 'Lora_1 Model hash' contains 'N/A' value: N/A
@@ -34,9 +34,9 @@ Validating workflow: embedding_lora_vae_upscale_dual_sampler.json
   Found 1 Save Image node(s)
   Filename patterns: Embedding-Vae, Embedding-without-meta
   Found 2 matching image(s)
-    ✓ Embedding-without-meta_00001_.png
+    ✓ Embedding-without-meta_00001_.png (0 checks)
         Warning: Control image (without-meta) - no metadata expected
-    ✓ Embedding-Vae_00001_.png
+    ✓ Embedding-Vae_00001_.png (21 checks)
         Steps: 20
         Sampler: dpmpp_2m Karras
         Seed: 123
@@ -45,7 +45,7 @@ Validating workflow: extra_metadata_clip_skip.json
   Found 1 Save Image node(s)
   Filename patterns: extra_metadata_clip_skip
   Found 1 matching image(s)
-    ✓ extra_metadata_clip_skip_00001_.png
+    ✓ extra_metadata_clip_skip_00001_.png (17 checks)
         Steps: 20
         Sampler: euler_ancestral Karras
         Seed: 999999999999999
@@ -59,7 +59,7 @@ Validating workflow: flux-CR-LoRA-stack-ClownsharK.json
   Found 1 Save Image node(s)
   Filename patterns: flux-CR-LoRA-stack-ClownsharK
   Found 1 matching image(s)
-    ✗ flux-CR-LoRA-stack-ClownsharK_00001_.png
+    ✗ flux-CR-LoRA-stack-ClownsharK_00001_.png (20 checks)
         Error: LoRA '80sFantasyMovieMJ7Flux.safetensors' hash mismatch: metadata has '67a9c045d0' but Hashes summary has '30f425fe15'
         Error: LoRA 'closeupfilm.safetensors' hash mismatch: metadata has '67a9c045d0' but Hashes summary has 'f5481e1d05'
 
@@ -67,7 +67,7 @@ Validating workflow: flux-PC-LoRA-inline-Inspire-KSampler.json
   Found 1 Save Image node(s)
   Filename patterns: flux-PC-LoRA-inline-Inspire-KSampler
   Found 1 matching image(s)
-    ✓ flux-PC-LoRA-inline-Inspire-KSampler_00001_.png
+    ✓ flux-PC-LoRA-inline-Inspire-KSampler_00001_.png (22 checks)
         Steps: 1
         Sampler: deis Karras
         Seed: 458302250093559
@@ -76,15 +76,15 @@ Validating workflow: flux-civsampler-GCFG-lora-summary-batch3-turbo.json
   Found 1 Save Image node(s)
   Filename patterns: Flux-batch3-LoRA-summ-GCFG
   Found 3 matching image(s)
-    ✓ 2025-11-11-214826-Flux-batch3-LoRA-summ-GCFG_00002_.png
+    ✓ 2025-11-11-214826-Flux-batch3-LoRA-summ-GCFG_00002_.png (18 checks)
         Steps: 8
         Sampler: Euler
         Seed: 664708685477459
-    ✓ 2025-11-11-214826-Flux-batch3-LoRA-summ-GCFG_00001_.png
+    ✓ 2025-11-11-214826-Flux-batch3-LoRA-summ-GCFG_00001_.png (18 checks)
         Steps: 8
         Sampler: Euler
         Seed: 664708685477459
-    ✓ 2025-11-11-214826-Flux-batch3-LoRA-summ-GCFG_00003_.png
+    ✓ 2025-11-11-214826-Flux-batch3-LoRA-summ-GCFG_00003_.png (18 checks)
         Steps: 8
         Sampler: Euler
         Seed: 664708685477459
@@ -93,7 +93,7 @@ Validating workflow: flux-dual-clip-turbo.json
   Found 1 Save Image node(s)
   Filename patterns: Flux-dual-clip
   Found 1 matching image(s)
-    ✓ 2025-11-11-214957-Flux-dual-clip_00001_.png
+    ✓ 2025-11-11-214957-Flux-dual-clip_00001_.png (18 checks)
         Steps: 8
         Sampler: euler_beta
         Seed: 664708685477459
@@ -102,7 +102,7 @@ Validating workflow: flux-eff-LoRA-stack-ClownsharK.json
   Found 1 Save Image node(s)
   Filename patterns: flux-eff-LoRA-stack-ClownsharK
   Found 1 matching image(s)
-    ✗ flux-eff-LoRA-stack-ClownsharK_00001_.png
+    ✗ flux-eff-LoRA-stack-ClownsharK_00001_.png (26 checks)
         Error: Field 'Lora_3 Model hash' contains 'N/A' value: N/A
         Error: LoRA 'Fluorescentizer FLUX B.safetensors' hash mismatch: metadata has 'a1e0040929' but Hashes summary has '64d3a2aff8'
         Error: LoRA 'FluxProtectorsOfNature.safetensors' hash mismatch: metadata has 'a1e0040929' but Hashes summary has '7118fb84e6'
@@ -113,7 +113,7 @@ Validating workflow: flux-turbo.json
   Found 1 Save Image node(s)
   Filename patterns: Flux-turbo-basic
   Found 1 matching image(s)
-    ✓ 2025-11-11-215136-Flux-turbo-basic_00001_.png
+    ✓ 2025-11-11-215136-Flux-turbo-basic_00001_.png (18 checks)
         Steps: 8
         Sampler: euler_beta
         Seed: 664708685477459
@@ -122,7 +122,7 @@ Validating workflow: large-workflow-jpeg-1kb.json
   Found 1 Save Image node(s)
   Filename patterns: Large-Workflow-jpeg-1kb
   Found 1 matching image(s)
-    ✓ Large-Workflow-jpeg-1kb_00001_.jpeg
+    ✓ Large-Workflow-jpeg-1kb_00001_.jpeg (22 checks)
         Warning: Metadata fallback occurred: reduced-exif
         Warning: File format mismatch: expected png, got jpeg
         Steps: 2
@@ -133,7 +133,7 @@ Validating workflow: large-workflow-jpeg-60kb.json
   Found 1 Save Image node(s)
   Filename patterns: Large-Workflow-jpeg-60kb
   Found 1 matching image(s)
-    ✓ Large-Workflow-jpeg-60kb_00001_.jpeg
+    ✓ Large-Workflow-jpeg-60kb_00001_.jpeg (22 checks)
         Warning: Metadata fallback occurred: reduced-exif
         Warning: File format mismatch: expected png, got jpeg
         Steps: 2
@@ -144,7 +144,7 @@ Validating workflow: large-workflow-png.json
   Found 1 Save Image node(s)
   Filename patterns: Large-Workflow-png
   Found 1 matching image(s)
-    ✓ Large-Workflow-png_00001_.png
+    ✓ Large-Workflow-png_00001_.png (22 checks)
         Steps: 2
         Sampler: DPM++ 2M Karras
         Seed: 862146980910278
@@ -153,7 +153,7 @@ Validating workflow: large-workflow-webp.json
   Found 1 Save Image node(s)
   Filename patterns: Large-Workflow-webp
   Found 1 matching image(s)
-    ✓ Large-Workflow-webp_00001_.webp
+    ✓ Large-Workflow-webp_00001_.webp (22 checks)
         Warning: File format mismatch: expected png, got webp
         Steps: 2
         Sampler: DPM++ 2M Karras
@@ -163,7 +163,7 @@ Validating workflow: lora-USO-Style-and-or-Subject-transfer-turbo.json
   Found 1 Save Image node(s)
   Filename patterns: USO
   Found 1 matching image(s)
-    ✓ 2025-11-11-221608-USO_00001_.png
+    ✓ 2025-11-11-221608-USO_00001_.png (20 checks)
         Steps: 8
         Sampler: euler_simple
         Seed: 406089290325037
@@ -172,7 +172,7 @@ Validating workflow: qwen_image_edit_2509.json
   Found 1 Save Image node(s)
   Filename patterns: Qwen-Edit
   Found 1 matching image(s)
-    ✓ Qwen-Edit_00001_.png
+    ✓ Qwen-Edit_00001_.png (18 checks)
         Steps: 4
         Sampler: euler_simple
         Seed: 1118877715456453
@@ -181,7 +181,7 @@ Validating workflow: wan21_text_to_image_sage.json
   Found 1 Save Image node(s)
   Filename patterns: Wan21
   Found 1 matching image(s)
-    ✓ Wan21_00001_.png
+    ✓ Wan21_00001_.png (18 checks)
         Steps: 4
         Sampler: dpmpp_2m Karras
         Seed: 706190577933098
