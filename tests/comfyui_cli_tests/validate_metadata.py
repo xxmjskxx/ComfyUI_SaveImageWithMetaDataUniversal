@@ -368,7 +368,7 @@ class WorkflowAnalyzer:
                     cleaned = re.sub(r"^[x_\-/]+", "", cleaned)  # Remove leading separators and x
                     cleaned = re.sub(r"[x_\-/]+$", "", cleaned)  # Remove trailing separators and x
                     # Final cleanup of any remaining multiple separators
-                    cleaned = re.sub(r"[_\-/]+", "-", cleaned).strip("-")
+                    cleaned = re.sub(r"[_\-/]+", "_", cleaned).strip("_")  # Use underscore as separator
 
                     # Only add non-generic patterns (not just "Test" or "Tests")
                     # Require minimum length of 3 to avoid overly broad matches like "a" or "xy"
@@ -446,6 +446,51 @@ class WorkflowAnalyzer:
 
         return loras
 
+    
+    @staticmethod
+    def find_selected_sampler(workflow: dict, selection_method: str, selection_node_id: str | None) -> tuple[str | None, dict | None]:
+        """Find the sampler node based on selection method.
+        
+        Args:
+            workflow: The workflow dict
+            selection_method: "Farthest", "Nearest", or "By node ID"
+            selection_node_id: Node ID when method is "By node ID"
+            
+        Returns:
+            (sampler_id, sampler_node) or (None, None)
+        """
+        # Find all KSampler nodes
+        samplers = []
+        for node_id, node_data in workflow.items():
+            class_type = node_data.get("class_type", "")
+            if "KSampler" in class_type or "SamplerCustom" in class_type:
+                steps = node_data.get("inputs", {}).get("steps")
+                if steps is not None:
+                    samplers.append((node_id, node_data, int(steps)))
+        
+        if not samplers:
+            return None, None
+        
+        if selection_method == "By node ID" and selection_node_id:
+            # Find specific node
+            for node_id, node_data, _ in samplers:
+                if node_id == str(selection_node_id):
+                    return node_id, node_data
+            return None, None
+        
+        elif selection_method == "Farthest":
+            # Find sampler with highest steps
+            sampler_id, sampler_node, _ = max(samplers, key=lambda x: x[2])
+            return sampler_id, sampler_node
+        
+        elif selection_method == "Nearest":
+            # Find sampler with lowest steps
+            sampler_id, sampler_node, _ = min(samplers, key=lambda x: x[2])
+            return sampler_id, sampler_node
+        
+        # Default: return first sampler found
+        return samplers[0][0], samplers[0][1]
+    
     @staticmethod
     def extract_expected_metadata_for_save_node(workflow: dict, save_node_id: str, save_node: dict) -> dict[str, Any]:
         """Extract complete expected metadata for a specific Save Image node by tracing its connections.
@@ -471,9 +516,32 @@ class WorkflowAnalyzer:
         expected["save_workflow_json"] = save_inputs.get("save_workflow_json", False)
         expected["include_lora_summary"] = save_inputs.get("include_lora_summary", False)
         expected["max_jpeg_exif_kb"] = save_inputs.get("max_jpeg_exif_kb", 60)
+        expected["guidance_as_cfg"] = save_inputs.get("guidance_as_cfg", False)
+        expected["civitai_sampler"] = save_inputs.get("civitai_sampler", False)
+        expected["sampler_selection_method"] = save_inputs.get("sampler_selection_method", "Farthest")
+        expected["sampler_selection_node_id"] = save_inputs.get("sampler_selection_node_id")
 
         # Trace to sampler (may need to trace through intermediate nodes like VAEDecode)
         sampler_id, sampler_node = WorkflowAnalyzer.trace_node_input(workflow, save_node_id, "images")
+        
+        # Check if we should use sampler selection method instead
+        selection_method = expected.get("sampler_selection_method", "Farthest")
+        selection_node_id = expected.get("sampler_selection_node_id")
+        
+        # Count samplers in workflow
+        sampler_count = sum(1 for nid, nd in workflow.items() 
+                          if "KSampler" in nd.get("class_type", ""))
+        
+        # If multiple samplers exist, use selection method
+        if sampler_count > 1:
+            selected_sampler_id, selected_sampler_node = WorkflowAnalyzer.find_selected_sampler(
+                workflow, selection_method, selection_node_id
+            )
+            if selected_sampler_node:
+                sampler_id = selected_sampler_id
+                sampler_node = selected_sampler_node
+                expected["sampler_node_id"] = sampler_id
+                expected["sampler_class_type"] = sampler_node.get("class_type")
         if not sampler_node:
             return expected
 
@@ -498,6 +566,9 @@ class WorkflowAnalyzer:
         # Extract sampler parameters
         sampler_inputs = sampler_node.get("inputs", {})
         expected["seed"] = sampler_inputs.get("seed", sampler_inputs.get("noise_seed"))
+        # Handle rgthree Seed node format: [seed_value, slot_index]
+        if isinstance(expected["seed"], list) and len(expected["seed"]) >= 1:
+            expected["seed"] = expected["seed"][0]
         expected["steps"] = sampler_inputs.get("steps")
         expected["cfg"] = sampler_inputs.get("cfg")
         expected["sampler_name"] = sampler_inputs.get("sampler_name")
@@ -614,11 +685,12 @@ class MetadataValidator:
         re.compile(r"^CLIP_\d+\s+.+$"),  # Matches "CLIP_1 Model name", etc.
     ]
 
-    def __init__(self, workflow_dir: Path, output_dir: Path, comfyui_models_path: Path | None = None):
+    def __init__(self, workflow_dir: Path, output_dir: Path, comfyui_models_path: Path | None = None, verbose: bool = False):
         self.workflow_dir = workflow_dir
         self.output_dir = output_dir
         self.comfyui_models_path = comfyui_models_path
         self.results = []
+        self.verbose = verbose
 
     def _extract_json_value(self, text: str) -> str:
         """Extract JSON object or array from the beginning of text.
@@ -885,11 +957,22 @@ class MetadataValidator:
         # Validate seed
         if expected_metadata.get("seed") is not None:
             expected_seed = str(expected_metadata["seed"])
+            
+            # Handle rgthree Seed with -1 (random seed)
             actual_seed = fields.get("Seed", "")
-            if actual_seed:
-                compare_numeric(expected_seed, actual_seed, "Seed")
+            if expected_seed == "-1":
+                # Random seed should be a 15-digit number
+                if actual_seed and len(actual_seed) == 15 and actual_seed.isdigit():
+                    # Valid random seed, don't compare exact value
+                    result["checks_performed"] += 1
+                else:
+                    result["errors"].append(f"Seed format mismatch: expected 15-digit random seed, got '{actual_seed}'")
             else:
-                result["errors"].append(f"Seed missing, expected '{expected_seed}'")
+                # Normal seed comparison
+                if actual_seed:
+                    compare_numeric(expected_seed, actual_seed, "Seed")
+                else:
+                    result["errors"].append(f"Seed missing, expected '{expected_seed}'")
 
         # Validate steps
         if expected_metadata.get("steps") is not None:
@@ -903,6 +986,10 @@ class MetadataValidator:
         # Validate CFG
         if expected_metadata.get("cfg") is not None:
             expected_cfg = str(expected_metadata["cfg"])
+            
+            # Handle guidance_as_cfg: when enabled, guidance becomes CFG
+            if expected_metadata.get("guidance_as_cfg") and expected_metadata.get("guidance") is not None:
+                expected_cfg = str(expected_metadata["guidance"])
             actual_cfg = fields.get("CFG scale", "")
             if actual_cfg:
                 compare_numeric(expected_cfg, actual_cfg, "CFG scale")
@@ -1111,8 +1198,10 @@ class MetadataValidator:
             "errors": [],
             "warnings": [],
             "metadata_found": False,
-            "fields": {},
+            "fields": {}
         }
+        
+        verbose_checks = []  # Track all checks for verbose output
 
         # Check if this is a control image (without metadata)
         # Control images are saved using the default SaveImage node and are expected
@@ -1818,6 +1907,12 @@ Examples:
         type=str,
         default=None,
         help="Path to ComfyUI models directory for validating hashes against .sha256 sidecar files (optional)",
+    )
+    
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Show detailed validation results for every check performed"
     )
 
     parser.add_argument(
