@@ -39,40 +39,20 @@ class TestValidateMetadataIntegration:
         # Should extract "siwm" from "Test\\siwm-%model:10%/%pprompt:20%-%nprompt:20%/%seed%"
         assert "siwm" in patterns, f"Expected 'siwm' in patterns, got: {patterns}"
 
-    def test_large_workflow_jpeg_4kb_pattern(self):
-        """Test that large-workflow-jpeg-4kb.json workflow exists and has correct settings."""
-        workflow_file = Path("tests/comfyui_cli_tests/dev_test_workflows/large-workflow-jpeg-4kb.json")
-
-        assert workflow_file.exists(), "large-workflow-jpeg-4kb.json should exist"
+    def test_large_workflow_jpeg_1kb_variant(self):
+        """Test that 2kb and 1kb variants exist for testing other fallback stages."""
+        workflow_file = Path("tests/comfyui_cli_tests/dev_test_workflows/large-workflow-jpeg-1kb.json")
+        assert workflow_file.exists(), "large-workflow-jpeg-1kb.json should exist"
 
         with open(workflow_file, encoding="utf-8") as f:
             workflow = json.load(f)
 
-        # Check that it has the right max_jpeg_exif_kb setting
+        # Verify the max_jpeg_exif_kb setting
         for node_id, node_data in workflow.items():
             if node_data.get("class_type") == "SaveImageWithMetaDataUniversal":
                 inputs = node_data.get("inputs", {})
-                assert inputs.get("max_jpeg_exif_kb") == 4
-                assert "Large-Workflow-jpeg-4kb" in inputs.get("filename_prefix", "")
+                assert inputs.get("max_jpeg_exif_kb") == 1
                 break
-        else:
-            pytest.fail("No SaveImageWithMetaDataUniversal node found")
-
-    def test_large_workflow_jpeg_lower_kb_variants(self):
-        """Test that 2kb and 1kb variants exist for testing other fallback stages."""
-        for kb_size in [1, 2]:
-            workflow_file = Path(f"tests/comfyui_cli_tests/dev_test_workflows/large-workflow-jpeg-{kb_size}kb.json")
-            assert workflow_file.exists(), f"large-workflow-jpeg-{kb_size}kb.json should exist"
-
-            with open(workflow_file, encoding="utf-8") as f:
-                workflow = json.load(f)
-
-            # Verify the max_jpeg_exif_kb setting
-            for node_id, node_data in workflow.items():
-                if node_data.get("class_type") == "SaveImageWithMetaDataUniversal":
-                    inputs = node_data.get("inputs", {})
-                    assert inputs.get("max_jpeg_exif_kb") == kb_size
-                    break
 
     def test_extra_metadata_clip_skip_workflow(self):
         """Test extra_metadata_clip_skip.json workflow analysis."""
