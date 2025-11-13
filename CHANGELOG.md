@@ -17,7 +17,7 @@ _No changes yet._
 - Structured internal functions now use wrapped long lines for readability within tooling constraints.
 - Added ComfyUI cli test scripts and workflows to `tests\comfyui_cli_tests`.
 - Changed all references of `_test_outputs` to `tests/_test_outputs`.
-- Update version in `aveimage_unimeta/capture.py` to 1.2.2.
+- Update version in `saveimage_unimeta/capture.py` to 1.2.2.
 
 ### Internal
 - Follow‑up to undocumented 1.2.1; consolidates sampler fallback and validation script lint compliance.
