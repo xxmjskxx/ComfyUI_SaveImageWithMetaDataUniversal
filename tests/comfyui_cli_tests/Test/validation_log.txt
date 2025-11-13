@@ -1,8 +1,8 @@
 ======================================================================
 ComfyUI Metadata Validation
 ======================================================================
-Workflow Dir: /home/runner/work/ComfyUI_SaveImageWithMetaDataUniversal/ComfyUI_SaveImageWithMetaDataUniversal/tests/comfyui_cli_tests/dev_test_workflows
-Output Dir:   tests/comfyui_cli_tests/Test
+Workflow Dir: C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI\custom_nodes\ComfyUI_SaveImageWithMetaDataUniversal\tests\comfyui_cli_tests\dev_test_workflows
+Output Dir:   C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI\output\Test
 ======================================================================
 
 Scanning for images...
@@ -10,220 +10,180 @@ Found 23 total image(s) in output directory
 
 Validating workflow: efficiency-nodes.json
   Found 3 Save Image node(s)
-  Filename patterns: eff_adv, eff_xl, eff_basic, eff-without-meta
-  Found 4 matching image(s)
-    ✓ eff-without-meta_00004_.png (0 checks)
-        Warning: Control image (without-meta) - no metadata expected
-    ✗ eff_basic_00004_.png (27 checks)
-        Error: Field 'Lora_0 Model hash' contains 'N/A' value: N/A
-        Error: LoRA '1.0' has metadata but is missing from Hashes summary
-        Error: LoRA hash for Lora_0 is 'N/A' - hash should always be computed
-    ✗ eff_adv_00002_.png (32 checks)
-        Error: LoRA count mismatch: expected 2 LoRAs, got 4
-        Error: LoRA 0 name mismatch: expected 'LoRA\sd15\zelda\Majora_Zelda', got '1'
-        Error: LoRA 1 name mismatch: expected 'LoRA\sd15\zelda\ootlink-nvwls-v1', got 'None'
-        Error: LoRA '1.0' has metadata but is missing from Hashes summary
-    ✗ eff_xl_00002_.png (30 checks)
-        Error: LoRA count mismatch: expected 1 LoRAs, got 3
-        Error: LoRA 0 name mismatch: expected 'LoRA\xl\style\dark_gothic_fantasy_xl_3.01', got 'dark_gothic_fantasy_xl_3.01'
-        Error: Field 'Lora_1 Model hash' contains 'N/A' value: N/A
-        Error: LoRA '1.0' has metadata but is missing from Hashes summary
-        Error: LoRA hash for Lora_1 is 'N/A' - hash should always be computed
+  Filename patterns: eff_adv, eff_xl, eff_basic, eff_without_meta
+  Found 3 matching image(s)
+    ✗ eff_adv_00001_.png (24 checks)
+        Error: LoRA count mismatch: expected 2 LoRAs, got 0
+        Error: Expected LoRA 0 ('LoRA\sd15\zelda\Majora_Zelda.safetensors') not found in metadata
+        Error: Expected LoRA 1 ('LoRA\sd15\zelda\ootlink-nvwls-v1.safetensors') not found in metadata
+    ✗ eff_basic_00001_.png (24 checks)
+        Error: Seed mismatch: expected '456', got '123'
+        Error: Steps mismatch: expected '25', got '20'
+        Error: LoRA count mismatch: expected 2 LoRAs, got 0
+        Error: Expected LoRA 0 ('LoRA\sd15\zelda\Majora_Zelda.safetensors') not found in metadata
+        Error: Expected LoRA 1 ('LoRA\sd15\zelda\ootlink-nvwls-v1.safetensors') not found in metadata
+    ✗ eff_xl_00001_.png (24 checks)
+        Error: Seed mismatch: expected '456', got '789'
+        Error: Steps mismatch: expected '25', got '20'
+        Error: Model mismatch: expected 'cyberrealistic_v50', got 'Juggernaut_X_RunDiffusion'
+        Error: Clip skip mismatch: expected '1', got '2'
+        Error: LoRA count mismatch: expected 2 LoRAs, got 0
+        Error: Expected LoRA 0 ('LoRA\sd15\zelda\Majora_Zelda.safetensors') not found in metadata
+        Error: Expected LoRA 1 ('LoRA\sd15\zelda\ootlink-nvwls-v1.safetensors') not found in metadata
+        Warning: Size mismatch: expected '1024x1024', got '832x1216'
+
+Validating workflow: embedding_lora_vae_upscale_dual_sampler-id.json
+  Found 1 Save Image node(s)
+  Filename patterns: Embedding_Vae_id
+  ⚠ Warning: No matching images found for this workflow
+
+Validating workflow: embedding_lora_vae_upscale_dual_sampler-near.json
+  Found 1 Save Image node(s)
+  Filename patterns: Embedding_Vae_near
+  ⚠ Warning: No matching images found for this workflow
 
 Validating workflow: embedding_lora_vae_upscale_dual_sampler.json
   Found 1 Save Image node(s)
-  Filename patterns: Embedding-Vae, Embedding-without-meta
-  Found 2 matching image(s)
-    ✓ Embedding-without-meta_00001_.png (0 checks)
-        Warning: Control image (without-meta) - no metadata expected
-    ✓ Embedding-Vae_00001_.png (21 checks)
-        Steps: 20
-        Sampler: dpmpp_2m Karras
-        Seed: 123
+  Filename patterns: Embedding_Vae, Embedding_without_meta
+  ⚠ Warning: No matching images found for this workflow
 
 Validating workflow: extra_metadata_clip_skip.json
   Found 1 Save Image node(s)
   Filename patterns: extra_metadata_clip_skip
   Found 1 matching image(s)
-    ✓ extra_metadata_clip_skip_00001_.png (17 checks)
+    ✓ extra_metadata_clip_skip_00001_.png (21 checks)
         Steps: 20
         Sampler: euler_ancestral Karras
         Seed: 999999999999999
 
 Validating workflow: filename_format_denoise.json
   Found 1 Save Image node(s)
-  Filename patterns: x_-siwm
+  Filename patterns: siwm
+  Found 1 matching image(s)
+    ✓ 123-512x512_20251113-020105-siwm_00001_.png (21 checks)
+        Steps: 20
+        Sampler: dpmpp_2m Karras
+        Seed: 123
+
+Validating workflow: flux-civsampler-GCFG-lora-summary-batch3-turbo.json
+  Found 1 Save Image node(s)
+  Filename patterns: Flux_batch3_LoRA_summ_GCFG
   ⚠ Warning: No matching images found for this workflow
 
 Validating workflow: flux-CR-LoRA-stack-ClownsharK.json
   Found 1 Save Image node(s)
-  Filename patterns: flux-CR-LoRA-stack-ClownsharK
-  Found 1 matching image(s)
-    ✗ flux-CR-LoRA-stack-ClownsharK_00001_.png (20 checks)
-        Error: LoRA '80sFantasyMovieMJ7Flux.safetensors' hash mismatch: metadata has '67a9c045d0' but Hashes summary has '30f425fe15'
-        Error: LoRA 'closeupfilm.safetensors' hash mismatch: metadata has '67a9c045d0' but Hashes summary has 'f5481e1d05'
-
-Validating workflow: flux-PC-LoRA-inline-Inspire-KSampler.json
-  Found 1 Save Image node(s)
-  Filename patterns: flux-PC-LoRA-inline-Inspire-KSampler
-  Found 1 matching image(s)
-    ✓ flux-PC-LoRA-inline-Inspire-KSampler_00001_.png (22 checks)
-        Steps: 1
-        Sampler: deis Karras
-        Seed: 458302250093559
-
-Validating workflow: flux-civsampler-GCFG-lora-summary-batch3-turbo.json
-  Found 1 Save Image node(s)
-  Filename patterns: Flux-batch3-LoRA-summ-GCFG
-  Found 3 matching image(s)
-    ✓ 2025-11-11-214826-Flux-batch3-LoRA-summ-GCFG_00002_.png (18 checks)
-        Steps: 8
-        Sampler: Euler
-        Seed: 664708685477459
-    ✓ 2025-11-11-214826-Flux-batch3-LoRA-summ-GCFG_00001_.png (18 checks)
-        Steps: 8
-        Sampler: Euler
-        Seed: 664708685477459
-    ✓ 2025-11-11-214826-Flux-batch3-LoRA-summ-GCFG_00003_.png (18 checks)
-        Steps: 8
-        Sampler: Euler
-        Seed: 664708685477459
+  Filename patterns: flux_CR_LoRA_stack_ClownsharK
+  ⚠ Warning: No matching images found for this workflow
 
 Validating workflow: flux-dual-clip-turbo.json
   Found 1 Save Image node(s)
-  Filename patterns: Flux-dual-clip
-  Found 1 matching image(s)
-    ✓ 2025-11-11-214957-Flux-dual-clip_00001_.png (18 checks)
-        Steps: 8
-        Sampler: euler_beta
-        Seed: 664708685477459
+  Filename patterns: Flux_dual_clip
+  ⚠ Warning: No matching images found for this workflow
 
 Validating workflow: flux-eff-LoRA-stack-ClownsharK.json
   Found 1 Save Image node(s)
-  Filename patterns: flux-eff-LoRA-stack-ClownsharK
-  Found 1 matching image(s)
-    ✗ flux-eff-LoRA-stack-ClownsharK_00001_.png (26 checks)
-        Error: Field 'Lora_3 Model hash' contains 'N/A' value: N/A
-        Error: LoRA 'Fluorescentizer FLUX B.safetensors' hash mismatch: metadata has 'a1e0040929' but Hashes summary has '64d3a2aff8'
-        Error: LoRA 'FluxProtectorsOfNature.safetensors' hash mismatch: metadata has 'a1e0040929' but Hashes summary has '7118fb84e6'
-        Error: LoRA '1.0' has metadata but is missing from Hashes summary
-        Error: LoRA hash for Lora_3 is 'N/A' - hash should always be computed
+  Filename patterns: flux_eff_LoRA_stack_ClownsharK
+  ⚠ Warning: No matching images found for this workflow
+
+Validating workflow: flux-PC-LoRA-inline-Inspire-KSampler.json
+  Found 1 Save Image node(s)
+  Filename patterns: flux_PC_LoRA_inline_Inspire_KSampler
+  ⚠ Warning: No matching images found for this workflow
 
 Validating workflow: flux-turbo.json
   Found 1 Save Image node(s)
-  Filename patterns: Flux-turbo-basic
-  Found 1 matching image(s)
-    ✓ 2025-11-11-215136-Flux-turbo-basic_00001_.png (18 checks)
-        Steps: 8
-        Sampler: euler_beta
-        Seed: 664708685477459
+  Filename patterns: Flux_turbo_basic
+  ⚠ Warning: No matching images found for this workflow
 
 Validating workflow: large-workflow-jpeg-1kb.json
   Found 1 Save Image node(s)
-  Filename patterns: Large-Workflow-jpeg-1kb
-  Found 1 matching image(s)
-    ✓ Large-Workflow-jpeg-1kb_00001_.jpeg (22 checks)
-        Warning: Metadata fallback occurred: reduced-exif
-        Warning: File format mismatch: expected png, got jpeg
-        Steps: 2
-        Sampler: DPM++ 2M Karras
-        Seed: 767711672996317
+  Filename patterns: Large_Workflow_jpeg_1kb
+  ⚠ Warning: No matching images found for this workflow
 
 Validating workflow: large-workflow-jpeg-60kb.json
   Found 1 Save Image node(s)
-  Filename patterns: Large-Workflow-jpeg-60kb
-  Found 1 matching image(s)
-    ✓ Large-Workflow-jpeg-60kb_00001_.jpeg (22 checks)
-        Warning: Metadata fallback occurred: reduced-exif
-        Warning: File format mismatch: expected png, got jpeg
-        Steps: 2
-        Sampler: DPM++ 2M Karras
-        Seed: 216759820821983
+  Filename patterns: Large_Workflow_jpeg_60kb
+  ⚠ Warning: No matching images found for this workflow
 
 Validating workflow: large-workflow-png.json
   Found 1 Save Image node(s)
-  Filename patterns: Large-Workflow-png
-  Found 1 matching image(s)
-    ✓ Large-Workflow-png_00001_.png (22 checks)
-        Steps: 2
-        Sampler: DPM++ 2M Karras
-        Seed: 862146980910278
+  Filename patterns: Large_Workflow_png
+  ⚠ Warning: No matching images found for this workflow
 
 Validating workflow: large-workflow-webp.json
   Found 1 Save Image node(s)
-  Filename patterns: Large-Workflow-webp
-  Found 1 matching image(s)
-    ✓ Large-Workflow-webp_00001_.webp (22 checks)
-        Warning: File format mismatch: expected png, got webp
-        Steps: 2
-        Sampler: DPM++ 2M Karras
-        Seed: 509227158241697
+  Filename patterns: Large_Workflow_webp
+  ⚠ Warning: No matching images found for this workflow
 
 Validating workflow: lora-USO-Style-and-or-Subject-transfer-turbo.json
   Found 1 Save Image node(s)
   Filename patterns: USO
   Found 1 matching image(s)
-    ✓ 2025-11-11-221608-USO_00001_.png (20 checks)
+    ✓ 2025-11-13-020756-USO_00001_.png (16 checks)
         Steps: 8
         Sampler: euler_simple
-        Seed: 406089290325037
-
-Validating workflow: qwen_image_edit_2509.json
-  Found 1 Save Image node(s)
-  Filename patterns: Qwen-Edit
-  Found 1 matching image(s)
-    ✓ Qwen-Edit_00001_.png (18 checks)
-        Steps: 4
-        Sampler: euler_simple
-        Seed: 1118877715456453
-
-Validating workflow: wan21_text_to_image_sage.json
-  Found 1 Save Image node(s)
-  Filename patterns: Wan21
-  Found 1 matching image(s)
-    ✓ Wan21_00001_.png (18 checks)
-        Steps: 4
-        Sampler: dpmpp_2m Karras
-        Seed: 706190577933098
+        Seed: 107768765971338
 
 ======================================================================
 Validation Summary:
-  Total Images Validated: 22
-  ✓ Passed:               17
-  ✗ Failed:               5
-  ⚠ Unmatched Images:     1
-  ⚠ Unmatched Workflows:  1
+  Total Images Validated: 6
+  ✓ Passed:               3
+  ✗ Failed:               3
+  ⚠ Unmatched Images:     17
+  ⚠ Unmatched Workflows:  15
 ======================================================================
 
-Unmatched Images (1):
-  - 123-512x512_20251111-214635-siwm_00001_.png
+Unmatched Images (17):
+  - 2025-11-13-020255-Flux-batch3-LoRA-summ-GCFG_00001_.png
+  - 2025-11-13-020255-Flux-batch3-LoRA-summ-GCFG_00002_.png
+  - 2025-11-13-020255-Flux-batch3-LoRA-summ-GCFG_00003_.png
+  - 2025-11-13-020422-Flux-dual-clip_00001_.png
+  - 2025-11-13-020603-Flux-turbo-basic_00001_.png
+  - eff-without-meta_00001_.png
+  - Embedding-Vae-id_00001_.png
+  - Embedding-Vae-near_00001_.png
+  - Embedding-Vae_00001_.png
+  - Embedding-without-meta_00001_.png
+  - flux-CR-LoRA-stack-ClownsharK_00001_.png
+  - flux-eff-LoRA-stack-ClownsharK_00001_.png
+  - flux-PC-LoRA-inline-Inspire-KSampler_00001_.png
+  - Large-Workflow-jpeg-1kb_00001_.jpeg
+  - Large-Workflow-jpeg-60kb_00001_.jpeg
+  - Large-Workflow-png_00001_.png
+  - Large-Workflow-webp_00001_.webp
 
-Unmatched Workflows (1):
-  - filename_format_denoise.json
+Unmatched Workflows (15):
+  - embedding_lora_vae_upscale_dual_sampler-id.json
+  - embedding_lora_vae_upscale_dual_sampler-near.json
+  - embedding_lora_vae_upscale_dual_sampler.json
+  - flux-CR-LoRA-stack-ClownsharK.json
+  - flux-PC-LoRA-inline-Inspire-KSampler.json
+  - flux-civsampler-GCFG-lora-summary-batch3-turbo.json
+  - flux-dual-clip-turbo.json
+  - flux-eff-LoRA-stack-ClownsharK.json
+  - flux-turbo.json
+  - large-workflow-jpeg-1kb.json
+  - large-workflow-jpeg-60kb.json
+  - large-workflow-png.json
+  - large-workflow-webp.json
 
 Failed Images:
-  - eff_basic_00004_.png (workflow: efficiency-nodes)
-      Field 'Lora_0 Model hash' contains 'N/A' value: N/A
-      LoRA '1.0' has metadata but is missing from Hashes summary
-      LoRA hash for Lora_0 is 'N/A' - hash should always be computed
-  - eff_adv_00002_.png (workflow: efficiency-nodes)
-      LoRA count mismatch: expected 2 LoRAs, got 4
-      LoRA 0 name mismatch: expected 'LoRA\sd15\zelda\Majora_Zelda', got '1'
-      LoRA 1 name mismatch: expected 'LoRA\sd15\zelda\ootlink-nvwls-v1', got 'None'
-      LoRA '1.0' has metadata but is missing from Hashes summary
-  - eff_xl_00002_.png (workflow: efficiency-nodes)
-      LoRA count mismatch: expected 1 LoRAs, got 3
-      LoRA 0 name mismatch: expected 'LoRA\xl\style\dark_gothic_fantasy_xl_3.01', got 'dark_gothic_fantasy_xl_3.01'
-      Field 'Lora_1 Model hash' contains 'N/A' value: N/A
-      LoRA '1.0' has metadata but is missing from Hashes summary
-      LoRA hash for Lora_1 is 'N/A' - hash should always be computed
-  - flux-CR-LoRA-stack-ClownsharK_00001_.png (workflow: flux-CR-LoRA-stack-ClownsharK)
-      LoRA '80sFantasyMovieMJ7Flux.safetensors' hash mismatch: metadata has '67a9c045d0' but Hashes summary has '30f425fe15'
-      LoRA 'closeupfilm.safetensors' hash mismatch: metadata has '67a9c045d0' but Hashes summary has 'f5481e1d05'
-  - flux-eff-LoRA-stack-ClownsharK_00001_.png (workflow: flux-eff-LoRA-stack-ClownsharK)
-      Field 'Lora_3 Model hash' contains 'N/A' value: N/A
-      LoRA 'Fluorescentizer FLUX B.safetensors' hash mismatch: metadata has 'a1e0040929' but Hashes summary has '64d3a2aff8'
-      LoRA 'FluxProtectorsOfNature.safetensors' hash mismatch: metadata has 'a1e0040929' but Hashes summary has '7118fb84e6'
-      LoRA '1.0' has metadata but is missing from Hashes summary
-      LoRA hash for Lora_3 is 'N/A' - hash should always be computed
+  - eff_adv_00001_.png (workflow: efficiency-nodes)
+      LoRA count mismatch: expected 2 LoRAs, got 0
+      Expected LoRA 0 ('LoRA\sd15\zelda\Majora_Zelda.safetensors') not found in metadata
+      Expected LoRA 1 ('LoRA\sd15\zelda\ootlink-nvwls-v1.safetensors') not found in metadata
+  - eff_basic_00001_.png (workflow: efficiency-nodes)
+      Seed mismatch: expected '456', got '123'
+      Steps mismatch: expected '25', got '20'
+      LoRA count mismatch: expected 2 LoRAs, got 0
+      Expected LoRA 0 ('LoRA\sd15\zelda\Majora_Zelda.safetensors') not found in metadata
+      Expected LoRA 1 ('LoRA\sd15\zelda\ootlink-nvwls-v1.safetensors') not found in metadata
+  - eff_xl_00001_.png (workflow: efficiency-nodes)
+      Seed mismatch: expected '456', got '789'
+      Steps mismatch: expected '25', got '20'
+      Model mismatch: expected 'cyberrealistic_v50', got 'Juggernaut_X_RunDiffusion'
+      Clip skip mismatch: expected '1', got '2'
+      LoRA count mismatch: expected 2 LoRAs, got 0
+      Expected LoRA 0 ('LoRA\sd15\zelda\Majora_Zelda.safetensors') not found in metadata
+      Expected LoRA 1 ('LoRA\sd15\zelda\ootlink-nvwls-v1.safetensors') not found in metadata
 ======================================================================
