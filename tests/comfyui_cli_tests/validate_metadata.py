@@ -367,8 +367,11 @@ class WorkflowAnalyzer:
                     # This handles cases like "%width%x%height%" -> "x" -> ""
                     cleaned = re.sub(r"^[x_\-/]+", "", cleaned)  # Remove leading separators and x
                     cleaned = re.sub(r"[x_\-/]+$", "", cleaned)  # Remove trailing separators and x
-                    # Final cleanup of any remaining multiple separators
-                    cleaned = re.sub(r"[_\-/]+", "_", cleaned).strip("_")  # Use underscore as separator
+                    # Final cleanup: collapse multiple separators but preserve their type
+                    # Don't normalize dashes to underscores - keep original structure
+                    cleaned = re.sub(r"_+", "_", cleaned)  # Collapse multiple underscores
+                    cleaned = re.sub(r"-+", "-", cleaned)  # Collapse multiple dashes
+                    cleaned = cleaned.strip("_-")  # Strip leading/trailing separators
 
                     # Only add non-generic patterns (not just "Test" or "Tests")
                     # Require minimum length of 3 to avoid overly broad matches like "a" or "xy"
@@ -504,6 +507,7 @@ class WorkflowAnalyzer:
         expected = {
             "save_node_id": save_node_id,
             "filename_prefix": "",
+            "filename_patterns": [],
             "file_format": "png",
         }
 
@@ -512,6 +516,29 @@ class WorkflowAnalyzer:
         expected["filename_prefix"] = WorkflowAnalyzer.resolve_filename_prefix(
             workflow, save_inputs.get("filename_prefix", "")
         )
+        
+        # Extract filename patterns from this specific save node's prefix
+        if expected["filename_prefix"]:
+            prefix = expected["filename_prefix"]
+            parts = prefix.replace("\\", "/").split("/")
+            for part in parts:
+                clean_part = part.strip()
+                if not clean_part or (clean_part.startswith("%") and clean_part.endswith("%")):
+                    continue
+                # Remove token patterns but keep static text
+                cleaned = re.sub(r"%[^%]+%", "", clean_part)
+                # Remove dimension separators
+                cleaned = re.sub(r"^[x_\-/]+", "", cleaned)
+                cleaned = re.sub(r"[x_\-/]+$", "", cleaned)
+                # Collapse multiple separators but preserve their type
+                cleaned = re.sub(r"_+", "_", cleaned)
+                cleaned = re.sub(r"-+", "-", cleaned)
+                cleaned = cleaned.strip("_-")
+                # Only add meaningful patterns
+                cleaned_lower = cleaned.lower()
+                if cleaned and len(cleaned) >= 3 and cleaned_lower not in {"test", "tests"}:
+                    expected["filename_patterns"].append(cleaned)
+        
         expected["file_format"] = save_inputs.get("file_format", "png")
         expected["save_workflow_json"] = save_inputs.get("save_workflow_json", False)
         expected["include_lora_summary"] = save_inputs.get("include_lora_summary", False)
@@ -1149,6 +1176,71 @@ class MetadataValidator:
         if expected_metadata.get("batch_size"):
             if check_field_present("Batch size"):
                 pass
+        
+        # Validate batch number if present
+        if expected_metadata.get("batch_number") is not None:
+            if check_field_present("Batch number"):
+                pass
+
+        # Validate width and height (separate from image_width/image_height)
+        if expected_metadata.get("width") and expected_metadata.get("height"):
+            expected_size = f"{expected_metadata['width']}x{expected_metadata['height']}"
+            actual_size = fields.get("Size", "")
+            if actual_size and actual_size != expected_size:
+                result["warnings"].append(
+                    f"Size mismatch: expected '{expected_size}', got '{actual_size}'"
+                )
+
+        # Validate base_shift (Flux model parameter)
+        if expected_metadata.get("base_shift") is not None:
+            if check_field_present("Base shift"):
+                actual_shift = fields.get("Base shift", "")
+                expected_shift = str(expected_metadata["base_shift"])
+                compare_numeric(expected_shift, actual_shift, "Base shift")
+
+        # Validate max_shift (Flux model parameter)
+        if expected_metadata.get("max_shift") is not None:
+            if check_field_present("Max shift"):
+                actual_shift = fields.get("Max shift", "")
+                expected_shift = str(expected_metadata["max_shift"])
+                compare_numeric(expected_shift, actual_shift, "Max shift")
+
+        # Validate shift (generic shift parameter)
+        if expected_metadata.get("shift") is not None:
+            if check_field_present("Shift"):
+                actual_shift = fields.get("Shift", "")
+                expected_shift = str(expected_metadata["shift"])
+                compare_numeric(expected_shift, actual_shift, "Shift")
+
+        # Validate weight_dtype (model weight precision)
+        if expected_metadata.get("weight_dtype"):
+            if check_field_present("Weight dtype"):
+                pass
+
+        # Validate CLIP prompt fields (dual CLIP models)
+        if expected_metadata.get("clip_prompt"):
+            if check_field_present("CLIP prompt"):
+                pass
+
+        if expected_metadata.get("t5_prompt"):
+            if check_field_present("T5 prompt"):
+                pass
+
+        # Validate CLIP model name
+        if expected_metadata.get("clip_model_name"):
+            if check_field_present("CLIP model name"):
+                pass
+
+        # Validate embedding fields
+        if expected_metadata.get("embedding_name"):
+            if check_field_present("Embedding name"):
+                pass
+        
+        if expected_metadata.get("embedding_hash"):
+            if check_field_present("Embedding hash"):
+                embedding_hash = fields.get("Embedding hash", "")
+                if embedding_hash == "N/A":
+                    result["errors"].append("Embedding hash is 'N/A' - should be computed")
 
         # Validate ALL fields that are actually present in metadata
         # Check for presence of common metadata fields
@@ -1474,13 +1566,21 @@ class MetadataValidator:
                     break
 
         if not artifact_path:
-            # Artifact not found - this is OK, might be in a different location
+            # Artifact not found - log detailed search info for troubleshooting
+            if self.verbose:
+                searched_dirs = [str(comfyui_models_path / subdir) for subdir in search_dirs.get(artifact_type, [])]
+                result["warnings"].append(
+                    f"Hash validation: {artifact_type.title()} '{artifact_name}' not found. "
+                    f"Searched in: {', '.join(searched_dirs)}"
+                )
             return
 
         # Check for sidecar file
         sidecar_path = artifact_path.with_suffix(artifact_path.suffix + ".sha256")
         if not sidecar_path.exists():
-            result["warnings"].append(f"{artifact_type.title()} '{artifact_name}' has no .sha256 sidecar file")
+            result["warnings"].append(
+                f"Hash validation: {artifact_type.title()} '{artifact_name}' has no .sha256 sidecar file at {sidecar_path}"
+            )
             return
 
         # Read sidecar file
@@ -1491,26 +1591,33 @@ class MetadataValidator:
             # Validate sidecar hash is 64 characters
             if len(sidecar_hash) != 64:
                 result["errors"].append(
-                    f"{artifact_type.title()} '{artifact_name}' sidecar hash is not 64 characters: '{sidecar_hash}'"
+                    f"Hash validation FAILED: {artifact_type.title()} '{artifact_name}' sidecar hash is not 64 characters: '{sidecar_hash}'"
                 )
                 return
 
             # Validate sidecar hash is hex
             if not all(c in "0123456789abcdefABCDEF" for c in sidecar_hash):
                 result["errors"].append(
-                    f"{artifact_type.title()} '{artifact_name}' sidecar hash is not valid hex: '{sidecar_hash}'"
+                    f"Hash validation FAILED: {artifact_type.title()} '{artifact_name}' sidecar hash is not valid hex: '{sidecar_hash}'"
                 )
                 return
 
             # Validate metadata hash matches first 10 characters of sidecar hash
             if metadata_hash.lower() != sidecar_hash[:10].lower():
                 result["errors"].append(
-                    f"{artifact_type.title()} '{artifact_name}' hash mismatch: "
+                    f"Hash validation FAILED: {artifact_type.title()} '{artifact_name}' hash mismatch: "
                     f"metadata has '{metadata_hash}' but sidecar first 10 chars are '{sidecar_hash[:10]}'"
                 )
+            else:
+                # Hash validation passed - log in verbose mode
+                if self.verbose:
+                    result["warnings"].append(
+                        f"Hash validation PASSED: {artifact_type.title()} '{artifact_name}' "
+                        f"(metadata: {metadata_hash}, sidecar: {sidecar_hash[:10]}... [64 chars total])"
+                    )
 
         except Exception as e:
-            result["warnings"].append(f"Failed to read sidecar file for '{artifact_name}': {e}")
+            result["warnings"].append(f"Hash validation ERROR: Failed to read sidecar file for '{artifact_name}': {e}")
 
     def _validate_hashes_against_sidecars(
         self, fields: dict, comfyui_models_path: Path | None, result: dict
@@ -1639,6 +1746,66 @@ class MetadataValidator:
 
         return False
 
+    def _print_validation_result(self, result: dict, save_node_metadata: dict | None = None):
+        """Print validation result with optional verbose output."""
+        status = "✓" if result["passed"] else "✗"
+        checks = result.get("checks_performed", 0)
+        image_path = Path(result["image_path"])
+        print(f"    {status} {image_path.name} ({checks} checks)")
+
+        # Print errors
+        for error in result["errors"]:
+            print(f"        Error: {error}")
+
+        # Print warnings
+        for warning in result["warnings"]:
+            print(f"        Warning: {warning}")
+
+        # In non-verbose mode, show key fields for passed validations
+        if not self.verbose and result["passed"] and result.get("fields"):
+            fields = result["fields"]
+            if "Steps" in fields:
+                print(f"        Steps: {fields['Steps']}")
+            if "Sampler" in fields:
+                print(f"        Sampler: {fields['Sampler']}")
+            if "Seed" in fields:
+                print(f"        Seed: {fields['Seed']}")
+
+        # In verbose mode, show all field validations
+        if self.verbose and save_node_metadata:
+            fields = result.get("fields", {})
+            print("        Validation Details:")
+            
+            # Show all expected vs actual comparisons
+            if save_node_metadata.get("seed") is not None:
+                expected_seed = save_node_metadata.get("seed")
+                actual_seed = fields.get("Seed", "N/A")
+                match = "✓" if str(expected_seed) == str(actual_seed) else "✗"
+                print(f"          {match} Seed: expected={expected_seed}, actual={actual_seed}")
+            
+            if save_node_metadata.get("steps"):
+                expected_steps = save_node_metadata.get("steps")
+                actual_steps = fields.get("Steps", "N/A")
+                match = "✓" if str(expected_steps) == str(actual_steps) else "✗"
+                print(f"          {match} Steps: expected={expected_steps}, actual={actual_steps}")
+            
+            if save_node_metadata.get("cfg"):
+                expected_cfg = save_node_metadata.get("cfg")
+                actual_cfg = fields.get("CFG scale", "N/A")
+                match = "✓" if str(expected_cfg) == str(actual_cfg) or str(float(expected_cfg)) == str(actual_cfg) else "✗"
+                print(f"          {match} CFG: expected={expected_cfg}, actual={actual_cfg}")
+            
+            if save_node_metadata.get("sampler_name"):
+                expected_sampler = save_node_metadata.get("sampler_name")
+                actual_sampler = fields.get("Sampler", "N/A")
+                match = "✓" if expected_sampler.lower() in actual_sampler.lower() else "✗"
+                print(f"          {match} Sampler: expected={expected_sampler}, actual={actual_sampler}")
+            
+            # Show all other fields present in metadata
+            for field_name, field_value in fields.items():
+                if field_name not in ["Seed", "Steps", "CFG scale", "Sampler"]:
+                    print(f"          • {field_name}: {field_value}")
+
     def validate_workflow_outputs(self, workflow_file: Path, all_images: list[Path]) -> list[dict]:
         """Validate images generated by a specific workflow."""
         print(f"\nValidating workflow: {workflow_file.name}")
@@ -1688,23 +1855,19 @@ class MetadataValidator:
         # Validate each matching image
         results = []
         for image_path in matching_images:
-            # Try to match image to specific save node based on filename prefix
+            # Try to match image to specific save node based on filename patterns
             best_save_node_match = None
             if expected.get("save_nodes"):
+                image_name_lower = image_path.stem.lower()
                 for save_node_metadata in expected["save_nodes"]:
-                    prefix = save_node_metadata.get("filename_prefix", "")
-                    if prefix:
-                        # Extract static part from prefix for matching
-                        static_parts = []
-                        for part in prefix.replace("\\", "/").split("/"):
-                            cleaned = re.sub(r"%[^%]+%", "", part).strip("-_/")
-                            if cleaned and len(cleaned) >= 3:
-                                static_parts.append(cleaned.lower())
-
-                        # Check if image name contains any static part
-                        image_name_lower = image_path.stem.lower()
-                        for static_part in static_parts:
-                            if static_part in image_name_lower:
+                    # Use the filename_patterns extracted for this save node
+                    patterns = save_node_metadata.get("filename_patterns", [])
+                    if patterns:
+                        for pattern in patterns:
+                            pattern_lower = pattern.lower()
+                            # Match pattern as whole word or separated by delimiters
+                            regex = r"(^|[_\-.])" + re.escape(pattern_lower) + r"($|[_\-.])"
+                            if re.search(regex, image_name_lower):
                                 best_save_node_match = save_node_metadata
                                 break
                         if best_save_node_match:
@@ -1718,26 +1881,8 @@ class MetadataValidator:
             result = self.validate_image(image_path, workflow_file.stem, expected, best_save_node_match)
             results.append(result)
 
-            # Print result
-            status = "✓" if result["passed"] else "✗"
-            checks = result.get("checks_performed", 0)
-            print(f"    {status} {image_path.name} ({checks} checks)")
-
-            for error in result["errors"]:
-                print(f"        Error: {error}")
-
-            for warning in result["warnings"]:
-                print(f"        Warning: {warning}")
-
-            if result["passed"] and result.get("fields"):
-                # Show some key fields
-                fields = result["fields"]
-                if "Steps" in fields:
-                    print(f"        Steps: {fields['Steps']}")
-                if "Sampler" in fields:
-                    print(f"        Sampler: {fields['Sampler']}")
-                if "Seed" in fields:
-                    print(f"        Seed: {fields['Seed']}")
+            # Print result (with verbose option support)
+            self._print_validation_result(result, best_save_node_match)
 
         return results
 
@@ -1938,6 +2083,7 @@ Examples:
 
     # Create validator and run
     validator = MetadataValidator(workflow_dir, output_dir, models_path)
+    validator.verbose = args.verbose  # Pass verbose flag to validator
     total, passed, failed = validator.run_validation(extra_workflows_dir)
 
     # Exit with appropriate code
