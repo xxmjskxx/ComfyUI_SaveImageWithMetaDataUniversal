@@ -143,11 +143,12 @@ cython_debug/
 # Local-only capture rules (created with `Metadata Rule Scanner` + `Save Custom Metadata Rules` nodes) and legacy folders
 # saveimage_unimeta/user_captures.json
 # saveimage_unimeta/user_samplers.json
-# saveimage_unimeta/defs/ext/generated_user_rules.py
+saveimage_unimeta/defs/ext/generated_user_rules.py
 # saveimage_unimeta/py/
 saveimage_unimeta/user_rules/backups/
-# saveimage_unimeta/user_rules/user_captures.json
-# saveimage_unimeta/user_rules/user_samplers.json
+saveimage_unimeta/user_rules/user_captures.json
+saveimage_unimeta/user_rules/user_samplers.json
+# user_rules/
 
 # Debug files in tests directory
 tests/_test_outputs/user_rules/
@@ -156,7 +157,6 @@ tests/debug_*.txt
 web/disabled/metadata_rule_scanner/
 _test_outputs/
 ignore/
-# _test_outputs/
 img/alt_logo/
 img/ignore/
 
@@ -171,14 +171,17 @@ scripts/
 .pytest_cache/
 .ruff_cache/
 tasksync/
-# user_rules/
 
 # Local development/testing files
 # /dev_test_workflows/
+tests/comfyui_cli_tests/run_dev_workflows.bat
+tests/comfyui_cli_tests/validate_metadata.bat
 run_dev_workflows.bat
 validate_metadata.bat
 
 # Ephemeral local drafting files (root only). Keep actual published notes in docs/.
+docs/HIGH_PRIORITY_TASKS.md
+docs/HIGH_PRIORITY_TASKS_OG.md
 docs/HEURISTICS_CHANGES.md
 docs/releases/
 /RELEASE_NOTES_*.md

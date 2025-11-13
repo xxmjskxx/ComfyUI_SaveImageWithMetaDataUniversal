@@ -398,7 +398,7 @@ class MetadataRuleScanner:
             """Return mtimes for user rule JSON files.
 
             Mirrors path preference logic of loader/writer: in METADATA_TEST_MODE, if an
-            existing _test_outputs/user_rules directory is present, prefer it. This keeps
+            existing tests/_test_outputs/user_rules directory is present, prefer it. This keeps
             scanner cache invalidation coherent during isolated tests.
             """
             try:

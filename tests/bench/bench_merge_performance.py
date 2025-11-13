@@ -5,7 +5,7 @@ runtime distribution. Still runnable directly:
 
     python -m tests.bench.bench_merge_performance
 
-Outputs JSON summary to _test_outputs/merge_bench.json (consistent with other
+Outputs JSON summary to tests/_test_outputs/merge_bench.json (consistent with other
 test artifacts) and prints a human-readable verdict.
 """
 
@@ -96,7 +96,7 @@ def main():
     print(f"Delta: {diff:.6f}s ({pct:.2f}%) -> {verdict}")
     # Use unified test outputs directory
     out_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "tests/_test_outputs"))
-    # Fallback: project root _test_outputs if relative path doesn't exist
+    # Fallback: project root tests/_test_outputs if relative path doesn't exist
     if not os.path.isdir(out_dir):
         out_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "tests/_test_outputs"))
     os.makedirs(out_dir, exist_ok=True)
