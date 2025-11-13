@@ -1,17 +1,4 @@
 {
-  "1": {
-    "inputs": {
-      "filename_prefix": "Test\\Embedding-without-meta",
-      "images": [
-        "3",
-        0
-      ]
-    },
-    "class_type": "SaveImage",
-    "_meta": {
-      "title": "Save Image"
-    }
-  },
   "2": {
     "inputs": {
       "upscale_method": "nearest-exact",
@@ -221,8 +208,8 @@
   },
   "17": {
     "inputs": {
-      "filename_prefix": "Test\\Embedding-Vae",
-      "sampler_selection_method": "Farthest",
+      "filename_prefix": "Test\\Embedding-Vae-near",
+      "sampler_selection_method": "Nearest",
       "sampler_selection_node_id": 0,
       "file_format": "png",
       "lossless_webp": true,

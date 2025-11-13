@@ -1,23 +1,10 @@
 {
-  "1": {
-    "inputs": {
-      "filename_prefix": "Test\\Embedding-without-meta",
-      "images": [
-        "3",
-        0
-      ]
-    },
-    "class_type": "SaveImage",
-    "_meta": {
-      "title": "Save Image"
-    }
-  },
   "2": {
     "inputs": {
       "upscale_method": "nearest-exact",
-      "scale_by": 1.1,
+      "scale_by": 1.05,
       "samples": [
-        "8",
+        "18",
         0
       ]
     },
@@ -46,7 +33,7 @@
     "inputs": {
       "seed": 123,
       "steps": 20,
-      "cfg": 8,
+      "cfg": 7.5,
       "sampler_name": "dpmpp_2m",
       "scheduler": "karras",
       "denoise": 0.6,
@@ -84,8 +71,8 @@
   "6": {
     "inputs": {
       "lora_name": "LoRA\\sd15\\berserk\\Guts_05.safetensors",
-      "strength_model": 0.5,
-      "strength_clip": 0.5,
+      "strength_model": 0.55,
+      "strength_clip": 0.46,
       "model": [
         "7",
         0
@@ -107,36 +94,6 @@
     "class_type": "CheckpointLoaderSimple",
     "_meta": {
       "title": "Load Checkpoint"
-    }
-  },
-  "8": {
-    "inputs": {
-      "seed": 25668654,
-      "steps": 20,
-      "cfg": 6.5,
-      "sampler_name": "dpm_fast",
-      "scheduler": "beta",
-      "denoise": 0.99,
-      "model": [
-        "13",
-        0
-      ],
-      "positive": [
-        "12",
-        0
-      ],
-      "negative": [
-        "10",
-        0
-      ],
-      "latent_image": [
-        "14",
-        0
-      ]
-    },
-    "class_type": "KSampler",
-    "_meta": {
-      "title": "KSampler"
     }
   },
   "9": {
@@ -192,8 +149,8 @@
   "13": {
     "inputs": {
       "lora_name": "LoRA\\sd15\\berserk\\berserk_guts-10.safetensors",
-      "strength_model": 0.5,
-      "strength_clip": 0.5,
+      "strength_model": 0.65,
+      "strength_clip": 0.44,
       "model": [
         "6",
         0
@@ -221,9 +178,9 @@
   },
   "17": {
     "inputs": {
-      "filename_prefix": "Test\\Embedding-Vae",
-      "sampler_selection_method": "Farthest",
-      "sampler_selection_node_id": 0,
+      "filename_prefix": "Test\\Embedding-Vae-id",
+      "sampler_selection_method": "By node ID",
+      "sampler_selection_node_id": 18,
       "file_format": "png",
       "lossless_webp": true,
       "quality": 100,
@@ -244,6 +201,36 @@
     "class_type": "SaveImageWithMetaDataUniversal",
     "_meta": {
       "title": "Save Image w/ Metadata Universal"
+    }
+  },
+  "18": {
+    "inputs": {
+      "seed": 25668662,
+      "steps": 20,
+      "cfg": 6.9,
+      "sampler_name": "euler",
+      "scheduler": "beta",
+      "denoise": 0.98,
+      "model": [
+        "13",
+        0
+      ],
+      "positive": [
+        "12",
+        0
+      ],
+      "negative": [
+        "10",
+        0
+      ],
+      "latent_image": [
+        "14",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler"
     }
   }
 }
