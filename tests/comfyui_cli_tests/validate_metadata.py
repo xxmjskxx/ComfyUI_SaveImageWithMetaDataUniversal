@@ -485,7 +485,9 @@ class WorkflowAnalyzer:
         if sampler_node.get("class_type") in intermediate_nodes:
             # Trace back through the 'samples' or 'latent_image' input
             for input_key in ["samples", "latent_image"]:
-                actual_sampler_id, actual_sampler_node = WorkflowAnalyzer.trace_node_input(workflow, sampler_id, input_key)
+                actual_sampler_id, actual_sampler_node = WorkflowAnalyzer.trace_node_input(
+                    workflow, sampler_id, input_key
+                )
                 if actual_sampler_node:
                     sampler_id = actual_sampler_id
                     sampler_node = actual_sampler_node
@@ -1357,11 +1359,17 @@ class MetadataValidator:
 
         # Try to find the artifact file
         # Common subdirectories for different artifact types
+        # Based on user's ComfyUI setup:
+        # unet/diffusion models: "diffusion_models", "DiffusionModels", "unet", "StableDiffusion"
+        # embeddings: "Embeddings"
+        # loras: "Lora"
+        # ckpt: "StableDiffusion"
+        # vae: "VAE"
         search_dirs = {
-            "model": ["checkpoints", "unet", "diffusion_models"],
-            "lora": ["loras"],
-            "vae": ["vae"],
-            "embedding": ["embeddings"],
+            "model": ["diffusion_models", "DiffusionModels", "unet", "StableDiffusion", "checkpoints"],
+            "lora": ["Lora", "loras"],
+            "vae": ["VAE", "vae"],
+            "embedding": ["Embeddings", "embeddings"],
         }
 
         artifact_path = None
@@ -1644,12 +1652,18 @@ class MetadataValidator:
 
         return results
 
-    def run_validation(self) -> tuple[int, int, int]:
-        """Run validation on all workflows and return (total, passed, failed)."""
+    def run_validation(self, extra_workflows_dir: Path | None = None) -> tuple[int, int, int]:
+        """Run validation on all workflows and return (total, passed, failed).
+
+        Args:
+            extra_workflows_dir: Optional additional directory containing workflow JSON files
+        """
         print("=" * 70)
         print("ComfyUI Metadata Validation")
         print("=" * 70)
         print(f"Workflow Dir: {self.workflow_dir}")
+        if extra_workflows_dir:
+            print(f"Extra Workflows: {extra_workflows_dir}")
         print(f"Output Dir:   {self.output_dir}")
         print("=" * 70)
 
@@ -1661,8 +1675,16 @@ class MetadataValidator:
             print(f"✗ Error: Output directory not found: {self.output_dir}")
             return 0, 0, 0
 
-        # Find all workflow files
+        # Find all workflow files from both directories
         workflow_files = sorted(self.workflow_dir.glob("*.json"))
+
+        if extra_workflows_dir:
+            if extra_workflows_dir.exists():
+                extra_workflow_files = sorted(extra_workflows_dir.glob("*.json"))
+                workflow_files.extend(extra_workflow_files)
+                print(f"Added {len(extra_workflow_files)} workflow(s) from extra directory")
+            else:
+                print(f"⚠ Warning: Extra workflows directory not found: {extra_workflows_dir}")
 
         if not workflow_files:
             print(f"⚠ No workflow files found in {self.workflow_dir}")
@@ -1798,6 +1820,13 @@ Examples:
         help="Path to ComfyUI models directory for validating hashes against .sha256 sidecar files (optional)",
     )
 
+    parser.add_argument(
+        "--extra-workflows",
+        type=str,
+        default=None,
+        help="Additional directory containing workflow JSON files to validate (optional)",
+    )
+
     args = parser.parse_args()
 
     # Convert to absolute paths
@@ -1805,6 +1834,7 @@ Examples:
     workflow_dir = script_dir / args.workflow_dir
     output_dir = Path(args.output_folder)
     models_path = Path(args.models_path) if args.models_path else None
+    extra_workflows_dir = Path(args.extra_workflows) if args.extra_workflows else None
 
     # Setup logging
     # Determine log file path
@@ -1813,7 +1843,7 @@ Examples:
 
     # Create validator and run
     validator = MetadataValidator(workflow_dir, output_dir, models_path)
-    total, passed, failed = validator.run_validation()
+    total, passed, failed = validator.run_validation(extra_workflows_dir)
 
     # Exit with appropriate code
     return 0 if failed == 0 and total > 0 else 1
