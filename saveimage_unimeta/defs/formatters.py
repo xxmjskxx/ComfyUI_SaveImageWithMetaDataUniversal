@@ -43,7 +43,6 @@ except (ImportError, ModuleNotFoundError):  # noqa: BLE001 - provide minimal stu
 
 
 from ..utils.embedding import get_embedding_file_path
-from ..utils.hash import calc_hash
 from ..utils.lora import find_lora_info
 from ..utils.pathresolve import (
     try_resolve_artifact,
@@ -726,6 +725,9 @@ def extract_embedding_hashes(text, input_data):
     mode = (HASH_LOG_MODE or "none").lower()
     hashes: list[str] = []
 
+    # Import here to avoid circular dependency
+    from ..utils.pathresolve import load_or_calc_hash
+
     for embedding_name, embedding_path in zip(embedding_names, resolved_paths):
         if not embedding_path or not os.path.exists(embedding_path):
             if mode in {"detailed", "debug"}:
@@ -735,7 +737,13 @@ def extract_embedding_hashes(text, input_data):
         if mode in {"filename", "path", "detailed", "debug"}:
             _log("embedding", f"hashing {_fmt_display(embedding_path)} hash")
         try:
-            hash_value = calc_hash(embedding_path)
+            # Use load_or_calc_hash to leverage .sha256 sidecar caching
+            hash_value = load_or_calc_hash(
+                embedding_path,
+                truncate=10,
+                on_compute=None,
+                sidecar_error_cb=_sidecar_error_once,
+            )
         except (OSError, TypeError, ValueError) as err:  # pragma: no cover - defensive
             logger.debug("[Metadata Lib] Skipping embedding hash due to error: %r", err)
             if mode in {"detailed", "debug"}:
@@ -744,7 +752,8 @@ def extract_embedding_hashes(text, input_data):
             continue
         if mode == "debug":
             _log("embedding", f"full hash {os.path.basename(embedding_path)}={hash_value}")
-        hashes.append(hash_value[:10] if isinstance(hash_value, str) else hash_value)
+        # load_or_calc_hash with truncate=10 already returns 10-char hash
+        hashes.append(hash_value if isinstance(hash_value, str) else hash_value)
 
     if len(hashes) != len(embedding_names):
         logger.debug(
