@@ -311,7 +311,7 @@ HEURISTIC_RULES = [
         "hash_field": MetaField.LORA_MODEL_HASH,
         "required_class_keywords": ["lora", "loader", "load"],
         "sort_numeric": True,
-        "excluded_keywords": ("lora_syntax", "loaded_loras", "text"),
+        "excluded_keywords": ("lora_syntax", "loaded_loras", "text", "wt", "clip"),
     },
     {
         "metafield": MetaField.LORA_STRENGTH_MODEL,
@@ -337,6 +337,7 @@ HEURISTIC_RULES = [
         "required_class_keywords": ["lora", "loader", "load"],
         "type": "FLOAT",
         "sort_numeric": True,
+        "excluded_keywords": ("clip",),
     },
     {
         "metafield": MetaField.LORA_STRENGTH_CLIP,
@@ -349,12 +350,17 @@ HEURISTIC_RULES = [
             "wt",
             "clip",
         ),
-        "keywords_regex": (r"^clip_str_?\d{0,2}$", r"^strength_clip_?\d{0,2}$"),
+        "keywords_regex": (
+            r"^clip_str_?\d{0,2}$",
+            r"^strength_clip_?\d{0,2}$",
+            r"^clip_weight_?\d{0,2}$"
+        ),
         "required_context": ["lora_name"],
         "is_multi": True,
         "required_class_keywords": ["lora", "loader", "load"],
         "type": "FLOAT",
         "sort_numeric": True,
+        "excluded_keywords": ("model",),
     },
 ]
 
