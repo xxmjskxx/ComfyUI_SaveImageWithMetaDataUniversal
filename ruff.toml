@@ -1,5 +1,5 @@
 # Ruff configuration for SaveImageWithMetaDataUniversal
-line-length = 120
+line-length = 140
 target-version = "py312"
 
 [lint]
