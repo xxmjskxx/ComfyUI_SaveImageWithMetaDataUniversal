@@ -2243,7 +2243,8 @@ class Capture:
                     s = Capture._extract_value(v)
                     if isinstance(s, str) and "<lora:" in s.lower():
                         aggregated_text_candidates.append(s)
-                except Exception:
+                except Exception as e:
+                    logging.debug(f"Failed to extract LoRA from prompt value '{v}': {e}")
                     pass
         if not aggregated_text_candidates:
             return existing

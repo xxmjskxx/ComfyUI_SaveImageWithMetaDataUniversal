@@ -66,6 +66,7 @@ applyTo: '**/*.py'
 
 ## Error Handling & Node Safety
 
+- Handle edge cases and write clear, documented exception handling.
 - Metadata failures must never prevent an image from saving. Wrap risky sections in `try/except`, log via the module logger, and still return success to the caller.
 - Emit `"error: see log"` placeholders only when a metadata field would otherwise be blank, and ensure the corresponding log explains the issue.
 - Sanitize user-provided metadata exactly like `saveimage_unimeta/nodes/extra_metadata.py` (replace commas with `/`, trim whitespace) to keep downstream CSV consumers stable.

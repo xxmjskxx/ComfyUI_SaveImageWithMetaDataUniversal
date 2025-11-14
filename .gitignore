@@ -181,6 +181,7 @@ run_dev_workflows.bat
 validate_metadata.bat
 read_write_all_exif_to_txt.bat
 tools/
+tests/comfyui_cli_tests/Test/
 tests/comfyui_cli_tests/Test/hash_logs.txt
 tests/comfyui_cli_tests/Test/metadata_dump.txt
 tests/comfyui_cli_tests/Test/metadata_dump.txt.bak

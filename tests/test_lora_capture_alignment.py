@@ -1,5 +1,3 @@
-import pytest
-
 import saveimage_unimeta.capture as capture_mod
 from saveimage_unimeta.capture import Capture, MetaField, _LoRARecord
 
