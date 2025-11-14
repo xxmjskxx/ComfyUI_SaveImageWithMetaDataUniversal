@@ -1,3 +1,12 @@
+﻿"""Core saver node responsible for writing images and UniMeta metadata.
+
+This module bridges ComfyUI's saver protocol with UniMeta's capture pipeline.
+It orchestrates Trace/Capture traversal, filename token expansion, metadata
+generation (PNGInfo/EXIF/WebP), JPEG fallback stages, optional workflow dumps,
+and hashing sidecars while remaining importable in isolated pytest runs via
+runtime stubs.
+"""
+
 import json
 import logging
 import os
@@ -77,6 +86,7 @@ _DEBUG_VERBOSE = os.environ.get("METADATA_DEBUG", "0") not in (
 
 
 class SaveImageWithMetaDataUniversal:
+    """ComfyUI saver that embeds UniMeta metadata alongside image outputs."""
     SAVE_FILE_FORMATS = ["png", "jpeg", "webp"]
 
     def __init__(self):
@@ -89,6 +99,7 @@ class SaveImageWithMetaDataUniversal:
 
     @classmethod
     def INPUT_TYPES(s):  # noqa: N802,N804 (ComfyUI API requires this signature)
+        """Describe the ComfyUI inputs that configure saver behavior."""
         return {
             "required": {
                 "images": ("IMAGE",),
@@ -293,27 +304,36 @@ class SaveImageWithMetaDataUniversal:
         """Persist images to disk with rich, optionally extended metadata.
 
         Args:
-            images: Batch tensor list from upstream nodes.
-            filename_prefix: Template (supports tokens like %seed%, %width%).
-            sampler_selection_method: Strategy for sampler field selection.
-            sampler_selection_node_id: Node id considered for sampler extraction.
-            file_format: Output image format ('png', 'jpeg', 'webp').
-            lossless_webp: Whether to use lossless mode for WEBP.
-            quality: Quality (1-100) for lossy formats.
-            save_workflow_json: Emit workflow JSON alongside saved image.
-            add_counter_to_filename: Append numeric counter to avoid collisions.
-            civitai_sampler: Emit Civitai compatible sampler key if True.
-            max_jpeg_exif_kb: Upper bound for JPEG EXIF size before fallback logic triggers.
-            extra_metadata: Additional user-provided key/value entries.
-            prompt: Full workflow prompt graph (JSON serializable) for embedding.
-            extra_pnginfo: Extra PNG info dictionary from upstream nodes.
-            save_workflow_image: If False, omit workflow from embedded metadata.
-            include_lora_summary: Override aggregated LoRA summary line inclusion.
-            force_include_node_class: Comma separated node class names to force include during rule scanning.
-            suppress_missing_class_log: Hide informational missing-class coverage log.
+            images: Batch of tensors emitted by upstream nodes.
+            filename_prefix: Template supporting tokens such as ``%seed%`` or
+                ``%date:yy-MM-dd%``.
+            sampler_selection_method: Strategy for picking the sampler whose
+                Steps/CFG/etc. should be recorded.
+            sampler_selection_node_id: Explicit sampler id used when the method
+                is "By node ID".
+            file_format: Output format (``png``, ``jpeg``, ``webp``).
+            model_hash_log: Verbosity for hashing logs/sidecars.
+            lossless_webp: Toggle lossless encoding for WebP saves.
+            quality: Lossy quality slider for JPEG/WebP (1-100).
+            save_workflow_json: Emit workflow JSON alongside the image file.
+            add_counter_to_filename: Append a numeric suffix to avoid
+                overwriting prior renders.
+            civitai_sampler: Attach Civitai-compatible sampler hints.
+            max_jpeg_exif_kb: Maximum EXIF payload size before fallback stages
+                kick in.
+            extra_metadata: Additional user-supplied metadata mapping.
+            prompt: Hidden ComfyUI workflow graph passed through from the UI.
+            extra_pnginfo: Additional PNG metadata entries provided by upstream
+                nodes (also used for widget persistence).
+            save_workflow_image: Disable to skip embedding workflow metadata.
+            include_lora_summary: Whether to append the aggregated LoRA line.
+            guidance_as_cfg: Record Guidance under CFG for model compatibility.
+            suppress_missing_class_log: Hide the informational log when default
+                capture coverage misses certain node classes.
 
         Returns:
-            Tuple containing the original `images` tensor batch (ComfyUI node contract).
+            Tuple containing the original ``images`` tensor batch (per the
+            ComfyUI saver contract).
         """
         # Refresh definitions each run with smarter merge order. We pass a set
         # of classes seen from the SaveImage node back through the graph so the

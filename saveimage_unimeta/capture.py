@@ -3,7 +3,7 @@ import logging
 import os
 import re
 from collections.abc import Iterable, Iterator
-from typing import Any
+from typing import Any, NamedTuple
 import importlib.metadata
 
 # Use the aggregated, runtime-merged definitions (defaults + extensions + optional user JSON)
@@ -175,6 +175,13 @@ logger = logging.getLogger(__name__)
 def _debug_prompts_enabled() -> bool:
     """Return True if verbose prompt/sampler debug logging is enabled (runtime evaluated)."""
     return os.environ.get("METADATA_DEBUG_PROMPTS", "").strip() != ""
+
+
+class _LoRARecord(NamedTuple):
+    name: str
+    hash: str | None
+    strength_model: float | None
+    strength_clip: float | None
 
 
 # If user toggled debug flag, ensure logger emits DEBUG regardless of inherited root level.
@@ -1527,11 +1534,12 @@ class Capture:
                 pass  # VAE hash calculation may fail - continue without hash
 
         # Append LoRA and Embedding info
-        pnginfo_dict.update(cls.gen_loras(inputs_before_sampler_node))
+        lora_records, lora_fields = cls._build_lora_metadata(inputs_before_sampler_node)
+        pnginfo_dict.update(lora_fields)
         pnginfo_dict.update(cls.gen_embeddings(inputs_before_sampler_node))
 
         hashes_for_civitai = cls.get_hashes_for_civitai(
-            inputs_before_sampler_node, inputs_before_this_node, pnginfo_dict
+            inputs_before_sampler_node, inputs_before_this_node, pnginfo_dict, lora_records
         )
         if len(hashes_for_civitai) > 0:
             pnginfo_dict["Hashes"] = json.dumps(hashes_for_civitai)
@@ -1819,6 +1827,11 @@ class Capture:
             except Exception:
                 pass  # LoRA summary insertion may fail - continue without it
 
+        if _mgv is not None:
+            # Ensure metadata generator version remains last after any subsequent insertions
+            ordered_items = [item for item in ordered_items if item[0] != "Metadata generator version"]
+            ordered_items.append(("Metadata generator version", _mgv))
+
         def _format_sampler(raw: str) -> str:
             """Return display value for sampler.
 
@@ -1973,7 +1986,13 @@ class Capture:
             logger.warning("[Metadata Lib] Failed to build Hash detail section: %r", e)
 
     @classmethod
-    def get_hashes_for_civitai(cls, inputs_before_sampler_node, inputs_before_this_node, pnginfo_dict=None):
+    def get_hashes_for_civitai(
+        cls,
+        inputs_before_sampler_node,
+        inputs_before_this_node,
+        pnginfo_dict=None,
+        lora_records: list[_LoRARecord] | None = None,
+    ):
         resource_hashes = {}
 
         def add_if_valid(key, value):
@@ -2007,17 +2026,14 @@ class Capture:
             if len(vae_hashes) > 0:
                 add_if_valid("vae", Capture._extract_value(vae_hashes[0]))
 
-        lora_model_names = inputs_before_sampler_node.get(MetaField.LORA_MODEL_NAME, [])
-        lora_model_hashes = inputs_before_sampler_node.get(MetaField.LORA_MODEL_HASH, [])
-        for lora_model_name, lora_model_hash in zip(lora_model_names, lora_model_hashes):
+        records = lora_records
+        if records is None:
+            records, _ = cls._collect_lora_records(inputs_before_sampler_node)
+        for record in records:
             try:
-                raw_name = Capture._extract_value(lora_model_name)
-                if isinstance(raw_name, list | tuple) and raw_name:  # noqa: UP038
-                    raw_name = raw_name[0]
-                ln = Capture._clean_name(raw_name, drop_extension=True)
-                lh = Capture._extract_value(lora_model_hash)
-                if ln and lh:
-                    add_if_valid(f"lora:{ln}", lh)
+                norm_name = Capture._clean_name(record.name, drop_extension=True)
+                if norm_name and record.hash:
+                    add_if_valid(f"lora:{norm_name}", record.hash)
             except Exception as e:
                 logger.debug("[Metadata Lib] Skipping LoRA hash entry due to error: %r", e)
 
@@ -2056,14 +2072,39 @@ class Capture:
 
     @classmethod
     def gen_loras(cls, inputs):
-        pnginfo_dict = {}
+        _records, formatted = cls._build_lora_metadata(inputs)
+        return formatted
 
+    @classmethod
+    def _build_lora_metadata(cls, inputs):
+        records, aggregate_error = cls._collect_lora_records(inputs)
+        return records, cls._format_lora_records(records, aggregate_error)
+
+    @staticmethod
+    def _format_lora_records(records: list[_LoRARecord], aggregate_error: bool) -> dict[str, Any]:
+        pnginfo_dict: dict[str, Any] = {}
+        if not records:
+            if aggregate_error:
+                pnginfo_dict["Lora_0 Model name"] = "error: see log"
+                pnginfo_dict["Lora_0 Model hash"] = "error"
+            return pnginfo_dict
+        for index, record in enumerate(records):
+            prefix = f"Lora_{index}"
+            pnginfo_dict[f"{prefix} Model name"] = record.name
+            pnginfo_dict[f"{prefix} Model hash"] = record.hash
+            if record.strength_model is not None:
+                pnginfo_dict[f"{prefix} Strength model"] = record.strength_model
+            if record.strength_clip is not None:
+                pnginfo_dict[f"{prefix} Strength clip"] = record.strength_clip
+        return pnginfo_dict
+
+    @classmethod
+    def _collect_lora_records(cls, inputs) -> tuple[list[_LoRARecord], bool]:
         model_names = inputs.get(MetaField.LORA_MODEL_NAME, [])
         model_hashes = inputs.get(MetaField.LORA_MODEL_HASH, [])
         strength_models = inputs.get(MetaField.LORA_STRENGTH_MODEL, [])
         strength_clips = inputs.get(MetaField.LORA_STRENGTH_CLIP, [])
 
-        # Log list length mismatch (will silently zip to shortest)
         try:
             ln, lh, lsm, lsc = (
                 len(model_names),
@@ -2080,15 +2121,12 @@ class Capture:
                     lsc,
                 )
         except Exception:
-            pass  # Debug logging may fail - continue processing
+            pass
 
-        # Pre-filter: remove any entries that are clearly aggregated syntax blobs like
-        # "<lora:foo:0.5> <lora:bar:0.7>" which can appear if a raw text field slipped through.
         def _is_aggregate(value):
             try:
                 if not isinstance(value, str):
                     return False
-                # Heuristic: contains "> <lora:" or two or more '<lora:' occurrences
                 if "<lora:" in value and value.count("<lora:") > 1:
                     return True
                 if "> <lora:" in value:
@@ -2111,32 +2149,30 @@ class Capture:
         strength_models = _filtered(strength_models)
         strength_clips = _filtered(strength_clips)
 
-        # Collect cleaned entries first, then deduplicate and emit
-        cleaned = []
-        for model_name, model_hashe, strength_model, strength_clip in zip(
-            model_names, model_hashes, strength_models, strength_clips
-        ):
+        cleaned: list[_LoRARecord] = []
+        for idx in range(len(model_names)):
             try:
-                mn = Capture._extract_value(model_name)
-                mh = Capture._extract_value(model_hashe)
-                sm = Capture._extract_value(strength_model)
-                sc = Capture._extract_value(strength_clip)
+                mn = Capture._extract_value(model_names[idx])
+                lookup_token = mn
                 tuple_sm = None
                 tuple_sc = None
                 if isinstance(mn, tuple | list) and len(mn) >= 1:  # noqa: UP038
                     raw_path = mn[0]
-                    if len(mn) >= 2 and (sm is None or (isinstance(sm, str) and sm.strip() == "")):
+                    lookup_token = raw_path
+                    if len(mn) >= 2:
                         try:
                             tuple_sm = float(mn[1])
                         except Exception:
                             tuple_sm = None
-                    if len(mn) >= 3 and (sc is None or (isinstance(sc, str) and sc.strip() == "")):
+                    if len(mn) >= 3:
                         try:
                             tuple_sc = float(mn[2])
                         except Exception:
                             tuple_sc = None
                     mn = raw_path
                 name_disp = Capture._clean_name(mn, drop_extension=False)
+                if cls._is_invalid_lora_name(name_disp):
+                    continue
 
                 def to_float_or_none(x):
                     try:
@@ -2151,113 +2187,147 @@ class Capture:
                         return None
                     return None
 
-                sm_num = to_float_or_none(sm)
-                sc_num = to_float_or_none(sc)
-                sm_final = sm_num if sm_num is not None else tuple_sm
-                sc_final = sc_num if sc_num is not None else tuple_sc
-                cleaned.append((name_disp, mh, sm_final, sc_final))
+                sm = Capture._extract_value(strength_models[idx]) if idx < len(strength_models) else None
+                sc = Capture._extract_value(strength_clips[idx]) if idx < len(strength_clips) else None
+                sm_final = to_float_or_none(sm)
+                sc_final = to_float_or_none(sc)
+                if sm_final is None:
+                    sm_final = tuple_sm
+                if sc_final is None:
+                    sc_final = tuple_sc
+                mh = Capture._extract_value(model_hashes[idx]) if idx < len(model_hashes) else None
+                resolved_hash = cls._resolve_lora_hash(name_disp, mh, lookup_token)
+                cleaned.append(_LoRARecord(name_disp, resolved_hash, sm_final, sc_final))
             except Exception as e:
                 logger.debug("[Metadata Lib] Skipping LoRA entry due to error: %r", e)
-                continue
 
-        # Deduplicate with smarter preference:
-        # 1. Group by normalized name (case-insensitive, ignore extension only if one side lacks one)
-        # 2. Within group, prefer entries with a real hash (not None, not 'N/A')
-        # 3. Preserve first occurrence ordering among equally valid candidates.
-        groups = {}
-
-        def norm_key(n):
-            try:
-                return n.lower()
-            except Exception:
-                return str(n)
-
-        for name_disp, mh, sm_final, sc_final in cleaned:
-            nk = norm_key(name_disp)
-            groups.setdefault(nk, []).append((name_disp, mh, sm_final, sc_final))
-        dedup = []
-        for nk, entries in groups.items():
-            # Partition by hash validity
-            with_hash = [e for e in entries if e[1] and isinstance(e[1], str) and e[1].upper() != "N/A"]
-            chosen = with_hash[0] if with_hash else entries[0]
-            dedup.append(chosen)
-
-        # Attempt to parse aggregated lora_syntax / loaded_loras text if present and add missing entries
+        dedup = cls._deduplicate_lora_records(cleaned)
+        aggregate_error = False
         try:
-            aggregated_text_candidates = []
-            # Inputs may have captured raw text fields under the same metafield names
-            # but we filtered earlier; search generic prompt fields
-            possible_meta_text_fields = [
-                MetaField.POSITIVE_PROMPT,
-                MetaField.NEGATIVE_PROMPT,
-            ]
-            for mf in possible_meta_text_fields:
-                vals = inputs.get(mf, [])
-                for v in vals:
-                    try:
-                        s = Capture._extract_value(v)
-                        if isinstance(s, str) and "<lora:" in s.lower():
-                            aggregated_text_candidates.append(s)
-                    except Exception:
-                        pass  # Value extraction may fail - skip this value
-            import re as _re
-
-            syntax_pattern = _re.compile(
-                r"<lora:([^:>]+):([0-9]*\.?[0-9]+)(?::([0-9]*\.?[0-9]+))?>",
-                _re.IGNORECASE,
-            )
-            for blob in aggregated_text_candidates:
-                for name, ms_str, cs_str in syntax_pattern.findall(blob):
-                    try:
-                        ms = float(ms_str)
-                    except Exception:
-                        ms = 1.0
-                    try:
-                        cs = float(cs_str) if cs_str else ms
-                    except Exception:
-                        cs = ms
-                    # Skip if already present by name (case-insensitive) OR present with a real hash
-                    norm_name = name.lower()
-                    already = False
-                    for existing_name, existing_hash, _, _ in dedup:
-                        base_existing = existing_name.lower()
-                        if base_existing == norm_name:
-                            already = True
-                            break
-                    if already:
-                        continue
-                    # Hash attempt: rely on calc_lora_hash if available via name; fallback to name stub
-                    # Reuse global calc_lora_hash if imported at module level; fallback None
-                    try:
-                        _calc_lora_hash = calc_lora_hash  # type: ignore
-                    except Exception:
-                        _calc_lora_hash = None
-                    try:
-                        lhash = _calc_lora_hash(name, None) if _calc_lora_hash else name
-                    except Exception:
-                        lhash = name
-                    dedup.append((name, lhash, ms, cs))
+            dedup = cls._append_loras_from_text(inputs, dedup)
         except Exception as e:
+            aggregate_error = True
             logger.debug("[Metadata Lib] LoRA aggregated syntax parse failed: %r", e)
-            # Insert a visible placeholder so user can see something went wrong
+        return dedup, aggregate_error
+
+    @staticmethod
+    def _deduplicate_lora_records(records: list[_LoRARecord]) -> list[_LoRARecord]:
+        if not records:
+            return []
+        groups: dict[str, list[_LoRARecord]] = {}
+
+        def norm_key(name: str) -> str:
             try:
-                if not any(k.startswith("Lora_") for k in pnginfo_dict.keys()):
-                    pnginfo_dict["Lora_0 Model name"] = "error: see log"
-                    pnginfo_dict["Lora_0 Model hash"] = "error"
+                return name.lower()
             except Exception:
-                pass  # Error placeholder insertion may fail - continue anyway
+                return str(name)
 
-        # Stable sort: original order of appearance already preserved in dedup
-        for index, (name_disp, mh, sm_final, sc_final) in enumerate(dedup):
-            prefix = f"Lora_{index}"
-            pnginfo_dict[f"{prefix} Model name"] = name_disp
-            pnginfo_dict[f"{prefix} Model hash"] = mh
-            if sm_final is not None:
-                pnginfo_dict[f"{prefix} Strength model"] = sm_final
-            if sc_final is not None:
-                pnginfo_dict[f"{prefix} Strength clip"] = sc_final
+        for record in records:
+            key = norm_key(record.name)
+            groups.setdefault(key, []).append(record)
 
-        return pnginfo_dict
+        dedup: list[_LoRARecord] = []
+        for key in groups:
+            entries = groups[key]
+            with_hash = [e for e in entries if isinstance(e.hash, str) and e.hash and e.hash.upper() != "N/A"]
+            dedup.append(with_hash[0] if with_hash else entries[0])
+        return dedup
+
+    @classmethod
+    def _append_loras_from_text(cls, inputs, existing: list[_LoRARecord]) -> list[_LoRARecord]:
+        aggregated_text_candidates = []
+        for mf in (MetaField.POSITIVE_PROMPT, MetaField.NEGATIVE_PROMPT):
+            vals = inputs.get(mf, [])
+            for v in vals:
+                try:
+                    s = Capture._extract_value(v)
+                    if isinstance(s, str) and "<lora:" in s.lower():
+                        aggregated_text_candidates.append(s)
+                except Exception:
+                    pass
+        if not aggregated_text_candidates:
+            return existing
+
+        pattern = re.compile(
+            r"<lora:([^:>]+):([0-9]*\.?[0-9]+)(?::([0-9]*\.?[0-9]+))?>",
+            re.IGNORECASE,
+        )
+        compare_keys = {cls._normalize_lora_key(rec.name) for rec in existing}
+        for blob in aggregated_text_candidates:
+            for name, ms_str, cs_str in pattern.findall(blob):
+                try:
+                    ms = float(ms_str)
+                except Exception:
+                    ms = 1.0
+                try:
+                    cs = float(cs_str) if cs_str else ms
+                except Exception:
+                    cs = ms
+                display_name = Capture._clean_name(name, drop_extension=False)
+                key = cls._normalize_lora_key(display_name)
+                if key in compare_keys:
+                    continue
+                try:
+                    lhash = calc_lora_hash(name, None)
+                except Exception:
+                    lhash = name
+                existing.append(_LoRARecord(display_name, lhash, ms, cs))
+                compare_keys.add(key)
+        return existing
+
+    @staticmethod
+    def _normalize_lora_key(name: str) -> str:
+        try:
+            return name.lower()
+        except Exception:
+            return str(name)
+
+    @staticmethod
+    def _is_invalid_lora_name(name: str) -> bool:
+        if not name:
+            return True
+        lowered = name.strip().lower()
+        if lowered in {"none", "n/a", ""}:
+            return True
+        stripped = name.strip()
+        if any(ch in stripped for ch in ("/", "\\")):
+            return False
+        if any(ch.isalpha() for ch in stripped):
+            return False
+        try:
+            float(stripped)
+            return True
+        except Exception:
+            return False
+
+    @staticmethod
+    def _resolve_lora_hash(name: str, captured_hash, lookup_token=None) -> str | None:
+        def _normalize(value) -> str | None:
+            if value is None:
+                return None
+            try:
+                text = str(value).strip()
+            except Exception:
+                return None
+            if not text or text.upper() == "N/A":
+                return None
+            return text
+
+        tokens = []
+        if lookup_token not in (None, ""):
+            tokens.append(lookup_token)
+        tokens.append(name)
+
+        for token in tokens:
+            try:
+                computed = calc_lora_hash(token, None)
+            except Exception:
+                computed = None
+            computed_norm = _normalize(computed)
+            if computed_norm:
+                return computed_norm
+
+        return _normalize(captured_hash)
 
     @classmethod
     def gen_embeddings(cls, inputs):

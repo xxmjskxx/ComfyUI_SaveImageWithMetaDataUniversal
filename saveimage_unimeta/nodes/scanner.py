@@ -1,6 +1,53 @@
-"""MetadataRuleScanner node: scans installed nodes and suggests capture rules.
+"""MetadataRuleScanner enumerates capture and sampler rule gaps.
 
-This module was extracted from the legacy monolithic node.py to improve maintainability.
+Workflow
+        1. Walk every class in ``nodes.NODE_CLASS_MAPPINGS`` and inspect declared
+             inputs/hidden fields.
+        2. Apply :data:`HEURISTIC_RULES` to locate potential MetaField + hash
+             candidates, recording *why* they matched via the rule metadata.
+        3. Compare the findings to the current capture baseline
+             (defaults + extensions + user JSON) so only missing pieces surface when
+             the "missing-only lens" is active.
+        4. Emit a pretty JSON block (for export) and a one-line diff summary for the
+             UI panel.
+
+Key behavior
+        * Missing-only lens mirrors the saver: when ``include_existing`` is false,
+            metafields already covered by the union baseline are suppressed unless a
+            user forces the MetaField or node class.
+        * A lightweight cache tracks the mtimes of ``user_rules/*.json`` (and the
+            test-mode mirror) so repeated scans during UI sessions skip redundant
+            reloads.
+        * Debug logging honors ``METADATA_DEBUG`` to avoid log spam in production.
+
+Heuristic reference
+        Each entry inside :data:`HEURISTIC_RULES` is declarative and may include the
+        following keys (optional unless noted):
+
+        * ``metafield`` (required): the :class:`saveimage_unimeta.defs.meta.MetaField`
+            to capture when the rule matches.
+        * ``keywords`` / ``keywords_regex``: literal strings or regex patterns used
+            to match node input names (case-insensitive). Substring matches apply
+            unless ``exact_only`` is set.
+        * ``excluded_keywords`` / ``excluded_class_keywords``: tokens that disqualify
+            either the input field or the node class.
+        * ``required_context``: other input names that must be present on the node
+            (for example, ``height`` alongside ``width``).
+        * ``required_class_keywords`` / ``required_class_regex`` /
+            ``required_class_keyword_groups``: class-name filters ranging from simple
+            substrings to regexes or group-count requirements that dramatically reduce
+            false positives.
+        * ``type``: allowed ComfyUI declared types (``INT``, ``FLOAT``, ``STRING``).
+            The scanner skips fields whose declared type falls outside this set.
+        * ``is_multi``: surface every matching field (returned via ``fields``) while
+            preserving numeric ordering for patterns like ``lora_1``..``lora_n``.
+        * ``format`` / ``hash_field``: instruct the scanner to pair the matched
+            field with a hash entry by invoking helpers from
+            ``saveimage_unimeta.utils.formatters``.
+        * ``validate``: name of a helper (``is_positive_prompt``, etc.) that can
+            sanity-check the matched input contents before surfacing it.
+
+For a concise glossary of the same options see :data:`HEURISTIC_RULES_DOC` below.
 """
 
 import json
@@ -17,6 +64,34 @@ from .. import defs as defs_mod
 logger = logging.getLogger(__name__)
 _DEBUG_VERBOSE = os.environ.get("METADATA_DEBUG", "0") not in ("0", "false", "False", None, "")
 
+
+HEURISTIC_RULES_DOC = """
+Heuristic dictionary keys referenced by :data:`HEURISTIC_RULES`:
+
+keywords / keywords_regex:
+    Case-insensitive literal tokens or regex patterns used to match input
+    names. Substring checks apply unless ``exact_only`` is set.
+excluded_keywords / excluded_class_keywords:
+    Tokens that must not appear in the field or class name.
+required_context:
+    Additional inputs that must exist on the node (for example ``height`` when
+    inferring a ``width`` metafield).
+required_class_keywords / required_class_regex / required_class_keyword_groups:
+    Filters that gate evaluation until the class name contains select tokens,
+    matches regex patterns, or satisfies minimum counts per keyword group.
+type:
+    Accepted ComfyUI declared input types (``INT``, ``FLOAT``, ``STRING``, etc.).
+is_multi:
+    Surfaces every match and returns ``fields`` instead of ``field_name`` so
+    multi-slot structures such as LoRA stacks preserve ordering.
+format / hash_field:
+    Name+hash companions. ``format`` references helpers from
+    ``saveimage_unimeta.utils.formatters`` and ``hash_field`` points to the
+    :class:`MetaField` that should store the hash.
+validate:
+    Optional validator helper (``is_positive_prompt``, ``is_negative_prompt``)
+    used to double-check the captured field content.
+"""
 
 HEURISTIC_RULES = [
     {
@@ -285,8 +360,27 @@ HEURISTIC_RULES = [
 
 
 class MetadataRuleScanner:
+    """Report missing capture rules/sampler roles for installed nodes.
+
+    The scanner inspects every class registered in ``nodes.NODE_CLASS_MAPPINGS``
+    and produces two JSON-compatible payloads:
+
+    * ``suggested_rules_json`` – pretty-printed capture/sampler suggestions.
+    * ``diff_report`` – condensed summary for log/tooltips.
+
+    The implementation honours UI overrides, caching, ``METADATA_TEST_MODE``,
+    and ``METADATA_DEBUG`` just like the rest of the UniMeta saver stack.
+    """
+
     @classmethod
-    def INPUT_TYPES(s):  # noqa: N802,N804
+    def INPUT_TYPES(cls):  # noqa: N802,N804
+        """Expose scanner configuration inputs to ComfyUI.
+
+        Returns:
+            Mapping that adheres to the ComfyUI protocol with default values
+            plus tooltips describing *exclude*, *include_existing*, mode
+            selection, and force-include overrides.
+        """
         return {
             "required": {
                 "exclude_keywords": (
@@ -362,7 +456,8 @@ class MetadataRuleScanner:
     )
     NODE_NAME = "Metadata Rule Scanner"
 
-    def find_common_prefix(self, strings):
+    def find_common_prefix(self, strings: list[str] | tuple[str, ...]) -> str | None:
+        """Return the shared alphanumeric prefix for LoRA-style field groups."""
         if not strings or len(strings) < 2:
             return None
         prefix = os.path.commonprefix(strings)
@@ -370,12 +465,37 @@ class MetadataRuleScanner:
 
     def scan_for_rules(
         self,
-        exclude_keywords="",
-        include_existing=False,
-        mode="new_only",
-        force_include_metafields="",
-        force_include_node_class="",
+        exclude_keywords: str = "",
+        include_existing: bool = False,
+        mode: str = "new_only",
+        force_include_metafields: str = "",
+        force_include_node_class: str = "",
     ):
+        """Generate capture/sampler recommendations based on heuristics.
+
+        Args:
+            exclude_keywords: Comma-separated substrings that filter node class
+                names. Entries still appear when forced via
+                ``force_include_node_class``.
+            include_existing: When ``False`` (default), enables the
+                "missing-only lens" that filters out metadata already covered
+                by defaults/extensions/user JSON; when ``True`` the scanner
+                reports inclusive results similar to pre-2025 behaviour.
+            mode: ``new_only`` (default) emits only missing metafields per
+                node, ``all`` emits both new and existing matches, and
+                ``existing_only`` restricts output to nodes already recorded in
+                the capture baseline.
+            force_include_metafields: CSV of :class:`MetaField` names that must
+                remain in the output even if already satisfied by the baseline.
+            force_include_node_class: CSV/newline separated class names that
+                bypass keyword filters and appear even when omitted by
+                ``mode``.
+
+        Returns:
+            Either the tuple ``(json_text, diff_report)`` when invoked inside
+            automated tests or a dict payload for ComfyUI containing UI fields
+            plus the tuple.
+        """
         if _DEBUG_VERBOSE:
             logger.info(cstr("[Metadata Scanner] Starting scan...").msg)
         import re  # local to avoid global import cost when node unused

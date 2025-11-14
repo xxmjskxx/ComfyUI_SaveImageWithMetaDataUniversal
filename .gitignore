@@ -148,7 +148,7 @@ saveimage_unimeta/defs/ext/generated_user_rules.py
 saveimage_unimeta/user_rules/backups/
 saveimage_unimeta/user_rules/user_captures.json
 saveimage_unimeta/user_rules/user_samplers.json
-# user_rules/
+user_rules/
 
 # Debug files in tests directory
 tests/_test_outputs/user_rules/
@@ -176,8 +176,20 @@ tasksync/
 # /dev_test_workflows/
 tests/comfyui_cli_tests/run_dev_workflows.bat
 tests/comfyui_cli_tests/validate_metadata.bat
+tests/comfyui_cli_tests/read_write_all_exif_to_txt.bat
 run_dev_workflows.bat
 validate_metadata.bat
+read_write_all_exif_to_txt.bat
+tools/
+tests/comfyui_cli_tests/Test/hash_logs.txt
+tests/comfyui_cli_tests/Test/metadata_dump.txt
+tests/comfyui_cli_tests/Test/metadata_dump.txt.bak
+tests/comfyui_cli_tests/Test/metadata_hash_cmpr.md
+tests/comfyui_cli_tests/Test/metadata_hash_cmpr.txt
+tests/comfyui_cli_tests/Test/validation_log.txt
+tests/comfyui_cli_tests/Test/validation_log.txt.bak
+tests/comfyui_cli_tests/compare_hash_logs.bat
+
 
 # Ephemeral local drafting files (root only). Keep actual published notes in docs/.
 docs/HIGH_PRIORITY_TASKS.md

@@ -1,4 +1,5 @@
 ---
+description: "ComfyUI protocol guarantees and manifest/registration contract."
 applyTo: "**/*.py"
 ---
 

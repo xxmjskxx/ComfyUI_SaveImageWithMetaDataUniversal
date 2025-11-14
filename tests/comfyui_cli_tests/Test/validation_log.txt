@@ -2,12 +2,11 @@
 ComfyUI Metadata Validation
 ======================================================================
 Workflow Dir: C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI\custom_nodes\ComfyUI_SaveImageWithMetaDataUniversal\tests\comfyui_cli_tests\dev_test_workflows
-Output Dir:   tests\comfyui_cli_tests\Test
+Output Dir:   C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI\output\Test
 ======================================================================
-⚠ Hash validation disabled: pass --models-path to enable sidecar checks
 
 Scanning for images...
-Found 23 total image(s) in output directory
+Found 25 total image(s) in output directory
 
 Validating workflow: efficiency-nodes.json
   Found 3 Save Image node(s)
@@ -21,6 +20,7 @@ Validating workflow: efficiency-nodes.json
         Error: Lora_0 Model hash not present in metadata
         Error: Expected LoRA 1 ('LoRA\sd15\zelda\ootlink-nvwls-v1.safetensors') not found in metadata
         Error: Lora_1 Model hash not present in metadata
+        Info: Hash validation PASSED: Model 'cyberrealistic_v50.safetensors' (metadata: 0b20a3f2cd, sidecar: 0b20a3f2cd... [64 chars total])
         Validation Details:
           ✓ Seed: expected=456, actual=456
           ✓ Steps: expected=25, actual=25
@@ -36,6 +36,7 @@ Validating workflow: efficiency-nodes.json
           ✓ Negative prompt: expected=lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, artist name, embedding:FastNegativeV2,, actual=lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, artist name, embedding:FastNegativeV2,
     ✗ eff_basic_00001_.png (8 checks)
         Error: Denoise missing, expected '1'
+        Info: Hash validation PASSED: Model 'cyberrealistic_v50.safetensors' (metadata: 0b20a3f2cd, sidecar: 0b20a3f2cd... [64 chars total])
         Validation Details:
           ✓ Seed: expected=123, actual=123
           ✓ Steps: expected=20, actual=20
@@ -49,6 +50,7 @@ Validating workflow: efficiency-nodes.json
         Error: LoRA count mismatch: expected 1 LoRAs, got 0
         Error: Expected LoRA 0 ('LoRA\xl\style\dark_gothic_fantasy_xl_3.01.safetensors') not found in metadata
         Error: Lora_0 Model hash not present in metadata
+        Info: Hash validation PASSED: Model 'Juggernaut_X_RunDiffusion.safetensors' (metadata: d91d35736d, sidecar: d91d35736d... [64 chars total])
         Validation Details:
           ✓ Seed: expected=789, actual=789
           ✓ Steps: expected=20, actual=20
@@ -67,6 +69,10 @@ Validating workflow: embedding_lora_vae_upscale_dual_sampler-id.json
   Found 1 matching image(s)
     ✗ Embedding-Vae-id_00001_.png (22 checks)
         Error: Denoise missing, expected '0.98'
+        Info: Hash validation PASSED: Model 'cyberrealistic_v33.safetensors' (metadata: 7a4dbba12f, sidecar: 7a4dbba12f... [64 chars total])
+        Info: Hash validation PASSED: Vae 'vae-ft-mse-840000-ema-pruned.ckpt' (metadata: c6a580b13a, sidecar: c6a580b13a... [64 chars total])
+        Info: Hash validation PASSED: Lora 'berserk_guts-10.safetensors' (metadata: 448a59f25e, sidecar: 448a59f25e... [64 chars total])
+        Info: Hash validation PASSED: Lora 'Guts_05.safetensors' (metadata: c2b1d95dde, sidecar: c2b1d95dde... [64 chars total])
         Validation Details:
           ✓ Seed: expected=25668662, actual=25668662
           ✓ Steps: expected=20, actual=20
@@ -98,6 +104,10 @@ Validating workflow: embedding_lora_vae_upscale_dual_sampler-near.json
     ✗ Embedding-Vae-near_00001_.png (22 checks)
         Error: Denoise missing, expected '0.6'
         Warning: Size mismatch: expected '512x512', got '563x563'
+        Info: Hash validation PASSED: Model 'cyberrealistic_v33.safetensors' (metadata: 7a4dbba12f, sidecar: 7a4dbba12f... [64 chars total])
+        Info: Hash validation PASSED: Vae 'vae-ft-mse-840000-ema-pruned.ckpt' (metadata: c6a580b13a, sidecar: c6a580b13a... [64 chars total])
+        Info: Hash validation PASSED: Lora 'berserk_guts-10.safetensors' (metadata: 448a59f25e, sidecar: 448a59f25e... [64 chars total])
+        Info: Hash validation PASSED: Lora 'Guts_05.safetensors' (metadata: c2b1d95dde, sidecar: c2b1d95dde... [64 chars total])
         Validation Details:
           ✓ Seed: expected=123, actual=123
           ✓ Steps: expected=20, actual=20
@@ -136,6 +146,10 @@ Validating workflow: embedding_lora_vae_upscale_dual_sampler.json
         Error: Lora_0 Strength clip mismatch: expected '0.5', got '0.44'
         Error: Lora_1 Strength model mismatch: expected '0.5', got '0.55'
         Error: Lora_1 Strength clip mismatch: expected '0.5', got '0.46'
+        Info: Hash validation PASSED: Model 'cyberrealistic_v33.safetensors' (metadata: 7a4dbba12f, sidecar: 7a4dbba12f... [64 chars total])
+        Info: Hash validation PASSED: Vae 'vae-ft-mse-840000-ema-pruned.ckpt' (metadata: c6a580b13a, sidecar: c6a580b13a... [64 chars total])
+        Info: Hash validation PASSED: Lora 'berserk_guts-10.safetensors' (metadata: 448a59f25e, sidecar: 448a59f25e... [64 chars total])
+        Info: Hash validation PASSED: Lora 'Guts_05.safetensors' (metadata: c2b1d95dde, sidecar: c2b1d95dde... [64 chars total])
         Validation Details:
           ✗ Seed: expected=123, actual=25668662
           ✓ Steps: expected=20, actual=20
@@ -162,6 +176,10 @@ Validating workflow: embedding_lora_vae_upscale_dual_sampler.json
     ✗ Embedding-Vae-near_00001_.png (22 checks)
         Error: Denoise missing, expected '0.6'
         Warning: Size mismatch: expected '512x512', got '563x563'
+        Info: Hash validation PASSED: Model 'cyberrealistic_v33.safetensors' (metadata: 7a4dbba12f, sidecar: 7a4dbba12f... [64 chars total])
+        Info: Hash validation PASSED: Vae 'vae-ft-mse-840000-ema-pruned.ckpt' (metadata: c6a580b13a, sidecar: c6a580b13a... [64 chars total])
+        Info: Hash validation PASSED: Lora 'berserk_guts-10.safetensors' (metadata: 448a59f25e, sidecar: 448a59f25e... [64 chars total])
+        Info: Hash validation PASSED: Lora 'Guts_05.safetensors' (metadata: c2b1d95dde, sidecar: c2b1d95dde... [64 chars total])
         Validation Details:
           ✓ Seed: expected=123, actual=123
           ✓ Steps: expected=20, actual=20
@@ -191,6 +209,10 @@ Validating workflow: embedding_lora_vae_upscale_dual_sampler.json
         Error: Sampler mismatch: expected 'dpmpp_2m', got 'dpm_fast_beta'
         Error: Scheduler mismatch: expected 'karras', got 'dpm_fast_beta'
         Error: Denoise missing, expected '0.6'
+        Info: Hash validation PASSED: Model 'cyberrealistic_v33.safetensors' (metadata: 7a4dbba12f, sidecar: 7a4dbba12f... [64 chars total])
+        Info: Hash validation PASSED: Vae 'vae-ft-mse-840000-ema-pruned.ckpt' (metadata: c6a580b13a, sidecar: c6a580b13a... [64 chars total])
+        Info: Hash validation PASSED: Lora 'berserk_guts-10.safetensors' (metadata: 448a59f25e, sidecar: 448a59f25e... [64 chars total])
+        Info: Hash validation PASSED: Lora 'Guts_05.safetensors' (metadata: c2b1d95dde, sidecar: c2b1d95dde... [64 chars total])
         Validation Details:
           ✗ Seed: expected=123, actual=25668654
           ✓ Steps: expected=20, actual=20
@@ -223,6 +245,7 @@ Validating workflow: extra_metadata_clip_skip.json
   Found 1 matching image(s)
     ✗ extra_metadata_clip_skip_00001_.png (10 checks)
         Error: Denoise missing, expected '1'
+        Info: Hash validation PASSED: Model 'cyberrealistic_v33.safetensors' (metadata: 7a4dbba12f, sidecar: 7a4dbba12f... [64 chars total])
         Validation Details:
           ✓ Seed: expected=999999999999999, actual=999999999999999
           ✓ Steps: expected=20, actual=20
@@ -241,6 +264,8 @@ Validating workflow: filename_format_denoise.json
   Found 1 matching image(s)
     ✗ 123-512x512_20251113-020105-siwm_00001_.png (13 checks)
         Error: Denoise missing, expected '0.7'
+        Info: Hash validation PASSED: Model 'cyberrealistic_v33.safetensors' (metadata: 7a4dbba12f, sidecar: 7a4dbba12f... [64 chars total])
+        Info: Hash validation PASSED: Vae 'vae-ft-mse-840000-ema-pruned.ckpt' (metadata: c6a580b13a, sidecar: c6a580b13a... [64 chars total])
         Validation Details:
           ✓ Seed: expected=123, actual=123
           ✓ Steps: expected=20, actual=20
@@ -268,6 +293,8 @@ Validating workflow: flux-civsampler-GCFG-lora-summary-batch3-turbo.json
         Error: Expected LoRA 0 ('flux\turbos\FLUX.1-Turbo-Alpha.safetensors') not found in metadata
         Error: Lora_0 Model hash not present in metadata
         Error: Weight dtype mismatch: expected 'fp8_e4m3fn_fast', got 'fp8_e4m3fn'
+        Info: Hash validation PASSED: Model 'flux1-dev-fp8-e4m3fn.safetensors' (metadata: 47d8dbdc6d, sidecar: 47d8dbdc6d... [64 chars total])
+        Info: Hash validation PASSED: Vae 'ae.safetensors' (metadata: afc8e28272, sidecar: afc8e28272... [64 chars total])
         Validation Details:
           ✓ Seed: expected=664708685477459, actual=664708685477459
           ✓ Steps: expected=8, actual=8
@@ -296,6 +323,8 @@ Validating workflow: flux-civsampler-GCFG-lora-summary-batch3-turbo.json
         Error: Expected LoRA 0 ('flux\turbos\FLUX.1-Turbo-Alpha.safetensors') not found in metadata
         Error: Lora_0 Model hash not present in metadata
         Error: Weight dtype mismatch: expected 'fp8_e4m3fn_fast', got 'fp8_e4m3fn'
+        Info: Hash validation PASSED: Model 'flux1-dev-fp8-e4m3fn.safetensors' (metadata: 47d8dbdc6d, sidecar: 47d8dbdc6d... [64 chars total])
+        Info: Hash validation PASSED: Vae 'ae.safetensors' (metadata: afc8e28272, sidecar: afc8e28272... [64 chars total])
         Validation Details:
           ✓ Seed: expected=664708685477459, actual=664708685477459
           ✓ Steps: expected=8, actual=8
@@ -324,6 +353,8 @@ Validating workflow: flux-civsampler-GCFG-lora-summary-batch3-turbo.json
         Error: Expected LoRA 0 ('flux\turbos\FLUX.1-Turbo-Alpha.safetensors') not found in metadata
         Error: Lora_0 Model hash not present in metadata
         Error: Weight dtype mismatch: expected 'fp8_e4m3fn_fast', got 'fp8_e4m3fn'
+        Info: Hash validation PASSED: Model 'flux1-dev-fp8-e4m3fn.safetensors' (metadata: 47d8dbdc6d, sidecar: 47d8dbdc6d... [64 chars total])
+        Info: Hash validation PASSED: Vae 'ae.safetensors' (metadata: afc8e28272, sidecar: afc8e28272... [64 chars total])
         Validation Details:
           ✓ Seed: expected=664708685477459, actual=664708685477459
           ✓ Steps: expected=8, actual=8
@@ -357,6 +388,8 @@ Validating workflow: flux-CR-LoRA-stack-ClownsharK.json
         Error: Guidance missing, expected '3.5'
         Error: Size missing, expected '832x1216'
         Error: Negative prompt missing, expected 'oil painting, semi realistic, fantasy, anime style, solid color background, tall thin character, beautiful lush vibrant forest, backlighting, dramatic atmospheric glow, countless small tiny clumsy gentle spirits, great forest spirit, intricate highly detailed, natural fantastical elements, leaves flowers feathers, hair clothing, delicate translucent wings, gentle mystical business, forest secret heartbeat, branches arms, leaves hair, ethereal benevolent connection, natural world, deep abiding, magic, hushed reverence, wonder, mysticism, otherworldly aura, vibrant colors, bold brushstrokes, gradating background, blues emerald greens, slender athletic build, elegant arm, beckoning summoning, reverence awe, drinking in essence, character attire, mesmerizing blend, organic growth, R3alisticF, retr0grade90s, A digital anime artwork in the style of cklg, in the style of cksc,'
+        Info: Hash validation PASSED: Model 'flux1-dev-fp8-e4m3fn.safetensors' (metadata: 47d8dbdc6d, sidecar: 47d8dbdc6d... [64 chars total])
+        Info: Hash validation PASSED: Vae 'ae.safetensors' (metadata: afc8e28272, sidecar: afc8e28272... [64 chars total])
         Validation Details:
           ✗ Seed: expected=15-digit random, actual=N/A
           ✗ Steps: expected=2, actual=N/A
@@ -387,6 +420,8 @@ Validating workflow: flux-dual-clip-turbo.json
         Error: Lora_0 Model hash not present in metadata
         Error: Positive prompt missing, expected 'oil painting, semi realistic, fantasy, anime style, solid color background, tall thin character, beautiful lush vibrant forest, backlighting, dramatic atmospheric glow, countless small tiny clumsy gentle spirits, great forest spirit, intricate highly detailed, natural fantastical elements, leaves flowers feathers, hair clothing, delicate translucent wings, gentle mystical business, forest secret heartbeat, branches arms, leaves hair, ethereal benevolent connection, natural world, deep abiding, magic, hushed reverence, wonder, mysticism, otherworldly aura, vibrant colors, bold brushstrokes, gradating background, blues emerald greens, slender athletic build, elegant arm, beckoning summoning, reverence awe, drinking in essence, character attire, mesmerizing blend, organic growth'
         Error: Weight dtype mismatch: expected 'fp8_e4m3fn_fast', got 'fp8_e4m3fn'
+        Info: Hash validation PASSED: Model 'flux1-dev-fp8-e4m3fn.safetensors' (metadata: 47d8dbdc6d, sidecar: 47d8dbdc6d... [64 chars total])
+        Info: Hash validation PASSED: Vae 'ae.safetensors' (metadata: afc8e28272, sidecar: afc8e28272... [64 chars total])
         Validation Details:
           ✓ Seed: expected=664708685477459, actual=664708685477459
           ✓ Steps: expected=8, actual=8
@@ -419,6 +454,8 @@ Validating workflow: flux-eff-LoRA-stack-ClownsharK.json
         Error: Guidance missing, expected '3.5'
         Error: Size missing, expected '832x1216'
         Error: Negative prompt missing, expected 'oil painting, semi realistic, fantasy, anime style, solid color background, tall thin character, beautiful lush vibrant forest, backlighting, dramatic atmospheric glow, countless small tiny clumsy gentle spirits, great forest spirit, intricate highly detailed, natural fantastical elements, leaves flowers feathers, hair clothing, delicate translucent wings, gentle mystical business, forest secret heartbeat, branches arms, leaves hair, ethereal benevolent connection, natural world, deep abiding, magic, hushed reverence, wonder, mysticism, otherworldly aura, vibrant colors, bold brushstrokes, gradating background, blues emerald greens, slender athletic build, elegant arm, beckoning summoning, reverence awe, drinking in essence, character attire, mesmerizing blend, organic growth, R3alisticF, retr0grade90s, A digital anime artwork in the style of cklg, in the style of cksc,'
+        Info: Hash validation PASSED: Model 'flux1-dev-fp8-e4m3fn.safetensors' (metadata: 47d8dbdc6d, sidecar: 47d8dbdc6d... [64 chars total])
+        Info: Hash validation PASSED: Vae 'ae.safetensors' (metadata: afc8e28272, sidecar: afc8e28272... [64 chars total])
         Validation Details:
           ✗ Seed: expected=684898030661856, actual=N/A
           ✗ Steps: expected=2, actual=N/A
@@ -450,6 +487,11 @@ Validating workflow: flux-PC-LoRA-inline-Inspire-KSampler.json
         Error: Guidance missing, expected '3.5'
         Error: Size missing, expected '832x1216'
         Error: Negative prompt missing, expected 'oil painting, semi realistic, fantasy, anime style, solid color background, tall thin character, beautiful lush vibrant forest, backlighting, dramatic atmospheric glow, countless small tiny clumsy gentle spirits, great forest spirit, intricate highly detailed, natural fantastical elements, leaves flowers feathers, hair clothing, delicate translucent wings, gentle mystical business, forest secret heartbeat, branches arms, leaves hair, ethereal benevolent connection, natural world, deep abiding, magic, hushed reverence, wonder, mysticism, otherworldly aura, vibrant colors, bold brushstrokes, gradating background, blues emerald greens, slender athletic build, elegant arm, beckoning summoning, reverence awe, drinking in essence, character attire, mesmerizing blend, organic growth, R3alisticF, retr0grade90s, A digital anime artwork in the style of cklg, in the style of cksc,'
+        Info: Hash validation PASSED: Model 'flux1-dev-fp8-e4m3fn.safetensors' (metadata: 47d8dbdc6d, sidecar: 47d8dbdc6d... [64 chars total])
+        Info: Hash validation PASSED: Vae 'ae.safetensors' (metadata: afc8e28272, sidecar: afc8e28272... [64 chars total])
+        Info: Hash validation PASSED: Lora '3d-anaglyphs.safetensors' (metadata: b15bd3d7ad, sidecar: b15bd3d7ad... [64 chars total])
+        Info: Hash validation PASSED: Lora 'aidmaAbadonedHorror-FLUX-V0.1.safetensors' (metadata: f5481e1d05, sidecar: f5481e1d05... [64 chars total])
+        Info: Hash validation PASSED: Lora 'Elden_Ring_Style.safetensors' (metadata: 8071595142, sidecar: 8071595142... [64 chars total])
         Validation Details:
           ✗ Seed: expected=15-digit random, actual=N/A
           ✗ Steps: expected=1, actual=N/A
@@ -479,6 +521,8 @@ Validating workflow: flux-turbo.json
         Error: Expected LoRA 0 ('flux\turbos\FLUX.1-Turbo-Alpha.safetensors') not found in metadata
         Error: Lora_0 Model hash not present in metadata
         Error: Weight dtype mismatch: expected 'fp8_e4m3fn_fast', got 'fp8_e4m3fn'
+        Info: Hash validation PASSED: Model 'flux1-dev-fp8-e4m3fn.safetensors' (metadata: 47d8dbdc6d, sidecar: 47d8dbdc6d... [64 chars total])
+        Info: Hash validation PASSED: Vae 'ae.safetensors' (metadata: afc8e28272, sidecar: afc8e28272... [64 chars total])
         Validation Details:
           ✓ Seed: expected=664708685477459, actual=664708685477459
           ✓ Steps: expected=8, actual=8
@@ -515,6 +559,8 @@ Validating workflow: large-workflow-jpeg-1kb.json
         Error: Expected LoRA 2 ('flux\artstyle\style\lnrnr_flux_EliPot.safetensors') not found in metadata
         Error: Lora_2 Model hash not present in metadata
         Warning: Metadata fallback occurred: reduced-exif
+        Info: Hash validation PASSED: Model 'flux1-dev-fp8-e4m3fn.safetensors' (metadata: 47d8dbdc6d, sidecar: 47d8dbdc6d... [64 chars total])
+        Info: Hash validation PASSED: Vae 'ae.safetensors' (metadata: afc8e28272, sidecar: afc8e28272... [64 chars total])
         Validation Details:
           ✓ Steps: expected=2, actual=2
           ✗ Sampler: expected=dpmpp_2m, actual=DPM++ 2M Karras
@@ -554,6 +600,8 @@ Validating workflow: large-workflow-jpeg-60kb.json
         Error: Expected LoRA 2 ('flux\artstyle\style\lnrnr_flux_EliPot.safetensors') not found in metadata
         Error: Lora_2 Model hash not present in metadata
         Warning: Metadata fallback occurred: reduced-exif
+        Info: Hash validation PASSED: Model 'flux1-dev-fp8-e4m3fn.safetensors' (metadata: 47d8dbdc6d, sidecar: 47d8dbdc6d... [64 chars total])
+        Info: Hash validation PASSED: Vae 'ae.safetensors' (metadata: afc8e28272, sidecar: afc8e28272... [64 chars total])
         Validation Details:
           ✓ Steps: expected=2, actual=2
           ✗ Sampler: expected=dpmpp_2m, actual=DPM++ 2M Karras
@@ -592,6 +640,8 @@ Validating workflow: large-workflow-png.json
         Error: Lora_1 Model hash not present in metadata
         Error: Expected LoRA 2 ('flux\artstyle\style\lnrnr_flux_EliPot.safetensors') not found in metadata
         Error: Lora_2 Model hash not present in metadata
+        Info: Hash validation PASSED: Model 'flux1-dev-fp8-e4m3fn.safetensors' (metadata: 47d8dbdc6d, sidecar: 47d8dbdc6d... [64 chars total])
+        Info: Hash validation PASSED: Vae 'ae.safetensors' (metadata: afc8e28272, sidecar: afc8e28272... [64 chars total])
         Validation Details:
           ✓ Steps: expected=2, actual=2
           ✗ Sampler: expected=dpmpp_2m, actual=DPM++ 2M Karras
@@ -630,6 +680,8 @@ Validating workflow: large-workflow-webp.json
         Error: Lora_1 Model hash not present in metadata
         Error: Expected LoRA 2 ('flux\artstyle\style\lnrnr_flux_EliPot.safetensors') not found in metadata
         Error: Lora_2 Model hash not present in metadata
+        Info: Hash validation PASSED: Model 'flux1-dev-fp8-e4m3fn.safetensors' (metadata: 47d8dbdc6d, sidecar: 47d8dbdc6d... [64 chars total])
+        Info: Hash validation PASSED: Vae 'ae.safetensors' (metadata: afc8e28272, sidecar: afc8e28272... [64 chars total])
         Validation Details:
           ✓ Steps: expected=2, actual=2
           ✗ Sampler: expected=dpmpp_2m, actual=DPM++ 2M Karras
@@ -665,6 +717,8 @@ Validating workflow: lora-USO-Style-and-or-Subject-transfer-turbo.json
         Error: Expected LoRA 1 ('flux\uso\uso-flux1-dit-lora-v1.safetensors') not found in metadata
         Error: Lora_1 Model hash not present in metadata
         Error: Weight dtype mismatch: expected 'fp8_e4m3fn_fast', got 'fp8_e4m3fn'
+        Info: Hash validation PASSED: Model 'flux1-dev-fp8-e4m3fn.safetensors' (metadata: 47d8dbdc6d, sidecar: 47d8dbdc6d... [64 chars total])
+        Info: Hash validation PASSED: Vae 'ae.safetensors' (metadata: afc8e28272, sidecar: afc8e28272... [64 chars total])
         Validation Details:
           ✓ Steps: expected=8, actual=8
           ✓ Sampler: expected=euler, actual=euler_simple
@@ -689,25 +743,71 @@ Validating workflow: lora-USO-Style-and-or-Subject-transfer-turbo.json
 Validating workflow: qwen_image_edit_2509.json
   Found 1 Save Image node(s)
   Filename patterns: Qwen-Edit
-  ⚠ Warning: No matching images found for this workflow
+  Found 1 matching image(s)
+    ✗ Qwen-Edit_00001_.png (15 checks)
+        Error: Denoise missing, expected '1'
+        Error: LoRA count mismatch: expected 1 LoRAs, got 0
+        Error: Expected LoRA 0 ('qwen\Qwen-Image-Lightning-4steps-V1.0.safetensors') not found in metadata
+        Error: Lora_0 Model hash not present in metadata
+        Error: Positive prompt missing, expected 'Make her hair black'
+        Error: Weight dtype mismatch: expected 'default', got 'fp8_e4m3fn'
+        Info: Hash validation PASSED: Model 'qwen_image_edit_2509_fp8_e4m3fn.safetensors' (metadata: 318568f619, sidecar: 318568f619... [64 chars total])
+        Info: Hash validation PASSED: Vae 'qwen_image_vae.safetensors' (metadata: a70580f021, sidecar: a70580f021... [64 chars total])
+        Validation Details:
+          ✓ Seed: expected=1118877715456453, actual=1118877715456453
+          ✓ Steps: expected=4, actual=4
+          ✓ CFG scale: expected=1, actual=1.0
+          ✓ Sampler: expected=euler, actual=euler_simple
+          ✓ Scheduler: expected=simple, actual=euler_simple
+          ✗ Denoise: expected=1, actual=N/A
+          ✓ Model: expected=qwen_image_edit_2509_fp8_e4m3fn, actual=qwen_image_edit_2509_fp8_e4m3fn
+          ✓ VAE: expected=qwen_image_vae, actual=qwen_image_vae
+          ✗ LoRA count: expected=1, actual=0
+          ✗ LoRA 0 name: expected=Qwen-Image-Lightning-4steps-V1.0, actual=N/A
+          ✗ Lora_0 Model hash: expected=computed hash, actual=N/A
+          ✗ Positive prompt: expected=Make her hair black, actual=N/A
+          ✓ Model hash: expected=computed hash, actual=318568f619
+          ✓ VAE hash: expected=computed hash, actual=a70580f021
+          ✗ Weight dtype: expected=default, actual=fp8_e4m3fn
 
 Validating workflow: wan21_text_to_image_sage.json
   Found 1 Save Image node(s)
   Filename patterns: Wan21
-  ⚠ Warning: No matching images found for this workflow
+  Found 1 matching image(s)
+    ✗ Wan21_00001_.png (16 checks)
+        Error: Denoise missing, expected '1'
+        Error: LoRA count mismatch: expected 1 LoRAs, got 0
+        Error: Expected LoRA 0 ('wan\turbo\lightx2v_T2V_14B_cfg_step_distill_v2_lora_rank64_bf16_.safetensors') not found in metadata
+        Error: Lora_0 Model hash not present in metadata
+        Error: Weight dtype mismatch: expected 'default', got 'fp8_e4m3fn'
+        Info: Hash validation PASSED: Model 'Wan2_1-T2V-14B_fp8_e4m3fn_scaled_KJ.safetensors' (metadata: 5519e566e6, sidecar: 5519e566e6... [64 chars total])
+        Info: Hash validation PASSED: Vae 'wan_2.1_vae.safetensors' (metadata: 2fc39d3135, sidecar: 2fc39d3135... [64 chars total])
+        Validation Details:
+          ✓ Seed: expected=706190577933098, actual=706190577933098
+          ✓ Steps: expected=4, actual=4
+          ✓ CFG scale: expected=1, actual=1.0
+          ✓ Sampler: expected=dpmpp_2m, actual=dpmpp_2m Karras
+          ✓ Scheduler: expected=karras, actual=dpmpp_2m Karras
+          ✗ Denoise: expected=1, actual=N/A
+          ✓ Model: expected=Wan2_1-T2V-14B_fp8_e4m3fn_scaled_KJ, actual=Wan2_1-T2V-14B_fp8_e4m3fn_scaled_KJ
+          ✓ VAE: expected=wan_2.1_vae, actual=wan_2.1_vae
+          ✗ LoRA count: expected=1, actual=0
+          ✗ LoRA 0 name: expected=lightx2v_T2V_14B_cfg_step_distill_v2_lora_rank64_bf16_, actual=N/A
+          ✗ Lora_0 Model hash: expected=computed hash, actual=N/A
+          ✓ Positive prompt: expected=a fox moving quickly in a beautiful winter scenery nature trees mountains daytime tracking camera, actual=a fox moving quickly in a beautiful winter scenery nature trees mountains daytime tracking camera
+          ✓ Negative prompt: expected=色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走, actual=色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走
+          ✓ Model hash: expected=computed hash, actual=5519e566e6
+          ✓ VAE hash: expected=computed hash, actual=2fc39d3135
+          ✗ Weight dtype: expected=default, actual=fp8_e4m3fn
 
 ======================================================================
 Validation Summary:
-  Total Images Validated: 25
+  Total Images Validated: 27
   ✓ Passed:               2
-  ✗ Failed:               23
+  ✗ Failed:               25
   ⚠ Unmatched Images:     0
-  ⚠ Unmatched Workflows:  2
+  ⚠ Unmatched Workflows:  0
 ======================================================================
-
-Unmatched Workflows (2):
-  - qwen_image_edit_2509.json
-  - wan21_text_to_image_sage.json
 
 Failed Images:
   - eff_adv_00001_.png (workflow: efficiency-nodes)
@@ -861,4 +961,71 @@ Failed Images:
       Expected LoRA 1 ('flux\uso\uso-flux1-dit-lora-v1.safetensors') not found in metadata
       Lora_1 Model hash not present in metadata
       Weight dtype mismatch: expected 'fp8_e4m3fn_fast', got 'fp8_e4m3fn'
+  - Qwen-Edit_00001_.png (workflow: qwen_image_edit_2509)
+      Denoise missing, expected '1'
+      LoRA count mismatch: expected 1 LoRAs, got 0
+      Expected LoRA 0 ('qwen\Qwen-Image-Lightning-4steps-V1.0.safetensors') not found in metadata
+      Lora_0 Model hash not present in metadata
+      Positive prompt missing, expected 'Make her hair black'
+      Weight dtype mismatch: expected 'default', got 'fp8_e4m3fn'
+  - Wan21_00001_.png (workflow: wan21_text_to_image_sage)
+      Denoise missing, expected '1'
+      LoRA count mismatch: expected 1 LoRAs, got 0
+      Expected LoRA 0 ('wan\turbo\lightx2v_T2V_14B_cfg_step_distill_v2_lora_rank64_bf16_.safetensors') not found in metadata
+      Lora_0 Model hash not present in metadata
+      Weight dtype mismatch: expected 'default', got 'fp8_e4m3fn'
 ======================================================================
+
+Failed Images (manually verified failures and edited accordingly):
+  - eff_adv_00001_.png (workflow: efficiency-nodes)
+      LoRA count mismatch: expected 2 LoRAs, got 0
+      Expected LoRA 0 ('LoRA\sd15\zelda\Majora_Zelda.safetensors') not found in metadata
+      Lora_0 Model hash not present in metadata
+      Expected LoRA 1 ('LoRA\sd15\zelda\ootlink-nvwls-v1.safetensors') not found in metadata
+      Lora_1 Model hash not present in metadata
+  - eff_basic_00001_.png (workflow: efficiency-nodes)
+      Denoise missing, expected '1'
+  - eff_xl_00001_.png (workflow: efficiency-nodes)
+      LoRA count mismatch: expected 1 LoRAs, got 0
+      Expected LoRA 0 ('LoRA\xl\style\dark_gothic_fantasy_xl_3.01.safetensors') not found in metadata
+      Lora_0 Model hash not present in metadata
+  - Embedding-Vae-id_00001_.png (workflow: embedding_lora_vae_upscale_dual_sampler-id)
+      Denoise missing, expected '0.98'
+  - Embedding-Vae-near_00001_.png (workflow: embedding_lora_vae_upscale_dual_sampler-near)
+      Denoise missing, expected '0.6'
+  - extra_metadata_clip_skip_00001_.png (workflow: extra_metadata_clip_skip)
+      Denoise missing, expected '1'
+  - 123-512x512_20251113-020105-siwm_00001_.png (workflow: filename_format_denoise)
+      Denoise missing, expected '0.7'
+  - 2025-11-13-020255-Flux-batch3-LoRA-summ-GCFG_00001_.png (workflow: flux-civsampler-GCFG-lora-summary-batch3-turbo)
+      Size missing, expected '1024x1024'
+      LoRA count mismatch: expected 1 LoRAs, got 0
+      Expected LoRA 0 ('flux\turbos\FLUX.1-Turbo-Alpha.safetensors') not found in metadata
+      Lora_0 Model hash not present in metadata
+      Weight dtype mismatch: expected 'fp8_e4m3fn_fast', got 'fp8_e4m3fn'
+  - 2025-11-13-020255-Flux-batch3-LoRA-summ-GCFG_00002_.png (workflow: flux-civsampler-GCFG-lora-summary-batch3-turbo)
+      Size missing, expected '1024x1024'
+      LoRA count mismatch: expected 1 LoRAs, got 0
+      Expected LoRA 0 ('flux\turbos\FLUX.1-Turbo-Alpha.safetensors') not found in metadata
+      Lora_0 Model hash not present in metadata
+      Weight dtype mismatch: expected 'fp8_e4m3fn_fast', got 'fp8_e4m3fn'
+  - 2025-11-13-020255-Flux-batch3-LoRA-summ-GCFG_00003_.png (workflow: flux-civsampler-GCFG-lora-summary-batch3-turbo)
+      Size missing, expected '1024x1024'
+      LoRA count mismatch: expected 1 LoRAs, got 0
+      Expected LoRA 0 ('flux\turbos\FLUX.1-Turbo-Alpha.safetensors') not found in metadata
+      Lora_0 Model hash not present in metadata
+      Weight dtype mismatch: expected 'fp8_e4m3fn_fast', got 'fp8_e4m3fn'
+  - flux-CR-LoRA-stack-ClownsharK_00001_.png (workflow: flux-CR-LoRA-stack-ClownsharK)
+      Steps missing, expected '2'
+      Scheduler mismatch: expected 'bong_tangent', got 'linear/euler'
+        - this was with civitai_sampler enabled, should have got CivitAI sampler alias.
+      Denoise missing, expected '1'
+      Size missing, expected '832x1216'
+  - 2025-11-13-020422-Flux-dual-clip_00001_.png (workflow: flux-dual-clip-turbo)
+      Size missing, expected '1024x1024'
+      LoRA count mismatch: expected 1 LoRAs, got 0
+      Expected LoRA 0 ('flux\turbos\FLUX.1-Turbo-Alpha.safetensors') not found in metadata
+      Lora_0 Model hash not present in metadata
+      Positive prompt missing, expected 'oil painting, semi realistic, fantasy, anime style, solid color background, tall thin character, beautiful lush vibrant forest, backlighting, dramatic atmospheric glow, countless small tiny clumsy gentle spirits, great forest spirit, intricate highly detailed, natural fantastical elements, leaves flowers feathers, hair clothing, delicate translucent wings, gentle mystical business, forest secret heartbeat, branches arms, leaves hair, ethereal benevolent connection, natural world, deep abiding, magic, hushed reverence, wonder, mysticism, otherworldly aura, vibrant colors, bold brushstrokes, gradating background, blues emerald greens, slender athletic build, elegant arm, beckoning summoning, reverence awe, drinking in essence, character attire, mesmerizing blend, organic growth'
+      Weight dtype mismatch: expected 'fp8_e4m3fn_fast', got 'fp8_e4m3fn'
+

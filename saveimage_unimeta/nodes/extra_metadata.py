@@ -1,6 +1,18 @@
+"""Manual metadata helper nodes for UniMeta custom saves."""
+
+
 class CreateExtraMetaDataUniversal:
+    """Collect key/value pairs and emit an ``EXTRA_METADATA`` payload.
+
+    The node exposes up to four manual entries plus an optional incoming
+    ``extra_metadata`` mapping so authors can merge handcrafted values into the
+    saver pipeline without touching rules files. This mirrors the UI-facing
+    behavior documented in README/user_rules examples.
+    """
+
     @classmethod
     def INPUT_TYPES(s):  # noqa: N802,N804
+        """Return the ComfyUI schema for manual key/value inputs."""
         return {
             "required": {
                 "key1": ("STRING", {"default": "", "multiline": False}),
@@ -37,6 +49,7 @@ class CreateExtraMetaDataUniversal:
         key4="",
         value4="",
     ):
+        """Merge provided key/value pairs into ``extra_metadata`` and return it."""
         extra_metadata.update(
             {
                 key1: value1,
