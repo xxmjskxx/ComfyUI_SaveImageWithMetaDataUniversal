@@ -9,6 +9,7 @@ entirely from within ComfyUI.
 
 import logging
 import os
+from ..capture import resolve_runtime_version
 
 logger = logging.getLogger(__name__)
 
@@ -210,12 +211,39 @@ class SaveGeneratedUserRules:
 
         return existing_text[:es] + "{" + new_body + "}" + existing_text[ee + 1 :]
 
+    def _inject_version_header(self, rules_text: str) -> str:
+        """Prepend version constant to rules text for version tracking."""
+        version = resolve_runtime_version()
+        version_header = (
+            f'"""Auto-generated metadata capture rules."""\n\n'
+            f'# Generated with metadata generator version: {version}\n'
+            f'GENERATED_RULES_VERSION = "{version}"\n\n'
+        )
+
+        # If text already has a version header, replace it
+        import re
+        version_pattern = re.compile(
+            r'^(""".*?"""\s*\n+)?# Generated with metadata generator version:.*?\nGENERATED_RULES_VERSION\s*=\s*["\'].*?["\']\s*\n+',
+            re.MULTILINE | re.DOTALL
+        )
+        if version_pattern.search(rules_text):
+            rules_text = version_pattern.sub("", rules_text, count=1)
+
+        # Remove any existing docstring at the start to avoid duplication
+        docstring_pattern = re.compile(r'^""".*?"""\s*\n+', re.DOTALL)
+        rules_text = docstring_pattern.sub("", rules_text, count=1)
+
+        return version_header + rules_text
+
     def save_rules(self, rules_text: str = "", append: bool = True) -> tuple[str]:
         """Write or merge rules text, returning a short status message."""
         path = self._rules_path()
         ok, err = self._validate_python(rules_text)
         if not ok:
             return (f"Refused to write: provided text has errors. {err}",)
+
+        # Inject version header before writing
+        rules_text = self._inject_version_header(rules_text)
 
         if not append:
             try:
@@ -246,6 +274,9 @@ class SaveGeneratedUserRules:
             merged = existing
             for dict_name in ("SAMPLERS", "CAPTURE_FIELD_LIST"):
                 merged = self._rebuild_dict(dict_name, merged, rules_text)
+
+            # Update version header in merged content
+            merged = self._inject_version_header(merged)
 
             ok2, err2 = self._validate_python(merged)
             if not ok2:

@@ -38,6 +38,37 @@ def _is_test_mode() -> bool:  # pragma: no cover - trivial logic
     return _os.environ.get("METADATA_TEST_MODE", "").strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _check_generated_rules_version(module, module_name: str) -> None:
+    """Check if generated_user_rules version matches runtime version and warn if outdated.
+
+    Args:
+        module: The imported module object to check for version.
+        module_name: Name of the module (for logging).
+    """
+    try:
+        # Import here to avoid circular dependency
+        from ..capture import METADATA_GENERATOR_VERSION
+
+        generated_version = getattr(module, "GENERATED_RULES_VERSION", None)
+        if generated_version is None:
+            # No version in generated rules - likely old file, warn user
+            logger.warning(
+                "[Metadata Loader] %s does not contain version info. "
+                "Consider re-running the scanner and saver to refresh rules.",
+                module_name
+            )
+        elif generated_version != METADATA_GENERATOR_VERSION:
+            logger.warning(
+                "[Metadata Loader] %s version mismatch: generated with v%s but runtime is v%s. "
+                "Re-run the Metadata Rule Scanner and saver to refresh rules for best compatibility.",
+                module_name,
+                generated_version,
+                METADATA_GENERATOR_VERSION
+            )
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug("[Metadata Loader] Could not check version for %s: %s", module_name, e)
+
+
 if not _TEST_MODE:
     from .captures import CAPTURE_FIELD_LIST  # type: ignore
     from .samplers import SAMPLERS  # type: ignore
@@ -118,6 +149,10 @@ def _load_extensions() -> None:
         package_name = f"custom_nodes.ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.ext.{module_name}"
         try:
             module = import_module(package_name)
+
+            # Version guard: check if generated_user_rules has outdated version
+            if module_name == "generated_user_rules":
+                _check_generated_rules_version(module, module_name)
         except ModuleNotFoundError as e:  # pragma: no cover - expected when optional custom node not installed
             # Extensions are optional - only needed if the corresponding custom node is installed
             # Log at debug level since this is expected behavior, not an error

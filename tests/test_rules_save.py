@@ -38,13 +38,21 @@ def test_rules_save_create_and_overwrite(tmp_path):
     assert os.path.exists(path)
 
     with open(path, encoding="utf-8") as f:
-        assert f.read() == content_v1
+        result = f.read()
+        # Version header should be injected
+        assert 'GENERATED_RULES_VERSION = ' in result
+        assert 'KNOWN = {}' in result
+        assert 'SAMPLERS = {}' in result
+        assert 'CAPTURE_FIELD_LIST = {' in result
 
     content_v2 = 'KNOWN = {}\n\nSAMPLERS = {"X": {}}\n\nCAPTURE_FIELD_LIST = {\n}\n'
     (status2,) = node.save_rules(content_v2, append=False)
     assert status2.startswith("Overwritten")
     with open(path, encoding="utf-8") as f:
-        assert f.read() == content_v2
+        result2 = f.read()
+        # Version header should be present
+        assert 'GENERATED_RULES_VERSION = ' in result2
+        assert '"X"' in result2
 
 
 def test_rules_save_merge_updates_and_appends():
@@ -83,3 +91,31 @@ def test_rules_save_merge_updates_and_appends():
     assert '"B"' in merged  # appended sampler
     assert '"positive"' in merged  # updated sampler A
     assert '"Node2"' in merged  # new node appended
+    # Version header should be present after merge
+    assert 'GENERATED_RULES_VERSION = ' in merged
+
+
+def test_rules_save_version_injection():
+    """Test that version header is properly injected into generated rules."""
+    mod = _rules_save_node()
+    node = mod.SaveGeneratedUserRules()
+    path = _rules_path(mod)
+    _cleanup(path)
+
+    # Simple rules without version
+    content = "KNOWN = {}\n\nCAPTURE_FIELD_LIST = {}\n"
+    (status,) = node.save_rules(content, append=False)
+    assert status.startswith("Overwritten") or status.startswith("Created")
+
+    with open(path, encoding="utf-8") as f:
+        result = f.read()
+
+    # Check version header components are present
+    assert '"""Auto-generated metadata capture rules."""' in result
+    assert '# Generated with metadata generator version:' in result
+    assert 'GENERATED_RULES_VERSION = "' in result
+    # Original content should still be present
+    assert 'KNOWN = {}' in result
+    assert 'CAPTURE_FIELD_LIST = {}' in result
+
+    _cleanup(path)

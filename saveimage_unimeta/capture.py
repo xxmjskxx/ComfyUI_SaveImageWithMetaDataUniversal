@@ -151,6 +151,10 @@ def resolve_runtime_version() -> str:
     return _RESOLVED_VERSION or "unknown"
 
 
+# Expose metadata generator version as a constant for version guard comparisons
+METADATA_GENERATOR_VERSION = resolve_runtime_version()
+
+
 # Dynamic flag function so tests can toggle at runtime instead of snapshot at import
 def _include_hash_detail() -> bool:  # noqa: D401
     return os.environ.get("METADATA_NO_HASH_DETAIL", "").strip() == ""
