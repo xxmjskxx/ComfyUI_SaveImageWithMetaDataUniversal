@@ -66,5 +66,57 @@ def test_priority_keywords_rank_clip_fields(_scanner_env):
     clip_entry = node_entries.get("LORA_STRENGTH_CLIP")
     assert clip_entry and "fields" in clip_entry, node_entries
     fields = clip_entry["fields"]
-    assert fields[:2] == ["clip_strength", "clipped_value"], fields
-    assert fields[2:] == ["alpha_strength", "weight_plain"], fields
+    assert fields == ["clip_strength", "clipped_value"], fields
+
+
+def test_priority_keywords_keep_fallback_when_no_clip_fields():
+    nodes_pkg = importlib.import_module(
+        "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes"
+    )
+    global_nodes = None
+    try:
+        global_nodes = importlib.import_module("nodes")
+    except ImportError:  # pragma: no cover - optional runtime module
+        global_nodes = None
+
+    class ModelOnlyLoader:
+        @classmethod
+        def INPUT_TYPES(cls):  # noqa: N802
+            return {
+                "required": {
+                    "lora_name": ("STRING", {}),
+                    "alpha_strength": ("FLOAT", {}),
+                    "weight_plain": ("FLOAT", {}),
+                }
+            }
+
+    class_name = "ModelOnlyLoader"
+    nodes_pkg.NODE_CLASS_MAPPINGS[class_name] = ModelOnlyLoader
+    undo_global = None
+    if global_nodes is not None and hasattr(global_nodes, "NODE_CLASS_MAPPINGS"):
+        global_nodes.NODE_CLASS_MAPPINGS[class_name] = ModelOnlyLoader  # type: ignore[attr-defined]
+
+        def _undo_global():
+            global_nodes.NODE_CLASS_MAPPINGS.pop(class_name, None)  # type: ignore[attr-defined]
+
+        undo_global = _undo_global
+
+    try:
+        scanner = MetadataRuleScanner()
+        result_json, _ = scanner.scan_for_rules(
+            exclude_keywords="",
+            include_existing=False,
+            mode="all",
+            force_include_metafields="",
+            force_include_node_class=class_name,
+        )
+        payload = json.loads(result_json)
+        node_entries = payload.get("nodes", {}).get(class_name)
+        assert node_entries, payload
+        clip_entry = node_entries.get("LORA_STRENGTH_CLIP")
+        assert clip_entry and "fields" in clip_entry, node_entries
+        assert clip_entry["fields"] == ["alpha_strength", "weight_plain"]
+    finally:
+        nodes_pkg.NODE_CLASS_MAPPINGS.pop(class_name, None)
+        if undo_global:
+            undo_global()

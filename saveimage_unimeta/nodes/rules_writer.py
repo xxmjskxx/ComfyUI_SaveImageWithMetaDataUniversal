@@ -9,6 +9,8 @@ import shutil
 import time
 from typing import Any
 
+from ..version import resolve_runtime_version
+
 logger = logging.getLogger(__name__)
 
 
@@ -550,6 +552,8 @@ class SaveCustomMetadataRules:
         lines.append("    'get_lora_strength_model_stack': get_lora_strength_model_stack,")
         lines.append("    'get_lora_strength_clip_stack': get_lora_strength_clip_stack,")
         lines.append("}")
+        lines.append("")
+        lines.append(f"RULES_VERSION = {json.dumps(resolve_runtime_version())}")
         lines.append("")
         lines.append("SAMPLERS = " + json.dumps(samplers_dict, indent=4))
         lines.append("")

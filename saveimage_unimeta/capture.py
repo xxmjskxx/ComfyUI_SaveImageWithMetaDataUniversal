@@ -4,7 +4,6 @@ import os
 import re
 from collections.abc import Iterable, Iterator
 from typing import Any, NamedTuple
-import importlib.metadata
 
 # Use the aggregated, runtime-merged definitions (defaults + extensions + optional user JSON)
 from .defs import CAPTURE_FIELD_LIST
@@ -20,6 +19,7 @@ from .defs import formatters as _hashfmt  # access HASH_LOG_MODE at runtime
 from .defs.meta import MetaField
 from .utils.color import cstr
 from .utils import pathresolve
+from .version import resolve_runtime_version
 
 from nodes import NODE_CLASS_MAPPINGS
 
@@ -95,62 +95,6 @@ class _OutputCacheCompat:
         return self.get_output_cache(input_unique_id, unique_id)
 
 
-# Versioning and feature flags
-# Primary: use installed distribution metadata (fast, authoritative when packaged).
-# Fallback: if running from a cloned repo (not installed), parse nearest pyproject.toml.
-def _read_pyproject_version() -> str | None:  # pragma: no cover - simple IO
-    _toml_loader = None  # type: ignore
-    try:
-        import tomllib as _toml_loader  # type: ignore[attr-defined]
-    except ModuleNotFoundError:
-        try:
-            import tomli as _toml_loader  # type: ignore
-        except ModuleNotFoundError:
-            return None
-    try:
-        import pathlib
-
-        here = pathlib.Path(__file__).resolve()
-        for parent in here.parents:
-            pyproject = parent / "pyproject.toml"
-            if pyproject.is_file():
-                with pyproject.open("rb") as f:
-                    data = _toml_loader.load(f)  # type: ignore[arg-type]
-                return (
-                    data.get("project", {}).get("version")
-                    or data.get("tool", {}).get("poetry", {}).get("version")
-                    or None
-                )
-    except (OSError, KeyError, ValueError):
-        return None
-    return None
-
-
-try:
-    _dist_version = importlib.metadata.version("SaveImageWithMetaDataUniversal")
-except importlib.metadata.PackageNotFoundError:
-    _dist_version = None
-_pyproj_version = _read_pyproject_version()
-_RESOLVED_VERSION = (
-    _pyproj_version
-    if (_pyproj_version and (_dist_version is None or _pyproj_version != _dist_version))
-    else (_dist_version or _pyproj_version or "unknown")
-)
-
-
-def resolve_runtime_version() -> str:
-    """Return version string (env override > cached pyproject/dist result).
-
-    We do not re-read pyproject after import because ComfyUI restart is expected
-    on node pack update (user instruction). Environment override allows ad-hoc
-    debugging or temporary version stamping.
-    """
-    ov = os.environ.get("METADATA_VERSION_OVERRIDE", "").strip()
-    if ov:
-        return ov
-    return _RESOLVED_VERSION or "unknown"
-
-
 # Dynamic flag function so tests can toggle at runtime instead of snapshot at import
 def _include_hash_detail() -> bool:  # noqa: D401
     return os.environ.get("METADATA_NO_HASH_DETAIL", "").strip() == ""
@@ -182,6 +126,9 @@ class _LoRARecord(NamedTuple):
     hash: str | None
     strength_model: float | None
     strength_clip: float | None
+
+
+_LORA_FIELD_INDEX_RE = re.compile(r"(\d+)(?!.*\d)")
 
 
 # If user toggled debug flag, ensure logger emits DEBUG regardless of inherited root level.
@@ -2149,10 +2096,49 @@ class Capture:
         strength_models = _filtered(strength_models)
         strength_clips = _filtered(strength_clips)
 
-        cleaned: list[_LoRARecord] = []
-        for idx in range(len(model_names)):
+        def _components(item):
+            field_name = None
+            value = item
+            if isinstance(item, list | tuple):  # noqa: UP038 (python 3.11 compat)
+                if len(item) >= 3 and isinstance(item[2], str):
+                    field_name = item[2]
+                value = Capture._extract_value(item)
+            return value, field_name
+
+        def _slot_key(field_name: str | None, fallback_idx: int) -> str:
+            if isinstance(field_name, str):
+                match = _LORA_FIELD_INDEX_RE.search(field_name)
+                if match:
+                    return f"slot-{match.group(1)}"
+            return f"idx-{fallback_idx}"
+
+        def to_float_or_none(x):
             try:
-                mn = Capture._extract_value(model_names[idx])
+                if isinstance(x, int | float):  # noqa: UP038
+                    return float(x)
+                if isinstance(x, str):
+                    xs = x.strip()
+                    if xs == "":
+                        return None
+                    return float(xs)
+            except Exception:
+                return None
+            return None
+
+        slot_entries: dict[str, dict[str, Any]] = {}
+        slot_order: list[str] = []
+
+        def _ensure_slot(slot_id: str) -> dict[str, Any]:
+            if slot_id not in slot_entries:
+                slot_entries[slot_id] = {}
+                slot_order.append(slot_id)
+            return slot_entries[slot_id]
+
+        for idx, raw_entry in enumerate(model_names):
+            try:
+                mn, field_name = _components(raw_entry)
+                slot_id = _slot_key(field_name, idx)
+                slot = _ensure_slot(slot_id)
                 lookup_token = mn
                 tuple_sm = None
                 tuple_sc = None
@@ -2173,33 +2159,62 @@ class Capture:
                 name_disp = Capture._clean_name(mn, drop_extension=False)
                 if cls._is_invalid_lora_name(name_disp):
                     continue
-
-                def to_float_or_none(x):
-                    try:
-                        if isinstance(x, int | float):  # noqa: UP038
-                            return float(x)
-                        if isinstance(x, str):
-                            xs = x.strip()
-                            if xs == "":
-                                return None
-                            return float(xs)
-                    except Exception:
-                        return None
-                    return None
-
-                sm = Capture._extract_value(strength_models[idx]) if idx < len(strength_models) else None
-                sc = Capture._extract_value(strength_clips[idx]) if idx < len(strength_clips) else None
-                sm_final = to_float_or_none(sm)
-                sc_final = to_float_or_none(sc)
-                if sm_final is None:
-                    sm_final = tuple_sm
-                if sc_final is None:
-                    sc_final = tuple_sc
-                mh = Capture._extract_value(model_hashes[idx]) if idx < len(model_hashes) else None
-                resolved_hash = cls._resolve_lora_hash(name_disp, mh, lookup_token)
-                cleaned.append(_LoRARecord(name_disp, resolved_hash, sm_final, sc_final))
+                slot.setdefault("lookup_token", lookup_token)
+                if tuple_sm is not None and slot.get("tuple_sm") is None:
+                    slot["tuple_sm"] = tuple_sm
+                if tuple_sc is not None and slot.get("tuple_sc") is None:
+                    slot["tuple_sc"] = tuple_sc
+                if slot.get("name_value") is None:
+                    slot["name_value"] = name_disp
             except Exception as e:
-                logger.debug("[Metadata Lib] Skipping LoRA entry due to error: %r", e)
+                logger.debug("[Metadata Lib] Skipping LoRA name entry due to error: %r", e)
+
+        for idx, raw_hash in enumerate(model_hashes):
+            try:
+                value, field_name = _components(raw_hash)
+                slot_id = _slot_key(field_name, idx)
+                slot = _ensure_slot(slot_id)
+                if slot.get("hash_value") is None:
+                    slot["hash_value"] = value
+            except Exception as e:
+                logger.debug("[Metadata Lib] Skipping LoRA hash entry due to error: %r", e)
+
+        for idx, raw_strength in enumerate(strength_models):
+            try:
+                value, field_name = _components(raw_strength)
+                slot_id = _slot_key(field_name, idx)
+                slot = _ensure_slot(slot_id)
+                coerced = to_float_or_none(value)
+                if coerced is not None and slot.get("strength_model") is None:
+                    slot["strength_model"] = coerced
+            except Exception as e:
+                logger.debug("[Metadata Lib] Skipping LoRA model strength entry due to error: %r", e)
+
+        for idx, raw_strength in enumerate(strength_clips):
+            try:
+                value, field_name = _components(raw_strength)
+                slot_id = _slot_key(field_name, idx)
+                slot = _ensure_slot(slot_id)
+                coerced = to_float_or_none(value)
+                if coerced is not None and slot.get("strength_clip") is None:
+                    slot["strength_clip"] = coerced
+            except Exception as e:
+                logger.debug("[Metadata Lib] Skipping LoRA clip strength entry due to error: %r", e)
+
+        cleaned: list[_LoRARecord] = []
+        for slot_id in slot_order:
+            slot = slot_entries.get(slot_id) or {}
+            name_disp = slot.get("name_value")
+            if not name_disp or cls._is_invalid_lora_name(name_disp):
+                continue
+            sm_final = slot.get("strength_model")
+            if sm_final is None:
+                sm_final = slot.get("tuple_sm")
+            sc_final = slot.get("strength_clip")
+            if sc_final is None:
+                sc_final = slot.get("tuple_sc")
+            resolved_hash = cls._resolve_lora_hash(name_disp, slot.get("hash_value"), slot.get("lookup_token"))
+            cleaned.append(_LoRARecord(name_disp, resolved_hash, sm_final, sc_final))
 
         dedup = cls._deduplicate_lora_records(cleaned)
         aggregate_error = False

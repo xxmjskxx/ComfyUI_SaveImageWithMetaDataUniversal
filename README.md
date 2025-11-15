@@ -69,7 +69,10 @@
 <details open>
 <summary><strong></strong></summary>
 
-1. Use the `Metadata Rule Scanner` + `Save Custom Metadata Rules` nodes to create and save capture rules (see [`example_workflows/scan-and-save-custom-metadata-rules.png`](example_workflows/scan-and-save-custom-metadata-rules.png)). Option 1 in the workflow is the simplest; use Option 2 if you want to manually edit the generated rules JSON before saving it. NOTE: These two nodes should be rerun every time you update this node pack.
+1. Use the `Metadata Rule Scanner` + `Save Custom Metadata Rules` nodes to create and save capture rules. 
+    - Use the [simple workflow](example_workflows/scan-and-save-custom-metadata-rules-simple.png) if you want quick and easy.
+    - If you want to manually edit the generated rules JSON before saving it, use the [advanced workflow](example_workflows/scan-and-save-custom-metadata-rules.png).
+    - NOTE: These two nodes should be rerun every time you update this node pack, using either of the above workflows.
 2. Add `Save Image w/ Metadata Universal` to your workflow and connect to the image input to save images using your custom capture ruleset.
 3. (Optional) Use `Create Extra MetaData` node(s) to manually record additional info.
 4. (Optional) For full Civitai style parity enable the `civitai_sampler` and `guidance_as_cfg` toggles in the save node.
@@ -306,6 +309,7 @@ Outputs: Updated forced class list (string + list form) for display/auditing.
 * Modes: `overwrite` (replace) or `append_new` (add only missing; optional conflict replacement).
 * Automatic timestamped backups (limit retained sets) + dropdown restore (`restore_backup_set`).
 * Generates deterministic `generated_user_rules.py` (disable via `rebuild_python_rules` toggle for speed while iterating).
+* The generated module embeds a `RULES_VERSION` matching the installed node pack. The save node logs a `[Metadata Loader] ... version ...` warning if your saved rules are missing/outdated—rerun the scanner + saver or use `example_workflows/refresh-rules.json` after updating the pack.
 * Rules JSON field tooltip documents required schema (top-level `nodes` & `samplers`). `status` keys from scanner are ignored when saving.
 
 </details>

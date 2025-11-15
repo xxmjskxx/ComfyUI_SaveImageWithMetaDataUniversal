@@ -68,12 +68,14 @@ except (ImportError, ModuleNotFoundError):  # circular or missing in isolated te
         current_prompt = {}
 
     hook = _HookStub()  # type: ignore
+from .. import defs as defs_module
 from ..capture import Capture
-from ..defs import FORCED_INCLUDE_CLASSES
 from ..defs import CAPTURE_FIELD_LIST
+from ..defs import FORCED_INCLUDE_CLASSES
 from ..defs.combo import SAMPLER_SELECTION_METHOD
 from ..defs.samplers import SAMPLERS
 from ..trace import Trace
+from ..version import resolve_runtime_version
 
 logger = logging.getLogger(__name__)
 _DEBUG_VERBOSE = os.environ.get("METADATA_DEBUG", "0") not in (
@@ -83,6 +85,33 @@ _DEBUG_VERBOSE = os.environ.get("METADATA_DEBUG", "0") not in (
     None,
     "",
 )
+_RULES_VERSION_WARNING_EMITTED = False
+_REFRESH_RULES_WORKFLOW = "example_workflows/refresh-rules.json"
+
+
+def _maybe_warn_outdated_rules() -> None:
+    global _RULES_VERSION_WARNING_EMITTED
+    if _RULES_VERSION_WARNING_EMITTED:
+        return
+    runtime_version = resolve_runtime_version()
+    rules_version = getattr(defs_module, "LOADED_RULES_VERSION", None)
+    if not rules_version:
+        reason = "Metadata capture rules are missing a version stamp."
+    elif rules_version != runtime_version:
+        reason = (
+            "Metadata capture rules are out of date "
+            f"(rules={rules_version}, package={runtime_version})."
+        )
+    else:
+        return
+    guidance = (
+        "Refresh metadata capture rules via "
+    )
+    nodes_workflow = cstr("Metadata Rule Scanner").YELLOW + " + " + cstr("Save Custom Metadata Rules nodes").YELLOW + " " + \
+        "or run the refresh workflow at " + cstr(f"{_REFRESH_RULES_WORKFLOW}.").YELLOW
+    version_warning = cstr(f"[Metadata Loader] {reason} {guidance}").warn + nodes_workflow
+    logger.warning(version_warning)
+    _RULES_VERSION_WARNING_EMITTED = True
 
 
 class SaveImageWithMetaDataUniversal:
@@ -352,6 +381,7 @@ class SaveImageWithMetaDataUniversal:
         from . import node as _node  # local import to avoid circular at module load
 
         _node.load_user_definitions(required_classes, suppress_missing_log=suppress_missing_class_log)
+        _maybe_warn_outdated_rules()
         # Ensure piexif references are patched via node module during tests
         piexif = _node.piexif  # noqa: F841 - used implicitly by subsequent code references
         # Apply unified hash logging preference

@@ -11,11 +11,11 @@ def _make_clip(tmp_path, identifier="embedding:"):
     return types.SimpleNamespace(tokenizer=tokenizer)
 
 
-def test_extract_embedding_names_without_clip_returns_empty(monkeypatch):
+def test_extract_embedding_names_without_clip_records_token(monkeypatch):
     fmt = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.formatters")
     monkeypatch.setattr(fmt, "token_weights", lambda text: [(text, 1.0)])
     names = fmt.extract_embedding_names("embedding:EasyNegative", ({"text": ["embedding:EasyNegative"]},))
-    assert names == []
+    assert names == ["EasyNegative"]
 
 
 def test_extract_embedding_names_respects_valid_embeddings(monkeypatch, tmp_path):
@@ -41,3 +41,10 @@ def test_extract_embedding_names_skips_whitespace_candidates(monkeypatch, tmp_pa
         ({"clip": [clip], "text": ["embedding:foo\u3000bar"]},),
     )
     assert names == []
+
+
+def test_extract_embedding_hashes_without_clip_returns_na(monkeypatch):
+    fmt = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.formatters")
+    monkeypatch.setattr(fmt, "token_weights", lambda text: [(text, 1.0)])
+    hashes = fmt.extract_embedding_hashes("embedding:EasyNegative", ({"text": ["embedding:EasyNegative"]},))
+    assert hashes == ["N/A"]

@@ -5,6 +5,8 @@ import sys
 
 import pytest
 
+from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.version import resolve_runtime_version
+
 
 def _paths_for_generated_files():
     mod = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.rules_writer")
@@ -98,6 +100,7 @@ def test_save_custom_rules_generates_valid_ext_and_jsons():
     assert hasattr(gen_mod, "SAMPLERS") and isinstance(gen_mod.SAMPLERS, dict)
     # KNOWN mapping should exist with core callables
     assert hasattr(gen_mod, "KNOWN") and isinstance(gen_mod.KNOWN, dict)
+    assert getattr(gen_mod, "RULES_VERSION") == resolve_runtime_version()
     for k in [
         "calc_model_hash",
         "convert_skip_clip",

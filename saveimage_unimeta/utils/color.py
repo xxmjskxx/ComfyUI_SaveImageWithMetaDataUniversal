@@ -88,6 +88,10 @@ cstr.color.add_code(
     f"{cstr.color.LIGHTYELLOW}[Warning] {cstr.color.BLUE}SaveImageWithMetaData: {cstr.color.END}",
 )
 cstr.color.add_code(
+    "warn",
+    f"{cstr.color.YELLOW}[Warning] {cstr.color.DARKORANGE}SaveImageWithMetaData: {cstr.color.END}",
+)
+cstr.color.add_code(
     "error",
     f"{cstr.color.RED}[Error] {cstr.color.BLUE}SaveImageWithMetaData: {cstr.color.END}",
 )

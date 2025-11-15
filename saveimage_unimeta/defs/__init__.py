@@ -46,6 +46,7 @@ else:  # Provide minimal placeholders sufficient for tests importing enums/utili
     SAMPLERS = {}
 
 FORCED_INCLUDE_CLASSES: set[str] = set()
+LOADED_RULES_VERSION: str | None = None
 
 
 def set_forced_include(raw: str) -> set[str]:  # pragma: no cover - simple setter
@@ -77,6 +78,7 @@ def clear_forced_include() -> set[str]:  # pragma: no cover - simple helper
 __all__ = [
     "CAPTURE_FIELD_LIST",
     "FORCED_INCLUDE_CLASSES",
+    "LOADED_RULES_VERSION",
     "set_forced_include",
     "clear_forced_include",
     # Submodules expected to be importable via package (tests rely on this)
@@ -97,6 +99,8 @@ def _reset_to_defaults() -> None:
     CAPTURE_FIELD_LIST.clear()
     SAMPLERS.update(DEFAULT_SAMPLERS)
     CAPTURE_FIELD_LIST.update(DEFAULT_CAPTURES)
+    global LOADED_RULES_VERSION
+    LOADED_RULES_VERSION = None
 
 
 def _load_extensions() -> None:
@@ -106,6 +110,7 @@ def _load_extensions() -> None:
     to propagate because they likely indicate programmer errors in extension code.
     """
     dir_name = os.path.dirname(os.path.abspath(__file__))
+    global LOADED_RULES_VERSION
     for module_path in glob.glob(os.path.join(dir_name, "ext", "*.py")):
         module_name = os.path.splitext(os.path.basename(module_path))[0]
         # Never import example/reference files
@@ -130,6 +135,14 @@ def _load_extensions() -> None:
         except ImportError as e:
             logger.warning("[Metadata Loader] Failed to import extension '%s': %s", module_name, e)
             continue
+        try:
+            rules_version = getattr(module, "RULES_VERSION", None)
+        except AttributeError:
+            rules_version = None
+        if isinstance(rules_version, str):
+            normalized_version = rules_version.strip()
+            if normalized_version and module_name == "generated_user_rules":
+                LOADED_RULES_VERSION = normalized_version
         # Merge captured dicts defensively
         # Merge CAPTURE_FIELD_LIST: deep-merge per node to avoid clobbering earlier fields
         try:

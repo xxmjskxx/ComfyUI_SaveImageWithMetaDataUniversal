@@ -44,6 +44,7 @@ Authoritative onboarding for `ComfyUI_SaveImageWithMetaDataUniversal`. This repo
 
 ## Rules, Scanner & User Overrides
 - `saveimage_unimeta/nodes/scanner.py` inspects installed node classes and suggests capture rules. `rules_save.py` + `rules_view.py` manage JSON/Python persistence (`saveimage_unimeta/user_rules/generated_user_rules.py`). After editing `defs/captures.py`, re-run scanner + saver so automated tests (`tests/test_generated_user_rules.py`) stay in sync.
+- `rules_writer.py` stamps a `RULES_VERSION` constant into generated modules; `defs.load_user_definitions` caches it as `LOADED_RULES_VERSION`. `save_image.py` logs a one-time warning when the saved rules are missing or outdated—ask users to re-run `Metadata Rule Scanner` + `Save Custom Metadata Rules` or execute `example_workflows/refresh-rules.json` after updates.
 - `Metadata Force Include` node feeds `FORCED_INCLUDE_CLASSES` used during capture merge; keep manual overrides inside `saveimage_unimeta/user_rules/` so merges remain deterministic.
 - Manual capture additions must update: `defs/captures.py`, `_build_minimal_parameters` (only if the field must survive minimal fallback), docs (README + `docs/...`), targeted tests (e.g., `tests/test_capture_core.py`, `tests/test_guidance_and_exif_fallback.py`).
 

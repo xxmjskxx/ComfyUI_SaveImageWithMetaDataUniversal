@@ -825,66 +825,65 @@ def _extract_embedding_candidates(text, input_data):
         parsed_weights = token_weights(escaped)
     except Exception as err:  # pragma: no cover - defensive
         logger.debug("[Metadata Lib] Failed parsing token weights for embeddings: %r", err)
-        return [], clip, []
+        parsed_weights = [(text, 1.0)]
 
-    # tokenize words
-    if clip is None or not embedding_dir:
-        return [], clip, []
+    allow_resolution = clip is not None and bool(embedding_dir)
 
     embedding_names: list[str] = []
-    resolved_paths: list[str] = []
+    resolved_paths: list[str | None] = []
     seen: set[str] = set()
-    for weighted_segment, weight in parsed_weights:
-        try:
-            segment = unescape_important(weighted_segment)
-        except Exception:  # pragma: no cover - defensive
-            segment = weighted_segment
-        to_tokenize = segment.replace("\n", " ").split(" ")
-        to_tokenize = [x for x in to_tokenize if x != ""]
-        for word in to_tokenize:
-            # find an embedding, deal with the embedding
-            if not word.startswith(embedding_identifier):
-                continue
-            raw_name = word[len(embedding_identifier) :].strip()
-            if not raw_name:
-                continue
-            sanitized = raw_name.strip(_EMBEDDING_TRAILING_STRIP)
-            if not sanitized:
-                continue
-            if any(ch.isspace() for ch in sanitized):
-                continue
-            display_name = os.path.basename(sanitized).strip(_EMBEDDING_TRAILING_STRIP)
-            if not display_name:
-                continue
-            if display_name.upper() == "N/A":
-                continue
-            if len(display_name) > _MAX_EMBEDDING_NAME_CHARS:
-                logger.debug(
-                    "[Metadata Lib] Skipping embedding candidate '%s' (length %s exceeds max)",
-                    display_name,
-                    len(display_name),
-                )
-                continue
-            cache_key = display_name.lower()
-            if cache_key in seen:
-                continue
+
+    def _process_segments(segments):
+        for weighted_segment, _weight in segments:
             try:
-                path = get_embedding_file_path(sanitized, clip)
-            except (OSError, TypeError, ValueError) as err:
-                logger.warning(
-                    "[Metadata Lib] Skipping embedding '%s' due to resolution error: %r",
-                    display_name,
-                    err,
-                )
-                continue
-            if not path:
-                logger.warning(
-                    "[Metadata Lib] Embedding '%s' could not be resolved to a file; skipping",
-                    display_name,
-                )
-                continue
-            seen.add(cache_key)
-            embedding_names.append(display_name)
-            resolved_paths.append(path)
+                segment = unescape_important(weighted_segment)
+            except Exception:  # pragma: no cover - defensive
+                segment = weighted_segment
+            to_tokenize = segment.replace("\n", " ").split(" ")
+            to_tokenize = [x for x in to_tokenize if x != ""]
+            for word in to_tokenize:
+                if not word.startswith(embedding_identifier):
+                    continue
+                raw_name = word[len(embedding_identifier) :].strip()
+                if not raw_name:
+                    continue
+                sanitized = raw_name.strip(_EMBEDDING_TRAILING_STRIP)
+                if not sanitized:
+                    continue
+                if any(ch.isspace() for ch in sanitized):
+                    continue
+                display_name = os.path.basename(sanitized).strip(_EMBEDDING_TRAILING_STRIP)
+                if not display_name:
+                    continue
+                if display_name.upper() == "N/A":
+                    continue
+                if len(display_name) > _MAX_EMBEDDING_NAME_CHARS:
+                    logger.debug(
+                        "[Metadata Lib] Skipping embedding candidate '%s' (length %s exceeds max)",
+                        display_name,
+                        len(display_name),
+                    )
+                    continue
+                cache_key = display_name.lower()
+                if cache_key in seen:
+                    continue
+                resolved_path = None
+                if allow_resolution:
+                    try:
+                        resolved_path = get_embedding_file_path(sanitized, clip)
+                    except (OSError, TypeError, ValueError) as err:
+                        logger.debug(
+                            "[Metadata Lib] Embedding '%s' resolution error: %r",
+                            display_name,
+                            err,
+                        )
+                        resolved_path = None
+                seen.add(cache_key)
+                embedding_names.append(display_name)
+                resolved_paths.append(resolved_path)
+
+    _process_segments(parsed_weights)
+    if not embedding_names and isinstance(text, str):
+        _process_segments([(text, 1.0)])
 
     return embedding_names, clip, resolved_paths

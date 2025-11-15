@@ -916,13 +916,23 @@ class MetadataRuleScanner:
                                 def _numeric_key(s: str) -> tuple[int, str]:
                                     return (0, s.lower())
 
-                            matching_fields = sorted(
-                                matching_fields,
-                                key=lambda name: (
+                            ranked_fields = [
+                                (
+                                    name,
                                     _priority_rank(name),
-                                    *_numeric_key(name),
-                                ),
-                            )
+                                    _numeric_key(name),
+                                )
+                                for name in matching_fields
+                            ]
+                            ranked_fields.sort(key=lambda item: (item[1], item[2]))
+                            matched_priority = ranked_fields[0][1] if ranked_fields else None
+                            if (
+                                priority_specs
+                                and matched_priority is not None
+                                and matched_priority < len(priority_specs)
+                            ):
+                                ranked_fields = [item for item in ranked_fields if item[1] == matched_priority]
+                            matching_fields = [item[0] for item in ranked_fields]
                             if len(matching_fields) == 1:
                                 suggestion = {"field_name": matching_fields[0]}
                                 if rule.get("validate"):
