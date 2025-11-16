@@ -9,6 +9,8 @@ import shutil
 import time
 from typing import Any
 
+from ..version import resolve_runtime_version
+
 logger = logging.getLogger(__name__)
 
 
@@ -124,9 +126,7 @@ class SaveCustomMetadataRules:
     RETURN_NAMES = ("status",)
     FUNCTION = "save_rules"
     CATEGORY = "SaveImageWithMetaDataUniversal/rules"
-    DESCRIPTION = (
-        "Manage custom metadata capture rules: overwrite or append + backups + restore."
-    )
+    DESCRIPTION = "Manage custom metadata capture rules: overwrite or append + backups + restore."
     NODE_NAME = "Save Custom Metadata Rules"
     OUTPUT_NODE = True
 
@@ -143,7 +143,7 @@ class SaveCustomMetadataRules:
         # Path constants (shared with loader semantics)
         PY_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # noqa: N806
         # Test isolation parity with loader: if METADATA_TEST_MODE and an existing
-        # _test_outputs/user_rules directory is present, prefer it so writer output
+        # tests/_test_outputs/user_rules directory is present, prefer it so writer output
         # does not pollute real tree. (Do not auto-create to avoid unintended
         # divergence from loader semantics which only prefers when it already exists.)
         test_mode = os.environ.get("METADATA_TEST_MODE", "").strip().lower() in {"1", "true", "yes", "on"}
@@ -185,9 +185,7 @@ class SaveCustomMetadataRules:
                     BACKUPS_ROOT, pre_ts, USER_CAPTURES_FILE, USER_SAMPLERS_FILE, GENERATED_EXT_FILE
                 )
                 if created_dir:
-                    logger.info(
-                        "[Metadata Loader] Created backup %s before restoring %s.", pre_ts, restore_backup_set
-                    )
+                    logger.info("[Metadata Loader] Created backup %s before restoring %s.", pre_ts, restore_backup_set)
                 metrics["restored"] = True
                 target_dir = os.path.join(BACKUPS_ROOT, restore_backup_set)
                 if not os.path.isdir(target_dir):
@@ -247,9 +245,7 @@ class SaveCustomMetadataRules:
 
             if backup_before_save:
                 ts = _timestamp()
-                if self._create_backup(
-                    BACKUPS_ROOT, ts, USER_CAPTURES_FILE, USER_SAMPLERS_FILE, GENERATED_EXT_FILE
-                ):
+                if self._create_backup(BACKUPS_ROOT, ts, USER_CAPTURES_FILE, USER_SAMPLERS_FILE, GENERATED_EXT_FILE):
                     metrics["backup"] = ts
                     if limit_backup_sets and limit_backup_sets > 0:
                         metrics["pruned"] = self._prune_backups(BACKUPS_ROOT, limit_backup_sets)
@@ -296,9 +292,7 @@ class SaveCustomMetadataRules:
                 try:
                     self._generate_python_extension(GENERATED_EXT_FILE, final_nodes, final_samplers)
                 except Exception as gen_err:  # pragma: no cover
-                    logger.warning(
-                        "[Metadata Loader] Could not generate python ext from rules: %s", gen_err
-                    )
+                    logger.warning("[Metadata Loader] Could not generate python ext from rules: %s", gen_err)
 
             self._warn_uninstalled_nodes(list(sanitized_nodes.keys()))
 
@@ -488,39 +482,54 @@ class SaveCustomMetadataRules:
             "    extract_embedding_names, extract_embedding_hashes\n"
             ")"
         )
+        lines.append("from ..validators import (\n" "    is_positive_prompt, is_negative_prompt\n" ")")
         lines.append(
-            "from ..validators import (\n"
-            "    is_positive_prompt, is_negative_prompt\n"
+            "from ..selectors import (\n"
+            "    select_stack_by_prefix,\n"
+            "    collect_lora_stack,\n"
+            "    select_lora_names,\n"
+            "    select_lora_model_strengths,\n"
+            "    select_lora_clip_strengths,\n"
             ")"
         )
-        lines.append("from ..selectors import select_stack_by_prefix")
         lines.append("")
-        lines.append("def _is_advanced_mode(input_data):")
-        lines.append("    try:")
+        lines.append("def _collect_lora_stack(input_data):")
+        lines.append("    stack = collect_lora_stack(input_data)")
+        lines.append("    if stack:")
+        lines.append("        return stack")
+        lines.append("    names = select_stack_by_prefix(input_data, 'lora_name', counter_key='lora_count')")
+        lines.append("    if not names:")
+        lines.append("        return []")
+        lines.append("    model_strengths = select_stack_by_prefix(input_data, 'model_str', counter_key='lora_count')")
+        lines.append("    if not model_strengths:")
         lines.append(
-            "        return (isinstance(input_data, list) and input_data and isinstance(input_data[0], dict) and "
-            "isinstance(input_data[0].get('input_mode'), list) and input_data[0]['input_mode'] and "
-            "input_data[0]['input_mode'][0] == 'advanced')"
+            "        model_strengths = select_stack_by_prefix(input_data, 'lora_wt', counter_key='lora_count')"
         )
-        lines.append("    except Exception:")
-        lines.append("        return False")
+        lines.append("    clip_strengths = select_stack_by_prefix(input_data, 'clip_str', counter_key='lora_count')")
+        lines.append("    if not clip_strengths:")
+        lines.append("        clip_strengths = select_stack_by_prefix(input_data, 'lora_wt', counter_key='lora_count')")
+        lines.append("    stack = []")
+        lines.append("    for idx, name in enumerate(names):")
+        lines.append("        model = model_strengths[idx] if idx < len(model_strengths) else None")
+        lines.append("        clip = clip_strengths[idx] if idx < len(clip_strengths) else model")
+        lines.append("        stack.append((name, model, clip))")
+        lines.append("    return stack")
         lines.append("")
         lines.append("def get_lora_model_name_stack(node_id, obj, prompt, extra_data, outputs, input_data):")
-        lines.append("    return select_stack_by_prefix(input_data, 'lora_name', counter_key='lora_count')")
+        lines.append("    stack = _collect_lora_stack(input_data)")
+        lines.append("    return [entry[0] for entry in stack]")
         lines.append("")
         lines.append("def get_lora_model_hash_stack(node_id, obj, prompt, extra_data, outputs, input_data):")
-        lines.append("    names = select_stack_by_prefix(input_data, 'lora_name', counter_key='lora_count')")
-        lines.append("    return [calc_lora_hash(n, input_data) for n in names]")
+        lines.append("    stack = _collect_lora_stack(input_data)")
+        lines.append("    return [calc_lora_hash(entry[0], input_data) for entry in stack]")
         lines.append("")
         lines.append("def get_lora_strength_model_stack(node_id, obj, prompt, extra_data, outputs, input_data):")
-        lines.append("    if _is_advanced_mode(input_data):")
-        lines.append("        return select_stack_by_prefix(input_data, 'model_str', counter_key='lora_count')")
-        lines.append("    return select_stack_by_prefix(input_data, 'lora_wt', counter_key='lora_count')")
+        lines.append("    stack = _collect_lora_stack(input_data)")
+        lines.append("    return [entry[1] for entry in stack]")
         lines.append("")
         lines.append("def get_lora_strength_clip_stack(node_id, obj, prompt, extra_data, outputs, input_data):")
-        lines.append("    if _is_advanced_mode(input_data):")
-        lines.append("        return select_stack_by_prefix(input_data, 'clip_str', counter_key='lora_count')")
-        lines.append("    return select_stack_by_prefix(input_data, 'lora_wt', counter_key='lora_count')")
+        lines.append("    stack = _collect_lora_stack(input_data)")
+        lines.append("    return [entry[2] for entry in stack]")
         lines.append("")
         lines.append("KNOWN = {")
         lines.append("    'calc_model_hash': calc_model_hash,")
@@ -534,11 +543,17 @@ class SaveCustomMetadataRules:
         lines.append("    'extract_embedding_hashes': extract_embedding_hashes,")
         lines.append("    'is_positive_prompt': is_positive_prompt,")
         lines.append("    'is_negative_prompt': is_negative_prompt,")
+        lines.append("    'collect_lora_stack': collect_lora_stack,")
+        lines.append("    'select_lora_names': select_lora_names,")
+        lines.append("    'select_lora_model_strengths': select_lora_model_strengths,")
+        lines.append("    'select_lora_clip_strengths': select_lora_clip_strengths,")
         lines.append("    'get_lora_model_name_stack': get_lora_model_name_stack,")
         lines.append("    'get_lora_model_hash_stack': get_lora_model_hash_stack,")
         lines.append("    'get_lora_strength_model_stack': get_lora_strength_model_stack,")
         lines.append("    'get_lora_strength_clip_stack': get_lora_strength_clip_stack,")
         lines.append("}")
+        lines.append("")
+        lines.append(f"RULES_VERSION = {json.dumps(resolve_runtime_version())}")
         lines.append("")
         lines.append("SAMPLERS = " + json.dumps(samplers_dict, indent=4))
         lines.append("")
@@ -585,6 +600,7 @@ class SaveCustomMetadataRules:
     def _warn_uninstalled_nodes(node_names):  # best-effort detection
         try:
             from nodes import NODE_CLASS_MAPPINGS  # type: ignore
+
             missing = [n for n in node_names if n not in NODE_CLASS_MAPPINGS]
             if missing:
                 logger.warning(
@@ -597,7 +613,10 @@ class SaveCustomMetadataRules:
 
 def _timestamp() -> str:
     return time.strftime("%Y%m%d-%H%M%S", time.localtime())
+
+
 _TIMESTAMP_BASE_LENGTH = 15  # len('YYYYMMDD-HHMMSS')
+
 
 def _looks_like_timestamp(name: str) -> bool:
     """Return True for 'YYYYMMDD-HHMMSS' optionally followed by '-N' numeric suffix.

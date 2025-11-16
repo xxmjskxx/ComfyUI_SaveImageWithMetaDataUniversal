@@ -4,9 +4,11 @@ from collections.abc import Sequence
 try:  # Runtime import
     from comfy.sd1_clip import expand_directory_list  # type: ignore
 except Exception:  # noqa: BLE001 - test fallback
+
     def expand_directory_list(paths):  # type: ignore
         # Simplistic passthrough stub for tests
         return list(paths)
+
 
 __all__ = ["get_embedding_file_path"]
 

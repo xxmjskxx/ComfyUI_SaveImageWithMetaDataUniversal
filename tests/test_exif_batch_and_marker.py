@@ -12,12 +12,16 @@ if PKG_PARENT not in sys.path:
 nodes_mod = importlib.import_module("saveimage_unimeta.nodes.node")
 SaveNode = nodes_mod.SaveImageWithMetaDataUniversal
 
+
 class DummyImage:
     def __init__(self, w=8, h=8):
         import numpy as np
+
         self._arr = (np.random.rand(h, w, 3)).astype("float32")
+
     def cpu(self):
         return self
+
     def numpy(self):
         return self._arr
 
@@ -36,6 +40,7 @@ def test_batch_multiple_images_fallback_tracking(monkeypatch, tmp_path):
 
     def fake_gen(method, node_id, civitai):
         return _large_metadata_dict()
+
     monkeypatch.setattr(SaveNode, "gen_pnginfo", classmethod(lambda cls, a, b, c: fake_gen(a, b, c)))
 
     images = [DummyImage() for _ in range(3)]
@@ -52,6 +57,7 @@ def test_no_duplicate_metadata_fallback_marker(monkeypatch, tmp_path):
     # Force path where COM marker is written
     def fake_gen(method, node_id, civitai):
         return _large_metadata_dict()
+
     monkeypatch.setattr(SaveNode, "gen_pnginfo", classmethod(lambda cls, a, b, c: fake_gen(a, b, c)))
 
     img = DummyImage()
@@ -66,4 +72,3 @@ def test_no_duplicate_metadata_fallback_marker(monkeypatch, tmp_path):
         text = ""
     occurrences = text.count("Metadata Fallback:")
     assert occurrences <= 1
-

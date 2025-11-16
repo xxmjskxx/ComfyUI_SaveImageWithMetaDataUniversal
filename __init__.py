@@ -24,6 +24,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {}
 
 
 WEB_DIRECTORY = os.path.join(os.path.dirname(os.path.realpath(__file__)), "web")
+_STARTUP_SENTINEL = "ComfyUI_SaveImageWithMetaDataUniversal_startup_logged"
 
 
 def _lazy_load_nodes():  # pragma: no cover - side-effect only
@@ -54,7 +55,7 @@ def _maybe_log_startup():  # pragma: no cover
     # This survives module reloads and reimports within the same Python session
     logger = logging.getLogger(__name__)
     startup_registry = logging.getLogger("_startup_registry")
-    startup_marker = f"{__name__}_logged"
+    startup_marker = _STARTUP_SENTINEL
 
     # Check if we've already logged startup for this module
     if hasattr(startup_registry, startup_marker):

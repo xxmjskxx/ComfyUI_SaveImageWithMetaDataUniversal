@@ -126,7 +126,7 @@
   },
   "10": {
     "inputs": {
-      "value": "Test\\siwm-%model:10%/%pprompt:20%-%nprompt:20%/%seed%-%width%x%height%_%date:yyyyMMdd-hhmmss%"
+      "value": "Test\\%model:10%/%pprompt:20%-%nprompt:20%/%seed%-%width%x%height%_%date:yyyyMMdd-hhmmss%-siwm"
     },
     "class_type": "PrimitiveStringMultiline",
     "_meta": {

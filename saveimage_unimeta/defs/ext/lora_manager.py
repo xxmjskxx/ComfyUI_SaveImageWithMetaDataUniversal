@@ -24,6 +24,7 @@ def _select_text_field(input_data):
         return "loaded_loras"
     return "text"
 
+
 def _parse_lora_syntax(text):
     """Return (display_names, hashes, model_strengths, clip_strengths).
 

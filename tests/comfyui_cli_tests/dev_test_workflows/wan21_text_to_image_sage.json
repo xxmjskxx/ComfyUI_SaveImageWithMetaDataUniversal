@@ -57,7 +57,7 @@
   },
   "6": {
     "inputs": {
-      "seed": 82628696717253,
+      "seed": 706190577933098,
       "steps": 4,
       "cfg": 1,
       "sampler_name": "dpmpp_2m",
@@ -89,7 +89,7 @@
     "inputs": {
       "shift": 8,
       "model": [
-        "11",
+        "13",
         0
       ]
     },
@@ -165,6 +165,20 @@
     "class_type": "LoraLoaderModelOnly",
     "_meta": {
       "title": "LoraLoaderModelOnly"
+    }
+  },
+  "13": {
+    "inputs": {
+      "sage_attention": "auto",
+      "allow_compile": false,
+      "model": [
+        "11",
+        0
+      ]
+    },
+    "class_type": "PathchSageAttentionKJ",
+    "_meta": {
+      "title": "Patch Sage Attention KJ"
     }
   }
 }

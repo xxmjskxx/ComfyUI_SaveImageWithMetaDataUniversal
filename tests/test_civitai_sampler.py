@@ -16,8 +16,10 @@ def _wrap(name):
     class Obj:
         def __init__(self, name):
             self.name = name
+
         def __repr__(self):  # helpful if an assertion fails
             return f"<SamplerObj {self.name}>"
+
     return Obj(name)
 
 
@@ -53,4 +55,3 @@ def test_empty_inputs_return_empty_string():
 def test_passthrough_spacing_and_case_trim():
     out = Capture.get_sampler_for_civitai([("id", "  ipNDM ")], [("id", "  KARRAS  ")])
     assert out == "ipNDM_karras"  # retains original sampler case but normalized scheduler suffix
-

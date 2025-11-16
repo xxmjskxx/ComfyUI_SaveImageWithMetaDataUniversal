@@ -1,0 +1,25 @@
+{% if cookiecutter.open_source_license == "MIT license" -%}
+MIT License
+
+Copyright (c) {{ cookiecutter.year }} {{ cookiecutter.full_name }}
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+... (rest of license) ...
+{% elif cookiecutter.open_source_license == "BSD license" -%}
+Redistributions of source code must retain the above copyright notice, this
+list of conditions and the following disclaimer.
+{% elif cookiecutter.open_source_license == "ISC license" -%}
+ISC License
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted.
+{% elif cookiecutter.open_source_license == "Apache Software License 2.0" -%}
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+this file except in compliance with the License.
+{% elif cookiecutter.open_source_license == "GNU General Public License v3" -%}
+GNU GENERAL PUBLIC LICENSE
+
+Version 3, 29 June 2007
+{% endif %}

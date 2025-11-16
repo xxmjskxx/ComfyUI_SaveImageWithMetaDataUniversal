@@ -3,6 +3,10 @@
 # Core testing framework
 pytest>=8.2.0
 pytest-cov>=4.0.0
+pytest-cookies>=0.7.0
+cookiecutter>=2.3.0
+click>=8.1.0
+jinja2-time>=0.2.0
 
 # Runtime dependencies (also needed for tests)
 pillow>=10.0.0

@@ -4,9 +4,7 @@ import pytest
 
 def _load_helper():
     try:
-        return importlib.import_module(
-            "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.rules_writer"
-        )
+        return importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.rules_writer")
     except ImportError as e:  # pragma: no cover - environment specific
         pytest.skip(f"rules_writer module not importable in this environment: {e}")
 

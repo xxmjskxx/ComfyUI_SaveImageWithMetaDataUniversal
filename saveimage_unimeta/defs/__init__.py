@@ -21,6 +21,7 @@ from logging import getLogger
 # from .meta import MetaField
 # from ..utils.color import cstr
 from ..utils.deserialize import deserialize_input
+
 # Ensure submodule attribute access like `from saveimage_unimeta.defs import formatters`
 # works reliably across environments/tests by importing the submodule here.
 from . import formatters as formatters  # re-exported via __all__ for direct import
@@ -32,8 +33,11 @@ from . import formatters as formatters  # re-exported via __all__ for direct imp
 # runtime checker used inside loaders to avoid missing test-isolated files.
 _TEST_MODE = _os.environ.get("METADATA_TEST_MODE", "").strip().lower() in {"1", "true", "yes", "on"}
 
+
 def _is_test_mode() -> bool:  # pragma: no cover - trivial logic
     return _os.environ.get("METADATA_TEST_MODE", "").strip().lower() in {"1", "true", "yes", "on"}
+
+
 if not _TEST_MODE:
     from .captures import CAPTURE_FIELD_LIST  # type: ignore
     from .samplers import SAMPLERS  # type: ignore
@@ -42,6 +46,8 @@ else:  # Provide minimal placeholders sufficient for tests importing enums/utili
     SAMPLERS = {}
 
 FORCED_INCLUDE_CLASSES: set[str] = set()
+LOADED_RULES_VERSION: str | None = None
+
 
 def set_forced_include(raw: str) -> set[str]:  # pragma: no cover - simple setter
     """Parse and store forced include node class names.
@@ -58,6 +64,7 @@ def set_forced_include(raw: str) -> set[str]:  # pragma: no cover - simple sette
         FORCED_INCLUDE_CLASSES.update(parsed)
     return FORCED_INCLUDE_CLASSES
 
+
 def clear_forced_include() -> set[str]:  # pragma: no cover - simple helper
     """Clear all globally forced include node classes.
 
@@ -67,9 +74,11 @@ def clear_forced_include() -> set[str]:  # pragma: no cover - simple helper
     FORCED_INCLUDE_CLASSES.clear()
     return FORCED_INCLUDE_CLASSES
 
+
 __all__ = [
     "CAPTURE_FIELD_LIST",
     "FORCED_INCLUDE_CLASSES",
+    "LOADED_RULES_VERSION",
     "set_forced_include",
     "clear_forced_include",
     # Submodules expected to be importable via package (tests rely on this)
@@ -90,6 +99,8 @@ def _reset_to_defaults() -> None:
     CAPTURE_FIELD_LIST.clear()
     SAMPLERS.update(DEFAULT_SAMPLERS)
     CAPTURE_FIELD_LIST.update(DEFAULT_CAPTURES)
+    global LOADED_RULES_VERSION
+    LOADED_RULES_VERSION = None
 
 
 def _load_extensions() -> None:
@@ -99,6 +110,7 @@ def _load_extensions() -> None:
     to propagate because they likely indicate programmer errors in extension code.
     """
     dir_name = os.path.dirname(os.path.abspath(__file__))
+    global LOADED_RULES_VERSION
     for module_path in glob.glob(os.path.join(dir_name, "ext", "*.py")):
         module_name = os.path.splitext(os.path.basename(module_path))[0]
         # Never import example/reference files
@@ -123,6 +135,14 @@ def _load_extensions() -> None:
         except ImportError as e:
             logger.warning("[Metadata Loader] Failed to import extension '%s': %s", module_name, e)
             continue
+        try:
+            rules_version = getattr(module, "RULES_VERSION", None)
+        except AttributeError:
+            rules_version = None
+        if isinstance(rules_version, str):
+            normalized_version = rules_version.strip()
+            if normalized_version and module_name == "generated_user_rules":
+                LOADED_RULES_VERSION = normalized_version
         # Merge captured dicts defensively
         # Merge CAPTURE_FIELD_LIST: deep-merge per node to avoid clobbering earlier fields
         try:
@@ -165,6 +185,7 @@ def load_extensions_only() -> None:
     _reset_to_defaults()
     _load_extensions()
 
+
 def _merge_extension_capture_entry(node_name: str, rules) -> None:
     """Merge a capture entry coming from an extension.
 
@@ -182,6 +203,7 @@ def _merge_extension_capture_entry(node_name: str, rules) -> None:
     else:
         existing.update(rules)  # type: ignore[assignment]
 
+
 def _merge_user_capture_entry(node_name: str, rules) -> None:
     """Merge a capture entry provided via user JSON.
 
@@ -193,6 +215,7 @@ def _merge_user_capture_entry(node_name: str, rules) -> None:
         CAPTURE_FIELD_LIST[node_name] = {}
     if isinstance(rules, Mapping):  # type: ignore[arg-type]
         CAPTURE_FIELD_LIST[node_name].update(rules)  # type: ignore[arg-type]
+
 
 def _merge_user_sampler_entry(key: str, val) -> None:
     """Merge a single user-provided sampler mapping into ``SAMPLERS``.
@@ -236,7 +259,7 @@ def load_user_definitions(required_classes: set | None = None, suppress_missing_
         os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     )
     # User rule directory relocation: legacy was 'py/'. New directory 'user_rules/'.
-    # In test mode, prefer an isolated _test_outputs/user_rules directory if present to avoid polluting repo root.
+    # In test mode, prefer an isolated tests/_test_outputs/user_rules directory if present to avoid polluting repo root.
     TEST_OUTPUTS_DIR = os.path.join(NODE_PACK_DIR, "tests/_test_outputs")
     # Re-evaluate test mode at runtime so late env mutation still enables
     # isolation (coverage run import ordering can differ from local pytest).
@@ -251,7 +274,7 @@ def load_user_definitions(required_classes: set | None = None, suppress_missing_
     USER_SAMPLERS_FILE = os.path.join(USER_RULES_DIR, "user_samplers.json")  # noqa: N806
     # Migration shim: if new files absent but legacy exist, migrate once.
     LEGACY_PY_DIR = os.path.join(NODE_PACK_DIR, "py")  # noqa: N806
-    # Test isolation: allow legacy files placed in _test_outputs/py to migrate too.
+    # Test isolation: allow legacy files placed in tests/_test_outputs/py to migrate too.
     if _TEST_MODE:
         test_legacy = os.path.join(NODE_PACK_DIR, "tests/_test_outputs", "py")
         if os.path.isdir(test_legacy):  # prefer test-scoped legacy if present
@@ -261,6 +284,7 @@ def load_user_definitions(required_classes: set | None = None, suppress_missing_
         if os.path.exists(legacy_caps):
             try:
                 import shutil as _shutil
+
                 _shutil.move(legacy_caps, USER_CAPTURES_FILE)
                 logger.info("[Metadata Loader] Migrated legacy user_captures.json to user_rules/.")
             except Exception as e:  # pragma: no cover - non critical
@@ -270,6 +294,7 @@ def load_user_definitions(required_classes: set | None = None, suppress_missing_
         if os.path.exists(legacy_samplers):
             try:
                 import shutil as _shutil
+
                 _shutil.move(legacy_samplers, USER_SAMPLERS_FILE)
                 logger.info("[Metadata Loader] Migrated legacy user_samplers.json to user_rules/.")
             except Exception as e:  # pragma: no cover
@@ -290,9 +315,7 @@ def load_user_definitions(required_classes: set | None = None, suppress_missing_
         else:
             if not suppress_missing_log:
                 missing = [ct for ct in required_classes if ct not in cover_set]
-                logger.info(
-                    "[Metadata Loader] Missing classes in defaults+ext: %s. Will merge user JSON.", missing
-                )
+                logger.info("[Metadata Loader] Missing classes in defaults+ext: %s. Will merge user JSON.", missing)
 
     if need_user_merge:
         if os.path.exists(USER_SAMPLERS_FILE):

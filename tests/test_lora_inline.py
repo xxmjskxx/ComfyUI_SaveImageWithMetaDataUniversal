@@ -12,6 +12,7 @@ def _prime_module(monkeypatch, prompt_text: str):
     class DummyPromptExecuter:
         class Caches:
             outputs = {}
+
         caches = Caches()
 
     # Simulate a node that will produce prompt text for positive prompt capture

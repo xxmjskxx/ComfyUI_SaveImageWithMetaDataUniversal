@@ -1,0 +1,57 @@
+{
+  "1": {
+    "inputs": {
+      "positive_prompt": "Synthetic workflow for metadata validation.",
+      "negative_prompt": "",
+      "model_name": "test_models/fake-dev-model.safetensors",
+      "model_hash": "FAKEHASH123",
+      "vae_name": "test_vaes/fake-dev-vae.safetensors",
+      "vae_hash": "FAKEVAE123",
+      "clip_name1": "test_clip/fake-clip-l.safetensors",
+      "seed": 424242,
+      "steps": 5,
+      "cfg": 2.5,
+      "sampler_name": "euler",
+      "scheduler": "normal",
+      "guidance": 1.0,
+      "width": 512,
+      "height": 512,
+      "batch_size": 1,
+      "colour_r": 0.0,
+      "colour_g": 0.0,
+      "colour_b": 0.0,
+      "generator_version": "metadata-stub-1.0"
+    },
+    "class_type": "MetadataTestSampler",
+    "_meta": {
+      "title": "Metadata Test Sampler"
+    }
+  },
+  "2": {
+    "inputs": {
+      "images": [
+        "1",
+        0
+      ],
+      "filename_prefix": "Test\\metadata-stub-%model%",
+      "sampler_selection_method": "Farthest",
+      "sampler_selection_node_id": 0,
+      "file_format": "png",
+      "lossless_webp": true,
+      "quality": 100,
+      "save_workflow_json": false,
+      "add_counter_to_filename": true,
+      "civitai_sampler": false,
+      "max_jpeg_exif_kb": 60,
+      "save_workflow_image": true,
+      "include_lora_summary": true,
+      "guidance_as_cfg": false,
+      "suppress_missing_class_log": true,
+      "model_hash_log": "none"
+    },
+    "class_type": "SaveImageWithMetaDataUniversal",
+    "_meta": {
+      "title": "Save Image With Metadata"
+    }
+  }
+}

@@ -7,7 +7,7 @@ def _reset_mode(monkeypatch, propagate: str):
     # Force re-init and sync internal propagate flag
     formatters._LOGGER_INITIALIZED = False  # type: ignore
     # Update internal flag used during initialization
-    formatters._HASH_LOG_PROPAGATE = (propagate != "0")  # type: ignore
+    formatters._HASH_LOG_PROPAGATE = propagate != "0"  # type: ignore
     # Reset warned sets to allow unresolved log emission each test
     formatters._WARNED_UNRESOLVED.clear()  # type: ignore
 
@@ -18,9 +18,11 @@ def test_hash_log_propagate_off(monkeypatch):
     # Attach spy handler on module logger directly
     logger = logging.getLogger(formatters.__name__)
     received = []
+
     class Spy(logging.Handler):
         def emit(self, record):
             received.append(record.getMessage())
+
     spy = Spy()
     logger.addHandler(spy)
     try:
@@ -39,12 +41,15 @@ def test_hash_log_propagate_on(monkeypatch):
     logger = logging.getLogger(formatters.__name__)
     module_received = []
     root_received = []
+
     class Spy(logging.Handler):
         def emit(self, record):
             module_received.append(record.getMessage())
+
     class RootSpy(logging.Handler):
         def emit(self, record):  # pragma: no cover - minimal logic
             root_received.append(record.getMessage())
+
     spy = Spy()
     rspy = RootSpy()
     logger.addHandler(spy)

@@ -4,9 +4,7 @@ import pytest
 
 
 def test_pclazy_hashes_use_raw_names(monkeypatch):
-    mod = importlib.import_module(
-        "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.ext.PCLazyLoraLoader"
-    )
+    mod = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.ext.PCLazyLoraLoader")
 
     # Ensure cache is clean
     mod._NODE_DATA_CACHE.clear()

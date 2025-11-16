@@ -17,13 +17,18 @@ nodes_mod = importlib.import_module("saveimage_unimeta.nodes.node")
 SaveNode = nodes_mod.SaveImageWithMetaDataUniversal
 MetaField = importlib.import_module("saveimage_unimeta.defs.meta").MetaField
 
+
 class DummyImage:
     """Minimal image-like object to satisfy save_images expectations (numpy array)."""
+
     def __init__(self, w=8, h=8):
         import numpy as np
+
         self._arr = (np.random.rand(h, w, 3)).astype("float32")
+
     def cpu(self):
         return self
+
     def numpy(self):
         return self._arr
 
@@ -75,6 +80,7 @@ def test_jpeg_exif_fallback_stages(monkeypatch, tmp_path):
     # Monkeypatch gen_pnginfo to return our large dict
     def fake_gen_pnginfo(method, node_id, civitai):
         return big_pnginfo
+
     monkeypatch.setattr(SaveNode, "gen_pnginfo", classmethod(lambda cls, a, b, c: fake_gen_pnginfo(a, b, c)))
 
     # Prepare dummy image batch
@@ -111,4 +117,3 @@ def test_jpeg_exif_fallback_stages(monkeypatch, tmp_path):
     # Stage may be 'none' if EXIF fits
     stage2 = node._last_fallback_stages[0]
     assert stage2 in {"none", "reduced-exif", "minimal", "com-marker"}
-

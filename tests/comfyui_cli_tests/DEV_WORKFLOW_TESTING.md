@@ -50,7 +50,7 @@ You can use workflows from `example_workflows/` as templates, but update the mod
 Single line command:
 
 ```bash
-python tests/comfyui_cli_tests/run_dev_workflows.py --comfyui-path "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI_windows_portable" --python-exe "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI_windows_portable\python_embeded\python.exe" --temp-dir "F:\StableDiffusion\ComfyUI" --output-folder "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI\output\Test" --extra-args="--windows-standalone-build"
+python tests/comfyui_cli_tests/run_dev_workflows.py --comfyui-path "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI_windows_portable" --python-exe "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI_windows_portable\python_embeded\python.exe" --temp-dir "F:\StableDiffusion\ComfyUI" --output-folder "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI_windows_portable\ComfyUI\output\Test" --extra-args="--windows-standalone-build"
 ```
 
 Using the command format from your environment:
@@ -84,6 +84,21 @@ By default, the script stops the server after execution. To keep it running:
 ```bash
 python tests/comfyui_cli_tests/run_dev_workflows.py --comfyui-path "/path/to/ComfyUI" --keep-server
 ```
+
+### Fast Metadata Stub Mode
+
+If you only need to exercise metadata saving (and not full image generation), enable the lightweight
+stub nodes and use the bundled `metadata-stub-basic.json` workflow. This avoids loading large
+checkpoints by producing synthetic black images while still yielding full metadata output.
+
+```bash
+python tests/comfyui_cli_tests/run_dev_workflows.py --comfyui-path "/path/to/ComfyUI" \
+  --enable-test-stubs --workflow-dir "tests/comfyui_cli_tests/dev_test_workflows"
+```
+
+The flag sets `METADATA_ENABLE_TEST_NODES=1` before ComfyUI starts so the optional
+`MetadataTestSampler` node becomes available. Any workflow built around this node finishes quickly
+and records the metadata fields supplied through its parameters.
 
 ## Command-Line Options
 
@@ -158,7 +173,7 @@ Use the `--output-folder` option to specify the Test folder to clean:
 ```bash
 python tests/comfyui_cli_tests/run_dev_workflows.py ^
   --comfyui-path "C:\StableDiffusion\ComfyUI" ^
-  --output-folder "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI\output\Test"
+  --output-folder "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI_windows_portable\ComfyUI\output\Test"
 ```
 
 **Linux/Mac:**
@@ -193,7 +208,7 @@ After running workflows, you can validate that the generated images contain the 
 **Windows:**
 ```bash
 "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI_windows_portable\python_embeded\python.exe" validate_metadata.py ^
-  --output-folder "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI\output\Test"
+  --output-folder "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI_windows_portable\ComfyUI\output\Test"
 ```
 
 **Linux/Mac:**
@@ -230,14 +245,14 @@ python tests/comfyui_cli_tests/run_dev_workflows.py ^
   --python-exe "C:\StableDiffusion\python_embeded\python.exe" ^
   --temp-dir "F:\StableDiffusion\ComfyUI" ^
   --extra-args "--windows-standalone-build" ^
-  --output-folder "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI\output\Test"
+  --output-folder "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI_windows_portable\ComfyUI\output\Test"
 
 REM Step 2: Wait for workflows to complete (adjust timing as needed)
 timeout /t 120
 
 REM Step 3: Validate the generated images
 python tests/comfyui_cli_tests/validate_metadata.py ^
-  --output-folder "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI\output\Test"
+  --output-folder "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI_windows_portable\ComfyUI\output\Test"
 ```
 
 **Linux/Mac:**

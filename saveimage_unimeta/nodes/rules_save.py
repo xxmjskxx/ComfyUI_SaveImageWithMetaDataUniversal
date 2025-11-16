@@ -1,3 +1,12 @@
+"""ComfyUI node that persists generated metadata rules back to disk.
+
+The saver writes the textual output from :class:`MetadataRuleScanner` to the
+`generated_user_rules.py` extension file, optionally merging with existing
+entries. It validates input via ``ast.parse`` before touching disk and mirrors
+the same file layout used by the runtime loader so developers can iterate
+entirely from within ComfyUI.
+"""
+
 import logging
 import os
 
@@ -5,8 +14,16 @@ logger = logging.getLogger(__name__)
 
 
 class SaveGeneratedUserRules:
+    """Persist scanner output into ``defs/ext/generated_user_rules.py``.
+
+    The node exposes a simple text area (``rules_text``) plus an ``append``
+    toggle that controls whether to overwrite the file or merge new entries
+    into the existing SAMPLERS / CAPTURE_FIELD_LIST dictionaries.
+    """
+
     @classmethod
-    def INPUT_TYPES(s):  # noqa: N802,N804
+    def INPUT_TYPES(cls):  # noqa: N802,N804
+        """ComfyUI schema describing the editable text field and append flag."""
         return {
             "required": {
                 "rules_text": ("STRING", {"default": "", "multiline": True}),
@@ -27,10 +44,12 @@ class SaveGeneratedUserRules:
     DESCRIPTION = "Save the edited rules text back to generated_user_rules.py, with syntax validation."
 
     def _rules_path(self) -> str:
+        """Return the canonical path to ``generated_user_rules.py``."""
         base_py = os.path.dirname(os.path.dirname(__file__))  # .../py
         return os.path.join(base_py, "defs", "ext", "generated_user_rules.py")
 
     def _validate_python(self, text: str) -> tuple[bool, str | None]:
+        """Parse user text to ensure it is valid Python source."""
         import ast
 
         try:
@@ -42,6 +61,7 @@ class SaveGeneratedUserRules:
             return False, f"Error: {e}"
 
     def _find_dict_span(self, text: str, name: str) -> tuple[int | None, int | None]:
+        """Locate the ``{...}`` span for the named top-level dictionary."""
         import re
 
         m = re.search(rf"\b{name}\s*=\s*\{{", text)
@@ -76,6 +96,7 @@ class SaveGeneratedUserRules:
         return None, None
 
     def _parse_top_level_entries(self, body: str) -> list[tuple[str, str]]:
+        """Split a dictionary body into ``(key, value_text)`` tuples."""
         entries = []
         i = 0
         n = len(body)
@@ -142,6 +163,7 @@ class SaveGeneratedUserRules:
         return entries
 
     def _rebuild_dict(self, name: str, existing_text: str, new_text: str) -> str:
+        """Merge entries from ``new_text`` into dictionary ``name``."""
         es, ee = self._find_dict_span(existing_text, name)
         if es is None:
             ns, ne = self._find_dict_span(new_text, name)
@@ -189,6 +211,7 @@ class SaveGeneratedUserRules:
         return existing_text[:es] + "{" + new_body + "}" + existing_text[ee + 1 :]
 
     def save_rules(self, rules_text: str = "", append: bool = True) -> tuple[str]:
+        """Write or merge rules text, returning a short status message."""
         path = self._rules_path()
         ok, err = self._validate_python(rules_text)
         if not ok:

@@ -5,6 +5,6 @@ from ..meta import MetaField
 CAPTURE_FIELD_LIST = {
     "Miaoshouai_Flux_CLIPTextEncode": {
         MetaField.POSITIVE_PROMPT: {"field_name": "caption"},
-        MetaField.GUIDANCE:             {"field_name": "guidance"},
+        MetaField.GUIDANCE: {"field_name": "guidance"},
     },
 }

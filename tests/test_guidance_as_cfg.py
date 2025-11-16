@@ -3,9 +3,9 @@ import os
 # We assume tests run with working directory at project root of this custom node.
 # Adjust path so we can import the package.
 BASE = os.path.dirname(__file__)
-PKG_ROOT = os.path.abspath(os.path.join(BASE, '..', 'saveimage_unimeta'))
+PKG_ROOT = os.path.abspath(os.path.join(BASE, "..", "saveimage_unimeta"))
 if PKG_ROOT not in os.sys.path:
-    os.sys.path.insert(0, os.path.abspath(os.path.join(BASE, '..')))
+    os.sys.path.insert(0, os.path.abspath(os.path.join(BASE, "..")))
 
 from saveimage_unimeta.capture import Capture, MetaField  # type: ignore  # noqa: E402
 

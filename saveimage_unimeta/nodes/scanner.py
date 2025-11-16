@@ -1,7 +1,58 @@
-"""MetadataRuleScanner node: scans installed nodes and suggests capture rules.
+"""MetadataRuleScanner enumerates capture and sampler rule gaps.
 
-This module was extracted from the legacy monolithic node.py to improve maintainability.
+Workflow
+        1. Walk every class in ``nodes.NODE_CLASS_MAPPINGS`` and inspect declared
+             inputs/hidden fields.
+        2. Apply :data:`HEURISTIC_RULES` to locate potential MetaField + hash
+             candidates, recording *why* they matched via the rule metadata.
+        3. Compare the findings to the current capture baseline
+             (defaults + extensions + user JSON) so only missing pieces surface when
+             the "missing-only lens" is active.
+        4. Emit a pretty JSON block (for export) and a one-line diff summary for the
+             UI panel.
+
+Key behavior
+        * Missing-only lens mirrors the saver: when ``include_existing`` is false,
+            metafields already covered by the union baseline are suppressed unless a
+            user forces the MetaField or node class.
+        * A lightweight cache tracks the mtimes of ``user_rules/*.json`` (and the
+            test-mode mirror) so repeated scans during UI sessions skip redundant
+            reloads.
+        * Debug logging honors ``METADATA_DEBUG`` to avoid log spam in production.
+
+Heuristic reference
+        Each entry inside :data:`HEURISTIC_RULES` is declarative and may include the
+        following keys (optional unless noted):
+
+        * ``metafield`` (required): the :class:`saveimage_unimeta.defs.meta.MetaField`
+            to capture when the rule matches.
+        * ``keywords`` / ``keywords_regex``: literal strings or regex patterns used
+            to match node input names (case-insensitive). Substring matches apply
+            unless ``exact_only`` is set.
+        * ``excluded_keywords`` / ``excluded_class_keywords``: tokens that disqualify
+            either the input field or the node class.
+        * ``required_context``: other input names that must be present on the node
+            (for example, ``height`` alongside ``width``).
+        * ``required_class_keywords`` / ``required_class_regex`` /
+            ``required_class_keyword_groups``: class-name filters ranging from simple
+            substrings to regexes or group-count requirements that dramatically reduce
+            false positives.
+        * ``type``: allowed ComfyUI declared types (``INT``, ``FLOAT``, ``STRING``).
+            The scanner skips fields whose declared type falls outside this set.
+        * ``is_multi``: surface every matching field (returned via ``fields``) while
+            preserving numeric ordering for patterns like ``lora_1``..``lora_n``.
+        * ``priority_keywords``: optional ordering hints for ``is_multi`` rules. Each entry
+            supplies keyword tuples plus a match mode controlling how strictly the scanner
+            prioritizes the matching fields.
+        * ``format`` / ``hash_field``: instruct the scanner to pair the matched
+            field with a hash entry by invoking helpers from
+            ``saveimage_unimeta.utils.formatters``.
+        * ``validate``: name of a helper (``is_positive_prompt``, etc.) that can
+            sanity-check the matched input contents before surfacing it.
+
+For a concise glossary of the same options see :data:`HEURISTIC_RULES_DOC` below.
 """
+
 import json
 import logging
 import os
@@ -16,6 +67,39 @@ from .. import defs as defs_mod
 logger = logging.getLogger(__name__)
 _DEBUG_VERBOSE = os.environ.get("METADATA_DEBUG", "0") not in ("0", "false", "False", None, "")
 
+
+HEURISTIC_RULES_DOC = """
+Heuristic dictionary keys referenced by :data:`HEURISTIC_RULES`:
+
+keywords / keywords_regex:
+    Case-insensitive literal tokens or regex patterns used to match input
+    names. Substring checks apply unless ``exact_only`` is set.
+excluded_keywords / excluded_class_keywords:
+    Tokens that must not appear in the field or class name.
+required_context:
+    Additional inputs that must exist on the node (for example ``height`` when
+    inferring a ``width`` metafield).
+required_class_keywords / required_class_regex / required_class_keyword_groups:
+    Filters that gate evaluation until the class name contains select tokens,
+    matches regex patterns, or satisfies minimum counts per keyword group.
+type:
+    Accepted ComfyUI declared input types (``INT``, ``FLOAT``, ``STRING``, etc.).
+is_multi:
+    Surfaces every match and returns ``fields`` instead of ``field_name`` so
+    multi-slot structures such as LoRA stacks preserve ordering.
+priority_keywords:
+    List of ``(keywords, mode)`` tuples applied to ``is_multi`` matches. Modes:
+    ``1`` = substring, ``2`` = prefix, ``3`` = suffix. Fields matching earlier
+    entries rank ahead of later ones while preserving numeric/alphabetic order
+    within each priority bucket.
+format / hash_field:
+    Name+hash companions. ``format`` references helpers from
+    ``saveimage_unimeta.utils.formatters`` and ``hash_field`` points to the
+    :class:`MetaField` that should store the hash.
+validate:
+    Optional validator helper (``is_positive_prompt``, ``is_negative_prompt``)
+    used to double-check the captured field content.
+"""
 
 HEURISTIC_RULES = [
     {
@@ -235,7 +319,7 @@ HEURISTIC_RULES = [
         "hash_field": MetaField.LORA_MODEL_HASH,
         "required_class_keywords": ["lora", "loader", "load"],
         "sort_numeric": True,
-        "excluded_keywords": ("lora_syntax", "loaded_loras", "text"),
+        "excluded_keywords": ("lora_syntax", "loaded_loras", "text", "wt", "clip"),
     },
     {
         "metafield": MetaField.LORA_STRENGTH_MODEL,
@@ -253,6 +337,7 @@ HEURISTIC_RULES = [
             r"^strength_model_?\d{0,2}$",
             r"^lora_strength_?\d{0,2}$",
             r"^lora_wt_?\d{0,2}$",
+            r"^model_str_?\d{0,2}$",
             r"^strength_0?\d$",
         ),
         "required_context": ["lora_name"],
@@ -260,6 +345,7 @@ HEURISTIC_RULES = [
         "required_class_keywords": ["lora", "loader", "load"],
         "type": "FLOAT",
         "sort_numeric": True,
+        "excluded_keywords": ("clip",),
     },
     {
         "metafield": MetaField.LORA_STRENGTH_CLIP,
@@ -272,19 +358,46 @@ HEURISTIC_RULES = [
             "wt",
             "clip",
         ),
-        "keywords_regex": (r"^clip_str_?\d{0,2}$", r"^strength_clip_?\d{0,2}$"),
+        "keywords_regex": (
+            r"^clip_str_?\d{0,2}$",
+            r"^clip_strength_?\d{0,2}$",
+            r"^strength_clip_?\d{0,2}$",
+            r"^clip_weight_?\d{0,2}$"
+        ),
         "required_context": ["lora_name"],
         "is_multi": True,
         "required_class_keywords": ["lora", "loader", "load"],
         "type": "FLOAT",
         "sort_numeric": True,
+        "priority_keywords": [
+            (("clip", "clip_", "clipstrength"), 1),
+        ],
     },
 ]
 
 
 class MetadataRuleScanner:
+    """Report missing capture rules/sampler roles for installed nodes.
+
+    The scanner inspects every class registered in ``nodes.NODE_CLASS_MAPPINGS``
+    and produces two JSON-compatible payloads:
+
+    * ``suggested_rules_json`` – pretty-printed capture/sampler suggestions.
+    * ``diff_report`` – condensed summary for log/tooltips.
+
+    The implementation honours UI overrides, caching, ``METADATA_TEST_MODE``,
+    and ``METADATA_DEBUG`` just like the rest of the UniMeta saver stack.
+    """
+
     @classmethod
-    def INPUT_TYPES(s):  # noqa: N802,N804
+    def INPUT_TYPES(cls):  # noqa: N802,N804
+        """Expose scanner configuration inputs to ComfyUI.
+
+        Returns:
+            Mapping that adheres to the ComfyUI protocol with default values
+            plus tooltips describing *exclude*, *include_existing*, mode
+            selection, and force-include overrides.
+        """
         return {
             "required": {
                 "exclude_keywords": (
@@ -295,9 +408,7 @@ class MetadataRuleScanner:
                             "mask,find,resize,rotate,detailer,bus,scale,vision,text to,crop,xy,plot,controlnet,save,"
                             "trainlora,postshot"
                         ),
-                        "tooltip": (
-                            "Comma-separated keywords to exclude nodes whose class names contain any of them."
-                        ),
+                        "tooltip": ("Comma-separated keywords to exclude nodes whose class names contain any of them."),
                     },
                 )
             },
@@ -362,7 +473,8 @@ class MetadataRuleScanner:
     )
     NODE_NAME = "Metadata Rule Scanner"
 
-    def find_common_prefix(self, strings):
+    def find_common_prefix(self, strings: list[str] | tuple[str, ...]) -> str | None:
+        """Return the shared alphanumeric prefix for LoRA-style field groups."""
         if not strings or len(strings) < 2:
             return None
         prefix = os.path.commonprefix(strings)
@@ -370,12 +482,37 @@ class MetadataRuleScanner:
 
     def scan_for_rules(
         self,
-        exclude_keywords="",
-        include_existing=False,
-        mode="new_only",
-        force_include_metafields="",
-        force_include_node_class="",
+        exclude_keywords: str = "",
+        include_existing: bool = False,
+        mode: str = "new_only",
+        force_include_metafields: str = "",
+        force_include_node_class: str = "",
     ):
+        """Generate capture/sampler recommendations based on heuristics.
+
+        Args:
+            exclude_keywords: Comma-separated substrings that filter node class
+                names. Entries still appear when forced via
+                ``force_include_node_class``.
+            include_existing: When ``False`` (default), enables the
+                "missing-only lens" that filters out metadata already covered
+                by defaults/extensions/user JSON; when ``True`` the scanner
+                reports inclusive results similar to pre-2025 behaviour.
+            mode: ``new_only`` (default) emits only missing metafields per
+                node, ``all`` emits both new and existing matches, and
+                ``existing_only`` restricts output to nodes already recorded in
+                the capture baseline.
+            force_include_metafields: CSV of :class:`MetaField` names that must
+                remain in the output even if already satisfied by the baseline.
+            force_include_node_class: CSV/newline separated class names that
+                bypass keyword filters and appear even when omitted by
+                ``mode``.
+
+        Returns:
+            Either the tuple ``(json_text, diff_report)`` when invoked inside
+            automated tests or a dict payload for ComfyUI containing UI fields
+            plus the tuple.
+        """
         if _DEBUG_VERBOSE:
             logger.info(cstr("[Metadata Scanner] Starting scan...").msg)
         import re  # local to avoid global import cost when node unused
@@ -398,7 +535,7 @@ class MetadataRuleScanner:
             """Return mtimes for user rule JSON files.
 
             Mirrors path preference logic of loader/writer: in METADATA_TEST_MODE, if an
-            existing _test_outputs/user_rules directory is present, prefer it. This keeps
+            existing tests/_test_outputs/user_rules directory is present, prefer it. This keeps
             scanner cache invalidation coherent during isolated tests.
             """
             try:
@@ -436,11 +573,7 @@ class MetadataRuleScanner:
         baseline_samplers = _BASELINE_CACHE.get("samplers", defs_mod.SAMPLERS)
 
         suggested_nodes, suggested_samplers = {}, {}
-        forced_node_names = {
-            cls.strip()
-            for cls in re.split(r"[\n,]", force_include_node_class or "")
-            if cls.strip()
-        }
+        forced_node_names = {cls.strip() for cls in re.split(r"[\n,]", force_include_node_class or "") if cls.strip()}
         exclude_list = [kw.strip().lower() for kw in exclude_keywords.split(",") if kw.strip()]
         all_nodes = {k: v for k, v in nodes.NODE_CLASS_MAPPINGS.items() if hasattr(v, "INPUT_TYPES")}
 
@@ -470,6 +603,7 @@ class MetadataRuleScanner:
         else:
             effective_mode = initial_mode
         force_include_set = {tok.strip().upper() for tok in force_include_metafields.split(",") if tok.strip()}
+        # Diff counters
         new_nodes_count = 0
         existing_nodes_with_new = 0
         total_new_fields = 0
@@ -482,6 +616,7 @@ class MetadataRuleScanner:
                 continue
             if "sampler" in class_name.lower():
                 try:
+                    # A node is a potential sampler if it has positive and negative inputs.
                     inputs = class_object.INPUT_TYPES().get("required", {})
                     candidate = None
                     if "positive" in inputs and "negative" in inputs:
@@ -497,9 +632,11 @@ class MetadataRuleScanner:
                         if class_name in SAMPLERS:
                             existing_map = SAMPLERS.get(class_name, {})
                             if effective_mode == "existing_only" or effective_mode == "all":
+                                # Include full (all) only if mode == all; existing_only returns existing intersection
                                 if effective_mode == "all":
                                     suggested_samplers[class_name] = candidate
                                 elif effective_mode == "existing_only":
+                                    # Intersection of existing and candidate
                                     inter = {k: v for k, v in candidate.items() if k in existing_map}
                                     if inter:
                                         suggested_samplers[class_name] = inter
@@ -508,6 +645,7 @@ class MetadataRuleScanner:
                                 if diff:
                                     suggested_samplers[class_name] = diff
                         else:
+                            # New sampler class altogether
                             if effective_mode != "existing_only":
                                 suggested_samplers[class_name] = candidate
                         if class_name in suggested_samplers:
@@ -533,16 +671,19 @@ class MetadataRuleScanner:
                 continue
             is_existing = class_name in CAPTURE_FIELD_LIST
             if is_existing and effective_mode == "new_only":
+                # We'll process but later filter out existing fields.
                 pass
             elif is_existing and effective_mode == "existing_only":
+                # Process to allow potential field diff display (existing subset)
                 pass
             elif is_existing and effective_mode == "all":
                 pass
             elif not is_existing and effective_mode == "existing_only":
                 if not is_forced:
+                    # Skip brand new nodes in existing_only mode
                     continue
             elif not is_existing and effective_mode in ("new_only", "all"):
-                pass
+                pass  # include
 
             try:
                 inputs, node_suggestions = class_object.INPUT_TYPES(), {}
@@ -551,6 +692,7 @@ class MetadataRuleScanner:
                 all_input_names = set(req_inputs.keys()) | set(opt_inputs.keys())
                 lower_class_name = class_name.lower()
 
+                # Build a map of input field -> declared type string (uppercased), when available
                 field_types = {}
 
                 def _declared_type_for(name):
@@ -563,6 +705,7 @@ class MetadataRuleScanner:
                         if isinstance(first, str):
                             dtype = first
                         elif isinstance(first, tuple | list) and len(first) > 0 and isinstance(first[0], str):
+                            # e.g., a list/tuple of possible types; take the first string as representative
                             dtype = first[0]
                     elif isinstance(val, str):
                         dtype = val
@@ -575,19 +718,25 @@ class MetadataRuleScanner:
                         field_types[nm] = None
 
                 for rule in HEURISTIC_RULES:
+                    # Check for excluded class keywords
                     excluded_kws = rule.get("excluded_class_keywords")
                     if excluded_kws and any(kw in lower_class_name for kw in excluded_kws):
                         continue
 
+                    # Advanced required-class matching: regex or keyword groups (fallback to simple any-of)
                     def _matches_required_class(rule_obj, lower_name):
+                        # 1) Regex patterns (any match passes)
                         patterns = rule_obj.get("required_class_regex") or []
                         for pat in patterns:
                             try:
                                 import re as _re
+
                                 if _re.search(pat, lower_name):
                                     return True
                             except Exception:
                                 pass  # Skip invalid regex patterns
+
+                        # 2) Keyword groups with per-group minimums
                         groups_spec = rule_obj.get("required_class_keyword_groups")
                         if groups_spec:
                             groups = None
@@ -596,6 +745,7 @@ class MetadataRuleScanner:
                                 groups = groups_spec.get("groups")
                                 mins = groups_spec.get("mins") or groups_spec.get("required")
                             elif isinstance(groups_spec, list):
+                                # list of dicts: [{"keywords": [...], "min": 1}, ...]
                                 groups = [g.get("keywords", []) for g in groups_spec if isinstance(g, dict)]
                                 mins = [g.get("min", 1) for g in groups_spec if isinstance(g, dict)]
                             if (
@@ -605,6 +755,7 @@ class MetadataRuleScanner:
                                 and groups
                             ):
                                 import re as _re
+
                                 name_simple = _re.sub(r"[ _-]+", "", lower_name)
                                 all_ok = True
                                 for kws, min_req in zip(groups, mins):
@@ -629,6 +780,7 @@ class MetadataRuleScanner:
                                 if all_ok:
                                     return True
 
+                        # 3) Simple any-of keywords (legacy behavior)
                         class_kws2 = rule_obj.get("required_class_keywords")
                         if class_kws2:
                             for kw in class_kws2:
@@ -638,6 +790,7 @@ class MetadataRuleScanner:
                                 except Exception:
                                     pass  # Skip invalid keyword - continue checking others
                             return False
+                        # No constraints -> accept
                         return True
 
                     if not _matches_required_class(rule, lower_class_name):
@@ -645,14 +798,14 @@ class MetadataRuleScanner:
 
                     context_kws = rule.get("required_context")
                     if context_kws and not any(
-                        any(ctx in name.lower() for ctx in context_kws)
-                        for name in all_input_names
+                        any(ctx in name.lower() for ctx in context_kws) for name in all_input_names
                     ):
                         continue
 
                     if rule["metafield"] in node_suggestions:
                         continue
 
+                    # Unified helper collections (exclusions & type) built lazily when needed
                     excluded_kws = tuple(rule.get("excluded_keywords") or ())
                     excluded_kws = tuple(kw.lower() for kw in excluded_kws if isinstance(kw, str))
                     allowed_types = rule.get("type")
@@ -671,10 +824,11 @@ class MetadataRuleScanner:
                             return False
                         return ftype in allowed_types_norm
 
+                    # EARLY MULTI-FIELD HANDLING
                     if rule.get("is_multi"):
+                        # Gather matching field names
                         kws_norm = [
-                            kw.lower() if isinstance(kw, str) else str(kw).lower()
-                            for kw in rule.get("keywords", [])
+                            kw.lower() if isinstance(kw, str) else str(kw).lower() for kw in rule.get("keywords", [])
                         ]
                         regex_patterns = rule.get("keywords_regex") or []
                         matching_fields = []
@@ -695,6 +849,7 @@ class MetadataRuleScanner:
                                 for pat in regex_patterns:
                                     try:
                                         import re as _re
+
                                         if _re.search(pat, fn, _re.IGNORECASE):
                                             matched = True
                                             break
@@ -703,19 +858,81 @@ class MetadataRuleScanner:
                             if matched:
                                 matching_fields.append(fn)
                         if matching_fields:
+                            priority_specs = tuple(rule.get("priority_keywords") or ())
+
+                            def _priority_match(name: str, keyword: str, mode: int) -> bool:
+                                if mode == 2:
+                                    return name.startswith(keyword)
+                                if mode == 3:
+                                    return name.endswith(keyword)
+                                return keyword in name
+
+                            def _priority_rank(field_name: str) -> int:
+                                if not priority_specs:
+                                    return 0
+                                lname = field_name.lower()
+                                for idx, spec in enumerate(priority_specs):
+                                    tokens = None
+                                    mode = 1
+                                    if isinstance(spec, list | tuple):
+                                        if spec:
+                                            tokens = spec[0]
+                                            if len(spec) > 1:
+                                                mode = spec[1]
+                                    else:
+                                        tokens = spec
+                                    if tokens is None:
+                                        continue
+                                    try:
+                                        mode_val = int(mode)
+                                    except Exception:
+                                        mode_val = 1
+                                    if isinstance(tokens, list | tuple | set):
+                                        iterable = tokens
+                                    else:
+                                        iterable = (tokens,)
+                                    for token in iterable:
+                                        if not isinstance(token, str):
+                                            continue
+                                        kw_norm = token.lower()
+                                        if not kw_norm:
+                                            continue
+                                        if _priority_match(lname, kw_norm, mode_val):
+                                            return idx
+                                return len(priority_specs)
+
                             if rule.get("sort_numeric"):
                                 import re as _re
 
-                                def _num_key(s):
+                                def _numeric_key(s: str) -> tuple[int, str]:
                                     m = _re.search(r"(\d+)(?!.*\d)", s)
                                     return (
                                         int(m.group(1)) if m else 1_000_000,
                                         s.lower(),
                                     )
 
-                                matching_fields = sorted(matching_fields, key=_num_key)
                             else:
-                                matching_fields = sorted(matching_fields)
+
+                                def _numeric_key(s: str) -> tuple[int, str]:
+                                    return (0, s.lower())
+
+                            ranked_fields = [
+                                (
+                                    name,
+                                    _priority_rank(name),
+                                    _numeric_key(name),
+                                )
+                                for name in matching_fields
+                            ]
+                            ranked_fields.sort(key=lambda item: (item[1], item[2]))
+                            matched_priority = ranked_fields[0][1] if ranked_fields else None
+                            if (
+                                priority_specs
+                                and matched_priority is not None
+                                and matched_priority < len(priority_specs)
+                            ):
+                                ranked_fields = [item for item in ranked_fields if item[1] == matched_priority]
+                            matching_fields = [item[0] for item in ranked_fields]
                             if len(matching_fields) == 1:
                                 suggestion = {"field_name": matching_fields[0]}
                                 if rule.get("validate"):
@@ -736,8 +953,10 @@ class MetadataRuleScanner:
                                         "fields": matching_fields,
                                         "format": rule["format"],
                                     }
+                        # Multi handled; move to next rule
                         continue
 
+                    # Exact-first then partial matching in keyword order
                     best_field = None
                     lower_names = {name: name.lower() for name in all_input_names}
                     if excluded_kws:
@@ -752,6 +971,7 @@ class MetadataRuleScanner:
                     exact_only = bool(rule.get("exact_only"))
 
                     regex_patterns = rule.get("keywords_regex") or []
+                    # 1) exact matches first, in keyword order
                     for kw in rule["keywords"]:
                         kw_norm = kw.lower() if isinstance(kw, str) else str(kw).lower()
                         for name, lname in lower_names_filtered.items():
@@ -760,6 +980,7 @@ class MetadataRuleScanner:
                                 break
                         if best_field:
                             break
+                    # 2) if none, allow substring matches in keyword order (unless exact_only)
                     if not best_field and not exact_only:
                         for kw in rule["keywords"]:
                             kw_norm = kw.lower() if isinstance(kw, str) else str(kw).lower()
@@ -769,10 +990,12 @@ class MetadataRuleScanner:
                                     break
                             if best_field:
                                 break
+                    # 2.5) regex patterns if still none
                     if not best_field and regex_patterns:
                         for pat in regex_patterns:
                             try:
                                 import re as _re
+
                                 for name in lower_names_filtered.keys():
                                     if _re.search(pat, name, _re.IGNORECASE):
                                         best_field = name
@@ -783,12 +1006,15 @@ class MetadataRuleScanner:
                                 continue
 
                     if best_field:
+                        # Construct the rule dictionary in the correct order
+                        # Keep name fields human-readable; attach format only to the hash field when present.
                         suggestion = {"field_name": best_field}
                         if rule.get("validate"):
                             suggestion["validate"] = rule["validate"]
 
                         node_suggestions[rule["metafield"]] = suggestion
 
+                        # Automatically add the corresponding hash field rule and attach formatter there
                         if rule.get("format") and rule.get("hash_field"):
                             hash_field = rule.get("hash_field")
                             hash_suggestion = {
@@ -796,6 +1022,8 @@ class MetadataRuleScanner:
                                 "format": rule["format"],
                             }
                             node_suggestions[hash_field] = hash_suggestion
+
+                    # (multi case already handled above)
 
                 if node_suggestions:
                     if is_existing:
@@ -831,7 +1059,7 @@ class MetadataRuleScanner:
                         # Missing-lens: drop fields already in union baseline (defaults+ext+user JSON)
                         if missing_lens and final_map:
                             # Preserve forced metafields even if already in baseline; filter others.
-                            baseline_for_class = (baseline_captures.get(class_name, {}) or {})
+                            baseline_for_class = baseline_captures.get(class_name, {}) or {}
                             kept = {}
                             skipped_ct = 0
                             for mf, data in final_map.items():
@@ -865,7 +1093,7 @@ class MetadataRuleScanner:
                                 tagged.setdefault("status", "new")
                                 tagged_map[mf] = tagged
                             if missing_lens and tagged_map:
-                                baseline_for_class = (baseline_captures.get(class_name, {}) or {})
+                                baseline_for_class = baseline_captures.get(class_name, {}) or {}
                                 filtered = {}
                                 for mf, data in tagged_map.items():
                                     if mf.name in force_include_set:
@@ -881,6 +1109,7 @@ class MetadataRuleScanner:
             except Exception as e:
                 logger.warning("[Scanner Warning] Could not process '%s': %s", class_name, e)
 
+        # Build sampler status map
         sampler_status = {}
         if suggested_samplers:
             for s_name, mapping in list(suggested_samplers.items()):
@@ -924,8 +1153,7 @@ class MetadataRuleScanner:
         }
         if suggested_nodes:
             final_output["nodes"] = {
-                node: {mf.name: data for mf, data in rules.items()}
-                for node, rules in suggested_nodes.items()
+                node: {mf.name: data for mf, data in rules.items()} for node, rules in suggested_nodes.items()
             }
         for forced in forced_node_names:
             if forced not in final_output["nodes"]:
@@ -977,17 +1205,10 @@ class MetadataRuleScanner:
             f"Existing fields included={total_existing_fields_included}",
             f"Skipped fields={total_skipped_fields}",
             f"BaselineCache=hit:{cache_hits}|miss:{cache_misses}",
-            "Force metafields="
-            + (
-                ",".join(sorted(force_include_set))
-                if force_include_set
-                else "None"
-            ),
+            "Force metafields=" + (",".join(sorted(force_include_set)) if force_include_set else "None"),
         ]
         if forced_node_names:
-            diff_chunks.append(
-                "Forced node classes=" + ",".join(sorted(forced_node_names))
-            )
+            diff_chunks.append("Forced node classes=" + ",".join(sorted(forced_node_names)))
         diff_report = "; ".join(diff_chunks)
 
         pretty_json = json.dumps(final_output, indent=4)

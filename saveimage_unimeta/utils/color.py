@@ -1,5 +1,6 @@
 # mostly from https://github.com/ltdrdata/was-node-suite-comfyui/blob/main/WAS_Node_Suite.py
 
+
 class cstr(str):  # noqa: N801 - external public API relies on lowercase name
     class color:  # noqa: N801 - nested helper intentionally lowercase for attribute style access
         END = "\33[0m"
@@ -85,6 +86,10 @@ cstr.color.add_code("msg_o", f"{cstr.color.DARKORANGE}SaveImageWithMetaData: {cs
 cstr.color.add_code(
     "warning",
     f"{cstr.color.LIGHTYELLOW}[Warning] {cstr.color.BLUE}SaveImageWithMetaData: {cstr.color.END}",
+)
+cstr.color.add_code(
+    "warn",
+    f"{cstr.color.YELLOW}[Warning] {cstr.color.DARKORANGE}SaveImageWithMetaData: {cstr.color.END}",
 )
 cstr.color.add_code(
     "error",

@@ -12,6 +12,7 @@ from typing import Any
 import sys
 
 import folder_paths  # type: ignore
+
 try:  # Attempt real comfy imports (runtime environment)
     from comfy.sd1_clip import (  # type: ignore
         SD1Tokenizer,
@@ -24,6 +25,7 @@ try:  # Attempt real comfy imports (runtime environment)
     from comfy.text_encoders.sd2_clip import SD2Tokenizer  # type: ignore
     from comfy.text_encoders.sd3_clip import SD3Tokenizer  # type: ignore
 except (ImportError, ModuleNotFoundError):  # noqa: BLE001 - provide minimal stubs for tests
+
     class _BaseTok:
         def encode_with_weights(self, text):  # pragma: no cover - trivial stub
             return []
@@ -38,6 +40,7 @@ except (ImportError, ModuleNotFoundError):  # noqa: BLE001 - provide minimal stu
 
     def token_weights(x):  # type: ignore
         return []
+
 
 from ..utils.embedding import get_embedding_file_path
 from ..utils.hash import calc_hash
@@ -72,6 +75,7 @@ _ALT_NAMES = [
 for _n in _ALT_NAMES:
     if _n not in _sys.modules and _SELF is not None:
         _sys.modules[_n] = _SELF
+
 
 def set_hash_log_mode(mode: str):
     """Programmatically adjust hash log mode (tests / UI) and re-init logger."""
@@ -134,6 +138,7 @@ def _ensure_logger():  # runtime init when mode activated
         except Exception:  # pragma: no cover
             pass
 
+
 def _log(kind: str, msg: str, level=logging.INFO):
     mode = (HASH_LOG_MODE or "none").lower()
     if mode == "none":
@@ -144,6 +149,7 @@ def _log(kind: str, msg: str, level=logging.INFO):
     except Exception:  # pragma: no cover
         pass
 
+
 def _fmt_display(path: str) -> str:
     mode = (HASH_LOG_MODE or "none").lower()
     if mode in {"path", "detailed", "debug"}:
@@ -151,11 +157,13 @@ def _fmt_display(path: str) -> str:
     # filename & other modes
     return os.path.basename(path)
 
+
 def _sidecar_error_once(sidecar: str, exc: Exception):  # noqa: D401
     if sidecar in _WARNED_SIDECAR:
         return
     _WARNED_SIDECAR.add(sidecar)
     _log("generic", f"sidecar write failed {sidecar}: {exc}", level=logging.WARNING)
+
 
 def _warn_unresolved_once(kind: str, token: str):
     key = f"{kind}:{token}"
@@ -164,20 +172,26 @@ def _warn_unresolved_once(kind: str, token: str):
     _WARNED_UNRESOLVED.add(key)
     _log(kind, f"unresolved {kind} '{token}'", level=logging.WARNING)
 
+
 def _maybe_debug_candidates(kind: str, display: str):
     from ..utils.pathresolve import _LAST_PROBE_CANDIDATES  # lazy import
+
     mode = (HASH_LOG_MODE or "none").lower()
     if mode == "debug" and _LAST_PROBE_CANDIDATES:
         _log(kind, f"candidates for '{display}': {_LAST_PROBE_CANDIDATES}")
 
+
 def _hash_file(kind: str, path: str, truncate: int = 10) -> str | None:
     # Centralized hashing with sidecar callback + timing & debug full hash
     from ..utils.pathresolve import load_or_calc_hash  # local import to avoid cycles
+
     mode = (HASH_LOG_MODE or "none").lower()
     start = time.perf_counter()
     fresh_computed = {"flag": False}
+
     def _on_compute(_):
         fresh_computed["flag"] = True
+
     hashed = load_or_calc_hash(
         path,
         truncate=truncate,
@@ -191,13 +205,18 @@ def _hash_file(kind: str, path: str, truncate: int = 10) -> str | None:
     if hashed and mode == "debug" and fresh_computed["flag"]:
         # Retrieve full hash by reloading sidecar (already written) without truncation
         from ..utils.pathresolve import load_or_calc_hash as _lc
+
         full_hash = _lc(path, truncate=None) or "?"
         dur_ms = (time.perf_counter() - start) * 1000.0
         _log(kind, f"full hash {os.path.basename(path)}={full_hash} ({dur_ms:.1f} ms)")
     return hashed
 
+
 cache_model_hash = {}
 logger = logging.getLogger(__name__)
+
+_MAX_EMBEDDING_NAME_CHARS = 80
+_EMBEDDING_TRAILING_STRIP = " ,，。.;；:：!?！？、·"
 
 
 def _ckpt_name_to_path(name_like: Any) -> tuple[str, str | None]:
@@ -338,8 +357,7 @@ def calc_model_hash(model_name: Any, input_data: list) -> str:
         exists_flag = bool(filename and os.path.exists(filename))
         _log(
             "model",
-            f"resolved (model) {display_name} -> {filename if filename else 'None'} "
-            f"exists={exists_flag}",
+            f"resolved (model) {display_name} -> {filename if filename else 'None'} " f"exists={exists_flag}",
         )
         _maybe_debug_candidates("model", str(display_name))
     if mode in {"filename", "path", "detailed", "debug"}:
@@ -368,7 +386,7 @@ def _vae_name_to_path(model_name: Any) -> tuple[str, str | None]:
         candidate = sanitized or original
         full: str | None = None
         try:
-                full = folder_paths.get_full_path("vae", candidate)
+            full = folder_paths.get_full_path("vae", candidate)
         except Exception:  # pragma: no cover
             full = None
         if not full or not os.path.exists(full):
@@ -432,8 +450,7 @@ def calc_vae_hash(model_name: Any, input_data: list) -> str:
         exists_flag = bool(filename and os.path.exists(filename))
         _log(
             "vae",
-            f"resolved (vae) {display_name} -> {filename if filename else 'None'} "
-            f"exists={exists_flag}",
+            f"resolved (vae) {display_name} -> {filename if filename else 'None'} " f"exists={exists_flag}",
         )
         _maybe_debug_candidates("vae", str(display_name))
     if mode in {"filename", "path", "detailed", "debug"}:
@@ -523,7 +540,7 @@ def calc_lora_hash(model_name: Any, input_data: list) -> str:
             if not fp or not os.path.exists(fp):
                 fp = _resolve_model_path_with_extensions("loras", original)
         # Index lookup as final fallback
-        if (not fp or not os.path.exists(fp)):
+        if not fp or not os.path.exists(fp):
             try:
                 info = find_lora_info(candidate)
                 if info and os.path.exists(info.get("abspath", "")):
@@ -595,8 +612,7 @@ def calc_lora_hash(model_name: Any, input_data: list) -> str:
         exists_flag = bool(full_path and os.path.exists(full_path))
         _log(
             "lora",
-            f"resolved (lora) {display_name} -> {full_path if full_path else 'None'} "
-            f"exists={exists_flag}",
+            f"resolved (lora) {display_name} -> {full_path if full_path else 'None'} " f"exists={exists_flag}",
         )
         _maybe_debug_candidates("lora", str(display_name))
     if mode in {"filename", "path", "detailed", "debug"}:
@@ -670,8 +686,7 @@ def calc_unet_hash(model_name: Any, input_data: list) -> str:
         exists_flag = bool(filename and os.path.exists(filename))
         _log(
             "unet",
-            f"resolved (unet) {model_name} -> {filename if filename else 'None'} "
-            f"exists={exists_flag}",
+            f"resolved (unet) {model_name} -> {filename if filename else 'None'} " f"exists={exists_flag}",
         )
         _maybe_debug_candidates("unet", str(model_name))
     if mode in {"filename", "path", "detailed", "debug"}:
@@ -701,66 +716,174 @@ def get_scaled_height(scaled_by, input_data):
 
 
 def extract_embedding_names(text, input_data):
-    embedding_names, _ = _extract_embedding_names(text, input_data)
+    embedding_names, _, _ = _extract_embedding_candidates(text, input_data)
 
-    return [os.path.basename(embedding_name) for embedding_name in embedding_names]
+    return embedding_names
 
 
 def extract_embedding_hashes(text, input_data):
-    embedding_names, clip = _extract_embedding_names(text, input_data)
+    embedding_names, _, resolved_paths = _extract_embedding_candidates(text, input_data)
     mode = (HASH_LOG_MODE or "none").lower()
-    hashes = []
-    for embedding_name in embedding_names:
-        try:
-            embedding_file_path = get_embedding_file_path(embedding_name, clip)
-        except Exception:
-            embedding_file_path = None
-        if not embedding_file_path or not os.path.exists(embedding_file_path):
+    hashes: list[str] = []
+
+    for embedding_name, embedding_path in zip(embedding_names, resolved_paths):
+        if not embedding_path or not os.path.exists(embedding_path):
             if mode in {"detailed", "debug"}:
                 _warn_unresolved_once("embedding", embedding_name)
             hashes.append("N/A")
             continue
         if mode in {"filename", "path", "detailed", "debug"}:
-            _log("embedding", f"hashing {_fmt_display(embedding_file_path)} hash")
-        h = calc_hash(embedding_file_path)
+            _log("embedding", f"hashing {_fmt_display(embedding_path)} hash")
+        try:
+            hash_value = calc_hash(embedding_path)
+        except (OSError, TypeError, ValueError) as err:  # pragma: no cover - defensive
+            logger.debug("[Metadata Lib] Skipping embedding hash due to error: %r", err)
+            if mode in {"detailed", "debug"}:
+                _warn_unresolved_once("embedding", embedding_name)
+            hashes.append("N/A")
+            continue
         if mode == "debug":
-            _log("embedding", f"full hash {os.path.basename(embedding_file_path)}={h}")
-        hashes.append(h[:10])
+            _log("embedding", f"full hash {os.path.basename(embedding_path)}={hash_value}")
+        hashes.append(hash_value[:10] if isinstance(hash_value, str) else hash_value)
+
+    if len(hashes) != len(embedding_names):
+        logger.debug(
+            "[Metadata Lib] Embedding name/hash count mismatch filtered names=%s hashes=%s",
+            len(embedding_names),
+            len(hashes),
+        )
+
     return hashes
 
 
-def _extract_embedding_names(text, input_data):
+def _resolve_dict_from_nested(data):
+    """Extract dict from potentially nested list/tuple structures."""
+    if isinstance(data, dict):
+        return data
+    if isinstance(data, list | tuple) and data:
+        first_elem = data[0]
+        if isinstance(first_elem, dict):
+            return first_elem
+        # Recurse once more for deeply nested structures
+        if isinstance(first_elem, list | tuple) and first_elem:
+            if isinstance(first_elem[0], dict):
+                return first_elem[0]
+    return None
+
+
+def _extract_embedding_candidates(text, input_data):
     embedding_identifier = "embedding:"
-    clip_ = input_data[0]["clip"][0]
     clip = None
-    if clip_ is not None:
-        tokenizer = clip_.tokenizer
-        if isinstance(tokenizer, SD1Tokenizer):
-            clip = tokenizer.clip_l
-        elif isinstance(tokenizer, SD2Tokenizer):
-            clip = tokenizer.clip_h
-        elif isinstance(tokenizer, SDXLTokenizer):
-            clip = tokenizer.clip_l
-        elif isinstance(tokenizer, SD3Tokenizer):
-            clip = tokenizer.clip_l
-        elif isinstance(tokenizer, FluxTokenizer):
-            clip = tokenizer.clip_l
-        if clip is not None and hasattr(clip, "embedding_identifier"):
-            embedding_identifier = clip.embedding_identifier
+    embedding_dir = None
+
+    try:
+        data_map = input_data[0] if isinstance(input_data, list | tuple) and input_data else input_data
+    except (IndexError, TypeError):
+        data_map = None
+
+    resolved_dict = _resolve_dict_from_nested(data_map)
+    clip_container = resolved_dict.get("clip") if resolved_dict else None
+
+    if isinstance(clip_container, list | tuple) and clip_container:
+        clip_ = clip_container[0]
+    else:
+        clip_ = clip_container
+
+    try:
+        if clip_ is not None:
+            tokenizer = getattr(clip_, "tokenizer", None)
+            if isinstance(tokenizer, SD1Tokenizer):
+                clip = tokenizer.clip_l
+            elif isinstance(tokenizer, SD2Tokenizer):
+                clip = tokenizer.clip_h
+            elif isinstance(tokenizer, SDXLTokenizer):
+                clip = tokenizer.clip_l
+            elif isinstance(tokenizer, SD3Tokenizer):
+                clip = tokenizer.clip_l
+            elif isinstance(tokenizer, FluxTokenizer):
+                clip = tokenizer.clip_l
+            elif tokenizer is not None:
+                for attr in ("clip_l", "clip_h", "clip_g", "clip"):
+                    if hasattr(tokenizer, attr):
+                        clip = getattr(tokenizer, attr)
+                        if clip is not None:
+                            break
+            if clip is not None:
+                embedding_dir = getattr(clip, "embedding_directory", None)
+                ident = getattr(clip, "embedding_identifier", None)
+                if isinstance(ident, str) and ident.strip():
+                    embedding_identifier = ident
+    except Exception as err:  # pragma: no cover - defensive
+        logger.debug("[Metadata Lib] Failed resolving clip embedding context: %r", err)
+        clip = None
+
     if not isinstance(text, str):
         text = "".join(str(item) if item is not None else "" for item in text)
-    text = escape_important(text)
-    parsed_weights = token_weights(text, 1.0)
 
-    # tokenize words
-    embedding_names = []
-    for weighted_segment, weight in parsed_weights:
-        to_tokenize = unescape_important(weighted_segment).replace("\n", " ").split(" ")
-        to_tokenize = [x for x in to_tokenize if x != ""]
-        for word in to_tokenize:
-            # find an embedding, deal with the embedding
-            if word.startswith(embedding_identifier) and clip.embedding_directory is not None:
-                embedding_name = word[len(embedding_identifier) :].strip("\n")
-                embedding_names.append(embedding_name)
+    try:
+        escaped = escape_important(text)
+        parsed_weights = token_weights(escaped)
+    except Exception as err:  # pragma: no cover - defensive
+        logger.debug("[Metadata Lib] Failed parsing token weights for embeddings: %r", err)
+        parsed_weights = [(text, 1.0)]
 
-    return embedding_names, clip
+    allow_resolution = clip is not None and bool(embedding_dir)
+
+    embedding_names: list[str] = []
+    resolved_paths: list[str | None] = []
+    seen: set[str] = set()
+
+    def _process_segments(segments):
+        for weighted_segment, _weight in segments:
+            try:
+                segment = unescape_important(weighted_segment)
+            except Exception:  # pragma: no cover - defensive
+                segment = weighted_segment
+            to_tokenize = segment.replace("\n", " ").split(" ")
+            to_tokenize = [x for x in to_tokenize if x != ""]
+            for word in to_tokenize:
+                if not word.startswith(embedding_identifier):
+                    continue
+                raw_name = word[len(embedding_identifier) :].strip()
+                if not raw_name:
+                    continue
+                sanitized = raw_name.strip(_EMBEDDING_TRAILING_STRIP)
+                if not sanitized:
+                    continue
+                if any(ch.isspace() for ch in sanitized):
+                    continue
+                display_name = os.path.basename(sanitized).strip(_EMBEDDING_TRAILING_STRIP)
+                if not display_name:
+                    continue
+                if display_name.upper() == "N/A":
+                    continue
+                if len(display_name) > _MAX_EMBEDDING_NAME_CHARS:
+                    logger.debug(
+                        "[Metadata Lib] Skipping embedding candidate '%s' (length %s exceeds max)",
+                        display_name,
+                        len(display_name),
+                    )
+                    continue
+                cache_key = display_name.lower()
+                if cache_key in seen:
+                    continue
+                resolved_path = None
+                if allow_resolution:
+                    try:
+                        resolved_path = get_embedding_file_path(sanitized, clip)
+                    except (OSError, TypeError, ValueError) as err:
+                        logger.debug(
+                            "[Metadata Lib] Embedding '%s' resolution error: %r",
+                            display_name,
+                            err,
+                        )
+                        resolved_path = None
+                seen.add(cache_key)
+                embedding_names.append(display_name)
+                resolved_paths.append(resolved_path)
+
+    _process_segments(parsed_weights)
+    if not embedding_names and isinstance(text, str):
+        _process_segments([(text, 1.0)])
+
+    return embedding_names, clip, resolved_paths

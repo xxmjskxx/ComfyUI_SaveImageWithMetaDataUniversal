@@ -20,7 +20,7 @@ def demo_metadata_parsing():
     print("DEMO 1: Metadata Parsing")
     print("=" * 80)
 
-    validator = MetadataValidator(Path('.'), Path('.'))
+    validator = MetadataValidator(Path("."), Path("."))
 
     # Test 1: Comma-separated format (default mode)
     print("\n1. Comma-separated format (default):")
@@ -34,8 +34,8 @@ def demo_metadata_parsing():
     print(params_comma)
     print("\nParsed fields:")
     fields = validator.parse_parameters_string(params_comma)
-    for key in ['Steps', 'Sampler', 'CFG scale', 'Seed', 'Size']:
-        value = fields.get(key, '❌ NOT FOUND')
+    for key in ["Steps", "Sampler", "CFG scale", "Seed", "Size"]:
+        value = fields.get(key, "❌ NOT FOUND")
         status = "✅" if key in fields else "❌"
         print(f"  {status} {key}: {value}")
 
@@ -53,8 +53,8 @@ Size: 512x512"""
     print(params_newline)
     print("\nParsed fields:")
     fields = validator.parse_parameters_string(params_newline)
-    for key in ['Steps', 'Sampler', 'CFG scale', 'Seed', 'Size']:
-        value = fields.get(key, '❌ NOT FOUND')
+    for key in ["Steps", "Sampler", "CFG scale", "Seed", "Size"]:
+        value = fields.get(key, "❌ NOT FOUND")
         status = "✅" if key in fields else "❌"
         print(f"  {status} {key}: {value}")
 
@@ -71,8 +71,8 @@ Size: 512x512"""
     print(params_lora)
     print("\nParsed fields:")
     fields = validator.parse_parameters_string(params_lora)
-    for key in ['Steps', 'Sampler', 'CFG scale', 'Lora_0 Model name', 'Lora_0 Model hash']:
-        value = fields.get(key, '❌ NOT FOUND')
+    for key in ["Steps", "Sampler", "CFG scale", "Lora_0 Model name", "Lora_0 Model hash"]:
+        value = fields.get(key, "❌ NOT FOUND")
         status = "✅" if key in fields else "❌"
         print(f"  {status} {key}: {value}")
 
@@ -87,10 +87,7 @@ def demo_filename_patterns():
     print("\n1. Simple pattern:")
     print("-" * 40)
     workflow1 = {
-        "1": {
-            "class_type": "SaveImageWithMetaDataUniversal",
-            "inputs": {"filename_prefix": "Test\\flux-turbo"}
-        }
+        "1": {"class_type": "SaveImageWithMetaDataUniversal", "inputs": {"filename_prefix": "Test\\flux-turbo"}}
     }
     patterns = WorkflowAnalyzer.extract_filename_patterns(workflow1)
     print("Input: 'Test\\\\flux-turbo'")
@@ -103,7 +100,7 @@ def demo_filename_patterns():
     workflow2 = {
         "1": {
             "class_type": "SaveImageWithMetaDataUniversal",
-            "inputs": {"filename_prefix": "Test\\siwm-%model:10%/%pprompt:20%-%nprompt:20%"}
+            "inputs": {"filename_prefix": "Test\\siwm-%model:10%/%pprompt:20%-%nprompt:20%"},
         }
     }
     patterns = WorkflowAnalyzer.extract_filename_patterns(workflow2)
@@ -115,19 +112,13 @@ def demo_filename_patterns():
     print("\n3. Multiple save nodes:")
     print("-" * 40)
     workflow3 = {
-        "1": {
-            "class_type": "SaveImageWithMetaDataUniversal",
-            "inputs": {"filename_prefix": "Test\\workflow-one"}
-        },
-        "2": {
-            "class_type": "SaveImage",
-            "inputs": {"filename_prefix": "Test\\control-image"}
-        }
+        "1": {"class_type": "SaveImageWithMetaDataUniversal", "inputs": {"filename_prefix": "Test\\workflow-one"}},
+        "2": {"class_type": "SaveImage", "inputs": {"filename_prefix": "Test\\control-image"}},
     }
     patterns = WorkflowAnalyzer.extract_filename_patterns(workflow3)
     print("Input: Two nodes with 'Test\\\\workflow-one' and 'Test\\\\control-image'")
     print(f"Extracted: {patterns}")
-    status = '✅' if 'workflow-one' in patterns and 'control-image' in patterns else '❌'
+    status = "✅" if "workflow-one" in patterns and "control-image" in patterns else "❌"
     print(f"Status: {status}")
 
 
@@ -190,5 +181,5 @@ def main():
     print()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -1,3 +1,6 @@
+import logging
+import os
+
 from .save_image import SaveImageWithMetaDataUniversal  # extracted from node.py
 from .extra_metadata import CreateExtraMetaDataUniversal  # extracted from node.py
 from .rules_view import ShowGeneratedUserRules  # extracted from node.py
@@ -7,6 +10,9 @@ from .rules_writer import SaveCustomMetadataRules  # moved out of legacy node.py
 from .show_text import ShowText  # local unimeta variant (separate file for clarity)
 from .show_any import ShowAnyToString  # new any->string display node
 from ..defs import set_forced_include
+
+logger = logging.getLogger(__name__)
+
 
 class MetadataForceInclude:
     """Configure globally forced node class names for metadata capture.
@@ -74,12 +80,14 @@ class MetadataForceInclude:
     @staticmethod
     def configure(force_include_node_class="", reset_forced=False, dry_run=False):
         from ..defs import clear_forced_include  # local import to avoid cycle
+
         if reset_forced and not dry_run:
             clear_forced_include()
         if force_include_node_class and not dry_run:
             updated = set_forced_include(force_include_node_class)
         else:
             from ..defs import FORCED_INCLUDE_CLASSES as _F
+
             updated = _F
         joined = ",".join(sorted(updated))
         return (joined, joined)
@@ -121,3 +129,16 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ShowText|unimeta": "Show Text (UniMeta)",
     "ShowAny|unimeta": "Show Any (Any to String)",
 }
+
+_enable_test_nodes = os.environ.get("METADATA_ENABLE_TEST_NODES", "").strip().lower()
+if _enable_test_nodes and _enable_test_nodes not in {"0", "false", "no"}:
+    try:  # pragma: no cover - exercised in runtime integration tests
+        from .testing_stubs import (
+            TEST_NODE_CLASS_MAPPINGS,
+            TEST_NODE_DISPLAY_NAME_MAPPINGS,
+        )
+
+        NODE_CLASS_MAPPINGS.update(TEST_NODE_CLASS_MAPPINGS)
+        NODE_DISPLAY_NAME_MAPPINGS.update(TEST_NODE_DISPLAY_NAME_MAPPINGS)
+    except Exception as err:  # noqa: BLE001 - fall back silently if stubs unavailable
+        logger.debug("Failed to import test stubs: %r", err)

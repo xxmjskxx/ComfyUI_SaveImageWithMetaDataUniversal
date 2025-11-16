@@ -63,7 +63,8 @@ def test_forced_inclusion_existing_only_mode():
 
 
 @pytest.mark.parametrize(
-    "value", ["ClassOne,ClassTwo", "ClassOne\nClassTwo", "ClassOne, ClassTwo\n"],
+    "value",
+    ["ClassOne,ClassTwo", "ClassOne\nClassTwo", "ClassOne, ClassTwo\n"],
 )
 def test_multiple_forced_variants(value):
     from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta import nodes as nodes_pkg

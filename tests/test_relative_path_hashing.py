@@ -6,6 +6,7 @@ import pytest
 
 try:
     from saveimage_unimeta.defs import formatters
+
     HAVE_FMT = True
 except Exception:
     HAVE_FMT = False
@@ -13,6 +14,7 @@ except Exception:
 
 def _mock_folder_paths(temp_dir: str):
     mfp = MagicMock()
+
     def _get_full_path(kind: str, name: str):
         # emulate Comfy's models/<kind> roots with subfolders allowed
         root = os.path.join(temp_dir, kind)
@@ -24,6 +26,7 @@ def _mock_folder_paths(temp_dir: str):
         if os.path.exists(direct_win):
             return direct_win
         raise FileNotFoundError(name)
+
     mfp.get_full_path = _get_full_path  # type: ignore[attr-defined]
     return mfp
 
@@ -81,6 +84,7 @@ def test_logger_reinit_on_mode_change_only(monkeypatch, capsys):
     # Start with mode 'none'
     monkeypatch.setenv("METADATA_HASH_LOG_MODE", "none")
     from importlib import reload
+
     fmt = reload(formatters)
     # Switch to 'debug' via API and ensure it prints the init banner once
     fmt.set_hash_log_mode("debug")

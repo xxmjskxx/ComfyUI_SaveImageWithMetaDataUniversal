@@ -8,10 +8,9 @@ import pytest
 
 # Helper paths adapted to new user_rules directory, with legacy fallback for migration test
 
+
 def _base_dirs():
-    mod = importlib.import_module(
-        "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.rules_writer"
-    )
+    mod = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.rules_writer")
     base = os.path.dirname(os.path.dirname(os.path.abspath(mod.__file__)))  # saveimage_unimeta
     test_outputs = os.path.join(base, "tests/_test_outputs")
     user_rules = os.path.join(test_outputs, "user_rules")
@@ -86,9 +85,7 @@ def test_migration_from_legacy_py(monkeypatch):
     with open(os.path.join(legacy_py, "user_samplers.json"), "w", encoding="utf-8") as f:
         json.dump({"LegacySampler": {"positive": "pos"}}, f)
 
-    defs_mod = importlib.import_module(
-        "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs"
-    )
+    defs_mod = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs")
     # Trigger load which should migrate legacy json
     defs_mod.load_user_definitions()
     # Fallback: if loader didn't migrate under test mode, simulate migration (logic identical)
@@ -118,9 +115,7 @@ def test_append_future_placeholder_logic(monkeypatch):
 
     Currently writer overwrites; this ensures we have a baseline to compare once append_new mode lands.
     """
-    nodes_mod = importlib.import_module(
-        "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes"
-    )
+    nodes_mod = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes")
     writer = nodes_mod.SaveCustomMetadataRules()
     # Ensure isolated user_rules directory exists for writer output
     captures_path, samplers_path, *_rest = _rules_paths()
@@ -135,7 +130,7 @@ def test_append_future_placeholder_logic(monkeypatch):
         },
         "samplers": {"AppendSampler": {"positive": "positive"}},
     }
-    status, = writer.save_rules(json.dumps(base_rules))
+    (status,) = writer.save_rules(json.dumps(base_rules))
     assert status.startswith("mode=overwrite"), status
 
     # Overwrite with extra metafield (simulating what append_new would later treat differently)
@@ -149,7 +144,7 @@ def test_append_future_placeholder_logic(monkeypatch):
         },
         "samplers": {"AppendSampler": {"positive": "positive", "negative": "negative"}},
     }
-    status2, = writer.save_rules(json.dumps(updated_rules))
+    (status2,) = writer.save_rules(json.dumps(updated_rules))
     # Since current logic overwrites, final file should include NEGATIVE_PROMPT and sampler negative role
     captures, samplers, *_ = _rules_paths()
     with open(captures, encoding="utf-8") as f:

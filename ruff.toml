@@ -1,6 +1,10 @@
 # Ruff configuration for SaveImageWithMetaDataUniversal
-line-length = 120
+line-length = 140
 target-version = "py312"
+exclude = [
+  "tests/cookiecutter_template/**",
+  "*cookiecutter.project_slug*",
+]
 
 [lint]
 select = ["E", "F", "I", "UP", "W"]
