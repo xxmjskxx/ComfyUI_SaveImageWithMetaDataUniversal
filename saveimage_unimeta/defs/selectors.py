@@ -242,7 +242,7 @@ def select_stack_by_prefix(input_data, prefix: str, counter_key: str | None = No
         return []
 
     items = []
-    for k, v in input_data[0].items():
+    for order_idx, (k, v) in enumerate(input_data[0].items()):
         if not isinstance(k, str) or not k.startswith(prefix):
             continue
         # Do not include the counter_key itself in the returned items
@@ -254,12 +254,19 @@ def select_stack_by_prefix(input_data, prefix: str, counter_key: str | None = No
         first = v[0]
         if filter_none and first == "None":
             continue
-        items.append(first)
+        idx = _extract_index(k, prefix)
+        items.append((idx, order_idx, first))
+
+    has_index = any(entry[0] is not None for entry in items)
+    if has_index:
+        items.sort(key=lambda entry: (entry[0] is None, entry[0] if entry[0] is not None else entry[1]))
+
+    ordered_values = [entry[2] for entry in items]
 
     if counter_key and counter_key in input_data[0] and isinstance(input_data[0][counter_key], list):
         try:
             max_n = int(input_data[0][counter_key][0])
-            return items[:max_n]
+            return ordered_values[:max_n]
         except Exception:
-            return items
-    return items
+            return ordered_values
+    return ordered_values

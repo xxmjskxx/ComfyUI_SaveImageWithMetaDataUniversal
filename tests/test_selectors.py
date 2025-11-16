@@ -70,6 +70,20 @@ def test_select_stack_by_prefix_counter_key_invalid_ignored():
     assert out == ["a", "b"]
 
 
+def test_select_stack_by_prefix_orders_by_numeric_suffix():
+    data = _mk_input(
+        {
+            "lora_10": ["ten"],
+            "lora_2": ["two"],
+            "lora_1": ["one"],
+            "lora_11": ["eleven"],
+            "lora_count": [3],
+        }
+    )
+    out = select_stack_by_prefix(data, "lora_", counter_key="lora_count")
+    assert out == ["one", "two", "ten"]
+
+
 def test_select_stack_by_prefix_skips_nonlist_and_nonstring_keys():
     data = _mk_input(
         {

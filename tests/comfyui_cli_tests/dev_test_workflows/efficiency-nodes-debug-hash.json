@@ -145,7 +145,7 @@
       "save_workflow_image": true,
       "include_lora_summary": false,
       "suppress_missing_class_log": true,
-      "model_hash_log": "none",
+      "model_hash_log": "debug",
       "images": [
         "4",
         5
@@ -172,7 +172,7 @@
       "save_workflow_image": true,
       "include_lora_summary": false,
       "suppress_missing_class_log": true,
-      "model_hash_log": "none",
+      "model_hash_log": "debug",
       "images": [
         "3",
         3
@@ -678,7 +678,7 @@
       "save_workflow_image": true,
       "include_lora_summary": false,
       "suppress_missing_class_log": true,
-      "model_hash_log": "none",
+      "model_hash_log": "debug",
       "images": [
         "1",
         5

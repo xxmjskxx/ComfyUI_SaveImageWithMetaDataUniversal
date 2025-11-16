@@ -3,7 +3,10 @@ import logging
 import os
 import re
 from collections.abc import Iterable, Iterator
+from types import SimpleNamespace
 from typing import Any, NamedTuple
+
+import folder_paths  # type: ignore
 
 # Use the aggregated, runtime-merged definitions (defaults + extensions + optional user JSON)
 from .defs import CAPTURE_FIELD_LIST
@@ -14,6 +17,8 @@ from .defs.formatters import (
     calc_vae_hash,
     display_model_name,
     display_vae_name,
+    extract_embedding_hashes,
+    extract_embedding_names,
 )
 from .defs import formatters as _hashfmt  # access HASH_LOG_MODE at runtime
 from .defs.meta import MetaField
@@ -264,6 +269,88 @@ class Capture:
         """
         for it in items:
             yield Capture._extract_value(it)
+
+    @staticmethod
+    def _build_prompt_embedding_stub_input() -> tuple[dict[str, list[Any]], ...]:
+        """Return a lightweight input_data stub so embedding formatters can resolve hashes.
+
+        The helper constructs a faux CLIP/tokenizer structure exposing the
+        ``embedding_directory`` attribute populated from ComfyUI's
+        ``folder_paths.get_folder_paths('embeddings')`` search roots. This mirrors
+        the data shape produced by ``get_input_data`` closely enough for
+        ``extract_embedding_names`` / ``extract_embedding_hashes`` to function
+        without a true CLIP node context.
+        """
+
+        try:
+            embed_dirs = folder_paths.get_folder_paths("embeddings")
+        except Exception:
+            embed_dirs = []
+
+        clip_stub = SimpleNamespace(
+            embedding_directory=embed_dirs,
+            embedding_identifier="embedding:",
+        )
+        tokenizer_stub = SimpleNamespace(
+            clip_l=clip_stub,
+            clip_h=clip_stub,
+            clip_g=clip_stub,
+            clip=clip_stub,
+        )
+        container = SimpleNamespace(tokenizer=tokenizer_stub)
+        return ({"clip": [container]},)
+
+    @classmethod
+    def _augment_embeddings_from_prompts(cls, inputs: dict[MetaField, list[tuple[Any, ...]]]) -> None:
+        """Scan captured prompt text for embedding tokens and synthesize metadata entries."""
+
+        prompt_fields: tuple[tuple[str, MetaField], ...] = (
+            ("positive_prompt", MetaField.POSITIVE_PROMPT),
+            ("negative_prompt", MetaField.NEGATIVE_PROMPT),
+        )
+
+        try:
+            stub_input = cls._build_prompt_embedding_stub_input()
+        except Exception as exc:  # pragma: no cover - defensive path
+            logger.debug("[Metadata Lib] Failed to build embedding stub input: %r", exc)
+            return
+
+        existing: set[str] = set()
+        for entry in inputs.get(MetaField.EMBEDDING_NAME, []):
+            cleaned = cls._clean_name(cls._extract_value(entry), drop_extension=True).lower()
+            if cleaned:
+                existing.add(cleaned)
+
+        def _source_key(item: tuple[Any, ...]) -> Any:
+            if isinstance(item, (list, tuple)) and item:
+                return item[0]
+            return "prompt-scan"
+
+        for label, metafield in prompt_fields:
+            prompt_entries = inputs.get(metafield, [])
+            if not prompt_entries:
+                continue
+            for entry in prompt_entries:
+                text = cls._extract_value(entry)
+                if not isinstance(text, str) or "embedding:" not in text.lower():
+                    continue
+                try:
+                    names = extract_embedding_names(text, stub_input)
+                    hashes = extract_embedding_hashes(text, stub_input)
+                except Exception as exc:  # pragma: no cover - defensive path
+                    logger.debug("[Metadata Lib] Prompt embedding scan failed: %r", exc)
+                    continue
+                for idx, name in enumerate(names):
+                    key = cls._clean_name(name, drop_extension=True).lower()
+                    if not key or key in existing:
+                        continue
+                    existing.add(key)
+                    src = _source_key(entry)
+                    field_marker = f"{label}_embedding"
+                    inputs.setdefault(MetaField.EMBEDDING_NAME, []).append((src, name, field_marker))
+                    hash_val = hashes[idx] if idx < len(hashes) else None
+                    if hash_val:
+                        inputs.setdefault(MetaField.EMBEDDING_HASH, []).append((src, hash_val, field_marker))
 
     @classmethod
     def get_inputs(cls) -> dict[MetaField, list[tuple[Any, ...]]]:
@@ -653,6 +740,8 @@ class Capture:
                             inputs.setdefault(MetaField.LORA_STRENGTH_CLIP, []).append(("inline", sc))
         except Exception:  # pragma: no cover
             pass  # Inline LoRA extraction may fail - continue with captured data
+
+        cls._augment_embeddings_from_prompts(inputs)
 
         return inputs
 

@@ -1,50 +1,64 @@
 import importlib
+
 from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.meta import MetaField
+from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.utils.hash import calc_hash
 
 MODULE_PATH = "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.capture"
 
 
-def _prime(monkeypatch, prompt_text: str):
+def _build_inputs(*, positive: str | None = None, negative: str | None = None):
+    inputs = {}
+    if positive is not None:
+        inputs[MetaField.POSITIVE_PROMPT] = [("pos-node", positive, "text")]
+    if negative is not None:
+        inputs[MetaField.NEGATIVE_PROMPT] = [("neg-node", negative, "text")]
+    return inputs
+
+
+def test_prompt_scan_populates_embeddings(monkeypatch, tmp_path):
+    cap = importlib.import_module(MODULE_PATH)
+    embed_dir = tmp_path / "embeddings"
+    embed_dir.mkdir()
+    file_path = embed_dir / "FastNegativeV2.safetensors"
+    file_path.write_text("dummy hash content", encoding="utf-8")
+
+    def fake_get_folder_paths(kind):  # pragma: no cover - deterministic helper
+        if kind == "embeddings":
+            return [str(embed_dir)]
+        return []
+
+    monkeypatch.setattr(cap.folder_paths, "get_folder_paths", fake_get_folder_paths)
+
+    prompt_text = f"masterpiece embedding:{file_path.stem} lighting"
+    inputs = _build_inputs(positive=prompt_text)
+    cap.Capture._augment_embeddings_from_prompts(inputs)
+
+    names = [cap.Capture._extract_value(entry) for entry in inputs[MetaField.EMBEDDING_NAME]]
+    hashes = [cap.Capture._extract_value(entry) for entry in inputs[MetaField.EMBEDDING_HASH]]
+
+    assert any(file_path.stem in name for name in names)
+    expected_hash = calc_hash(str(file_path))[:10]
+    assert expected_hash in hashes
+
+
+def test_prompt_scan_deduplicates_and_handles_negative(monkeypatch):
     cap = importlib.import_module(MODULE_PATH)
 
-    class DummyPromptExecuter:
-        class Caches:
-            outputs = {}
+    inputs = _build_inputs(
+        positive="portrait embedding:dupStyle",
+        negative="stormy sky embedding:negToken",
+    )
+    # Pretend a loader already captured the duplicate embedding
+    inputs[MetaField.EMBEDDING_NAME] = [("loader", "dupStyle.safetensors", "node_field")]
 
-        caches = Caches()
+    cap.Capture._augment_embeddings_from_prompts(inputs)
 
-    class DummyHook:
-        current_prompt = {
-            "1": {"class_type": "KSampler", "inputs": {"positive": [prompt_text]}},
-        }
-        current_extra_data = {}
-        prompt_executer = DummyPromptExecuter()
+    names = [
+        cap.Capture._clean_name(cap.Capture._extract_value(entry), drop_extension=True).lower()
+        for entry in inputs[MetaField.EMBEDDING_NAME]
+    ]
+    assert names.count("dupstyle") == 1  # no duplicate for existing entry
+    assert "negtoken" in names  # negative prompt embedding captured
 
-    monkeypatch.setattr(cap, "NODE_CLASS_MAPPINGS", {"KSampler": object})
-
-    def fake_get_input_data(node_inputs, obj_class, node_id, outputs, dyn_prompt, extra):
-        return (node_inputs,)
-
-    monkeypatch.setattr(cap, "get_input_data", fake_get_input_data)
-    monkeypatch.setattr(cap, "hook", DummyHook)
-    return cap
-
-
-def test_single_embedding(monkeypatch):
-    # A simple prompt referencing one embedding token; assume naming convention triggers capture rules
-    prompt = "A portrait with embedding:myCoolEmbedding style"
-    cap = _prime(monkeypatch, prompt)
-    inputs = cap.Capture.get_inputs()
-    emb_names = inputs.get(MetaField.EMBEDDING_NAME, [])
-    # We can't guarantee the rule unless scanner supports this pattern; len>=0 is trivial; assert presence heuristically
-    # Adjust expectation: at least the structure exists (no crash)
-    assert emb_names is not None
-
-
-def test_multiple_embeddings(monkeypatch):
-    prompt = "scene embedding:embOne detailed embedding:embTwo dramatic embedding:embOne"
-    cap = _prime(monkeypatch, prompt)
-    inputs = cap.Capture.get_inputs()
-    emb_names = [t[1] for t in inputs.get(MetaField.EMBEDDING_NAME, [])]
-    # Heuristic expectations: duplicates may appear once or multiple depending on rule; ensure no crash and list type
-    assert isinstance(emb_names, list)
+    hashes = [cap.Capture._extract_value(entry) for entry in inputs.get(MetaField.EMBEDDING_HASH, [])]
+    assert any(hash_val == "N/A" for hash_val in hashes)

@@ -2,1030 +2,216 @@
 ComfyUI Metadata Validation
 ======================================================================
 Workflow Dir: C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI\custom_nodes\ComfyUI_SaveImageWithMetaDataUniversal\tests\comfyui_cli_tests\dev_test_workflows
-Output Dir:   C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI\output\Test
+Output Dir:   C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI_windows_portable\ComfyUI\output\Test
 ======================================================================
+⚠ Hash validation disabled: pass --models-path to enable sidecar checks
 
 Scanning for images...
-Found 25 total image(s) in output directory
+Found 5 total image(s) in output directory
+
+Validating workflow: 1-scan-and-save-custom-metadata-rules.json
+  ℹ Info: This workflow generates metadata rules, not images (skipping)
+
+Validating workflow: efficiency-nodes-debug-hash.json
+  Found 3 Save Image node(s)
+  Filename patterns: eff_adv, eff_xl, eff_basic, eff-without-meta
+  Found 5 matching image(s)
+    ✓ eff-without-meta_00001_.png (0 checks)
+        Warning: Control image (without-meta) - no metadata expected
+    ✗ eff_adv_00001_.png (16 checks)
+        Error: Lora_0 Strength clip mismatch: expected '0.88', got '0.51'
+        Error: Lora_1 Strength model mismatch: expected '0.6', got '1.0'
+        Error: Lora_1 Strength clip mismatch: expected '0.51', got '0.02'
+        Error: Field 'VAE hash' contains 'N/A' value: N/A
+        Error: VAE hash is 'N/A' - hash should always be computed
+    ✗ eff_basic_00001_.png (8 checks)
+        Error: Field 'VAE hash' contains 'N/A' value: N/A
+        Error: VAE hash is 'N/A' - hash should always be computed
+    ✗ eff_xl_00001_.png (12 checks)
+        Error: Lora_0 Strength model mismatch: expected '0.97', got '1.0'
+        Error: Field 'VAE hash' contains 'N/A' value: N/A
+        Error: VAE hash is 'N/A' - hash should always be computed
+    ✗ eff_xl_00002_.png (12 checks)
+        Error: Lora_0 Strength model mismatch: expected '0.97', got '1.0'
+        Error: Field 'VAE hash' contains 'N/A' value: N/A
+        Error: VAE hash is 'N/A' - hash should always be computed
 
 Validating workflow: efficiency-nodes.json
   Found 3 Save Image node(s)
   Filename patterns: eff_adv, eff_xl, eff_basic, eff-without-meta
-  Found 4 matching image(s)
+  Found 5 matching image(s)
     ✓ eff-without-meta_00001_.png (0 checks)
         Warning: Control image (without-meta) - no metadata expected
-    ✗ eff_adv_00001_.png (12 checks)
-        Error: LoRA count mismatch: expected 2 LoRAs, got 0
-        Error: Expected LoRA 0 ('LoRA\sd15\zelda\Majora_Zelda.safetensors') not found in metadata
-        Error: Lora_0 Model hash not present in metadata
-        Error: Expected LoRA 1 ('LoRA\sd15\zelda\ootlink-nvwls-v1.safetensors') not found in metadata
-        Error: Lora_1 Model hash not present in metadata
-        Info: Hash validation PASSED: Model 'cyberrealistic_v50.safetensors' (metadata: 0b20a3f2cd, sidecar: 0b20a3f2cd... [64 chars total])
-        Validation Details:
-          ✓ Seed: expected=456, actual=456
-          ✓ Steps: expected=25, actual=25
-          ✓ CFG scale: expected=7, actual=7.0
-          ✓ Sampler: expected=dpmpp_2m, actual=dpmpp_2m Karras
-          ✓ Scheduler: expected=karras, actual=dpmpp_2m Karras
-          ✗ LoRA count: expected=2, actual=0
-          ✗ LoRA 0 name: expected=Majora_Zelda, actual=N/A
-          ✗ Lora_0 Model hash: expected=computed hash, actual=N/A
-          ✗ LoRA 1 name: expected=ootlink-nvwls-v1, actual=N/A
-          ✗ Lora_1 Model hash: expected=computed hash, actual=N/A
-          ✓ Positive prompt: expected=1boy, mask, majora's mask, upper body, smile, looking at viewer, masterpiece, best quality, actual=1boy, mask, majora's mask, upper body, smile, looking at viewer, masterpiece, best quality
-          ✓ Negative prompt: expected=lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, artist name, embedding:FastNegativeV2,, actual=lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, artist name, embedding:FastNegativeV2,
+    ✗ eff_adv_00001_.png (16 checks)
+        Error: Lora_0 Strength clip mismatch: expected '0.88', got '0.51'
+        Error: Lora_1 Strength model mismatch: expected '0.6', got '1.0'
+        Error: Lora_1 Strength clip mismatch: expected '0.51', got '0.02'
+        Error: Field 'VAE hash' contains 'N/A' value: N/A
+        Error: VAE hash is 'N/A' - hash should always be computed
     ✗ eff_basic_00001_.png (8 checks)
-        Error: Denoise missing, expected '1'
-        Info: Hash validation PASSED: Model 'cyberrealistic_v50.safetensors' (metadata: 0b20a3f2cd, sidecar: 0b20a3f2cd... [64 chars total])
-        Validation Details:
-          ✓ Seed: expected=123, actual=123
-          ✓ Steps: expected=20, actual=20
-          ✓ CFG scale: expected=7, actual=7.0
-          ✓ Sampler: expected=ddpm, actual=ddpm_ddim_uniform
-          ✓ Scheduler: expected=ddim_uniform, actual=ddpm_ddim_uniform
-          ✗ Denoise: expected=1, actual=N/A
-          ✓ Positive prompt: expected=scenic mountain view, masterpiece, best quality, actual=scenic mountain view, masterpiece, best quality
-          ✓ Negative prompt: expected=lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, artist name, woman, girl, 1girl, lady, actual=lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, artist name, woman, girl, 1girl, lady
-    ✗ eff_xl_00001_.png (10 checks)
-        Error: LoRA count mismatch: expected 1 LoRAs, got 0
-        Error: Expected LoRA 0 ('LoRA\xl\style\dark_gothic_fantasy_xl_3.01.safetensors') not found in metadata
-        Error: Lora_0 Model hash not present in metadata
-        Info: Hash validation PASSED: Model 'Juggernaut_X_RunDiffusion.safetensors' (metadata: d91d35736d, sidecar: d91d35736d... [64 chars total])
-        Validation Details:
-          ✓ Seed: expected=789, actual=789
-          ✓ Steps: expected=20, actual=20
-          ✓ CFG scale: expected=7, actual=7.0
-          ✓ Sampler: expected=heun, actual=heun_ays sdxl
-          ✓ Scheduler: expected=AYS SDXL, actual=heun_ays sdxl
-          ✗ LoRA count: expected=1, actual=0
-          ✗ LoRA 0 name: expected=dark_gothic_fantasy_xl_3.01, actual=N/A
-          ✗ Lora_0 Model hash: expected=computed hash, actual=N/A
-          ✓ Positive prompt: expected=1boy, dark, gothic, fantasy, upper body, sad, looking at viewer, masterpiece, best quality, actual=1boy, dark, gothic, fantasy, upper body, sad, looking at viewer, masterpiece, best quality
-          ✓ Negative prompt: expected=lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, artist name, actual=lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, artist name
+        Error: Field 'VAE hash' contains 'N/A' value: N/A
+        Error: VAE hash is 'N/A' - hash should always be computed
+    ✗ eff_xl_00001_.png (12 checks)
+        Error: Lora_0 Strength model mismatch: expected '0.97', got '1.0'
+        Error: Field 'VAE hash' contains 'N/A' value: N/A
+        Error: VAE hash is 'N/A' - hash should always be computed
+    ✗ eff_xl_00002_.png (12 checks)
+        Error: Lora_0 Strength model mismatch: expected '0.97', got '1.0'
+        Error: Field 'VAE hash' contains 'N/A' value: N/A
+        Error: VAE hash is 'N/A' - hash should always be computed
 
 Validating workflow: embedding_lora_vae_upscale_dual_sampler-id.json
   Found 1 Save Image node(s)
   Filename patterns: Embedding-Vae-id
-  Found 1 matching image(s)
-    ✗ Embedding-Vae-id_00001_.png (22 checks)
-        Error: Denoise missing, expected '0.98'
-        Info: Hash validation PASSED: Model 'cyberrealistic_v33.safetensors' (metadata: 7a4dbba12f, sidecar: 7a4dbba12f... [64 chars total])
-        Info: Hash validation PASSED: Vae 'vae-ft-mse-840000-ema-pruned.ckpt' (metadata: c6a580b13a, sidecar: c6a580b13a... [64 chars total])
-        Info: Hash validation PASSED: Lora 'berserk_guts-10.safetensors' (metadata: 448a59f25e, sidecar: 448a59f25e... [64 chars total])
-        Info: Hash validation PASSED: Lora 'Guts_05.safetensors' (metadata: c2b1d95dde, sidecar: c2b1d95dde... [64 chars total])
-        Validation Details:
-          ✓ Seed: expected=25668662, actual=25668662
-          ✓ Steps: expected=20, actual=20
-          ✓ CFG scale: expected=6.9, actual=6.9
-          ✓ Sampler: expected=euler, actual=euler_beta
-          ✓ Scheduler: expected=beta, actual=euler_beta
-          ✗ Denoise: expected=0.98, actual=N/A
-          ✓ Model: expected=cyberrealistic_v33, actual=cyberrealistic_v33
-          ✓ VAE: expected=vae-ft-mse-840000-ema-pruned, actual=vae-ft-mse-840000-ema-pruned
-          ✓ Size: expected=512x512, actual=512x512
-          ✓ LoRA count: expected=2, actual=2
-          ✓ LoRA 0 name: expected=berserk_guts-10, actual=berserk_guts-10
-          ✓ Lora_0 Strength model: expected=0.65, actual=0.65
-          ✓ Lora_0 Strength clip: expected=0.44, actual=0.44
-          ✓ Lora_0 Model hash: expected=computed hash, actual=448a59f25e
-          ✓ LoRA 1 name: expected=Guts_05, actual=Guts_05
-          ✓ Lora_1 Strength model: expected=0.55, actual=0.55
-          ✓ Lora_1 Strength clip: expected=0.46, actual=0.46
-          ✓ Lora_1 Model hash: expected=computed hash, actual=c2b1d95dde
-          ✓ Positive prompt: expected=guts, berserk, masterpiece, best quality, anime, upper body, actual=guts, berserk, masterpiece, best quality, anime, upper body
-          ✓ Negative prompt: expected=(low quality, worst quality:1.4), embedding:EasyNegative, embedding:FastNegativeV2,, actual=(low quality, worst quality:1.4), embedding:EasyNegative, embedding:FastNegativeV2,
-          ✓ Model hash: expected=computed hash, actual=7a4dbba12f
-          ✓ VAE hash: expected=computed hash, actual=c6a580b13a
+  ⚠ Warning: No matching images found for this workflow
 
 Validating workflow: embedding_lora_vae_upscale_dual_sampler-near.json
   Found 1 Save Image node(s)
   Filename patterns: Embedding-Vae-near
-  Found 1 matching image(s)
-    ✗ Embedding-Vae-near_00001_.png (22 checks)
-        Error: Denoise missing, expected '0.6'
-        Warning: Size mismatch: expected '512x512', got '563x563'
-        Info: Hash validation PASSED: Model 'cyberrealistic_v33.safetensors' (metadata: 7a4dbba12f, sidecar: 7a4dbba12f... [64 chars total])
-        Info: Hash validation PASSED: Vae 'vae-ft-mse-840000-ema-pruned.ckpt' (metadata: c6a580b13a, sidecar: c6a580b13a... [64 chars total])
-        Info: Hash validation PASSED: Lora 'berserk_guts-10.safetensors' (metadata: 448a59f25e, sidecar: 448a59f25e... [64 chars total])
-        Info: Hash validation PASSED: Lora 'Guts_05.safetensors' (metadata: c2b1d95dde, sidecar: c2b1d95dde... [64 chars total])
-        Validation Details:
-          ✓ Seed: expected=123, actual=123
-          ✓ Steps: expected=20, actual=20
-          ✓ CFG scale: expected=8, actual=8.0
-          ✓ Sampler: expected=dpmpp_2m, actual=dpmpp_2m Karras
-          ✓ Scheduler: expected=karras, actual=dpmpp_2m Karras
-          ✗ Denoise: expected=0.6, actual=N/A
-          ✓ Model: expected=cyberrealistic_v33, actual=cyberrealistic_v33
-          ✓ VAE: expected=vae-ft-mse-840000-ema-pruned, actual=vae-ft-mse-840000-ema-pruned
-          ⚠ Size: expected=512x512, actual=563x563
-          ✓ LoRA count: expected=2, actual=2
-          ✓ LoRA 0 name: expected=berserk_guts-10, actual=berserk_guts-10
-          ✓ Lora_0 Strength model: expected=0.5, actual=0.5
-          ✓ Lora_0 Strength clip: expected=0.5, actual=0.5
-          ✓ Lora_0 Model hash: expected=computed hash, actual=448a59f25e
-          ✓ LoRA 1 name: expected=Guts_05, actual=Guts_05
-          ✓ Lora_1 Strength model: expected=0.5, actual=0.5
-          ✓ Lora_1 Strength clip: expected=0.5, actual=0.5
-          ✓ Lora_1 Model hash: expected=computed hash, actual=c2b1d95dde
-          ✓ Positive prompt: expected=guts, berserk, masterpiece, best quality, anime, upper body, actual=guts, berserk, masterpiece, best quality, anime, upper body
-          ✓ Negative prompt: expected=(low quality, worst quality:1.4), embedding:EasyNegative, embedding:FastNegativeV2,, actual=(low quality, worst quality:1.4), embedding:EasyNegative, embedding:FastNegativeV2,
-          ✓ Model hash: expected=computed hash, actual=7a4dbba12f
-          ✓ VAE hash: expected=computed hash, actual=c6a580b13a
+  ⚠ Warning: No matching images found for this workflow
 
 Validating workflow: embedding_lora_vae_upscale_dual_sampler.json
   Found 1 Save Image node(s)
   Filename patterns: Embedding-Vae, Embedding-without-meta
-  Found 4 matching image(s)
-    ✗ Embedding-Vae-id_00001_.png (22 checks)
-        Error: Seed mismatch: expected '123', got '25668662'
-        Error: CFG scale mismatch: expected '8', got '6.9'
-        Error: Sampler mismatch: expected 'dpmpp_2m', got 'euler_beta'
-        Error: Scheduler mismatch: expected 'karras', got 'euler_beta'
-        Error: Denoise missing, expected '0.6'
-        Error: Lora_0 Strength model mismatch: expected '0.5', got '0.65'
-        Error: Lora_0 Strength clip mismatch: expected '0.5', got '0.44'
-        Error: Lora_1 Strength model mismatch: expected '0.5', got '0.55'
-        Error: Lora_1 Strength clip mismatch: expected '0.5', got '0.46'
-        Info: Hash validation PASSED: Model 'cyberrealistic_v33.safetensors' (metadata: 7a4dbba12f, sidecar: 7a4dbba12f... [64 chars total])
-        Info: Hash validation PASSED: Vae 'vae-ft-mse-840000-ema-pruned.ckpt' (metadata: c6a580b13a, sidecar: c6a580b13a... [64 chars total])
-        Info: Hash validation PASSED: Lora 'berserk_guts-10.safetensors' (metadata: 448a59f25e, sidecar: 448a59f25e... [64 chars total])
-        Info: Hash validation PASSED: Lora 'Guts_05.safetensors' (metadata: c2b1d95dde, sidecar: c2b1d95dde... [64 chars total])
-        Validation Details:
-          ✗ Seed: expected=123, actual=25668662
-          ✓ Steps: expected=20, actual=20
-          ✗ CFG scale: expected=8, actual=6.9
-          ✗ Sampler: expected=dpmpp_2m, actual=euler_beta
-          ✗ Scheduler: expected=karras, actual=euler_beta
-          ✗ Denoise: expected=0.6, actual=N/A
-          ✓ Model: expected=cyberrealistic_v33, actual=cyberrealistic_v33
-          ✓ VAE: expected=vae-ft-mse-840000-ema-pruned, actual=vae-ft-mse-840000-ema-pruned
-          ✓ Size: expected=512x512, actual=512x512
-          ✓ LoRA count: expected=2, actual=2
-          ✓ LoRA 0 name: expected=berserk_guts-10, actual=berserk_guts-10
-          ✗ Lora_0 Strength model: expected=0.5, actual=0.65
-          ✗ Lora_0 Strength clip: expected=0.5, actual=0.44
-          ✓ Lora_0 Model hash: expected=computed hash, actual=448a59f25e
-          ✓ LoRA 1 name: expected=Guts_05, actual=Guts_05
-          ✗ Lora_1 Strength model: expected=0.5, actual=0.55
-          ✗ Lora_1 Strength clip: expected=0.5, actual=0.46
-          ✓ Lora_1 Model hash: expected=computed hash, actual=c2b1d95dde
-          ✓ Positive prompt: expected=guts, berserk, masterpiece, best quality, anime, upper body, actual=guts, berserk, masterpiece, best quality, anime, upper body
-          ✓ Negative prompt: expected=(low quality, worst quality:1.4), embedding:EasyNegative, embedding:FastNegativeV2,, actual=(low quality, worst quality:1.4), embedding:EasyNegative, embedding:FastNegativeV2,
-          ✓ Model hash: expected=computed hash, actual=7a4dbba12f
-          ✓ VAE hash: expected=computed hash, actual=c6a580b13a
-    ✗ Embedding-Vae-near_00001_.png (22 checks)
-        Error: Denoise missing, expected '0.6'
-        Warning: Size mismatch: expected '512x512', got '563x563'
-        Info: Hash validation PASSED: Model 'cyberrealistic_v33.safetensors' (metadata: 7a4dbba12f, sidecar: 7a4dbba12f... [64 chars total])
-        Info: Hash validation PASSED: Vae 'vae-ft-mse-840000-ema-pruned.ckpt' (metadata: c6a580b13a, sidecar: c6a580b13a... [64 chars total])
-        Info: Hash validation PASSED: Lora 'berserk_guts-10.safetensors' (metadata: 448a59f25e, sidecar: 448a59f25e... [64 chars total])
-        Info: Hash validation PASSED: Lora 'Guts_05.safetensors' (metadata: c2b1d95dde, sidecar: c2b1d95dde... [64 chars total])
-        Validation Details:
-          ✓ Seed: expected=123, actual=123
-          ✓ Steps: expected=20, actual=20
-          ✓ CFG scale: expected=8, actual=8.0
-          ✓ Sampler: expected=dpmpp_2m, actual=dpmpp_2m Karras
-          ✓ Scheduler: expected=karras, actual=dpmpp_2m Karras
-          ✗ Denoise: expected=0.6, actual=N/A
-          ✓ Model: expected=cyberrealistic_v33, actual=cyberrealistic_v33
-          ✓ VAE: expected=vae-ft-mse-840000-ema-pruned, actual=vae-ft-mse-840000-ema-pruned
-          ⚠ Size: expected=512x512, actual=563x563
-          ✓ LoRA count: expected=2, actual=2
-          ✓ LoRA 0 name: expected=berserk_guts-10, actual=berserk_guts-10
-          ✓ Lora_0 Strength model: expected=0.5, actual=0.5
-          ✓ Lora_0 Strength clip: expected=0.5, actual=0.5
-          ✓ Lora_0 Model hash: expected=computed hash, actual=448a59f25e
-          ✓ LoRA 1 name: expected=Guts_05, actual=Guts_05
-          ✓ Lora_1 Strength model: expected=0.5, actual=0.5
-          ✓ Lora_1 Strength clip: expected=0.5, actual=0.5
-          ✓ Lora_1 Model hash: expected=computed hash, actual=c2b1d95dde
-          ✓ Positive prompt: expected=guts, berserk, masterpiece, best quality, anime, upper body, actual=guts, berserk, masterpiece, best quality, anime, upper body
-          ✓ Negative prompt: expected=(low quality, worst quality:1.4), embedding:EasyNegative, embedding:FastNegativeV2,, actual=(low quality, worst quality:1.4), embedding:EasyNegative, embedding:FastNegativeV2,
-          ✓ Model hash: expected=computed hash, actual=7a4dbba12f
-          ✓ VAE hash: expected=computed hash, actual=c6a580b13a
-    ✗ Embedding-Vae_00001_.png (22 checks)
-        Error: Seed mismatch: expected '123', got '25668654'
-        Error: CFG scale mismatch: expected '8', got '6.5'
-        Error: Sampler mismatch: expected 'dpmpp_2m', got 'dpm_fast_beta'
-        Error: Scheduler mismatch: expected 'karras', got 'dpm_fast_beta'
-        Error: Denoise missing, expected '0.6'
-        Info: Hash validation PASSED: Model 'cyberrealistic_v33.safetensors' (metadata: 7a4dbba12f, sidecar: 7a4dbba12f... [64 chars total])
-        Info: Hash validation PASSED: Vae 'vae-ft-mse-840000-ema-pruned.ckpt' (metadata: c6a580b13a, sidecar: c6a580b13a... [64 chars total])
-        Info: Hash validation PASSED: Lora 'berserk_guts-10.safetensors' (metadata: 448a59f25e, sidecar: 448a59f25e... [64 chars total])
-        Info: Hash validation PASSED: Lora 'Guts_05.safetensors' (metadata: c2b1d95dde, sidecar: c2b1d95dde... [64 chars total])
-        Validation Details:
-          ✗ Seed: expected=123, actual=25668654
-          ✓ Steps: expected=20, actual=20
-          ✗ CFG scale: expected=8, actual=6.5
-          ✗ Sampler: expected=dpmpp_2m, actual=dpm_fast_beta
-          ✗ Scheduler: expected=karras, actual=dpm_fast_beta
-          ✗ Denoise: expected=0.6, actual=N/A
-          ✓ Model: expected=cyberrealistic_v33, actual=cyberrealistic_v33
-          ✓ VAE: expected=vae-ft-mse-840000-ema-pruned, actual=vae-ft-mse-840000-ema-pruned
-          ✓ Size: expected=512x512, actual=512x512
-          ✓ LoRA count: expected=2, actual=2
-          ✓ LoRA 0 name: expected=berserk_guts-10, actual=berserk_guts-10
-          ✓ Lora_0 Strength model: expected=0.5, actual=0.5
-          ✓ Lora_0 Strength clip: expected=0.5, actual=0.5
-          ✓ Lora_0 Model hash: expected=computed hash, actual=448a59f25e
-          ✓ LoRA 1 name: expected=Guts_05, actual=Guts_05
-          ✓ Lora_1 Strength model: expected=0.5, actual=0.5
-          ✓ Lora_1 Strength clip: expected=0.5, actual=0.5
-          ✓ Lora_1 Model hash: expected=computed hash, actual=c2b1d95dde
-          ✓ Positive prompt: expected=guts, berserk, masterpiece, best quality, anime, upper body, actual=guts, berserk, masterpiece, best quality, anime, upper body
-          ✓ Negative prompt: expected=(low quality, worst quality:1.4), embedding:EasyNegative, embedding:FastNegativeV2,, actual=(low quality, worst quality:1.4), embedding:EasyNegative, embedding:FastNegativeV2,
-          ✓ Model hash: expected=computed hash, actual=7a4dbba12f
-          ✓ VAE hash: expected=computed hash, actual=c6a580b13a
-    ✓ Embedding-without-meta_00001_.png (0 checks)
-        Warning: Control image (without-meta) - no metadata expected
+  ⚠ Warning: No matching images found for this workflow
 
 Validating workflow: extra_metadata_clip_skip.json
   Found 1 Save Image node(s)
   Filename patterns: extra_metadata_clip_skip
-  Found 1 matching image(s)
-    ✗ extra_metadata_clip_skip_00001_.png (10 checks)
-        Error: Denoise missing, expected '1'
-        Info: Hash validation PASSED: Model 'cyberrealistic_v33.safetensors' (metadata: 7a4dbba12f, sidecar: 7a4dbba12f... [64 chars total])
-        Validation Details:
-          ✓ Seed: expected=999999999999999, actual=999999999999999
-          ✓ Steps: expected=20, actual=20
-          ✓ CFG scale: expected=8, actual=8.0
-          ✓ Sampler: expected=euler_ancestral, actual=euler_ancestral Karras
-          ✓ Scheduler: expected=karras, actual=euler_ancestral Karras
-          ✗ Denoise: expected=1, actual=N/A
-          ✓ Model: expected=cyberrealistic_v33, actual=cyberrealistic_v33
-          ✓ Positive prompt: expected=1girl, hatsune miku, vocaloid, aqua hair, aqua eyes, twintails, aqua necktie, cyan shirt, sleeveless, detached sleeves, black sleeves, upper body, smile, looking at viewer, waving, masterpiece, best quality, very aesthetic, absurdres, actual=1girl, hatsune miku, vocaloid, aqua hair, aqua eyes, twintails, aqua necktie, cyan shirt, sleeveless, detached sleeves, black sleeves, upper body, smile, looking at viewer, waving, masterpiece, best quality, very aesthetic, absurdres
-          ✓ Negative prompt: expected=lowres, (bad), text, error, fewer, extra, missing, worst quality, jpeg artifacts, low quality, watermark, unfinished, displeasing, oldest, early, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract], actual=lowres, (bad), text, error, fewer, extra, missing, worst quality, jpeg artifacts, low quality, watermark, unfinished, displeasing, oldest, early, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract]
-          ✓ Model hash: expected=computed hash, actual=7a4dbba12f
+  ⚠ Warning: No matching images found for this workflow
 
 Validating workflow: filename_format_denoise.json
   Found 1 Save Image node(s)
   Filename patterns: siwm
-  Found 1 matching image(s)
-    ✗ 123-512x512_20251113-020105-siwm_00001_.png (13 checks)
-        Error: Denoise missing, expected '0.7'
-        Info: Hash validation PASSED: Model 'cyberrealistic_v33.safetensors' (metadata: 7a4dbba12f, sidecar: 7a4dbba12f... [64 chars total])
-        Info: Hash validation PASSED: Vae 'vae-ft-mse-840000-ema-pruned.ckpt' (metadata: c6a580b13a, sidecar: c6a580b13a... [64 chars total])
-        Validation Details:
-          ✓ Seed: expected=123, actual=123
-          ✓ Steps: expected=20, actual=20
-          ✓ CFG scale: expected=8, actual=8.0
-          ✓ Sampler: expected=dpmpp_2m, actual=dpmpp_2m Karras
-          ✓ Scheduler: expected=karras, actual=dpmpp_2m Karras
-          ✗ Denoise: expected=0.7, actual=N/A
-          ✓ Model: expected=cyberrealistic_v33, actual=cyberrealistic_v33
-          ✓ VAE: expected=vae-ft-mse-840000-ema-pruned, actual=vae-ft-mse-840000-ema-pruned
-          ✓ Size: expected=512x512, actual=512x512
-          ✓ Positive prompt: expected=masterpiece, best quality, hatsune miku, upper body, actual=masterpiece, best quality, hatsune miku, upper body
-          ✓ Negative prompt: expected=(low quality, worst quality:1.4), embedding:EasyNegative, actual=(low quality, worst quality:1.4), embedding:EasyNegative
-          ✓ Model hash: expected=computed hash, actual=7a4dbba12f
-          ✓ VAE hash: expected=computed hash, actual=c6a580b13a
+  ⚠ Warning: No matching images found for this workflow
 
 Validating workflow: flux-civsampler-GCFG-lora-summary-batch3-turbo.json
   Found 1 Save Image node(s)
   Filename patterns: Flux-batch3-LoRA-summ-GCFG
-  Found 3 matching image(s)
-    ✗ 2025-11-13-020255-Flux-batch3-LoRA-summ-GCFG_00001_.png (19 checks)
-        Error: Scheduler mismatch: expected 'beta', got 'Euler'
-        Error: Guidance missing, expected '3.5'
-        Error: Size missing, expected '1024x1024'
-        Error: LoRA count mismatch: expected 1 LoRAs, got 0
-        Error: Expected LoRA 0 ('flux\turbos\FLUX.1-Turbo-Alpha.safetensors') not found in metadata
-        Error: Lora_0 Model hash not present in metadata
-        Error: Weight dtype mismatch: expected 'fp8_e4m3fn_fast', got 'fp8_e4m3fn'
-        Info: Hash validation PASSED: Model 'flux1-dev-fp8-e4m3fn.safetensors' (metadata: 47d8dbdc6d, sidecar: 47d8dbdc6d... [64 chars total])
-        Info: Hash validation PASSED: Vae 'ae.safetensors' (metadata: afc8e28272, sidecar: afc8e28272... [64 chars total])
-        Validation Details:
-          ✓ Seed: expected=664708685477459, actual=664708685477459
-          ✓ Steps: expected=8, actual=8
-          ✓ Sampler: expected=euler, actual=Euler
-          ✗ Scheduler: expected=beta, actual=Euler
-          ✓ Denoise: expected=1, actual=1.0
-          ✗ Guidance: expected=3.5, actual=N/A
-          ✓ Model: expected=flux1-dev-fp8-e4m3fn, actual=flux1-dev-fp8-e4m3fn
-          ✓ VAE: expected=ae, actual=ae
-          ✗ Size: expected=1024x1024, actual=N/A
-          ✗ LoRA count: expected=1, actual=0
-          ✗ LoRA 0 name: expected=FLUX.1-Turbo-Alpha, actual=N/A
-          ✗ Lora_0 Model hash: expected=computed hash, actual=N/A
-          ✓ Positive prompt: expected=Monochrome manga sketch, eerie and haunting extreme face close-up of a female skeleton with a weathered, menacing, surreal appearance, with an unnerving smile with missing teeth, striking eyes, and grotesque features. The skeleton has one gold-colored tooth and wears the remains of tattered leather armor with sci-fi elements. The eyes are shaded, sad and pained, with a contagious sorrow accentuating the intense, unsettling gaze. The macabre sketch is hyper-detailed in manga style, featuring a vibrant neon fluorescent monochromatic gradient background in bleached tones, combined with gray and white color grading for a dramatic effect., actual=Monochrome manga sketch, eerie and haunting extreme face close-up of a female skeleton with a weathered, menacing, surreal appearance, with an unnerving smile with missing teeth, striking eyes, and grotesque features. The skeleton has one gold-colored tooth and wears the remains of tattered leather armor with sci-fi elements. The eyes are shaded, sad and pained, with a contagious sorrow accentuating the intense, unsettling gaze. The macabre sketch is hyper-detailed in manga style, featuring a vibrant neon fluorescent monochromatic gradient background in bleached tones, combined with gray and white color grading for a dramatic effect.
-          ✓ Model hash: expected=computed hash, actual=47d8dbdc6d
-          ✓ VAE hash: expected=computed hash, actual=afc8e28272
-          ✓ Batch size: expected=3, actual=3
-          ✓ Base shift: expected=0.5, actual=0.5
-          ✓ Max shift: expected=1.15, actual=1.15
-          ✗ Weight dtype: expected=fp8_e4m3fn_fast, actual=fp8_e4m3fn
-    ✗ 2025-11-13-020255-Flux-batch3-LoRA-summ-GCFG_00002_.png (19 checks)
-        Error: Scheduler mismatch: expected 'beta', got 'Euler'
-        Error: Guidance missing, expected '3.5'
-        Error: Size missing, expected '1024x1024'
-        Error: LoRA count mismatch: expected 1 LoRAs, got 0
-        Error: Expected LoRA 0 ('flux\turbos\FLUX.1-Turbo-Alpha.safetensors') not found in metadata
-        Error: Lora_0 Model hash not present in metadata
-        Error: Weight dtype mismatch: expected 'fp8_e4m3fn_fast', got 'fp8_e4m3fn'
-        Info: Hash validation PASSED: Model 'flux1-dev-fp8-e4m3fn.safetensors' (metadata: 47d8dbdc6d, sidecar: 47d8dbdc6d... [64 chars total])
-        Info: Hash validation PASSED: Vae 'ae.safetensors' (metadata: afc8e28272, sidecar: afc8e28272... [64 chars total])
-        Validation Details:
-          ✓ Seed: expected=664708685477459, actual=664708685477459
-          ✓ Steps: expected=8, actual=8
-          ✓ Sampler: expected=euler, actual=Euler
-          ✗ Scheduler: expected=beta, actual=Euler
-          ✓ Denoise: expected=1, actual=1.0
-          ✗ Guidance: expected=3.5, actual=N/A
-          ✓ Model: expected=flux1-dev-fp8-e4m3fn, actual=flux1-dev-fp8-e4m3fn
-          ✓ VAE: expected=ae, actual=ae
-          ✗ Size: expected=1024x1024, actual=N/A
-          ✗ LoRA count: expected=1, actual=0
-          ✗ LoRA 0 name: expected=FLUX.1-Turbo-Alpha, actual=N/A
-          ✗ Lora_0 Model hash: expected=computed hash, actual=N/A
-          ✓ Positive prompt: expected=Monochrome manga sketch, eerie and haunting extreme face close-up of a female skeleton with a weathered, menacing, surreal appearance, with an unnerving smile with missing teeth, striking eyes, and grotesque features. The skeleton has one gold-colored tooth and wears the remains of tattered leather armor with sci-fi elements. The eyes are shaded, sad and pained, with a contagious sorrow accentuating the intense, unsettling gaze. The macabre sketch is hyper-detailed in manga style, featuring a vibrant neon fluorescent monochromatic gradient background in bleached tones, combined with gray and white color grading for a dramatic effect., actual=Monochrome manga sketch, eerie and haunting extreme face close-up of a female skeleton with a weathered, menacing, surreal appearance, with an unnerving smile with missing teeth, striking eyes, and grotesque features. The skeleton has one gold-colored tooth and wears the remains of tattered leather armor with sci-fi elements. The eyes are shaded, sad and pained, with a contagious sorrow accentuating the intense, unsettling gaze. The macabre sketch is hyper-detailed in manga style, featuring a vibrant neon fluorescent monochromatic gradient background in bleached tones, combined with gray and white color grading for a dramatic effect.
-          ✓ Model hash: expected=computed hash, actual=47d8dbdc6d
-          ✓ VAE hash: expected=computed hash, actual=afc8e28272
-          ✓ Batch size: expected=3, actual=3
-          ✓ Base shift: expected=0.5, actual=0.5
-          ✓ Max shift: expected=1.15, actual=1.15
-          ✗ Weight dtype: expected=fp8_e4m3fn_fast, actual=fp8_e4m3fn
-    ✗ 2025-11-13-020255-Flux-batch3-LoRA-summ-GCFG_00003_.png (19 checks)
-        Error: Scheduler mismatch: expected 'beta', got 'Euler'
-        Error: Guidance missing, expected '3.5'
-        Error: Size missing, expected '1024x1024'
-        Error: LoRA count mismatch: expected 1 LoRAs, got 0
-        Error: Expected LoRA 0 ('flux\turbos\FLUX.1-Turbo-Alpha.safetensors') not found in metadata
-        Error: Lora_0 Model hash not present in metadata
-        Error: Weight dtype mismatch: expected 'fp8_e4m3fn_fast', got 'fp8_e4m3fn'
-        Info: Hash validation PASSED: Model 'flux1-dev-fp8-e4m3fn.safetensors' (metadata: 47d8dbdc6d, sidecar: 47d8dbdc6d... [64 chars total])
-        Info: Hash validation PASSED: Vae 'ae.safetensors' (metadata: afc8e28272, sidecar: afc8e28272... [64 chars total])
-        Validation Details:
-          ✓ Seed: expected=664708685477459, actual=664708685477459
-          ✓ Steps: expected=8, actual=8
-          ✓ Sampler: expected=euler, actual=Euler
-          ✗ Scheduler: expected=beta, actual=Euler
-          ✓ Denoise: expected=1, actual=1.0
-          ✗ Guidance: expected=3.5, actual=N/A
-          ✓ Model: expected=flux1-dev-fp8-e4m3fn, actual=flux1-dev-fp8-e4m3fn
-          ✓ VAE: expected=ae, actual=ae
-          ✗ Size: expected=1024x1024, actual=N/A
-          ✗ LoRA count: expected=1, actual=0
-          ✗ LoRA 0 name: expected=FLUX.1-Turbo-Alpha, actual=N/A
-          ✗ Lora_0 Model hash: expected=computed hash, actual=N/A
-          ✓ Positive prompt: expected=Monochrome manga sketch, eerie and haunting extreme face close-up of a female skeleton with a weathered, menacing, surreal appearance, with an unnerving smile with missing teeth, striking eyes, and grotesque features. The skeleton has one gold-colored tooth and wears the remains of tattered leather armor with sci-fi elements. The eyes are shaded, sad and pained, with a contagious sorrow accentuating the intense, unsettling gaze. The macabre sketch is hyper-detailed in manga style, featuring a vibrant neon fluorescent monochromatic gradient background in bleached tones, combined with gray and white color grading for a dramatic effect., actual=Monochrome manga sketch, eerie and haunting extreme face close-up of a female skeleton with a weathered, menacing, surreal appearance, with an unnerving smile with missing teeth, striking eyes, and grotesque features. The skeleton has one gold-colored tooth and wears the remains of tattered leather armor with sci-fi elements. The eyes are shaded, sad and pained, with a contagious sorrow accentuating the intense, unsettling gaze. The macabre sketch is hyper-detailed in manga style, featuring a vibrant neon fluorescent monochromatic gradient background in bleached tones, combined with gray and white color grading for a dramatic effect.
-          ✓ Model hash: expected=computed hash, actual=47d8dbdc6d
-          ✓ VAE hash: expected=computed hash, actual=afc8e28272
-          ✓ Batch size: expected=3, actual=3
-          ✓ Base shift: expected=0.5, actual=0.5
-          ✓ Max shift: expected=1.15, actual=1.15
-          ✗ Weight dtype: expected=fp8_e4m3fn_fast, actual=fp8_e4m3fn
+  ⚠ Warning: No matching images found for this workflow
 
 Validating workflow: flux-CR-LoRA-stack-ClownsharK.json
   Found 1 Save Image node(s)
   Filename patterns: flux-CR-LoRA-stack-ClownsharK
-  Found 1 matching image(s)
-    ✗ flux-CR-LoRA-stack-ClownsharK_00001_.png (17 checks)
-        Error: Seed format mismatch: expected 15-digit random seed, got 'N/A'
-        Error: Steps missing, expected '2'
-        Error: Scheduler mismatch: expected 'bong_tangent', got 'linear/euler'
-        Error: Denoise missing, expected '1'
-        Error: Guidance missing, expected '3.5'
-        Error: Size missing, expected '832x1216'
-        Error: Negative prompt missing, expected 'oil painting, semi realistic, fantasy, anime style, solid color background, tall thin character, beautiful lush vibrant forest, backlighting, dramatic atmospheric glow, countless small tiny clumsy gentle spirits, great forest spirit, intricate highly detailed, natural fantastical elements, leaves flowers feathers, hair clothing, delicate translucent wings, gentle mystical business, forest secret heartbeat, branches arms, leaves hair, ethereal benevolent connection, natural world, deep abiding, magic, hushed reverence, wonder, mysticism, otherworldly aura, vibrant colors, bold brushstrokes, gradating background, blues emerald greens, slender athletic build, elegant arm, beckoning summoning, reverence awe, drinking in essence, character attire, mesmerizing blend, organic growth, R3alisticF, retr0grade90s, A digital anime artwork in the style of cklg, in the style of cksc,'
-        Info: Hash validation PASSED: Model 'flux1-dev-fp8-e4m3fn.safetensors' (metadata: 47d8dbdc6d, sidecar: 47d8dbdc6d... [64 chars total])
-        Info: Hash validation PASSED: Vae 'ae.safetensors' (metadata: afc8e28272, sidecar: afc8e28272... [64 chars total])
-        Validation Details:
-          ✗ Seed: expected=15-digit random, actual=N/A
-          ✗ Steps: expected=2, actual=N/A
-          ✓ CFG scale: expected=3.5, actual=3.5
-          ✓ Sampler: expected=linear/euler, actual=linear/euler
-          ✗ Scheduler: expected=bong_tangent, actual=linear/euler
-          ✗ Denoise: expected=1, actual=N/A
-          ✗ Guidance: expected=3.5, actual=N/A
-          ✓ Model: expected=flux1-dev-fp8-e4m3fn, actual=flux1-dev-fp8-e4m3fn
-          ✓ VAE: expected=ae, actual=ae
-          ✗ Size: expected=832x1216, actual=N/A
-          ✓ Positive prompt: expected=oil painting, semi realistic, fantasy, anime style, solid color background, tall thin character, beautiful lush vibrant forest, backlighting, dramatic atmospheric glow, countless small tiny clumsy gentle spirits, great forest spirit, intricate highly detailed, natural fantastical elements, leaves flowers feathers, hair clothing, delicate translucent wings, gentle mystical business, forest secret heartbeat, branches arms, leaves hair, ethereal benevolent connection, natural world, deep abiding, magic, hushed reverence, wonder, mysticism, otherworldly aura, vibrant colors, bold brushstrokes, gradating background, blues emerald greens, slender athletic build, elegant arm, beckoning summoning, reverence awe, drinking in essence, character attire, mesmerizing blend, organic growth, R3alisticF, retr0grade90s, A digital anime artwork in the style of cklg, in the style of cksc,, actual=oil painting, semi realistic, fantasy, anime style, solid color background, tall thin character, beautiful lush vibrant forest, backlighting, dramatic atmospheric glow, countless small tiny clumsy gentle spirits, great forest spirit, intricate highly detailed, natural fantastical elements, leaves flowers feathers, hair clothing, delicate translucent wings, gentle mystical business, forest secret heartbeat, branches arms, leaves hair, ethereal benevolent connection, natural world, deep abiding, magic, hushed reverence, wonder, mysticism, otherworldly aura, vibrant colors, bold brushstrokes, gradating background, blues emerald greens, slender athletic build, elegant arm, beckoning summoning, reverence awe, drinking in essence, character attire, mesmerizing blend, organic growth, R3alisticF, retr0grade90s, A digital anime artwork in the style of cklg, in the style of cksc,
-          ✗ Negative prompt: expected=oil painting, semi realistic, fantasy, anime style, solid color background, tall thin character, beautiful lush vibrant forest, backlighting, dramatic atmospheric glow, countless small tiny clumsy gentle spirits, great forest spirit, intricate highly detailed, natural fantastical elements, leaves flowers feathers, hair clothing, delicate translucent wings, gentle mystical business, forest secret heartbeat, branches arms, leaves hair, ethereal benevolent connection, natural world, deep abiding, magic, hushed reverence, wonder, mysticism, otherworldly aura, vibrant colors, bold brushstrokes, gradating background, blues emerald greens, slender athletic build, elegant arm, beckoning summoning, reverence awe, drinking in essence, character attire, mesmerizing blend, organic growth, R3alisticF, retr0grade90s, A digital anime artwork in the style of cklg, in the style of cksc,, actual=N/A
-          ✓ Model hash: expected=computed hash, actual=47d8dbdc6d
-          ✓ VAE hash: expected=computed hash, actual=afc8e28272
-          ✓ Base shift: expected=0.5, actual=0.5
-          ✓ Max shift: expected=1.15, actual=1.15
-          ✓ Weight dtype: expected=fp8_e4m3fn, actual=fp8_e4m3fn
+  ⚠ Warning: No matching images found for this workflow
 
 Validating workflow: flux-dual-clip-turbo.json
   Found 1 Save Image node(s)
   Filename patterns: Flux-dual-clip
-  Found 1 matching image(s)
-    ✗ 2025-11-13-020422-Flux-dual-clip_00001_.png (18 checks)
-        Error: Size missing, expected '1024x1024'
-        Error: LoRA count mismatch: expected 1 LoRAs, got 0
-        Error: Expected LoRA 0 ('flux\turbos\FLUX.1-Turbo-Alpha.safetensors') not found in metadata
-        Error: Lora_0 Model hash not present in metadata
-        Error: Positive prompt missing, expected 'oil painting, semi realistic, fantasy, anime style, solid color background, tall thin character, beautiful lush vibrant forest, backlighting, dramatic atmospheric glow, countless small tiny clumsy gentle spirits, great forest spirit, intricate highly detailed, natural fantastical elements, leaves flowers feathers, hair clothing, delicate translucent wings, gentle mystical business, forest secret heartbeat, branches arms, leaves hair, ethereal benevolent connection, natural world, deep abiding, magic, hushed reverence, wonder, mysticism, otherworldly aura, vibrant colors, bold brushstrokes, gradating background, blues emerald greens, slender athletic build, elegant arm, beckoning summoning, reverence awe, drinking in essence, character attire, mesmerizing blend, organic growth'
-        Error: Weight dtype mismatch: expected 'fp8_e4m3fn_fast', got 'fp8_e4m3fn'
-        Info: Hash validation PASSED: Model 'flux1-dev-fp8-e4m3fn.safetensors' (metadata: 47d8dbdc6d, sidecar: 47d8dbdc6d... [64 chars total])
-        Info: Hash validation PASSED: Vae 'ae.safetensors' (metadata: afc8e28272, sidecar: afc8e28272... [64 chars total])
-        Validation Details:
-          ✓ Seed: expected=664708685477459, actual=664708685477459
-          ✓ Steps: expected=8, actual=8
-          ✓ Sampler: expected=euler, actual=euler_beta
-          ✓ Scheduler: expected=beta, actual=euler_beta
-          ✓ Denoise: expected=1, actual=1.0
-          ✓ Guidance: expected=2, actual=2.0
-          ✓ Model: expected=flux1-dev-fp8-e4m3fn, actual=flux1-dev-fp8-e4m3fn
-          ✓ VAE: expected=ae, actual=ae
-          ✗ Size: expected=1024x1024, actual=N/A
-          ✗ LoRA count: expected=1, actual=0
-          ✗ LoRA 0 name: expected=FLUX.1-Turbo-Alpha, actual=N/A
-          ✗ Lora_0 Model hash: expected=computed hash, actual=N/A
-          ✗ Positive prompt: expected=oil painting, semi realistic, fantasy, anime style, solid color background, tall thin character, beautiful lush vibrant forest, backlighting, dramatic atmospheric glow, countless small tiny clumsy gentle spirits, great forest spirit, intricate highly detailed, natural fantastical elements, leaves flowers feathers, hair clothing, delicate translucent wings, gentle mystical business, forest secret heartbeat, branches arms, leaves hair, ethereal benevolent connection, natural world, deep abiding, magic, hushed reverence, wonder, mysticism, otherworldly aura, vibrant colors, bold brushstrokes, gradating background, blues emerald greens, slender athletic build, elegant arm, beckoning summoning, reverence awe, drinking in essence, character attire, mesmerizing blend, organic growth, actual=N/A
-          ✓ Model hash: expected=computed hash, actual=47d8dbdc6d
-          ✓ VAE hash: expected=computed hash, actual=afc8e28272
-          ✓ Base shift: expected=0.52, actual=0.52
-          ✓ Max shift: expected=1.08, actual=1.08
-          ✗ Weight dtype: expected=fp8_e4m3fn_fast, actual=fp8_e4m3fn
+  ⚠ Warning: No matching images found for this workflow
 
 Validating workflow: flux-eff-LoRA-stack-ClownsharK.json
   Found 1 Save Image node(s)
   Filename patterns: flux-eff-LoRA-stack-ClownsharK
-  Found 1 matching image(s)
-    ✗ flux-eff-LoRA-stack-ClownsharK_00001_.png (17 checks)
-        Error: Seed missing, expected '684898030661856'
-        Error: Steps missing, expected '2'
-        Error: Scheduler mismatch: expected 'bong_tangent', got 'linear/euler'
-        Error: Denoise missing, expected '1'
-        Error: Guidance missing, expected '3.5'
-        Error: Size missing, expected '832x1216'
-        Error: Negative prompt missing, expected 'oil painting, semi realistic, fantasy, anime style, solid color background, tall thin character, beautiful lush vibrant forest, backlighting, dramatic atmospheric glow, countless small tiny clumsy gentle spirits, great forest spirit, intricate highly detailed, natural fantastical elements, leaves flowers feathers, hair clothing, delicate translucent wings, gentle mystical business, forest secret heartbeat, branches arms, leaves hair, ethereal benevolent connection, natural world, deep abiding, magic, hushed reverence, wonder, mysticism, otherworldly aura, vibrant colors, bold brushstrokes, gradating background, blues emerald greens, slender athletic build, elegant arm, beckoning summoning, reverence awe, drinking in essence, character attire, mesmerizing blend, organic growth, R3alisticF, retr0grade90s, A digital anime artwork in the style of cklg, in the style of cksc,'
-        Info: Hash validation PASSED: Model 'flux1-dev-fp8-e4m3fn.safetensors' (metadata: 47d8dbdc6d, sidecar: 47d8dbdc6d... [64 chars total])
-        Info: Hash validation PASSED: Vae 'ae.safetensors' (metadata: afc8e28272, sidecar: afc8e28272... [64 chars total])
-        Validation Details:
-          ✗ Seed: expected=684898030661856, actual=N/A
-          ✗ Steps: expected=2, actual=N/A
-          ✓ CFG scale: expected=3.5, actual=3.5
-          ✓ Sampler: expected=linear/euler, actual=linear/euler
-          ✗ Scheduler: expected=bong_tangent, actual=linear/euler
-          ✗ Denoise: expected=1, actual=N/A
-          ✗ Guidance: expected=3.5, actual=N/A
-          ✓ Model: expected=flux1-dev-fp8-e4m3fn, actual=flux1-dev-fp8-e4m3fn
-          ✓ VAE: expected=ae, actual=ae
-          ✗ Size: expected=832x1216, actual=N/A
-          ✓ Positive prompt: expected=oil painting, semi realistic, fantasy, anime style, solid color background, tall thin character, beautiful lush vibrant forest, backlighting, dramatic atmospheric glow, countless small tiny clumsy gentle spirits, great forest spirit, intricate highly detailed, natural fantastical elements, leaves flowers feathers, hair clothing, delicate translucent wings, gentle mystical business, forest secret heartbeat, branches arms, leaves hair, ethereal benevolent connection, natural world, deep abiding, magic, hushed reverence, wonder, mysticism, otherworldly aura, vibrant colors, bold brushstrokes, gradating background, blues emerald greens, slender athletic build, elegant arm, beckoning summoning, reverence awe, drinking in essence, character attire, mesmerizing blend, organic growth, R3alisticF, retr0grade90s, A digital anime artwork in the style of cklg, in the style of cksc,, actual=oil painting, semi realistic, fantasy, anime style, solid color background, tall thin character, beautiful lush vibrant forest, backlighting, dramatic atmospheric glow, countless small tiny clumsy gentle spirits, great forest spirit, intricate highly detailed, natural fantastical elements, leaves flowers feathers, hair clothing, delicate translucent wings, gentle mystical business, forest secret heartbeat, branches arms, leaves hair, ethereal benevolent connection, natural world, deep abiding, magic, hushed reverence, wonder, mysticism, otherworldly aura, vibrant colors, bold brushstrokes, gradating background, blues emerald greens, slender athletic build, elegant arm, beckoning summoning, reverence awe, drinking in essence, character attire, mesmerizing blend, organic growth, R3alisticF, retr0grade90s, A digital anime artwork in the style of cklg, in the style of cksc,
-          ✗ Negative prompt: expected=oil painting, semi realistic, fantasy, anime style, solid color background, tall thin character, beautiful lush vibrant forest, backlighting, dramatic atmospheric glow, countless small tiny clumsy gentle spirits, great forest spirit, intricate highly detailed, natural fantastical elements, leaves flowers feathers, hair clothing, delicate translucent wings, gentle mystical business, forest secret heartbeat, branches arms, leaves hair, ethereal benevolent connection, natural world, deep abiding, magic, hushed reverence, wonder, mysticism, otherworldly aura, vibrant colors, bold brushstrokes, gradating background, blues emerald greens, slender athletic build, elegant arm, beckoning summoning, reverence awe, drinking in essence, character attire, mesmerizing blend, organic growth, R3alisticF, retr0grade90s, A digital anime artwork in the style of cklg, in the style of cksc,, actual=N/A
-          ✓ Model hash: expected=computed hash, actual=47d8dbdc6d
-          ✓ VAE hash: expected=computed hash, actual=afc8e28272
-          ✓ Base shift: expected=0.5, actual=0.5
-          ✓ Max shift: expected=1.15, actual=1.15
-          ✓ Weight dtype: expected=fp8_e4m3fn, actual=fp8_e4m3fn
+  ⚠ Warning: No matching images found for this workflow
 
 Validating workflow: flux-PC-LoRA-inline-Inspire-KSampler.json
   Found 1 Save Image node(s)
   Filename patterns: flux-PC-LoRA-inline-Inspire-KSampler
-  Found 1 matching image(s)
-    ✗ flux-PC-LoRA-inline-Inspire-KSampler_00001_.png (17 checks)
-        Error: Seed format mismatch: expected 15-digit random seed, got 'N/A'
-        Error: Steps missing, expected '1'
-        Error: Scheduler mismatch: expected 'karras', got 'deis'
-        Error: Denoise missing, expected '1'
-        Error: Guidance missing, expected '3.5'
-        Error: Size missing, expected '832x1216'
-        Error: Negative prompt missing, expected 'oil painting, semi realistic, fantasy, anime style, solid color background, tall thin character, beautiful lush vibrant forest, backlighting, dramatic atmospheric glow, countless small tiny clumsy gentle spirits, great forest spirit, intricate highly detailed, natural fantastical elements, leaves flowers feathers, hair clothing, delicate translucent wings, gentle mystical business, forest secret heartbeat, branches arms, leaves hair, ethereal benevolent connection, natural world, deep abiding, magic, hushed reverence, wonder, mysticism, otherworldly aura, vibrant colors, bold brushstrokes, gradating background, blues emerald greens, slender athletic build, elegant arm, beckoning summoning, reverence awe, drinking in essence, character attire, mesmerizing blend, organic growth, R3alisticF, retr0grade90s, A digital anime artwork in the style of cklg, in the style of cksc,'
-        Info: Hash validation PASSED: Model 'flux1-dev-fp8-e4m3fn.safetensors' (metadata: 47d8dbdc6d, sidecar: 47d8dbdc6d... [64 chars total])
-        Info: Hash validation PASSED: Vae 'ae.safetensors' (metadata: afc8e28272, sidecar: afc8e28272... [64 chars total])
-        Info: Hash validation PASSED: Lora '3d-anaglyphs.safetensors' (metadata: b15bd3d7ad, sidecar: b15bd3d7ad... [64 chars total])
-        Info: Hash validation PASSED: Lora 'aidmaAbadonedHorror-FLUX-V0.1.safetensors' (metadata: f5481e1d05, sidecar: f5481e1d05... [64 chars total])
-        Info: Hash validation PASSED: Lora 'Elden_Ring_Style.safetensors' (metadata: 8071595142, sidecar: 8071595142... [64 chars total])
-        Validation Details:
-          ✗ Seed: expected=15-digit random, actual=N/A
-          ✗ Steps: expected=1, actual=N/A
-          ✓ CFG scale: expected=3.5, actual=3.5
-          ✓ Sampler: expected=deis, actual=deis
-          ✗ Scheduler: expected=karras, actual=deis
-          ✗ Denoise: expected=1, actual=N/A
-          ✗ Guidance: expected=3.5, actual=N/A
-          ✓ Model: expected=flux1-dev-fp8-e4m3fn, actual=flux1-dev-fp8-e4m3fn
-          ✓ VAE: expected=ae, actual=ae
-          ✗ Size: expected=832x1216, actual=N/A
-          ✓ Positive prompt: expected=oil painting, semi realistic, fantasy, anime style, solid color background, tall thin character, beautiful lush vibrant forest, backlighting, dramatic atmospheric glow, countless small tiny clumsy gentle spirits, great forest spirit, intricate highly detailed, natural fantastical elements, leaves flowers feathers, hair clothing, delicate translucent wings, gentle mystical business, forest secret heartbeat, branches arms, leaves hair, ethereal benevolent connection, natural world, deep abiding, magic, hushed reverence, wonder, mysticism, otherworldly aura, vibrant colors, bold brushstrokes, gradating background, blues emerald greens, slender athletic build, elegant arm, beckoning summoning, reverence awe, drinking in essence, character attire, mesmerizing blend, organic growth, R3alisticF, retr0grade90s, A digital anime artwork in the style of cklg, in the style of cksc,, actual=oil painting, semi realistic, fantasy, anime style, solid color background, tall thin character, beautiful lush vibrant forest, backlighting, dramatic atmospheric glow, countless small tiny clumsy gentle spirits, great forest spirit, intricate highly detailed, natural fantastical elements, leaves flowers feathers, hair clothing, delicate translucent wings, gentle mystical business, forest secret heartbeat, branches arms, leaves hair, ethereal benevolent connection, natural world, deep abiding, magic, hushed reverence, wonder, mysticism, otherworldly aura, vibrant colors, bold brushstrokes, gradating background, blues emerald greens, slender athletic build, elegant arm, beckoning summoning, reverence awe, drinking in essence, character attire, mesmerizing blend, organic growth, R3alisticF, retr0grade90s, A digital anime artwork in the style of cklg, in the style of cksc,
-          ✗ Negative prompt: expected=oil painting, semi realistic, fantasy, anime style, solid color background, tall thin character, beautiful lush vibrant forest, backlighting, dramatic atmospheric glow, countless small tiny clumsy gentle spirits, great forest spirit, intricate highly detailed, natural fantastical elements, leaves flowers feathers, hair clothing, delicate translucent wings, gentle mystical business, forest secret heartbeat, branches arms, leaves hair, ethereal benevolent connection, natural world, deep abiding, magic, hushed reverence, wonder, mysticism, otherworldly aura, vibrant colors, bold brushstrokes, gradating background, blues emerald greens, slender athletic build, elegant arm, beckoning summoning, reverence awe, drinking in essence, character attire, mesmerizing blend, organic growth, R3alisticF, retr0grade90s, A digital anime artwork in the style of cklg, in the style of cksc,, actual=N/A
-          ✓ Model hash: expected=computed hash, actual=47d8dbdc6d
-          ✓ VAE hash: expected=computed hash, actual=afc8e28272
-          ✓ Base shift: expected=0.5, actual=0.5
-          ✓ Max shift: expected=1.15, actual=1.15
-          ✓ Weight dtype: expected=fp8_e4m3fn, actual=fp8_e4m3fn
+  ⚠ Warning: No matching images found for this workflow
 
 Validating workflow: flux-turbo.json
   Found 1 Save Image node(s)
   Filename patterns: Flux-turbo-basic
-  Found 1 matching image(s)
-    ✗ 2025-11-13-020603-Flux-turbo-basic_00001_.png (18 checks)
-        Error: Size missing, expected '1024x1024'
-        Error: LoRA count mismatch: expected 1 LoRAs, got 0
-        Error: Expected LoRA 0 ('flux\turbos\FLUX.1-Turbo-Alpha.safetensors') not found in metadata
-        Error: Lora_0 Model hash not present in metadata
-        Error: Weight dtype mismatch: expected 'fp8_e4m3fn_fast', got 'fp8_e4m3fn'
-        Info: Hash validation PASSED: Model 'flux1-dev-fp8-e4m3fn.safetensors' (metadata: 47d8dbdc6d, sidecar: 47d8dbdc6d... [64 chars total])
-        Info: Hash validation PASSED: Vae 'ae.safetensors' (metadata: afc8e28272, sidecar: afc8e28272... [64 chars total])
-        Validation Details:
-          ✓ Seed: expected=664708685477459, actual=664708685477459
-          ✓ Steps: expected=8, actual=8
-          ✓ Sampler: expected=euler, actual=euler_beta
-          ✓ Scheduler: expected=beta, actual=euler_beta
-          ✓ Denoise: expected=1, actual=1.0
-          ✓ Guidance: expected=3.5, actual=3.5
-          ✓ Model: expected=flux1-dev-fp8-e4m3fn, actual=flux1-dev-fp8-e4m3fn
-          ✓ VAE: expected=ae, actual=ae
-          ✗ Size: expected=1024x1024, actual=N/A
-          ✗ LoRA count: expected=1, actual=0
-          ✗ LoRA 0 name: expected=FLUX.1-Turbo-Alpha, actual=N/A
-          ✗ Lora_0 Model hash: expected=computed hash, actual=N/A
-          ✓ Positive prompt: expected=Monochrome manga sketch, eerie and haunting extreme face close-up of a female skeleton with a weathered, menacing, surreal appearance, with an unnerving smile with missing teeth, striking eyes, and grotesque features. The skeleton has one gold-colored tooth and wears the remains of tattered leather armor with sci-fi elements. The eyes are shaded, sad and pained, with a contagious sorrow accentuating the intense, unsettling gaze. The macabre sketch is hyper-detailed in manga style, featuring a vibrant neon fluorescent monochromatic gradient background in bleached tones, combined with gray and white color grading for a dramatic effect., actual=Monochrome manga sketch, eerie and haunting extreme face close-up of a female skeleton with a weathered, menacing, surreal appearance, with an unnerving smile with missing teeth, striking eyes, and grotesque features. The skeleton has one gold-colored tooth and wears the remains of tattered leather armor with sci-fi elements. The eyes are shaded, sad and pained, with a contagious sorrow accentuating the intense, unsettling gaze. The macabre sketch is hyper-detailed in manga style, featuring a vibrant neon fluorescent monochromatic gradient background in bleached tones, combined with gray and white color grading for a dramatic effect.
-          ✓ Model hash: expected=computed hash, actual=47d8dbdc6d
-          ✓ VAE hash: expected=computed hash, actual=afc8e28272
-          ✓ Base shift: expected=0.5, actual=0.5
-          ✓ Max shift: expected=1.15, actual=1.15
-          ✗ Weight dtype: expected=fp8_e4m3fn_fast, actual=fp8_e4m3fn
+  ⚠ Warning: No matching images found for this workflow
 
 Validating workflow: large-workflow-jpeg-1kb.json
   Found 1 Save Image node(s)
   Filename patterns: Large-Workflow-jpeg-1kb
-  Found 1 matching image(s)
-    ✗ Large-Workflow-jpeg-1kb_00001_.jpeg (21 checks)
-        Error: Sampler mismatch: expected 'dpmpp_2m', got 'DPM++ 2M Karras'
-        Error: Guidance missing, expected '3.5'
-        Error: Size missing, expected '832x1216'
-        Error: LoRA count mismatch: expected 3 LoRAs, got 0
-        Error: Expected LoRA 0 ('flux\artstyle\style\Style_Calligraphy_ART.safetensors') not found in metadata
-        Error: Lora_0 Model hash not present in metadata
-        Error: Expected LoRA 1 ('flux\artstyle\style\m100-style_v.02.safetensors') not found in metadata
-        Error: Lora_1 Model hash not present in metadata
-        Error: Expected LoRA 2 ('flux\artstyle\style\lnrnr_flux_EliPot.safetensors') not found in metadata
-        Error: Lora_2 Model hash not present in metadata
-        Warning: Metadata fallback occurred: reduced-exif
-        Info: Hash validation PASSED: Model 'flux1-dev-fp8-e4m3fn.safetensors' (metadata: 47d8dbdc6d, sidecar: 47d8dbdc6d... [64 chars total])
-        Info: Hash validation PASSED: Vae 'ae.safetensors' (metadata: afc8e28272, sidecar: afc8e28272... [64 chars total])
-        Validation Details:
-          ✓ Steps: expected=2, actual=2
-          ✗ Sampler: expected=dpmpp_2m, actual=DPM++ 2M Karras
-          ✓ Scheduler: expected=karras, actual=DPM++ 2M Karras
-          ✓ Denoise: expected=1, actual=1.0
-          ✗ Guidance: expected=3.5, actual=N/A
-          ✓ Model: expected=flux1-dev-fp8-e4m3fn, actual=flux1-dev-fp8-e4m3fn
-          ✓ VAE: expected=ae, actual=ae
-          ✗ Size: expected=832x1216, actual=N/A
-          ✗ LoRA count: expected=3, actual=0
-          ✗ LoRA 0 name: expected=Style_Calligraphy_ART, actual=N/A
-          ✗ Lora_0 Model hash: expected=computed hash, actual=N/A
-          ✗ LoRA 1 name: expected=m100-style_v.02, actual=N/A
-          ✗ Lora_1 Model hash: expected=computed hash, actual=N/A
-          ✗ LoRA 2 name: expected=lnrnr_flux_EliPot, actual=N/A
-          ✗ Lora_2 Model hash: expected=computed hash, actual=N/A
-          ✓ Positive prompt: expected=oil painting, semi realistic, fantasy, anime style, solid color background, tall thin character, beautiful lush vibrant forest, backlighting, dramatic atmospheric glow, countless small tiny clumsy gentle spirits, great forest spirit, intricate highly detailed, natural fantastical elements, leaves flowers feathers, hair clothing, delicate translucent wings, gentle mystical business, forest secret heartbeat, branches arms, leaves hair, ethereal benevolent connection, natural world, deep abiding, magic, hushed reverence, wonder, mysticism, otherworldly aura, vibrant colors, bold brushstrokes, gradating background, blues emerald greens, slender athletic build, elegant arm, beckoning summoning, reverence awe, drinking in essence, character attire, mesmerizing blend, organic growth, R3alisticF, retr0grade90s, A digital anime artwork in the style of cklg, in the style of cksc,, actual=oil painting, semi realistic, fantasy, anime style, solid color background, tall thin character, beautiful lush vibrant forest, backlighting, dramatic atmospheric glow, countless small tiny clumsy gentle spirits, great forest spirit, intricate highly detailed, natural fantastical elements, leaves flowers feathers, hair clothing, delicate translucent wings, gentle mystical business, forest secret heartbeat, branches arms, leaves hair, ethereal benevolent connection, natural world, deep abiding, magic, hushed reverence, wonder, mysticism, otherworldly aura, vibrant colors, bold brushstrokes, gradating background, blues emerald greens, slender athletic build, elegant arm, beckoning summoning, reverence awe, drinking in essence, character attire, mesmerizing blend, organic growth, R3alisticF, retr0grade90s, A digital anime artwork in the style of cklg, in the style of cksc,
-          ✓ Model hash: expected=computed hash, actual=47d8dbdc6d
-          ✓ VAE hash: expected=computed hash, actual=afc8e28272
-          ✓ Base shift: expected=0.5, actual=0.5
-          ✓ Max shift: expected=1.15, actual=1.15
-          ✓ Weight dtype: expected=fp8_e4m3fn, actual=fp8_e4m3fn
+  ⚠ Warning: No matching images found for this workflow
 
 Validating workflow: large-workflow-jpeg-60kb.json
   Found 1 Save Image node(s)
   Filename patterns: Large-Workflow-jpeg-60kb
-  Found 1 matching image(s)
-    ✗ Large-Workflow-jpeg-60kb_00001_.jpeg (21 checks)
-        Error: Sampler mismatch: expected 'dpmpp_2m', got 'DPM++ 2M Karras'
-        Error: Guidance missing, expected '3.5'
-        Error: Size missing, expected '832x1216'
-        Error: LoRA count mismatch: expected 3 LoRAs, got 0
-        Error: Expected LoRA 0 ('flux\artstyle\style\Style_Calligraphy_ART.safetensors') not found in metadata
-        Error: Lora_0 Model hash not present in metadata
-        Error: Expected LoRA 1 ('flux\artstyle\style\m100-style_v.02.safetensors') not found in metadata
-        Error: Lora_1 Model hash not present in metadata
-        Error: Expected LoRA 2 ('flux\artstyle\style\lnrnr_flux_EliPot.safetensors') not found in metadata
-        Error: Lora_2 Model hash not present in metadata
-        Warning: Metadata fallback occurred: reduced-exif
-        Info: Hash validation PASSED: Model 'flux1-dev-fp8-e4m3fn.safetensors' (metadata: 47d8dbdc6d, sidecar: 47d8dbdc6d... [64 chars total])
-        Info: Hash validation PASSED: Vae 'ae.safetensors' (metadata: afc8e28272, sidecar: afc8e28272... [64 chars total])
-        Validation Details:
-          ✓ Steps: expected=2, actual=2
-          ✗ Sampler: expected=dpmpp_2m, actual=DPM++ 2M Karras
-          ✓ Scheduler: expected=karras, actual=DPM++ 2M Karras
-          ✓ Denoise: expected=1, actual=1.0
-          ✗ Guidance: expected=3.5, actual=N/A
-          ✓ Model: expected=flux1-dev-fp8-e4m3fn, actual=flux1-dev-fp8-e4m3fn
-          ✓ VAE: expected=ae, actual=ae
-          ✗ Size: expected=832x1216, actual=N/A
-          ✗ LoRA count: expected=3, actual=0
-          ✗ LoRA 0 name: expected=Style_Calligraphy_ART, actual=N/A
-          ✗ Lora_0 Model hash: expected=computed hash, actual=N/A
-          ✗ LoRA 1 name: expected=m100-style_v.02, actual=N/A
-          ✗ Lora_1 Model hash: expected=computed hash, actual=N/A
-          ✗ LoRA 2 name: expected=lnrnr_flux_EliPot, actual=N/A
-          ✗ Lora_2 Model hash: expected=computed hash, actual=N/A
-          ✓ Positive prompt: expected=oil painting, semi realistic, fantasy, anime style, solid color background, tall thin character, beautiful lush vibrant forest, backlighting, dramatic atmospheric glow, countless small tiny clumsy gentle spirits, great forest spirit, intricate highly detailed, natural fantastical elements, leaves flowers feathers, hair clothing, delicate translucent wings, gentle mystical business, forest secret heartbeat, branches arms, leaves hair, ethereal benevolent connection, natural world, deep abiding, magic, hushed reverence, wonder, mysticism, otherworldly aura, vibrant colors, bold brushstrokes, gradating background, blues emerald greens, slender athletic build, elegant arm, beckoning summoning, reverence awe, drinking in essence, character attire, mesmerizing blend, organic growth, R3alisticF, retr0grade90s, A digital anime artwork in the style of cklg, in the style of cksc,, actual=oil painting, semi realistic, fantasy, anime style, solid color background, tall thin character, beautiful lush vibrant forest, backlighting, dramatic atmospheric glow, countless small tiny clumsy gentle spirits, great forest spirit, intricate highly detailed, natural fantastical elements, leaves flowers feathers, hair clothing, delicate translucent wings, gentle mystical business, forest secret heartbeat, branches arms, leaves hair, ethereal benevolent connection, natural world, deep abiding, magic, hushed reverence, wonder, mysticism, otherworldly aura, vibrant colors, bold brushstrokes, gradating background, blues emerald greens, slender athletic build, elegant arm, beckoning summoning, reverence awe, drinking in essence, character attire, mesmerizing blend, organic growth, R3alisticF, retr0grade90s, A digital anime artwork in the style of cklg, in the style of cksc,
-          ✓ Model hash: expected=computed hash, actual=47d8dbdc6d
-          ✓ VAE hash: expected=computed hash, actual=afc8e28272
-          ✓ Base shift: expected=0.5, actual=0.5
-          ✓ Max shift: expected=1.15, actual=1.15
-          ✓ Weight dtype: expected=fp8_e4m3fn, actual=fp8_e4m3fn
+  ⚠ Warning: No matching images found for this workflow
 
 Validating workflow: large-workflow-png.json
   Found 1 Save Image node(s)
   Filename patterns: Large-Workflow-png
-  Found 1 matching image(s)
-    ✗ Large-Workflow-png_00001_.png (21 checks)
-        Error: Sampler mismatch: expected 'dpmpp_2m', got 'DPM++ 2M Karras'
-        Error: Guidance missing, expected '3.5'
-        Error: Size missing, expected '832x1216'
-        Error: LoRA count mismatch: expected 3 LoRAs, got 0
-        Error: Expected LoRA 0 ('flux\artstyle\style\Style_Calligraphy_ART.safetensors') not found in metadata
-        Error: Lora_0 Model hash not present in metadata
-        Error: Expected LoRA 1 ('flux\artstyle\style\m100-style_v.02.safetensors') not found in metadata
-        Error: Lora_1 Model hash not present in metadata
-        Error: Expected LoRA 2 ('flux\artstyle\style\lnrnr_flux_EliPot.safetensors') not found in metadata
-        Error: Lora_2 Model hash not present in metadata
-        Info: Hash validation PASSED: Model 'flux1-dev-fp8-e4m3fn.safetensors' (metadata: 47d8dbdc6d, sidecar: 47d8dbdc6d... [64 chars total])
-        Info: Hash validation PASSED: Vae 'ae.safetensors' (metadata: afc8e28272, sidecar: afc8e28272... [64 chars total])
-        Validation Details:
-          ✓ Steps: expected=2, actual=2
-          ✗ Sampler: expected=dpmpp_2m, actual=DPM++ 2M Karras
-          ✓ Scheduler: expected=karras, actual=DPM++ 2M Karras
-          ✓ Denoise: expected=1, actual=1.0
-          ✗ Guidance: expected=3.5, actual=N/A
-          ✓ Model: expected=flux1-dev-fp8-e4m3fn, actual=flux1-dev-fp8-e4m3fn
-          ✓ VAE: expected=ae, actual=ae
-          ✗ Size: expected=832x1216, actual=N/A
-          ✗ LoRA count: expected=3, actual=0
-          ✗ LoRA 0 name: expected=Style_Calligraphy_ART, actual=N/A
-          ✗ Lora_0 Model hash: expected=computed hash, actual=N/A
-          ✗ LoRA 1 name: expected=m100-style_v.02, actual=N/A
-          ✗ Lora_1 Model hash: expected=computed hash, actual=N/A
-          ✗ LoRA 2 name: expected=lnrnr_flux_EliPot, actual=N/A
-          ✗ Lora_2 Model hash: expected=computed hash, actual=N/A
-          ✓ Positive prompt: expected=oil painting, semi realistic, fantasy, anime style, solid color background, tall thin character, beautiful lush vibrant forest, backlighting, dramatic atmospheric glow, countless small tiny clumsy gentle spirits, great forest spirit, intricate highly detailed, natural fantastical elements, leaves flowers feathers, hair clothing, delicate translucent wings, gentle mystical business, forest secret heartbeat, branches arms, leaves hair, ethereal benevolent connection, natural world, deep abiding, magic, hushed reverence, wonder, mysticism, otherworldly aura, vibrant colors, bold brushstrokes, gradating background, blues emerald greens, slender athletic build, elegant arm, beckoning summoning, reverence awe, drinking in essence, character attire, mesmerizing blend, organic growth, R3alisticF, retr0grade90s, A digital anime artwork in the style of cklg, in the style of cksc,, actual=oil painting, semi realistic, fantasy, anime style, solid color background, tall thin character, beautiful lush vibrant forest, backlighting, dramatic atmospheric glow, countless small tiny clumsy gentle spirits, great forest spirit, intricate highly detailed, natural fantastical elements, leaves flowers feathers, hair clothing, delicate translucent wings, gentle mystical business, forest secret heartbeat, branches arms, leaves hair, ethereal benevolent connection, natural world, deep abiding, magic, hushed reverence, wonder, mysticism, otherworldly aura, vibrant colors, bold brushstrokes, gradating background, blues emerald greens, slender athletic build, elegant arm, beckoning summoning, reverence awe, drinking in essence, character attire, mesmerizing blend, organic growth, R3alisticF, retr0grade90s, A digital anime artwork in the style of cklg, in the style of cksc,
-          ✓ Model hash: expected=computed hash, actual=47d8dbdc6d
-          ✓ VAE hash: expected=computed hash, actual=afc8e28272
-          ✓ Base shift: expected=0.5, actual=0.5
-          ✓ Max shift: expected=1.15, actual=1.15
-          ✓ Weight dtype: expected=fp8_e4m3fn, actual=fp8_e4m3fn
+  ⚠ Warning: No matching images found for this workflow
 
 Validating workflow: large-workflow-webp.json
   Found 1 Save Image node(s)
   Filename patterns: Large-Workflow-webp
-  Found 1 matching image(s)
-    ✗ Large-Workflow-webp_00001_.webp (21 checks)
-        Error: Sampler mismatch: expected 'dpmpp_2m', got 'DPM++ 2M Karras'
-        Error: Guidance missing, expected '3.5'
-        Error: Size missing, expected '832x1216'
-        Error: LoRA count mismatch: expected 3 LoRAs, got 0
-        Error: Expected LoRA 0 ('flux\artstyle\style\Style_Calligraphy_ART.safetensors') not found in metadata
-        Error: Lora_0 Model hash not present in metadata
-        Error: Expected LoRA 1 ('flux\artstyle\style\m100-style_v.02.safetensors') not found in metadata
-        Error: Lora_1 Model hash not present in metadata
-        Error: Expected LoRA 2 ('flux\artstyle\style\lnrnr_flux_EliPot.safetensors') not found in metadata
-        Error: Lora_2 Model hash not present in metadata
-        Info: Hash validation PASSED: Model 'flux1-dev-fp8-e4m3fn.safetensors' (metadata: 47d8dbdc6d, sidecar: 47d8dbdc6d... [64 chars total])
-        Info: Hash validation PASSED: Vae 'ae.safetensors' (metadata: afc8e28272, sidecar: afc8e28272... [64 chars total])
-        Validation Details:
-          ✓ Steps: expected=2, actual=2
-          ✗ Sampler: expected=dpmpp_2m, actual=DPM++ 2M Karras
-          ✓ Scheduler: expected=karras, actual=DPM++ 2M Karras
-          ✓ Denoise: expected=1, actual=1.0
-          ✗ Guidance: expected=3.5, actual=N/A
-          ✓ Model: expected=flux1-dev-fp8-e4m3fn, actual=flux1-dev-fp8-e4m3fn
-          ✓ VAE: expected=ae, actual=ae
-          ✗ Size: expected=832x1216, actual=N/A
-          ✗ LoRA count: expected=3, actual=0
-          ✗ LoRA 0 name: expected=Style_Calligraphy_ART, actual=N/A
-          ✗ Lora_0 Model hash: expected=computed hash, actual=N/A
-          ✗ LoRA 1 name: expected=m100-style_v.02, actual=N/A
-          ✗ Lora_1 Model hash: expected=computed hash, actual=N/A
-          ✗ LoRA 2 name: expected=lnrnr_flux_EliPot, actual=N/A
-          ✗ Lora_2 Model hash: expected=computed hash, actual=N/A
-          ✓ Positive prompt: expected=oil painting, semi realistic, fantasy, anime style, solid color background, tall thin character, beautiful lush vibrant forest, backlighting, dramatic atmospheric glow, countless small tiny clumsy gentle spirits, great forest spirit, intricate highly detailed, natural fantastical elements, leaves flowers feathers, hair clothing, delicate translucent wings, gentle mystical business, forest secret heartbeat, branches arms, leaves hair, ethereal benevolent connection, natural world, deep abiding, magic, hushed reverence, wonder, mysticism, otherworldly aura, vibrant colors, bold brushstrokes, gradating background, blues emerald greens, slender athletic build, elegant arm, beckoning summoning, reverence awe, drinking in essence, character attire, mesmerizing blend, organic growth, R3alisticF, retr0grade90s, A digital anime artwork in the style of cklg, in the style of cksc,, actual=oil painting, semi realistic, fantasy, anime style, solid color background, tall thin character, beautiful lush vibrant forest, backlighting, dramatic atmospheric glow, countless small tiny clumsy gentle spirits, great forest spirit, intricate highly detailed, natural fantastical elements, leaves flowers feathers, hair clothing, delicate translucent wings, gentle mystical business, forest secret heartbeat, branches arms, leaves hair, ethereal benevolent connection, natural world, deep abiding, magic, hushed reverence, wonder, mysticism, otherworldly aura, vibrant colors, bold brushstrokes, gradating background, blues emerald greens, slender athletic build, elegant arm, beckoning summoning, reverence awe, drinking in essence, character attire, mesmerizing blend, organic growth, R3alisticF, retr0grade90s, A digital anime artwork in the style of cklg, in the style of cksc,
-          ✓ Model hash: expected=computed hash, actual=47d8dbdc6d
-          ✓ VAE hash: expected=computed hash, actual=afc8e28272
-          ✓ Base shift: expected=0.5, actual=0.5
-          ✓ Max shift: expected=1.15, actual=1.15
-          ✓ Weight dtype: expected=fp8_e4m3fn, actual=fp8_e4m3fn
+  ⚠ Warning: No matching images found for this workflow
 
 Validating workflow: lora-USO-Style-and-or-Subject-transfer-turbo.json
   Found 1 Save Image node(s)
   Filename patterns: USO
-  Found 1 matching image(s)
-    ✗ 2025-11-13-020756-USO_00001_.png (19 checks)
-        Error: Size missing, expected '1024x1024'
-        Error: LoRA count mismatch: expected 2 LoRAs, got 0
-        Error: Expected LoRA 0 ('flux\turbos\FLUX.1-Turbo-Alpha.safetensors') not found in metadata
-        Error: Lora_0 Model hash not present in metadata
-        Error: Expected LoRA 1 ('flux\uso\uso-flux1-dit-lora-v1.safetensors') not found in metadata
-        Error: Lora_1 Model hash not present in metadata
-        Error: Weight dtype mismatch: expected 'fp8_e4m3fn_fast', got 'fp8_e4m3fn'
-        Info: Hash validation PASSED: Model 'flux1-dev-fp8-e4m3fn.safetensors' (metadata: 47d8dbdc6d, sidecar: 47d8dbdc6d... [64 chars total])
-        Info: Hash validation PASSED: Vae 'ae.safetensors' (metadata: afc8e28272, sidecar: afc8e28272... [64 chars total])
-        Validation Details:
-          ✓ Steps: expected=8, actual=8
-          ✓ Sampler: expected=euler, actual=euler_simple
-          ✓ Scheduler: expected=simple, actual=euler_simple
-          ✓ Denoise: expected=1, actual=1.0
-          ✓ Guidance: expected=4, actual=4.0
-          ✓ Model: expected=flux1-dev-fp8-e4m3fn, actual=flux1-dev-fp8-e4m3fn
-          ✓ VAE: expected=ae, actual=ae
-          ✗ Size: expected=1024x1024, actual=N/A
-          ✗ LoRA count: expected=2, actual=0
-          ✗ LoRA 0 name: expected=FLUX.1-Turbo-Alpha, actual=N/A
-          ✗ Lora_0 Model hash: expected=computed hash, actual=N/A
-          ✗ LoRA 1 name: expected=uso-flux1-dit-lora-v1, actual=N/A
-          ✗ Lora_1 Model hash: expected=computed hash, actual=N/A
-          ✓ Positive prompt: expected=The man walked in the forest., actual=The man walked in the forest.
-          ✓ Model hash: expected=computed hash, actual=47d8dbdc6d
-          ✓ VAE hash: expected=computed hash, actual=afc8e28272
-          ✓ Base shift: expected=0.5, actual=0.5
-          ✓ Max shift: expected=1.15, actual=1.15
-          ✗ Weight dtype: expected=fp8_e4m3fn_fast, actual=fp8_e4m3fn
+  ⚠ Warning: No matching images found for this workflow
 
 Validating workflow: qwen_image_edit_2509.json
   Found 1 Save Image node(s)
   Filename patterns: Qwen-Edit
-  Found 1 matching image(s)
-    ✗ Qwen-Edit_00001_.png (15 checks)
-        Error: Denoise missing, expected '1'
-        Error: LoRA count mismatch: expected 1 LoRAs, got 0
-        Error: Expected LoRA 0 ('qwen\Qwen-Image-Lightning-4steps-V1.0.safetensors') not found in metadata
-        Error: Lora_0 Model hash not present in metadata
-        Error: Positive prompt missing, expected 'Make her hair black'
-        Error: Weight dtype mismatch: expected 'default', got 'fp8_e4m3fn'
-        Info: Hash validation PASSED: Model 'qwen_image_edit_2509_fp8_e4m3fn.safetensors' (metadata: 318568f619, sidecar: 318568f619... [64 chars total])
-        Info: Hash validation PASSED: Vae 'qwen_image_vae.safetensors' (metadata: a70580f021, sidecar: a70580f021... [64 chars total])
-        Validation Details:
-          ✓ Seed: expected=1118877715456453, actual=1118877715456453
-          ✓ Steps: expected=4, actual=4
-          ✓ CFG scale: expected=1, actual=1.0
-          ✓ Sampler: expected=euler, actual=euler_simple
-          ✓ Scheduler: expected=simple, actual=euler_simple
-          ✗ Denoise: expected=1, actual=N/A
-          ✓ Model: expected=qwen_image_edit_2509_fp8_e4m3fn, actual=qwen_image_edit_2509_fp8_e4m3fn
-          ✓ VAE: expected=qwen_image_vae, actual=qwen_image_vae
-          ✗ LoRA count: expected=1, actual=0
-          ✗ LoRA 0 name: expected=Qwen-Image-Lightning-4steps-V1.0, actual=N/A
-          ✗ Lora_0 Model hash: expected=computed hash, actual=N/A
-          ✗ Positive prompt: expected=Make her hair black, actual=N/A
-          ✓ Model hash: expected=computed hash, actual=318568f619
-          ✓ VAE hash: expected=computed hash, actual=a70580f021
-          ✗ Weight dtype: expected=default, actual=fp8_e4m3fn
+  ⚠ Warning: No matching images found for this workflow
 
 Validating workflow: wan21_text_to_image_sage.json
   Found 1 Save Image node(s)
   Filename patterns: Wan21
-  Found 1 matching image(s)
-    ✗ Wan21_00001_.png (16 checks)
-        Error: Denoise missing, expected '1'
-        Error: LoRA count mismatch: expected 1 LoRAs, got 0
-        Error: Expected LoRA 0 ('wan\turbo\lightx2v_T2V_14B_cfg_step_distill_v2_lora_rank64_bf16_.safetensors') not found in metadata
-        Error: Lora_0 Model hash not present in metadata
-        Error: Weight dtype mismatch: expected 'default', got 'fp8_e4m3fn'
-        Info: Hash validation PASSED: Model 'Wan2_1-T2V-14B_fp8_e4m3fn_scaled_KJ.safetensors' (metadata: 5519e566e6, sidecar: 5519e566e6... [64 chars total])
-        Info: Hash validation PASSED: Vae 'wan_2.1_vae.safetensors' (metadata: 2fc39d3135, sidecar: 2fc39d3135... [64 chars total])
-        Validation Details:
-          ✓ Seed: expected=706190577933098, actual=706190577933098
-          ✓ Steps: expected=4, actual=4
-          ✓ CFG scale: expected=1, actual=1.0
-          ✓ Sampler: expected=dpmpp_2m, actual=dpmpp_2m Karras
-          ✓ Scheduler: expected=karras, actual=dpmpp_2m Karras
-          ✗ Denoise: expected=1, actual=N/A
-          ✓ Model: expected=Wan2_1-T2V-14B_fp8_e4m3fn_scaled_KJ, actual=Wan2_1-T2V-14B_fp8_e4m3fn_scaled_KJ
-          ✓ VAE: expected=wan_2.1_vae, actual=wan_2.1_vae
-          ✗ LoRA count: expected=1, actual=0
-          ✗ LoRA 0 name: expected=lightx2v_T2V_14B_cfg_step_distill_v2_lora_rank64_bf16_, actual=N/A
-          ✗ Lora_0 Model hash: expected=computed hash, actual=N/A
-          ✓ Positive prompt: expected=a fox moving quickly in a beautiful winter scenery nature trees mountains daytime tracking camera, actual=a fox moving quickly in a beautiful winter scenery nature trees mountains daytime tracking camera
-          ✓ Negative prompt: expected=色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走, actual=色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走
-          ✓ Model hash: expected=computed hash, actual=5519e566e6
-          ✓ VAE hash: expected=computed hash, actual=2fc39d3135
-          ✗ Weight dtype: expected=default, actual=fp8_e4m3fn
+  ⚠ Warning: No matching images found for this workflow
 
 ======================================================================
 Validation Summary:
-  Total Images Validated: 27
+  Total Images Validated: 10
   ✓ Passed:               2
-  ✗ Failed:               25
+  ✗ Failed:               8
   ⚠ Unmatched Images:     0
-  ⚠ Unmatched Workflows:  0
+  ⚠ Unmatched Workflows:  18
 ======================================================================
+
+Unmatched Workflows (18):
+  - embedding_lora_vae_upscale_dual_sampler-id.json
+  - embedding_lora_vae_upscale_dual_sampler-near.json
+  - embedding_lora_vae_upscale_dual_sampler.json
+  - extra_metadata_clip_skip.json
+  - filename_format_denoise.json
+  - flux-CR-LoRA-stack-ClownsharK.json
+  - flux-PC-LoRA-inline-Inspire-KSampler.json
+  - flux-civsampler-GCFG-lora-summary-batch3-turbo.json
+  - flux-dual-clip-turbo.json
+  - flux-eff-LoRA-stack-ClownsharK.json
+  - flux-turbo.json
+  - large-workflow-jpeg-1kb.json
+  - large-workflow-jpeg-60kb.json
+  - large-workflow-png.json
+  - large-workflow-webp.json
+  - lora-USO-Style-and-or-Subject-transfer-turbo.json
+  - qwen_image_edit_2509.json
+  - wan21_text_to_image_sage.json
 
 Failed Images:
+  - eff_adv_00001_.png (workflow: efficiency-nodes-debug-hash)
+      Lora_0 Strength clip mismatch: expected '0.88', got '0.51'
+      Lora_1 Strength model mismatch: expected '0.6', got '1.0'
+      Lora_1 Strength clip mismatch: expected '0.51', got '0.02'
+      Field 'VAE hash' contains 'N/A' value: N/A
+      VAE hash is 'N/A' - hash should always be computed
+  - eff_basic_00001_.png (workflow: efficiency-nodes-debug-hash)
+      Field 'VAE hash' contains 'N/A' value: N/A
+      VAE hash is 'N/A' - hash should always be computed
+  - eff_xl_00001_.png (workflow: efficiency-nodes-debug-hash)
+      Lora_0 Strength model mismatch: expected '0.97', got '1.0'
+      Field 'VAE hash' contains 'N/A' value: N/A
+      VAE hash is 'N/A' - hash should always be computed
+  - eff_xl_00002_.png (workflow: efficiency-nodes-debug-hash)
+      Lora_0 Strength model mismatch: expected '0.97', got '1.0'
+      Field 'VAE hash' contains 'N/A' value: N/A
+      VAE hash is 'N/A' - hash should always be computed
   - eff_adv_00001_.png (workflow: efficiency-nodes)
-      LoRA count mismatch: expected 2 LoRAs, got 0
-      Expected LoRA 0 ('LoRA\sd15\zelda\Majora_Zelda.safetensors') not found in metadata
-      Lora_0 Model hash not present in metadata
-      Expected LoRA 1 ('LoRA\sd15\zelda\ootlink-nvwls-v1.safetensors') not found in metadata
-      Lora_1 Model hash not present in metadata
+      Lora_0 Strength clip mismatch: expected '0.88', got '0.51'
+      Lora_1 Strength model mismatch: expected '0.6', got '1.0'
+      Lora_1 Strength clip mismatch: expected '0.51', got '0.02'
+      Field 'VAE hash' contains 'N/A' value: N/A
+      VAE hash is 'N/A' - hash should always be computed
   - eff_basic_00001_.png (workflow: efficiency-nodes)
-      Denoise missing, expected '1'
+      Field 'VAE hash' contains 'N/A' value: N/A
+      VAE hash is 'N/A' - hash should always be computed
   - eff_xl_00001_.png (workflow: efficiency-nodes)
-      LoRA count mismatch: expected 1 LoRAs, got 0
-      Expected LoRA 0 ('LoRA\xl\style\dark_gothic_fantasy_xl_3.01.safetensors') not found in metadata
-      Lora_0 Model hash not present in metadata
-  - Embedding-Vae-id_00001_.png (workflow: embedding_lora_vae_upscale_dual_sampler-id)
-      Denoise missing, expected '0.98'
-  - Embedding-Vae-near_00001_.png (workflow: embedding_lora_vae_upscale_dual_sampler-near)
-      Denoise missing, expected '0.6'
-  - Embedding-Vae-id_00001_.png (workflow: embedding_lora_vae_upscale_dual_sampler)
-      Seed mismatch: expected '123', got '25668662'
-      CFG scale mismatch: expected '8', got '6.9'
-      Sampler mismatch: expected 'dpmpp_2m', got 'euler_beta'
-      Scheduler mismatch: expected 'karras', got 'euler_beta'
-      Denoise missing, expected '0.6'
-      Lora_0 Strength model mismatch: expected '0.5', got '0.65'
-      Lora_0 Strength clip mismatch: expected '0.5', got '0.44'
-      Lora_1 Strength model mismatch: expected '0.5', got '0.55'
-      Lora_1 Strength clip mismatch: expected '0.5', got '0.46'
-  - Embedding-Vae-near_00001_.png (workflow: embedding_lora_vae_upscale_dual_sampler)
-      Denoise missing, expected '0.6'
-  - Embedding-Vae_00001_.png (workflow: embedding_lora_vae_upscale_dual_sampler)
-      Seed mismatch: expected '123', got '25668654'
-      CFG scale mismatch: expected '8', got '6.5'
-      Sampler mismatch: expected 'dpmpp_2m', got 'dpm_fast_beta'
-      Scheduler mismatch: expected 'karras', got 'dpm_fast_beta'
-      Denoise missing, expected '0.6'
-  - extra_metadata_clip_skip_00001_.png (workflow: extra_metadata_clip_skip)
-      Denoise missing, expected '1'
-  - 123-512x512_20251113-020105-siwm_00001_.png (workflow: filename_format_denoise)
-      Denoise missing, expected '0.7'
-  - 2025-11-13-020255-Flux-batch3-LoRA-summ-GCFG_00001_.png (workflow: flux-civsampler-GCFG-lora-summary-batch3-turbo)
-      Scheduler mismatch: expected 'beta', got 'Euler'
-      Guidance missing, expected '3.5'
-      Size missing, expected '1024x1024'
-      LoRA count mismatch: expected 1 LoRAs, got 0
-      Expected LoRA 0 ('flux\turbos\FLUX.1-Turbo-Alpha.safetensors') not found in metadata
-      Lora_0 Model hash not present in metadata
-      Weight dtype mismatch: expected 'fp8_e4m3fn_fast', got 'fp8_e4m3fn'
-  - 2025-11-13-020255-Flux-batch3-LoRA-summ-GCFG_00002_.png (workflow: flux-civsampler-GCFG-lora-summary-batch3-turbo)
-      Scheduler mismatch: expected 'beta', got 'Euler'
-      Guidance missing, expected '3.5'
-      Size missing, expected '1024x1024'
-      LoRA count mismatch: expected 1 LoRAs, got 0
-      Expected LoRA 0 ('flux\turbos\FLUX.1-Turbo-Alpha.safetensors') not found in metadata
-      Lora_0 Model hash not present in metadata
-      Weight dtype mismatch: expected 'fp8_e4m3fn_fast', got 'fp8_e4m3fn'
-  - 2025-11-13-020255-Flux-batch3-LoRA-summ-GCFG_00003_.png (workflow: flux-civsampler-GCFG-lora-summary-batch3-turbo)
-      Scheduler mismatch: expected 'beta', got 'Euler'
-      Guidance missing, expected '3.5'
-      Size missing, expected '1024x1024'
-      LoRA count mismatch: expected 1 LoRAs, got 0
-      Expected LoRA 0 ('flux\turbos\FLUX.1-Turbo-Alpha.safetensors') not found in metadata
-      Lora_0 Model hash not present in metadata
-      Weight dtype mismatch: expected 'fp8_e4m3fn_fast', got 'fp8_e4m3fn'
-  - flux-CR-LoRA-stack-ClownsharK_00001_.png (workflow: flux-CR-LoRA-stack-ClownsharK)
-      Seed format mismatch: expected 15-digit random seed, got 'N/A'
-      Steps missing, expected '2'
-      Scheduler mismatch: expected 'bong_tangent', got 'linear/euler'
-      Denoise missing, expected '1'
-      Guidance missing, expected '3.5'
-      Size missing, expected '832x1216'
-      Negative prompt missing, expected 'oil painting, semi realistic, fantasy, anime style, solid color background, tall thin character, beautiful lush vibrant forest, backlighting, dramatic atmospheric glow, countless small tiny clumsy gentle spirits, great forest spirit, intricate highly detailed, natural fantastical elements, leaves flowers feathers, hair clothing, delicate translucent wings, gentle mystical business, forest secret heartbeat, branches arms, leaves hair, ethereal benevolent connection, natural world, deep abiding, magic, hushed reverence, wonder, mysticism, otherworldly aura, vibrant colors, bold brushstrokes, gradating background, blues emerald greens, slender athletic build, elegant arm, beckoning summoning, reverence awe, drinking in essence, character attire, mesmerizing blend, organic growth, R3alisticF, retr0grade90s, A digital anime artwork in the style of cklg, in the style of cksc,'
-  - 2025-11-13-020422-Flux-dual-clip_00001_.png (workflow: flux-dual-clip-turbo)
-      Size missing, expected '1024x1024'
-      LoRA count mismatch: expected 1 LoRAs, got 0
-      Expected LoRA 0 ('flux\turbos\FLUX.1-Turbo-Alpha.safetensors') not found in metadata
-      Lora_0 Model hash not present in metadata
-      Positive prompt missing, expected 'oil painting, semi realistic, fantasy, anime style, solid color background, tall thin character, beautiful lush vibrant forest, backlighting, dramatic atmospheric glow, countless small tiny clumsy gentle spirits, great forest spirit, intricate highly detailed, natural fantastical elements, leaves flowers feathers, hair clothing, delicate translucent wings, gentle mystical business, forest secret heartbeat, branches arms, leaves hair, ethereal benevolent connection, natural world, deep abiding, magic, hushed reverence, wonder, mysticism, otherworldly aura, vibrant colors, bold brushstrokes, gradating background, blues emerald greens, slender athletic build, elegant arm, beckoning summoning, reverence awe, drinking in essence, character attire, mesmerizing blend, organic growth'
-      Weight dtype mismatch: expected 'fp8_e4m3fn_fast', got 'fp8_e4m3fn'
-  - flux-eff-LoRA-stack-ClownsharK_00001_.png (workflow: flux-eff-LoRA-stack-ClownsharK)
-      Seed missing, expected '684898030661856'
-      Steps missing, expected '2'
-      Scheduler mismatch: expected 'bong_tangent', got 'linear/euler'
-      Denoise missing, expected '1'
-      Guidance missing, expected '3.5'
-      Size missing, expected '832x1216'
-      Negative prompt missing, expected 'oil painting, semi realistic, fantasy, anime style, solid color background, tall thin character, beautiful lush vibrant forest, backlighting, dramatic atmospheric glow, countless small tiny clumsy gentle spirits, great forest spirit, intricate highly detailed, natural fantastical elements, leaves flowers feathers, hair clothing, delicate translucent wings, gentle mystical business, forest secret heartbeat, branches arms, leaves hair, ethereal benevolent connection, natural world, deep abiding, magic, hushed reverence, wonder, mysticism, otherworldly aura, vibrant colors, bold brushstrokes, gradating background, blues emerald greens, slender athletic build, elegant arm, beckoning summoning, reverence awe, drinking in essence, character attire, mesmerizing blend, organic growth, R3alisticF, retr0grade90s, A digital anime artwork in the style of cklg, in the style of cksc,'
-  - flux-PC-LoRA-inline-Inspire-KSampler_00001_.png (workflow: flux-PC-LoRA-inline-Inspire-KSampler)
-      Seed format mismatch: expected 15-digit random seed, got 'N/A'
-      Steps missing, expected '1'
-      Scheduler mismatch: expected 'karras', got 'deis'
-      Denoise missing, expected '1'
-      Guidance missing, expected '3.5'
-      Size missing, expected '832x1216'
-      Negative prompt missing, expected 'oil painting, semi realistic, fantasy, anime style, solid color background, tall thin character, beautiful lush vibrant forest, backlighting, dramatic atmospheric glow, countless small tiny clumsy gentle spirits, great forest spirit, intricate highly detailed, natural fantastical elements, leaves flowers feathers, hair clothing, delicate translucent wings, gentle mystical business, forest secret heartbeat, branches arms, leaves hair, ethereal benevolent connection, natural world, deep abiding, magic, hushed reverence, wonder, mysticism, otherworldly aura, vibrant colors, bold brushstrokes, gradating background, blues emerald greens, slender athletic build, elegant arm, beckoning summoning, reverence awe, drinking in essence, character attire, mesmerizing blend, organic growth, R3alisticF, retr0grade90s, A digital anime artwork in the style of cklg, in the style of cksc,'
-  - 2025-11-13-020603-Flux-turbo-basic_00001_.png (workflow: flux-turbo)
-      Size missing, expected '1024x1024'
-      LoRA count mismatch: expected 1 LoRAs, got 0
-      Expected LoRA 0 ('flux\turbos\FLUX.1-Turbo-Alpha.safetensors') not found in metadata
-      Lora_0 Model hash not present in metadata
-      Weight dtype mismatch: expected 'fp8_e4m3fn_fast', got 'fp8_e4m3fn'
-  - Large-Workflow-jpeg-1kb_00001_.jpeg (workflow: large-workflow-jpeg-1kb)
-      Sampler mismatch: expected 'dpmpp_2m', got 'DPM++ 2M Karras'
-      Guidance missing, expected '3.5'
-      Size missing, expected '832x1216'
-      LoRA count mismatch: expected 3 LoRAs, got 0
-      Expected LoRA 0 ('flux\artstyle\style\Style_Calligraphy_ART.safetensors') not found in metadata
-      Lora_0 Model hash not present in metadata
-      Expected LoRA 1 ('flux\artstyle\style\m100-style_v.02.safetensors') not found in metadata
-      Lora_1 Model hash not present in metadata
-      Expected LoRA 2 ('flux\artstyle\style\lnrnr_flux_EliPot.safetensors') not found in metadata
-      Lora_2 Model hash not present in metadata
-  - Large-Workflow-jpeg-60kb_00001_.jpeg (workflow: large-workflow-jpeg-60kb)
-      Sampler mismatch: expected 'dpmpp_2m', got 'DPM++ 2M Karras'
-      Guidance missing, expected '3.5'
-      Size missing, expected '832x1216'
-      LoRA count mismatch: expected 3 LoRAs, got 0
-      Expected LoRA 0 ('flux\artstyle\style\Style_Calligraphy_ART.safetensors') not found in metadata
-      Lora_0 Model hash not present in metadata
-      Expected LoRA 1 ('flux\artstyle\style\m100-style_v.02.safetensors') not found in metadata
-      Lora_1 Model hash not present in metadata
-      Expected LoRA 2 ('flux\artstyle\style\lnrnr_flux_EliPot.safetensors') not found in metadata
-      Lora_2 Model hash not present in metadata
-  - Large-Workflow-png_00001_.png (workflow: large-workflow-png)
-      Sampler mismatch: expected 'dpmpp_2m', got 'DPM++ 2M Karras'
-      Guidance missing, expected '3.5'
-      Size missing, expected '832x1216'
-      LoRA count mismatch: expected 3 LoRAs, got 0
-      Expected LoRA 0 ('flux\artstyle\style\Style_Calligraphy_ART.safetensors') not found in metadata
-      Lora_0 Model hash not present in metadata
-      Expected LoRA 1 ('flux\artstyle\style\m100-style_v.02.safetensors') not found in metadata
-      Lora_1 Model hash not present in metadata
-      Expected LoRA 2 ('flux\artstyle\style\lnrnr_flux_EliPot.safetensors') not found in metadata
-      Lora_2 Model hash not present in metadata
-  - Large-Workflow-webp_00001_.webp (workflow: large-workflow-webp)
-      Sampler mismatch: expected 'dpmpp_2m', got 'DPM++ 2M Karras'
-      Guidance missing, expected '3.5'
-      Size missing, expected '832x1216'
-      LoRA count mismatch: expected 3 LoRAs, got 0
-      Expected LoRA 0 ('flux\artstyle\style\Style_Calligraphy_ART.safetensors') not found in metadata
-      Lora_0 Model hash not present in metadata
-      Expected LoRA 1 ('flux\artstyle\style\m100-style_v.02.safetensors') not found in metadata
-      Lora_1 Model hash not present in metadata
-      Expected LoRA 2 ('flux\artstyle\style\lnrnr_flux_EliPot.safetensors') not found in metadata
-      Lora_2 Model hash not present in metadata
-  - 2025-11-13-020756-USO_00001_.png (workflow: lora-USO-Style-and-or-Subject-transfer-turbo)
-      Size missing, expected '1024x1024'
-      LoRA count mismatch: expected 2 LoRAs, got 0
-      Expected LoRA 0 ('flux\turbos\FLUX.1-Turbo-Alpha.safetensors') not found in metadata
-      Lora_0 Model hash not present in metadata
-      Expected LoRA 1 ('flux\uso\uso-flux1-dit-lora-v1.safetensors') not found in metadata
-      Lora_1 Model hash not present in metadata
-      Weight dtype mismatch: expected 'fp8_e4m3fn_fast', got 'fp8_e4m3fn'
-  - Qwen-Edit_00001_.png (workflow: qwen_image_edit_2509)
-      Denoise missing, expected '1'
-      LoRA count mismatch: expected 1 LoRAs, got 0
-      Expected LoRA 0 ('qwen\Qwen-Image-Lightning-4steps-V1.0.safetensors') not found in metadata
-      Lora_0 Model hash not present in metadata
-      Positive prompt missing, expected 'Make her hair black'
-      Weight dtype mismatch: expected 'default', got 'fp8_e4m3fn'
-  - Wan21_00001_.png (workflow: wan21_text_to_image_sage)
-      Denoise missing, expected '1'
-      LoRA count mismatch: expected 1 LoRAs, got 0
-      Expected LoRA 0 ('wan\turbo\lightx2v_T2V_14B_cfg_step_distill_v2_lora_rank64_bf16_.safetensors') not found in metadata
-      Lora_0 Model hash not present in metadata
-      Weight dtype mismatch: expected 'default', got 'fp8_e4m3fn'
+      Lora_0 Strength model mismatch: expected '0.97', got '1.0'
+      Field 'VAE hash' contains 'N/A' value: N/A
+      VAE hash is 'N/A' - hash should always be computed
+  - eff_xl_00002_.png (workflow: efficiency-nodes)
+      Lora_0 Strength model mismatch: expected '0.97', got '1.0'
+      Field 'VAE hash' contains 'N/A' value: N/A
+      VAE hash is 'N/A' - hash should always be computed
 ======================================================================
-
-Failed Images (manually verified failures and edited accordingly):
-  - eff_adv_00001_.png (workflow: efficiency-nodes)
-      LoRA count mismatch: expected 2 LoRAs, got 0
-      Expected LoRA 0 ('LoRA\sd15\zelda\Majora_Zelda.safetensors') not found in metadata
-      Lora_0 Model hash not present in metadata
-      Expected LoRA 1 ('LoRA\sd15\zelda\ootlink-nvwls-v1.safetensors') not found in metadata
-      Lora_1 Model hash not present in metadata
-  - eff_basic_00001_.png (workflow: efficiency-nodes)
-      Denoise missing, expected '1'
-  - eff_xl_00001_.png (workflow: efficiency-nodes)
-      LoRA count mismatch: expected 1 LoRAs, got 0
-      Expected LoRA 0 ('LoRA\xl\style\dark_gothic_fantasy_xl_3.01.safetensors') not found in metadata
-      Lora_0 Model hash not present in metadata
-  - Embedding-Vae-id_00001_.png (workflow: embedding_lora_vae_upscale_dual_sampler-id)
-      Denoise missing, expected '0.98'
-  - Embedding-Vae-near_00001_.png (workflow: embedding_lora_vae_upscale_dual_sampler-near)
-      Denoise missing, expected '0.6'
-  - extra_metadata_clip_skip_00001_.png (workflow: extra_metadata_clip_skip)
-      Denoise missing, expected '1'
-  - 123-512x512_20251113-020105-siwm_00001_.png (workflow: filename_format_denoise)
-      Denoise missing, expected '0.7'
-  - 2025-11-13-020255-Flux-batch3-LoRA-summ-GCFG_00001_.png (workflow: flux-civsampler-GCFG-lora-summary-batch3-turbo)
-      Size missing, expected '1024x1024'
-      LoRA count mismatch: expected 1 LoRAs, got 0
-      Expected LoRA 0 ('flux\turbos\FLUX.1-Turbo-Alpha.safetensors') not found in metadata
-      Lora_0 Model hash not present in metadata
-      Weight dtype mismatch: expected 'fp8_e4m3fn_fast', got 'fp8_e4m3fn'
-  - 2025-11-13-020255-Flux-batch3-LoRA-summ-GCFG_00002_.png (workflow: flux-civsampler-GCFG-lora-summary-batch3-turbo)
-      Size missing, expected '1024x1024'
-      LoRA count mismatch: expected 1 LoRAs, got 0
-      Expected LoRA 0 ('flux\turbos\FLUX.1-Turbo-Alpha.safetensors') not found in metadata
-      Lora_0 Model hash not present in metadata
-      Weight dtype mismatch: expected 'fp8_e4m3fn_fast', got 'fp8_e4m3fn'
-  - 2025-11-13-020255-Flux-batch3-LoRA-summ-GCFG_00003_.png (workflow: flux-civsampler-GCFG-lora-summary-batch3-turbo)
-      Size missing, expected '1024x1024'
-      LoRA count mismatch: expected 1 LoRAs, got 0
-      Expected LoRA 0 ('flux\turbos\FLUX.1-Turbo-Alpha.safetensors') not found in metadata
-      Lora_0 Model hash not present in metadata
-      Weight dtype mismatch: expected 'fp8_e4m3fn_fast', got 'fp8_e4m3fn'
-  - flux-CR-LoRA-stack-ClownsharK_00001_.png (workflow: flux-CR-LoRA-stack-ClownsharK)
-      Steps missing, expected '2'
-      Scheduler mismatch: expected 'bong_tangent', got 'linear/euler'
-        - this was with civitai_sampler enabled, should have got CivitAI sampler alias.
-      Denoise missing, expected '1'
-      Size missing, expected '832x1216'
-  - 2025-11-13-020422-Flux-dual-clip_00001_.png (workflow: flux-dual-clip-turbo)
-      Size missing, expected '1024x1024'
-      LoRA count mismatch: expected 1 LoRAs, got 0
-      Expected LoRA 0 ('flux\turbos\FLUX.1-Turbo-Alpha.safetensors') not found in metadata
-      Lora_0 Model hash not present in metadata
-      Positive prompt missing, expected 'oil painting, semi realistic, fantasy, anime style, solid color background, tall thin character, beautiful lush vibrant forest, backlighting, dramatic atmospheric glow, countless small tiny clumsy gentle spirits, great forest spirit, intricate highly detailed, natural fantastical elements, leaves flowers feathers, hair clothing, delicate translucent wings, gentle mystical business, forest secret heartbeat, branches arms, leaves hair, ethereal benevolent connection, natural world, deep abiding, magic, hushed reverence, wonder, mysticism, otherworldly aura, vibrant colors, bold brushstrokes, gradating background, blues emerald greens, slender athletic build, elegant arm, beckoning summoning, reverence awe, drinking in essence, character attire, mesmerizing blend, organic growth'
-      Weight dtype mismatch: expected 'fp8_e4m3fn_fast', got 'fp8_e4m3fn'
-
