@@ -27,6 +27,10 @@ dev = [
     "ruff",  # linting and formatting
     "pytest",  # testing framework
     "pytest-cov",  # coverage reporting
+    "pytest-cookies",  # cookiecutter fixture support
+    "cookiecutter",  # template generator
+    "jinja2-time",  # template time helpers for cookiecutter tests
+    "click",  # CLI support for template bake tests
     "bump-my-version",  # version management
     "pip-audit",  # security auditing
     "pre-commit",  # git hooks
@@ -39,7 +43,7 @@ line-length = 140
 target-version = "py39"  # Adjust based on your Python version
 # extend-exclude = ["static", "ci/templates"]
 src = ["src", "tests"]
-exclude = ["*cookiecutter.project_slug*"]
+exclude = ["*cookiecutter.project_slug*", "tests/cookiecutter_template/**"]
 
 
 [tool.ruff.lint]

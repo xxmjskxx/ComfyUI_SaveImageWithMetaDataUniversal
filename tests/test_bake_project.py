@@ -1,4 +1,5 @@
 import datetime
+import importlib
 import os
 import shlex
 import subprocess
@@ -6,15 +7,12 @@ import sys
 from contextlib import contextmanager
 
 import pytest
+from click.testing import CliRunner
 
 try:  # Optional dependency for template baking tests
     from cookiecutter.utils import rmtree  # type: ignore
 except (ImportError, ModuleNotFoundError, AttributeError):  # pragma: no cover - skip entire module when missing
     pytest.skip("cookiecutter not installed; skipping template bake tests", allow_module_level=True)
-
-import importlib
-
-from click.testing import CliRunner
 
 
 @contextmanager
@@ -38,7 +36,10 @@ def bake_in_temp_dir(cookies, *args, **kwargs):
     :param cookies: pytest_cookies.Cookies,
         cookie to be baked and its temporal files will be removed
     """
-    result = cookies.bake(*args, **kwargs)
+    user_context = kwargs.pop("extra_context", {}) or {}
+    default_context = {"year": str(datetime.datetime.now().year)}
+    default_context.update(user_context)
+    result = cookies.bake(*args, extra_context=default_context, **kwargs)
     try:
         yield result
     finally:

@@ -3,7 +3,6 @@ from PIL.ExifTags import TAGS, GPSTAGS
 import sys
 import os
 import argparse
-from typing import List
 
 def replace_add_newlines(decoded_comment):
     return decoded_comment
@@ -19,7 +18,7 @@ def decode_user_comment(user_comment):
 
 def get_exif_data(image_path: str) -> str:
     """Return metadata string for the image (EXIF UserComment or PNG parameters)."""
-    lines: List[str] = []
+    lines: list[str] = []
     try:
         image = Image.open(image_path)
     except Exception as e:
@@ -72,9 +71,9 @@ def get_exif_data(image_path: str) -> str:
         lines.append("No EXIF data or PNG metadata found.")
     return "\n".join(lines)
 
-def collect_images(folder: str) -> List[str]:
+def collect_images(folder: str) -> list[str]:
     exts = {'.png', '.jpg', '.jpeg', '.webp', '.bmp'}
-    paths: List[str] = []
+    paths: list[str] = []
     # Recursively walk all subfolders to collect images
     for root, _, files in os.walk(folder):
         for name in sorted(files):

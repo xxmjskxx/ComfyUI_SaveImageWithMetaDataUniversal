@@ -252,7 +252,7 @@ Examples:
   python run_dev_workflows.py --comfyui-path "C:\\StableDiffusion\\ComfyUI" ^
     --python-exe "C:\\StableDiffusion\\python_embeded\\python.exe" ^
     --temp-dir "F:\\StableDiffusion\\ComfyUI" --extra-args "--windows-standalone-build" ^
-    --output-folder "C:\\StableDiffusion\\StabilityMatrix-win-x64\\Data\\Packages\\ComfyUI\\output\\Test"
+    --output-folder "C:\\StableDiffusion\\StabilityMatrix-win-x64\\Data\\Packages\\ComfyUI_windows_portable\\ComfyUI\\output\\Test"
 
   # Linux/Mac (simpler)
   python run_dev_workflows.py --comfyui-path "/path/to/ComfyUI"

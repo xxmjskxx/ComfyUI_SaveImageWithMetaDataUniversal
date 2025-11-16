@@ -1,6 +1,7 @@
 import os
 import sys
 import types
+from pathlib import Path
 
 # Early stub for folder_paths (must precede any package imports that expect it)
 if "folder_paths" not in sys.modules:  # pragma: no cover - test bootstrap
@@ -21,6 +22,10 @@ os.environ.setdefault("METADATA_TEST_MODE", "1")
 import numpy as np
 import pytest
 
+# Force-load pytest_cookies so the shared `cookies` fixture is always registered,
+# even when PYTEST_DISABLE_PLUGIN_AUTOLOAD is enabled in CI environments.
+pytest_plugins = ("pytest_cookies",)
+
 # Ensure package root is on sys.path for absolute imports when pytest alters CWD.
 _ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if _ROOT not in sys.path:
@@ -28,6 +33,9 @@ if _ROOT not in sys.path:
 
 _TEST_OUTPUT_DIR = os.path.join(_ROOT, "tests", "_test_outputs")
 os.makedirs(_TEST_OUTPUT_DIR, exist_ok=True)
+
+# Exclude raw cookiecutter sources (Jinja templates) from pytest collection.
+collect_ignore_glob = ["cookiecutter_template/*"]
 
 # ---------------------------------------------------------------------------
 # Shared test helpers / constants
@@ -273,6 +281,16 @@ if "nodes" not in sys.modules:  # pragma: no cover
     nodes_mod.NODE_CLASS_MAPPINGS = {}
     nodes_mod.checkpoint_nodes = {}
     sys.modules["nodes"] = nodes_mod
+
+
+_COOKIECUTTER_TEMPLATE_DIR = Path(__file__).resolve().parent / "cookiecutter_template"
+
+
+def pytest_configure(config):  # pragma: no cover - pytest bootstrap
+    """Ensure pytest-cookies uses the bundled template."""
+
+    if _COOKIECUTTER_TEMPLATE_DIR.exists():
+        config.option.template = str(_COOKIECUTTER_TEMPLATE_DIR)
 
 
 # Fixture to save/restore environment flags used by the metadata loader

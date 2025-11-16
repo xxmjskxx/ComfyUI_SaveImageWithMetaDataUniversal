@@ -874,7 +874,7 @@ class MetadataRuleScanner:
                                 for idx, spec in enumerate(priority_specs):
                                     tokens = None
                                     mode = 1
-                                    if isinstance(spec, (list, tuple)):
+                                    if isinstance(spec, list | tuple):
                                         if spec:
                                             tokens = spec[0]
                                             if len(spec) > 1:
@@ -887,7 +887,7 @@ class MetadataRuleScanner:
                                         mode_val = int(mode)
                                     except Exception:
                                         mode_val = 1
-                                    if isinstance(tokens, (list, tuple, set)):
+                                    if isinstance(tokens, list | tuple | set):
                                         iterable = tokens
                                     else:
                                         iterable = (tokens,)

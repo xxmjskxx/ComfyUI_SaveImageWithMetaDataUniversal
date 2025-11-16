@@ -2721,7 +2721,7 @@ def main():
 Examples:
   # Windows
   python validate_metadata.py ^
-    --output-folder "C:\\StableDiffusion\\StabilityMatrix-win-x64\\Data\\Packages\\ComfyUI\\output\\Test"
+    --output-folder "C:\\StableDiffusion\\StabilityMatrix-win-x64\\Data\\Packages\\ComfyUI_windows_portable\\ComfyUI\\output\\Test"
 
   # Linux/Mac
   python validate_metadata.py --output-folder "/path/to/ComfyUI/output/Test"

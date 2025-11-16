@@ -322,7 +322,7 @@ class Capture:
                 existing.add(cleaned)
 
         def _source_key(item: tuple[Any, ...]) -> Any:
-            if isinstance(item, (list, tuple)) and item:
+            if isinstance(item, list | tuple) and item:
                 return item[0]
             return "prompt-scan"
 
