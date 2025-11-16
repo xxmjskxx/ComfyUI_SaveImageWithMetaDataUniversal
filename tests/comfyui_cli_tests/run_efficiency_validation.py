@@ -102,6 +102,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="Seconds to wait for each workflow before aborting",
     )
     parser.add_argument(
+        "--workflow-retries",
+        type=int,
+        default=1,
+        help="Number of automatic retries per workflow when comfy-cli returns a failure",
+    )
+    parser.add_argument(
+        "--workflow-retry-delay",
+        type=int,
+        default=30,
+        help="Seconds to wait between workflow retry attempts",
+    )
+    parser.add_argument(
         "--server-start-timeout",
         type=int,
         default=180,
@@ -363,6 +375,31 @@ def run_workflow(cli: Path, workspace: Path, workflow: Path, env: dict[str, str]
     run_command(cmd, env)
 
 
+def run_workflow_with_retry(
+    cli: Path,
+    workspace: Path,
+    workflow: Path,
+    env: dict[str, str],
+    timeout: int,
+    retries: int,
+    retry_delay: int,
+) -> None:
+    attempts = max(1, retries + 1)
+    workflow_name = workflow.name
+    for attempt in range(1, attempts + 1):
+        try:
+            run_workflow(cli, workspace, workflow, env, timeout)
+            return
+        except RuntimeError as exc:
+            if attempt == attempts:
+                raise
+            print(
+                f"Workflow '{workflow_name}' failed (attempt {attempt}/{attempts}) with: {exc}. "
+                f"Retrying in {retry_delay} second(s)..."
+            )
+            time.sleep(retry_delay)
+
+
 def run_validation_steps(
     output_folder: Path,
     log_dir: Path,
@@ -527,7 +564,15 @@ def main() -> None:
             )
             time.sleep(args.node_ready_delay)
         for wf in workflows:
-            run_workflow(args.comfy_cli, args.workspace, wf, env, args.workflow_timeout)
+            run_workflow_with_retry(
+                args.comfy_cli,
+                args.workspace,
+                wf,
+                env,
+                args.workflow_timeout,
+                args.workflow_retries,
+                args.workflow_retry_delay,
+            )
 
     if not args.skip_validation:
         run_validation_steps(output_folder, log_dir, env, DEFAULT_WORKFLOW_DIR)
