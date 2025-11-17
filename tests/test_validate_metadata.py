@@ -3,10 +3,12 @@
 import sys
 from pathlib import Path
 
-# Add comfyui_cli_tests directory to path to import validate_metadata
-sys.path.insert(0, str(Path(__file__).parent / "comfyui_cli_tests"))
-
-from validate_metadata import MetadataValidator
+try:
+    from tests.tools.validate_metadata import MetadataValidator, WorkflowAnalyzer
+except ModuleNotFoundError:  # pragma: no cover - fallback for direct invocation
+    # Add tests/tools directory to path to import validate_metadata when running the test directly
+    sys.path.insert(0, str(Path(__file__).parent / "tools"))
+    from validate_metadata import MetadataValidator, WorkflowAnalyzer  # type: ignore
 
 
 class TestMetadataParser:
@@ -142,8 +144,6 @@ class TestFilenamePatternExtraction:
 
     def test_extract_simple_pattern(self):
         """Test extracting a simple filename pattern."""
-        from validate_metadata import WorkflowAnalyzer
-
         workflow = {
             "1": {"class_type": "SaveImageWithMetaDataUniversal", "inputs": {"filename_prefix": "Test\\flux-turbo"}}
         }
@@ -154,8 +154,6 @@ class TestFilenamePatternExtraction:
 
     def test_extract_pattern_with_tokens(self):
         """Test extracting patterns with date/seed tokens."""
-        from validate_metadata import WorkflowAnalyzer
-
         workflow = {
             "1": {
                 "class_type": "SaveImageWithMetaDataUniversal",
@@ -168,8 +166,6 @@ class TestFilenamePatternExtraction:
 
     def test_extract_multiple_patterns(self):
         """Test extracting patterns from multiple save nodes."""
-        from validate_metadata import WorkflowAnalyzer
-
         workflow = {
             "1": {"class_type": "SaveImageWithMetaDataUniversal", "inputs": {"filename_prefix": "Test\\workflow-one"}},
             "2": {"class_type": "SaveImage", "inputs": {"filename_prefix": "Test\\workflow-two-control"}},

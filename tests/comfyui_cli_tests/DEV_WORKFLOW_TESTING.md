@@ -1,328 +1,175 @@
-# Development Workflow Testing Guide
-
-This guide explains how to use the `run_dev_workflows.py` script to test workflows locally without committing them to the repository.
+---
+post_title: "Development Workflow Testing Guide"
+author1: "ComfyUI SaveMeta Maintainers"
+post_slug: "dev-workflow-testing"
+microsoft_alias: "none"
+featured_image: ""
+categories:
+	- "guides"
+tags:
+	- "testing"
+	- "cli"
+	- "workflows"
+ai_note: "Updated with the help of GitHub Copilot (GPT-5.1-Codex)."
+summary: "How to run ComfyUI dev workflows and validate metadata entirely from the CLI."
+post_date: 2025-11-17
+---
 
 ## Overview
 
-The `run_dev_workflows.py` script allows you to:
-- Execute multiple ComfyUI workflows from the command line
-- Test workflows with local model paths that shouldn't be committed
-- Automate workflow testing without using the web UI
+Use the CLI helpers in `tests/tools/` to run dev workflows without touching the UI and to verify that generated images still carry the expected metadata. The two scripts ship with the repo and stay aligned with the latest node behavior:
 
-## Setup
+- `run_dev_workflows.py` queues workflows against a ComfyUI instance, optionally launching the server for you.
+- `validate_metadata.py` scans finished outputs and confirms that hashes, prompts, LoRAs, and fallback markers match the workflow graph.
 
-### 1. Use the Test Script
+## Prerequisites
 
-The script `run_dev_workflows.py` is included in the repository root. Simply use it directly from the repository.
+- Python 3.9+ (matches your ComfyUI runtime).
+- ComfyUI checkout with `main.py` plus any models referenced by your workflows.
+- Optional: `send2trash` if you want the runner to clean the `output/Test` folder safely.
 
-### 2. Create the Workflow Directory
+Install the helper dependency when you need cleanup support:
 
-Create a `dev_test_workflows` folder in the root of this custom node pack:
-
-```
-ComfyUI_SaveImageWithMetaDataUniversal/
-├── dev_test_workflows/        # Your local test workflows (not committed)
-│   ├── test_workflow_1.json
-│   ├── test_workflow_2.json
-│   └── ...
-├── run_dev_workflows.py        # Test runner script (not committed)
-├── example_workflows/          # Example workflows (committed)
-└── ...
+```cmd
+python tests/tools/run_dev_workflows.py ^
 ```
 
-### 3. Prepare Workflow Files
+## Local Workflow Directory
 
-Workflows must be in **API JSON format**, not the standard UI format.
+`run_dev_workflows.py` expects API-format workflows under `tests/comfyui_cli_tests/dev_test_workflows/` by default. Keep this directory out of source control so you can reference local-only model paths.
 
-To convert workflows to API format:
-1. Open ComfyUI web UI
-2. Go to Settings → Enable "Dev Mode"
-3. Load your workflow
-4. Click "Save (API format)" button
-5. Save to `dev_test_workflows/` folder
+1. Enable **Dev Mode** inside the ComfyUI UI.
+python tests/tools/validate_metadata.py ^
+3. Drop the JSON inside `tests/comfyui_cli_tests/dev_test_workflows/your_suite/`.
+4. Repeat for every scenario you want to cover (Flux, SDXL, stub runs, etc.).
 
-You can use workflows from `example_workflows/` as templates, but update the model paths to match your local environment.
+You can override the folder with `--workflow-dir`, so feel free to organize additional suites elsewhere.
 
-## Usage
+## Running Workflows
 
-### Basic Usage (Windows)
+The script lives at `tests/tools/run_dev_workflows.py`. Run it with the Python interpreter that should host ComfyUI so that binaries and CUDA libraries match.
 
-Single line command:
+**Windows (single line):**
+
+```cmd
+python tests/tools/run_dev_workflows.py ^
+```
+
+**Windows (multi-line for readability):**
+
+```cmd
+python tests/tools/run_dev_workflows.py ^
+	--comfyui-path "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI_windows_portable" ^
+	--python-exe "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI_windows_portable\python_embeded\python.exe" ^
+	--temp-dir "F:\StableDiffusion\ComfyUI" ^
+	--output-folder "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI_windows_portable\ComfyUI\output\Test" ^
+	--extra-args "--windows-standalone-build" ^
+	--server-wait 30
+```
+
+**Linux/macOS:**
+
+### Common scenarios
+
+- Use an existing server: `--no-start-server` keeps the script from spawning `main.py`; it will fail fast if nothing is listening on `host:port`.
+
+### Host, port, and pacing
+
+- `--host` and `--port` default to `127.0.0.1:8188`. Update both when running multiple instances side by side.
+- `--wait-between` inserts a delay (seconds) between queue requests. Increase it when your GPU needs more breathing room.
+- `--server-wait` is the startup timeout. Raise it (for example `--server-wait 45`) if ComfyUI needs longer than 10 seconds to compile custom nodes.
+
+## Command Reference
+
+### run_dev_workflows.py flags
+
+| Flag | Purpose | Default |
+| --- | --- | --- |
+| `--comfyui-path` | Directory containing `main.py`. | required |
+| `--python-exe` | Interpreter used to launch ComfyUI. | current Python |
+| `--workflow-dir` | Relative path below `tests/comfyui_cli_tests/` or an absolute folder. | `dev_test_workflows` |
+| `--host`, `--port` | HTTP endpoint used for API calls. | `127.0.0.1`, `8188` |
+| `--temp-dir` | Passed to ComfyUI as `--temp-directory`. | unset |
+| `--extra-args` | Additional ComfyUI CLI switches, space-separated in one quoted string. | unset |
+| `--server-wait` | Seconds to wait for ComfyUI startup before abandoning. | `10` |
+| `--wait-between` | Seconds between queued prompts. | `2.0` |
+| `--no-start-server` | Skip launching `main.py` (requires a running server). | `False` |
+| `--keep-server` | Leave the spawned server alive after the final workflow. | `False` |
+| `--output-folder` | Folder to clean before queuing (pairs with `send2trash`). | unset |
+| `--no-clean` | Leave previous outputs untouched even if `--output-folder` is set. | `False` |
+| `--enable-test-stubs` | Export `METADATA_ENABLE_TEST_NODES=1` for MetadataTestSampler runs. | `False` |
+
+### validate_metadata.py flags
+
+| Flag | Purpose | Default |
+| --- | --- | --- |
+| `--output-folder` | Location of the ComfyUI `output/Test` directory to scan. | required |
+| `--workflow-dir` | Workflow source so the validator can read expected metadata. | `dev_test_workflows` |
+| `--comfyui-models-path` | Optionally tell the validator where to find cached model hashes. | unset |
+| `--verbose` | Print every pass/fail detail instead of summaries only. | `False` |
+
+## Cleaning the Output Folder
+
+Set `--output-folder` to point at `ComfyUI/output/Test`. When `send2trash` is available, every file inside gets recycled before your run so validation works against a clean slate. Add `--no-clean` whenever you want to keep previous diagnostics for comparison.
+
+**Example:**
+
+```cmd
+python tests/tools/run_dev_workflows.py ^
+	--comfyui-path "C:\StableDiffusion\ComfyUI" ^
+	--output-folder "C:\StableDiffusion\ComfyUI\output\Test" ^
+	--no-clean
+```
 
 ```bash
-python tests/comfyui_cli_tests/run_dev_workflows.py --comfyui-path "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI_windows_portable" --python-exe "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI_windows_portable\python_embeded\python.exe" --temp-dir "F:\StableDiffusion\ComfyUI" --output-folder "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI_windows_portable\ComfyUI\output\Test" --extra-args="--windows-standalone-build"
+python tests/tools/run_dev_workflows.py --comfyui-path "/path/to/ComfyUI" --enable-test-stubs --workflow-dir "tests/comfyui_cli_tests/dev_test_workflows/stubs"
 ```
-
-Using the command format from your environment:
-
-```bash
-python tests/comfyui_cli_tests/run_dev_workflows.py ^
-  --comfyui-path "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI_windows_portable" ^
-  --python-exe "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI_windows_portable\python_embeded\python.exe" ^
-  --temp-dir "F:\StableDiffusion\ComfyUI" ^
-  --extra-args="--windows-standalone-build"
-```
-
-### Basic Usage (Linux/Mac)
-
-```bash
-python tests/comfyui_cli_tests/run_dev_workflows.py --comfyui-path "/path/to/ComfyUI"
-```
-
-### Use Existing Running Server
-
-If ComfyUI is already running:
-
-```bash
-python tests/comfyui_cli_tests/run_dev_workflows.py --comfyui-path "." --no-start-server
-```
-
-### Keep Server Running After Tests
-
-By default, the script stops the server after execution. To keep it running:
-
-```bash
-python tests/comfyui_cli_tests/run_dev_workflows.py --comfyui-path "/path/to/ComfyUI" --keep-server
-```
-
-### Fast Metadata Stub Mode
-
-If you only need to exercise metadata saving (and not full image generation), enable the lightweight
-stub nodes and use the bundled `metadata-stub-basic.json` workflow. This avoids loading large
-checkpoints by producing synthetic black images while still yielding full metadata output.
-
-```bash
-python tests/comfyui_cli_tests/run_dev_workflows.py --comfyui-path "/path/to/ComfyUI" \
-  --enable-test-stubs --workflow-dir "tests/comfyui_cli_tests/dev_test_workflows"
-```
-
-The flag sets `METADATA_ENABLE_TEST_NODES=1` before ComfyUI starts so the optional
-`MetadataTestSampler` node becomes available. Any workflow built around this node finishes quickly
-and records the metadata fields supplied through its parameters.
-
-## Command-Line Options
-
-### run_dev_workflows.py Options
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--comfyui-path` | Path to ComfyUI installation (containing main.py) | *Required* |
-| `--python-exe` | Path to Python executable | Current Python |
-| `--workflow-dir` | Directory containing workflow JSON files | `dev_test_workflows` |
-| `--host` | ComfyUI server host | `127.0.0.1` |
-| `--port` | ComfyUI server port | `8188` |
-| `--temp-dir` | Temporary directory for ComfyUI | None |
-| `--extra-args` | Extra arguments to pass to ComfyUI | None |
-| `--wait-between` | Seconds to wait between workflow executions | `2.0` |
-| `--no-start-server` | Don't start server, assume it's already running | `False` |
-| `--keep-server` | Don't stop server after execution | `False` |
-| `--output-folder` | Path to output Test folder to clean before running | None |
-| `--no-clean` | Skip cleaning the output folder | `False` |
-
-### validate_metadata.py Options
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--output-folder` | Path to ComfyUI output Test folder with generated images | *Required* |
-| `--workflow-dir` | Directory containing workflow JSON files | `dev_test_workflows` |
-
-## Example Workflows
-
-The `dev_test_workflows/` folder contains test workflows.
-
-## Troubleshooting
-
-### "Server did not start"
-- Check that `--comfyui-path` points to the correct directory containing `main.py`
-- Verify the Python executable path is correct
-- Check if port 8188 is already in use
-- Try increasing wait time or starting server manually first
-
-### "Invalid JSON" errors
-- Ensure workflows are in API format (not UI format)
-- Use "Save (API format)" in ComfyUI Dev Mode
-- Validate JSON syntax in a JSON validator
-
-### Workflows not found
-- Verify `dev_test_workflows/` folder exists
-- Check that workflow files have `.json` extension
-- Use `--workflow-dir` to specify a different directory
-
-### Model path errors
-- Update model paths in workflows to match your local environment
-- Check that models exist at the specified paths
-- Verify model file permissions
-
-## Notes
-
-- The `dev_test_workflows/` folder is excluded from git via `.gitignore`
-- This allows you to keep local test workflows with machine-specific paths
-- The script only queues workflows; it doesn't wait for completion or check results
-- For detailed workflow execution, monitor the ComfyUI server console output
-- Workflows are executed sequentially with a 2-second delay between them (configurable)
-
-## Cleaning Test Output
-
-The script can automatically clean the output Test folder before running workflows to ensure a clean testing environment.
-
-### Automatic Cleanup
-
-Use the `--output-folder` option to specify the Test folder to clean:
-
-**Windows:**
-```bash
-python tests/comfyui_cli_tests/run_dev_workflows.py ^
-  --comfyui-path "C:\StableDiffusion\ComfyUI" ^
-  --output-folder "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI_windows_portable\ComfyUI\output\Test"
-```
-
-**Linux/Mac:**
-```bash
-python tests/comfyui_cli_tests/run_dev_workflows.py \
-  --comfyui-path "/path/to/ComfyUI" \
-  --output-folder "/path/to/ComfyUI/output/Test"
-```
-
-### Skip Cleanup
-
-If you want to keep existing files, use `--no-clean`:
-
-```bash
-python tests/comfyui_cli_tests/run_dev_workflows.py --comfyui-path "." --output-folder "./output/Test" --no-clean
-```
-
-**Note:** The cleanup feature requires the `send2trash` package. Install it with:
-
-```bash
-pip install send2trash
-```
-
-Files are moved to the recycle bin/trash instead of being permanently deleted, so you can recover them if needed.
 
 ## Validating Metadata
 
-After running workflows, you can validate that the generated images contain the expected metadata using the `validate_metadata.py` script.
-
-### Basic Usage
+Once renders finish, run the validator so regressions are obvious before opening a PR.
 
 **Windows:**
-```bash
-"C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI_windows_portable\python_embeded\python.exe" validate_metadata.py ^
-  --output-folder "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI_windows_portable\ComfyUI\output\Test"
+
+```cmd
+python tests/tools/validate_metadata.py --output-folder "C:\StableDiffusion\...\ComfyUI\output\Test"
 ```
 
-**Linux/Mac:**
+**Linux/macOS:**
+
 ```bash
-python tests/comfyui_cli_tests/validate_metadata.py \
-  --output-folder "/path/to/ComfyUI/output/Test"
+python tests/tools/validate_metadata.py --output-folder "/path/to/ComfyUI/output/Test"
 ```
+- Reads PNG, JPEG, and WebP metadata using Pillow + piexif when available.
+- Reconstructs expected metadata straight from each workflow graph (including LoRA stacks, sampler choices, VAE loaders, and filename tokens).
+- Flags missing hashes, mismatched prompts, incorrect sampler selection, or fallback paths (e.g., JPEG `com-marker`).
+```cmd
+python tests/tools/run_dev_workflows.py ^
+	--comfyui-path "%COMFYUI_PATH%" ^
 
-### What Gets Validated
-
-The validation script:
-- Reads metadata from PNG, JPEG, and WebP images
-- Parses the workflow JSON files to extract expected metadata values
-- Compares actual metadata against expected values
-- Reports validation results with pass/fail status
-
-### Validation Checks
-
-For each image, the script checks:
-- **Required Fields:** Steps, Sampler, CFG scale, Seed (based on workflow configuration)
-- **File Format:** Matches the workflow's specified output format
-- **Metadata Fallback:** Detects and reports if JPEG metadata fallback occurred
-
-### Complete Testing Workflow
-
-A typical testing workflow looks like this:
-
-**Windows:**
-```batch
-@echo off
-REM Step 1: Clean output folder and run workflows
-python tests/comfyui_cli_tests/run_dev_workflows.py ^
-  --comfyui-path "C:\StableDiffusion\ComfyUI" ^
-  --python-exe "C:\StableDiffusion\python_embeded\python.exe" ^
-  --temp-dir "F:\StableDiffusion\ComfyUI" ^
-  --extra-args "--windows-standalone-build" ^
-  --output-folder "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI_windows_portable\ComfyUI\output\Test"
-
-REM Step 2: Wait for workflows to complete (adjust timing as needed)
 timeout /t 120
 
-REM Step 3: Validate the generated images
-python tests/comfyui_cli_tests/validate_metadata.py ^
-  --output-folder "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI_windows_portable\ComfyUI\output\Test"
+python tests/tools/validate_metadata.py ^
+	--output-folder "%OUTPUT_TEST%"
 ```
 
-**Linux/Mac:**
-```bash
-#!/bin/bash
-
-# Step 1: Clean output folder and run workflows
-python tests/comfyui_cli_tests/run_dev_workflows.py \
-  --comfyui-path "/path/to/ComfyUI" \
-  --output-folder "/path/to/ComfyUI/output/Test"
-
-# Step 2: Wait for workflows to complete (adjust timing as needed)
-sleep 120
-
-# Step 3: Validate the generated images
-python tests/comfyui_cli_tests/validate_metadata.py \
-  --output-folder "/path/to/ComfyUI/output/Test"
-```
+Adjust the wait or swap `timeout` for a smarter queue poller if you need to guarantee completion before validation.
 
 ## Advanced Usage
 
-### Custom Workflow Directory
+- **Custom suites:** `--workflow-dir "tests/comfyui_cli_tests/dev_test_workflows/flux"` lets you rotate through multiple folders without editing files.
+- **Scripted regression packs:** chain several runner invocations in a `.bat` or `.sh` file, toggling `--no-start-server` after the first call to reuse the same ComfyUI session.
+- **Remote GPUs:** expose `main.py` via SSH tunnel, then point `--host` at `127.0.0.1` and `--port` at your forwarded socket.
 
-```bash
-python tests/comfyui_cli_tests/run_dev_workflows.py --comfyui-path "." --workflow-dir "my_custom_tests"
-python tests/comfyui_cli_tests/validate_metadata.py --output-folder "./output/Test" --workflow-dir "my_custom_tests"
-```
+## Troubleshooting
 
-### Multiple Environments
+- **Server never starts:** confirm `main.py` exists under `--comfyui-path`, pass the right interpreter via `--python-exe`, and ensure the port is free before retrying.
+- **Workflows skipped:** check that each JSON is API format (Dev Mode → Save API). The loader warns when it reads non-dict content.
+- **Cleanup skipped:** install `send2trash` or run manual deletes if the dependency is missing; the script intentionally refuses to `rm -rf` by itself.
+- **Metadata mismatches:** open the validator log (it tees to stdout + file) to see which field failed. Often it points to mismatched model paths or Save node settings.
 
-Create different workflow folders for different test scenarios:
+## Notes
 
-```
-dev_test_workflows/
-├── flux_tests/
-├── sd15_tests/
-└── sdxl_tests/
-```
-
-Then run:
-
-```bash
-python tests/comfyui_cli_tests/run_dev_workflows.py --comfyui-path "." --workflow-dir "tests/comfyui_cli_tests/dev_test_workflows/flux_tests"
-python tests/comfyui_cli_tests/validate_metadata.py --output-folder "./output/Test" --workflow-dir "tests/comfyui_cli_tests/dev_test_workflows/flux_tests"
-```
-
-### Batch Testing
-
-Create a batch file (Windows) or shell script (Linux/Mac) to run multiple test suites:
-
-**test_all.bat (Windows):**
-```batch
-@echo off
-python tests/comfyui_cli_tests/run_dev_workflows.py --comfyui-path "%COMFYUI_PATH%" --workflow-dir "tests/comfyui_cli_tests/dev_test_workflows/flux_tests" --output-folder "%OUTPUT_PATH%"
-timeout /t 120
-python tests/comfyui_cli_tests/validate_metadata.py --output-folder "%OUTPUT_PATH%" --workflow-dir "tests/comfyui_cli_tests/dev_test_workflows/flux_tests"
-
-python tests/comfyui_cli_tests/run_dev_workflows.py --comfyui-path "%COMFYUI_PATH%" --workflow-dir "tests/comfyui_cli_tests/dev_test_workflows/sd15_tests" --no-start-server --output-folder "%OUTPUT_PATH%"
-timeout /t 120
-python tests/comfyui_cli_tests/validate_metadata.py --output-folder "%OUTPUT_PATH%" --workflow-dir "tests/comfyui_cli_tests/dev_test_workflows/sd15_tests"
-```
-
-**test_all.sh (Linux/Mac):**
-```bash
-#!/bin/bash
-python tests/comfyui_cli_tests/run_dev_workflows.py --comfyui-path "$COMFYUI_PATH" --workflow-dir "tests/comfyui_cli_tests/dev_test_workflows/flux_tests" --output-folder "$OUTPUT_PATH"
-sleep 120
-python tests/comfyui_cli_tests/validate_metadata.py --output-folder "$OUTPUT_PATH" --workflow-dir "tests/comfyui_cli_tests/dev_test_workflows/flux_tests"
-
-python tests/comfyui_cli_tests/run_dev_workflows.py --comfyui-path "$COMFYUI_PATH" --workflow-dir "tests/comfyui_cli_tests/dev_test_workflows/sd15_tests" --no-start-server --output-folder "$OUTPUT_PATH"
-sleep 120
-python tests/comfyui_cli_tests/validate_metadata.py --output-folder "$OUTPUT_PATH" --workflow-dir "tests/comfyui_cli_tests/dev_test_workflows/sd15_tests"
-```
+- `dev_test_workflows/` stays ignored by git so you can store proprietary checkpoints or workflow variants safely.
+- The runner only queues jobs; it does not poll for completion. Watch the ComfyUI console for progress or add your own polling if needed.
+- Keep `METADATA_TEST_MODE=1` in your environment when you want deterministic hashes that align with CI expectations.

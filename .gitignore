@@ -180,6 +180,14 @@ tests/comfyui_cli_tests/Test/metadata_hash_cmpr.txt
 tests/comfyui_cli_tests/Test/validation_log.txt
 tests/comfyui_cli_tests/Test/validation_log.txt.bak
 tests/comfyui_cli_tests/compare_hash_logs.bat
+tests/tools/Test/
+tests/tools/Test/hash_logs.txt
+tests/tools/Test/metadata_dump.txt
+tests/tools/Test/metadata_dump.txt.bak
+tests/tools/Test/metadata_hash_cmpr.md
+tests/tools/Test/metadata_hash_cmpr.txt
+tests/tools/Test/validation_log.txt
+tests/tools/Test/validation_log.txt.bak
 
 # Local settings files
 # .github/copilot-instructions.md

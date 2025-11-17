@@ -6,10 +6,11 @@ from pathlib import Path
 
 import pytest
 
-# Add comfyui_cli_tests directory to path to import validate_metadata
-sys.path.insert(0, str(Path(__file__).parent / "comfyui_cli_tests"))
-
-from validate_metadata import MetadataValidator
+try:
+    from tests.tools.validate_metadata import MetadataValidator
+except ModuleNotFoundError:  # pragma: no cover - fallback for direct invocation
+    sys.path.insert(0, str(Path(__file__).parent / "tools"))
+    from validate_metadata import MetadataValidator  # type: ignore
 
 
 class TestMetadataQualityValidation:
