@@ -9,6 +9,8 @@ from contextlib import contextmanager
 import pytest
 from click.testing import CliRunner
 
+pytest.importorskip("pytest_cookies", reason="pytest-cookies not installed; skipping cookiecutter template tests")
+
 try:  # Optional dependency for template baking tests
     from cookiecutter.utils import rmtree  # type: ignore
 except (ImportError, ModuleNotFoundError, AttributeError):  # pragma: no cover - skip entire module when missing
