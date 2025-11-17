@@ -126,8 +126,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--launch-extra",
         action="append",
-        default=DEFAULT_COMFY_EXTRA.copy(),
-        help="Extra flags passed to 'comfy launch' before the '--' separator",
+        default=None,
+        help=(
+            "Extra flags passed to 'comfy launch' before the '--' separator "
+            "(COMFY_RUN_BACKGROUND=1 automatically adds --background)."
+        ),
     )
     parser.add_argument(
         "--server-extra",
@@ -425,7 +428,7 @@ def run_validation_steps(
             "--output-folder",
             str(output_folder),
             "--workflow-dir",
-            str(DEFAULT_WORKFLOW_DIR),
+            str(workflow_dir),
             "--log-file",
             str(validation_log),
         ],
@@ -488,7 +491,7 @@ def main() -> None:
     if not server_extra:
         server_extra = DEFAULT_SERVER_EXTRA.copy()
 
-    launch_extra: list[str] = []
+    launch_extra: list[str] = DEFAULT_COMFY_EXTRA.copy()
     for chunk in args.launch_extra or []:
         launch_extra.extend(chunk.split()) if isinstance(chunk, str) else launch_extra.extend(chunk)
 
@@ -514,6 +517,12 @@ def main() -> None:
     quick_health = wait_for_server(health_url, timeout=1)
 
     workflows = [args.scan_workflow] + list(args.workflows)
+    workflow_dir_for_validation = DEFAULT_WORKFLOW_DIR
+    if args.workflows:
+        try:
+            workflow_dir_for_validation = args.workflows[0].resolve().parent
+        except Exception:
+            workflow_dir_for_validation = DEFAULT_WORKFLOW_DIR
 
     if quick_health and not args.reuse_server:
         raise RuntimeError(
@@ -579,7 +588,7 @@ def main() -> None:
             )
 
     if not args.skip_validation:
-        run_validation_steps(output_folder, log_dir, env, DEFAULT_WORKFLOW_DIR)
+        run_validation_steps(output_folder, log_dir, env, workflow_dir_for_validation)
 
     print("=" * 70)
     print("Artifacts written to:")

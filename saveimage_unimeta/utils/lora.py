@@ -112,19 +112,14 @@ LEGACY = re.compile(r"<lora:([^:>]+):([^>]+)>")
 
 
 def coerce_first(val) -> str:
-    """Parse LoRA tags in text into (raw_names, model_strengths, clip_strengths).
-
-    - Uses STRICT first, then LEGACY fallback where clip=sm when missing or non-numeric.
-    - Names are not resolved to filenames here; call ``resolve_lora_display_names`` as needed.
-
-    Return the first element of a list or the value itself if not a list.
+    """Return the first element when ``val`` is a list, otherwise the stringified value.
 
     Args:
-        val: The value to be coerced.
+        val: Object that may be a list or scalar value.
 
     Returns:
-        str: The first element of the list or the string representation of the
-            value.
+        str: ``val[0]`` when ``val`` is a non-empty list, an empty string for
+        empty lists, or ``val`` when it is already a string.
     """
     if isinstance(val, list):
         return val[0] if val else ""

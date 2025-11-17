@@ -32,7 +32,8 @@ def get_exif_data(image_path: str) -> str:
                 tag_name = TAGS.get(tag, tag)
                 if tag_name == 'UserComment':
                     value = decode_user_comment(value)
-                    # Original script trimmed first four chars; preserve behavior
+                    # EXIF UserComment may start with an encoding marker/BOM; trim the first
+                    # four bytes to drop that prefix and match the original script's behavior.
                     if len(value) >= 4:
                         value = value[4:]
                     lines.append(str(value))
