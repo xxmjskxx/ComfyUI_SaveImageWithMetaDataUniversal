@@ -2,9 +2,9 @@ import numpy as np
 from .fixtures_piexif import build_piexif_stub
 
 try:
-    from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.node import SaveImageWithMetaDataUniversal  # type: ignore
+    from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.node import SaveImageWithMetaDataUniversal
 except ModuleNotFoundError:  # pragma: no cover
-    from saveimage_unimeta.nodes.node import SaveImageWithMetaDataUniversal  # type: ignore
+    from saveimage_unimeta.nodes.node import SaveImageWithMetaDataUniversal
 
 
 def make_image():

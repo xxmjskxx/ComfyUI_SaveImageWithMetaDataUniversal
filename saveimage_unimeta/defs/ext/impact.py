@@ -20,6 +20,7 @@ Attributes:
 # ImpactWildcardEncode node: embeds <lora:NAME:strength[:clip]> tags in its wildcard-expanded text.
 import logging
 import re
+from typing import TypedDict
 
 from ...utils.lora import find_lora_info
 from ..formatters import calc_lora_hash
@@ -31,7 +32,20 @@ logger.debug("[Meta DBG] impact wildcard LoRA syntax support loaded.")
 STRICT = re.compile(r"<lora:([^:>]+):([0-9]*\.?[0-9]+)(?::([0-9]*\.?[0-9]+))?>")
 LEGACY = re.compile(r"<lora:([^:>]+):([^>]+)>")
 
-_CACHE = {}
+
+class _ImpactData(TypedDict):
+    names: list[str]
+    hashes: list[str]
+    model_strengths: list[float]
+    clip_strengths: list[float]
+
+
+class _ImpactCacheEntry(TypedDict):
+    text: str
+    data: _ImpactData
+
+
+_CACHE: dict[int, _ImpactCacheEntry] = {}
 
 
 def _coerce(v):
@@ -51,7 +65,7 @@ def _coerce(v):
     return v if isinstance(v, str) else ""
 
 
-def _parse(text: str):
+def _parse(text: str) -> _ImpactData:
     """Parses a string to find and extract LoRA tags.
 
     This function searches for LoRA tags in both a strict and a legacy format.
@@ -65,13 +79,23 @@ def _parse(text: str):
         tuple: A tuple containing four lists: names, hashes, model_strengths,
                and clip_strengths.
     """
-    names, hashes, model_strengths, clip_strengths = [], [], [], []
+    names: list[str] = []
+    hashes: list[str] = []
+    model_strengths: list[float] = []
+    clip_strengths: list[float] = []
     if not text:
-        return names, hashes, model_strengths, clip_strengths
+        return {
+            "names": names,
+            "hashes": hashes,
+            "model_strengths": model_strengths,
+            "clip_strengths": clip_strengths,
+        }
     matches = STRICT.findall(text)
     if not matches:
         legacy = LEGACY.findall(text)
         for name, blob in legacy:
+            if not name:
+                continue
             try:
                 parts = blob.split(":")
                 if len(parts) == 2:
@@ -85,11 +109,18 @@ def _parse(text: str):
             info = find_lora_info(name)
             display = info["filename"] if info else name
             names.append(display)
-            hashes.append(calc_lora_hash(name, None))
+            hashes.append(calc_lora_hash(name, []))
             model_strengths.append(ms)
             clip_strengths.append(cs)
-        return names, hashes, model_strengths, clip_strengths
+        return {
+            "names": names,
+            "hashes": hashes,
+            "model_strengths": model_strengths,
+            "clip_strengths": clip_strengths,
+        }
     for name, ms_s, cs_s in matches:
+        if not name:
+            continue
         try:
             ms = float(ms_s)
         except Exception:
@@ -101,13 +132,18 @@ def _parse(text: str):
         info = find_lora_info(name)
         display = info["filename"] if info else name
         names.append(display)
-        hashes.append(calc_lora_hash(name, None))
+        hashes.append(calc_lora_hash(name, []))
         model_strengths.append(ms)
         clip_strengths.append(cs)
-    return names, hashes, model_strengths, clip_strengths
+    return {
+        "names": names,
+        "hashes": hashes,
+        "model_strengths": model_strengths,
+        "clip_strengths": clip_strengths,
+    }
 
 
-def _extract(node_id, input_data):
+def _extract(node_id, input_data) -> _ImpactData:
     """Extracts and parses text from a node's input to find LoRA data.
 
     This function searches for text in likely input fields of a wildcard node.
@@ -122,20 +158,19 @@ def _extract(node_id, input_data):
     """
     # Likely text fields produced after wildcard expansion
     candidates = ["text", "prompt", "positive", "combined", "out"]
+    if not isinstance(input_data, list) or not input_data:
+        return {"names": [], "hashes": [], "model_strengths": [], "clip_strengths": []}
+    batch = input_data[0]
+    if not isinstance(batch, dict):
+        return {"names": [], "hashes": [], "model_strengths": [], "clip_strengths": []}
     for key in candidates:
-        raw = input_data[0].get(key)
+        raw = batch.get(key)
         if raw:
             text = _coerce(raw)
             cached = _CACHE.get(node_id)
             if cached and cached.get("text") == text:
                 return cached["data"]
-            names, hashes, ms, cs = _parse(text)
-            data = {
-                "names": names,
-                "hashes": hashes,
-                "model_strengths": ms,
-                "clip_strengths": cs,
-            }
+            data = _parse(text)
             _CACHE[node_id] = {"text": text, "data": data}
             return data
     return {"names": [], "hashes": [], "model_strengths": [], "clip_strengths": []}

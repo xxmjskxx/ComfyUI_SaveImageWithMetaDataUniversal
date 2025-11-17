@@ -5,11 +5,11 @@ import importlib
 def test_suppress_missing_class_log(monkeypatch, caplog):
     """Ensure suppress_missing_class_log hides missing-class coverage info log."""
     try:  # prefer installed-style path
-        from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.save_image import (  # type: ignore
+        from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.save_image import (
             SaveImageWithMetaDataUniversal,
         )
     except ModuleNotFoundError:  # editable checkout fallback
-        from saveimage_unimeta.nodes.save_image import SaveImageWithMetaDataUniversal  # type: ignore
+        from saveimage_unimeta.nodes.save_image import SaveImageWithMetaDataUniversal
 
     # Force a required_classes set with an unlikely fake node to trigger missing log if not suppressed
     try:
@@ -36,13 +36,13 @@ def test_suppress_missing_class_log(monkeypatch, caplog):
     except ModuleNotFoundError:
         trace_mod = importlib.import_module("saveimage_unimeta.trace")
     monkeypatch.setattr(trace_mod.Trace, "trace", staticmethod(lambda _id, _p: {1: (0, list(fake_required)[0])}))
-    n.save_images(images=[], suppress_missing_class_log=False)  # type: ignore[arg-type]
+    n.save_images(images=[], suppress_missing_class_log=False)
     emitted = "\n".join(r.message for r in caplog.records)
     assert "Missing classes in defaults+ext" in emitted
 
     # Clear and run with suppression to ensure log absent
     caplog.clear()
-    n.save_images(images=[], suppress_missing_class_log=True)  # type: ignore[arg-type]
+    n.save_images(images=[], suppress_missing_class_log=True)
     emitted2 = "\n".join(r.message for r in caplog.records)
     assert "Missing classes in defaults+ext" not in emitted2
 

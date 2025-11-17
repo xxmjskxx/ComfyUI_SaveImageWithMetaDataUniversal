@@ -166,11 +166,11 @@ if "saveimage_unimeta.hook" not in sys.modules:  # pragma: no cover
     sys.modules["saveimage_unimeta.hook"] = hook_mod
 
 try:  # Prefer installed package style path
-    from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.save_image import (  # type: ignore
+    from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.save_image import (
         SaveImageWithMetaDataUniversal,
     )
 except ModuleNotFoundError:  # Fallback: relative (editable dev checkout)
-    from saveimage_unimeta.nodes.save_image import SaveImageWithMetaDataUniversal  # type: ignore
+    from saveimage_unimeta.nodes.save_image import SaveImageWithMetaDataUniversal
 
 
 @pytest.fixture()

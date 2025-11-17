@@ -5,10 +5,10 @@ from PIL import Image
 from .fixtures_piexif import build_piexif_stub
 
 try:
-    from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.node import SaveImageWithMetaDataUniversal  # type: ignore
+    from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.node import SaveImageWithMetaDataUniversal
 except ModuleNotFoundError:  # pragma: no cover
-    from saveimage_unimeta.nodes.node import SaveImageWithMetaDataUniversal  # type: ignore
-import folder_paths as real_folder_paths  # type: ignore
+    from saveimage_unimeta.nodes.node import SaveImageWithMetaDataUniversal
+import folder_paths as real_folder_paths
 
 
 def make_dummy_image():

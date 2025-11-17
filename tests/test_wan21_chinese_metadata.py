@@ -81,14 +81,14 @@ class TestWan21ChineseMetadata:
 
     def test_wan21_image_exists(self):
         """Test that the wan21 reference image exists."""
-        image_path = Path("tests/_test_outputs/Wan21_00006_.png")
+        image_path = Path("tests/_test_outputs/Wan21_00006_.webp")
         assert image_path.exists(), f"Wan21 reference image not found at {image_path}"
 
     def test_wan21_image_has_metadata(self):
         """Test that the wan21 image contains the expected metadata."""
         from PIL import Image
 
-        image_path = Path("tests/_test_outputs/Wan21_00006_.png")
+        image_path = Path("tests/_test_outputs/Wan21_00006_.webp")
         if not image_path.exists():
             pytest.skip("Wan21 reference image not available")
 

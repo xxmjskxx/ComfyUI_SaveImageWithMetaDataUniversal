@@ -13,10 +13,11 @@ import glob  # noqa: N999 - retained package path naming required by distributio
 import json
 import os
 import os as _os
-from collections.abc import Mapping
+from collections.abc import Mapping, MutableMapping
 from importlib import import_module
 from json import JSONDecodeError
 from logging import getLogger
+from typing import Any, cast
 
 # from .meta import MetaField
 # from ..utils.color import cstr
@@ -46,9 +47,15 @@ def _is_test_mode() -> bool:
     return _os.environ.get("METADATA_TEST_MODE", "").strip().lower() in {"1", "true", "yes", "on"}
 
 
+CAPTURE_FIELD_LIST: dict[str, dict[str, Any]]
+SAMPLERS: dict[str, dict[str, str]]
+
 if not _TEST_MODE:
-    from .captures import CAPTURE_FIELD_LIST  # type: ignore
-    from .samplers import SAMPLERS  # type: ignore
+    from . import captures as _captures
+    from . import samplers as _samplers
+
+    CAPTURE_FIELD_LIST = cast(dict[str, dict[str, Any]], _captures.CAPTURE_FIELD_LIST)
+    SAMPLERS = cast(dict[str, dict[str, str]], _samplers.SAMPLERS)
 else:  # Provide minimal placeholders sufficient for tests importing enums/utilities
     CAPTURE_FIELD_LIST = {}
     SAMPLERS = {}
@@ -158,7 +165,7 @@ def _load_extensions() -> None:
         # Merge CAPTURE_FIELD_LIST: deep-merge per node to avoid clobbering earlier fields
         try:
             ext_captures = getattr(module, "CAPTURE_FIELD_LIST", {})
-            if isinstance(ext_captures, Mapping):  # type: ignore[arg-type]
+            if isinstance(ext_captures, Mapping):
                 for node_name, rules in ext_captures.items():
                     _merge_extension_capture_entry(node_name, rules)
             else:  # pragma: no cover - defensive
@@ -172,16 +179,16 @@ def _load_extensions() -> None:
         # Merge SAMPLERS: deep-merge per node key similar to captures
         try:
             ext_samplers = getattr(module, "SAMPLERS", {})
-            if isinstance(ext_samplers, Mapping):  # type: ignore[arg-type]
+            if isinstance(ext_samplers, Mapping):
                 for key, val in ext_samplers.items():
                     if (
                         key not in SAMPLERS
                         or not isinstance(SAMPLERS.get(key), Mapping)
                         or not isinstance(val, Mapping)
-                    ):  # type: ignore[arg-type]
-                        SAMPLERS[key] = val  # type: ignore[index]
+                    ):
+                        SAMPLERS[key] = val
                     else:
-                        SAMPLERS[key].update(val)  # type: ignore[assignment]
+                        SAMPLERS[key].update(val)
             else:  # pragma: no cover
                 logger.warning(
                     "[Metadata Loader] Extension '%s' SAMPLERS not a mapping",
@@ -209,12 +216,12 @@ def _merge_extension_capture_entry(node_name: str, rules) -> None:
     existing = CAPTURE_FIELD_LIST.get(node_name)
     if (
         node_name not in CAPTURE_FIELD_LIST
-        or not isinstance(existing, Mapping)  # type: ignore[arg-type]
-        or not isinstance(rules, Mapping)  # type: ignore[arg-type]
+        or not isinstance(existing, MutableMapping)
+        or not isinstance(rules, Mapping)
     ):
-        CAPTURE_FIELD_LIST[node_name] = rules  # type: ignore[index]
+        CAPTURE_FIELD_LIST[node_name] = dict(rules) if isinstance(rules, Mapping) else rules
     else:
-        existing.update(rules)  # type: ignore[assignment]
+        existing.update(rules)
 
 
 def _merge_user_capture_entry(node_name: str, rules) -> None:
@@ -226,10 +233,9 @@ def _merge_user_capture_entry(node_name: str, rules) -> None:
         node_name (str): The name of the node the rule applies to.
         rules (dict): The dictionary of rules to be merged.
     """
-    if node_name not in CAPTURE_FIELD_LIST:
-        CAPTURE_FIELD_LIST[node_name] = {}
-    if isinstance(rules, Mapping):  # type: ignore[arg-type]
-        CAPTURE_FIELD_LIST[node_name].update(rules)  # type: ignore[arg-type]
+    container = CAPTURE_FIELD_LIST.setdefault(node_name, {})
+    if isinstance(container, MutableMapping) and isinstance(rules, Mapping):
+        container.update(rules)
 
 
 def _merge_user_sampler_entry(key: str, val) -> None:
@@ -242,17 +248,17 @@ def _merge_user_sampler_entry(key: str, val) -> None:
         key (str): The key for the sampler entry.
         val (dict): The dictionary of sampler information to be merged.
     """
-    if not isinstance(val, Mapping):  # type: ignore[arg-type]
+    if not isinstance(val, Mapping):
         logger.warning(
             "[Metadata Loader] user_samplers key '%s' is not a mapping; skipping",
             key,
         )
         return
     existing_sampler = SAMPLERS.get(key)
-    if not isinstance(existing_sampler, Mapping):  # type: ignore[arg-type]
-        SAMPLERS[key] = val  # type: ignore[index]
+    if not isinstance(existing_sampler, MutableMapping):
+        SAMPLERS[key] = dict(val)
     else:
-        existing_sampler.update(val)  # type: ignore[assignment]
+        existing_sampler.update(val)
 
 
 def load_user_definitions(required_classes: set | None = None, suppress_missing_log: bool = False) -> None:
@@ -304,7 +310,7 @@ def load_user_definitions(required_classes: set | None = None, suppress_missing_
     if _TEST_MODE:
         test_legacy = os.path.join(NODE_PACK_DIR, "tests/_test_outputs", "py")
         if os.path.isdir(test_legacy):  # prefer test-scoped legacy if present
-            LEGACY_PY_DIR = test_legacy  # type: ignore
+            LEGACY_PY_DIR = test_legacy
     if not os.path.exists(USER_CAPTURES_FILE):
         legacy_caps = os.path.join(LEGACY_PY_DIR, "user_captures.json")
         if os.path.exists(legacy_caps):
@@ -348,7 +354,7 @@ def load_user_definitions(required_classes: set | None = None, suppress_missing_
             try:
                 with open(USER_SAMPLERS_FILE, encoding="utf-8") as f:
                     data = json.load(f)
-                if isinstance(data, Mapping):  # type: ignore[arg-type]
+                if isinstance(data, Mapping):
                     for key, val in data.items():
                         _merge_user_sampler_entry(key, val)
                 else:  # pragma: no cover - defensive
@@ -363,7 +369,7 @@ def load_user_definitions(required_classes: set | None = None, suppress_missing_
         if os.path.exists(USER_CAPTURES_FILE):
             try:
                 deserialized_rules = deserialize_input(USER_CAPTURES_FILE)
-                if isinstance(deserialized_rules, Mapping):  # type: ignore[arg-type]
+                if isinstance(deserialized_rules, Mapping):
                     for node_name, rules in deserialized_rules.items():
                         _merge_user_capture_entry(node_name, rules)
                 else:  # pragma: no cover

@@ -2,11 +2,11 @@ import importlib
 import numpy as np
 
 try:
-    from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.node import SaveImageWithMetaDataUniversal  # type: ignore
-    from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes import MetadataForceInclude  # type: ignore
+    from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.node import SaveImageWithMetaDataUniversal
+    from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes import MetadataForceInclude
 except ModuleNotFoundError:  # pragma: no cover - dev editable path fallback
-    from saveimage_unimeta.nodes.node import SaveImageWithMetaDataUniversal  # type: ignore
-    from saveimage_unimeta.nodes import MetadataForceInclude  # type: ignore
+    from saveimage_unimeta.nodes.node import SaveImageWithMetaDataUniversal
+    from saveimage_unimeta.nodes import MetadataForceInclude
 
 
 def make_dummy_image():

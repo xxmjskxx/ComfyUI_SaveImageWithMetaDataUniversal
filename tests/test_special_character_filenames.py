@@ -95,8 +95,8 @@ def _mock_folder_paths(base_dir: str):
                 return c2
         raise FileNotFoundError(name)
 
-    m.get_full_path = _get_full_path  # type: ignore[attr-defined]
-    m.get_folder_paths = lambda ft: [os.path.join(base_dir, ft)]  # type: ignore[attr-defined]
+    m.get_full_path = _get_full_path
+    m.get_folder_paths = lambda ft: [os.path.join(base_dir, ft)]
     return m
 
 

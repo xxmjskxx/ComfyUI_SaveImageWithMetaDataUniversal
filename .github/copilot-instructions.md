@@ -3,7 +3,7 @@ Authoritative onboarding for `ComfyUI_SaveImageWithMetaDataUniversal`. This repo
 
 ## Overview & Tech Stack
 - Purpose: `saveimage_unimeta/nodes/node.py` saves images with rich Automatic1111/Civitai-compatible metadata, hashes, workflow JSON, and filename tokens while degrading gracefully on JPEG limits.
-- Languages & tooling: Python 3.9+ (CI runs 3.10–3.13), Pillow/Numpy/Piexif, ComfyUI APIs (`folder_paths`, `nodes`, `execution`). Browser assets under `web/` use HTML/JavaScript for optional UI helpers. Linting via Ruff (`ruff.toml`), testing via Pytest (`tests/` + `saveimage_unimeta/tests/`), coverage tracked by `.coveragerc`.
+- Languages & tooling: Python 3.9+ (CI runs 3.10–3.13), Pillow/Numpy/Piexif, ComfyUI APIs (`folder_paths`, `nodes`, `execution`). Browser assets under `web/` use HTML/JavaScript for optional UI helpers. Linting via Ruff (`ruff.toml`), testing via Pytest (`tests/`), coverage tracked by `.coveragerc`.
 - Dependencies live in `requirements.txt` (runtime) and `requirements-test.txt` (adds pytest, ruff, coverage). Installing editable dev extras: `pip install -e .[dev]` (see `pyproject.toml`).
 
 ## Repository Layout (edit here before searching)
@@ -37,7 +37,7 @@ Authoritative onboarding for `ComfyUI_SaveImageWithMetaDataUniversal`. This repo
 	```
 	(Alternatively, `pip install -r requirements.txt -r requirements-test.txt`.)
 2. **Lint**: `ruff check .` (configured by `ruff.toml`; CI fails on lint). Optional: `pre-commit run --all-files` (hooks defined in `.pre-commit-config.yaml`).
-3. **Unit tests**: `pytest -q` (Pytest auto-discovers under `tests/` and `saveimage_unimeta/tests/`). Set `METADATA_TEST_MODE=1` to match CI matrix determinism. Coverage is gathered in CI via `coverage run -m pytest -q`; run locally when touching core pipeline.
+3. **Unit tests**: `pytest -q` (Pytest auto-discovers under `tests/`). Set `METADATA_TEST_MODE=1` to match CI matrix determinism. Coverage is gathered in CI via `coverage run -m pytest -q`; run locally when touching core pipeline.
 4. **Workflow/CLI tests**: optional but recommended before shipping metadata format changes. Use `python tests/comfyui_cli_tests/run_dev_workflows.py --comfyui-path "<your ComfyUI root>" [--workflow-dir ...]` (see `tests/comfyui_cli_tests/README.md` + `ignore/DEV_WORKFLOW_TESTING.md`). Always ensure workflows are in API format and clean outputs with `--temp-dir` or manual deletion.
 5. **Integration sanity**: when touching JPEG fallback, temporarily set `max_jpeg_exif_kb=8` via the node UI or JSON to coerce fallback coverage; inspect `_last_fallback_stages` and resulting metadata strings to confirm markers append exactly once.
 6. **CI awareness**: `.github/workflows/ci.yml` runs Ruff + Pytest across Python 3.10–3.13 and toggles `METADATA_TEST_MODE`. `unimeta-ci.yml` covers packaging/comfy-registry smoke tests; `publish_action.yml` handles release packaging. Match local tooling to avoid failures.
@@ -55,7 +55,7 @@ Authoritative onboarding for `ComfyUI_SaveImageWithMetaDataUniversal`. This repo
 ## Integration Resources & Troubleshooting
 - **Docs**: `docs/JPEG_METADATA_FALLBACK.md`, `docs/MIGRATIONS.md`, `docs/V3_SCHEMA_MIGRATION.md` (for future migration to V3; no specific timeline for implementing this yet), `docs/WAN22_SUPPORT.md`, `docs/FUTURE_AND_PROTOTYPES.md` (historical context). Keep them synchronized with behavior changes.
 - **Workflow samples**: `example_workflows/*.json` showcase Force Include, extra metadata, LoRA stacks, WAN/FLUX flows. Use them to reproduce bugs quickly.
-- **Testing aids**: `saveimage_unimeta/nodes/testing_stubs.py` exposes lightweight sampler nodes when `METADATA_ENABLE_TEST_NODES=1`; `saveimage_unimeta/tests/` contains stub fixtures demonstrating how to patch ComfyUI APIs.
+- **Testing aids**: `saveimage_unimeta/nodes/testing_stubs.py` exposes lightweight sampler nodes when `METADATA_ENABLE_TEST_NODES=1`; `tests/` contains stub fixtures demonstrating how to patch ComfyUI APIs.
 - **Troubleshooting tips**: enable `METADATA_DEBUG_PROMPTS=1` to log prompt aliasing, drop `max_jpeg_exif_kb` to 8 to hit fallback paths, set `METADATA_NO_HASH_DETAIL=1` or `METADATA_NO_LORA_SUMMARY=1` to verify UI overrides. Hash mismatches? delete `.sha256` sidecars or set `METADATA_FORCE_REHASH=1`.
 
 ## Working Style & Search Discipline

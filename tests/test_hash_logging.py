@@ -26,7 +26,7 @@ def _make_file(tmp_path: Path, name: str, content: str = "x") -> str:
 def test_basic_model_logging_filename_vs_path(tmp_path, mode, expect_full_path, monkeypatch):
     model_file = _make_file(tmp_path, "modelA.safetensors", "model-content")
     # Monkeypatch folder_paths lookups to return our file
-    import folder_paths  # type: ignore
+    import folder_paths
 
     monkeypatch.setattr(
         folder_paths,
@@ -55,7 +55,7 @@ def test_basic_model_logging_filename_vs_path(tmp_path, mode, expect_full_path, 
 
 def test_detailed_includes_resolution_and_sidecar(tmp_path, monkeypatch):
     lora_file = _make_file(tmp_path, "myLoRA.safetensors", "lora")
-    import folder_paths  # type: ignore
+    import folder_paths
 
     monkeypatch.setattr(
         folder_paths,
@@ -74,7 +74,7 @@ def test_detailed_includes_resolution_and_sidecar(tmp_path, monkeypatch):
 
 def test_debug_mode_shows_candidates_and_full_hash(tmp_path, monkeypatch):
     vae_file = _make_file(tmp_path, "specialVAE.safetensors", "vae")
-    import folder_paths  # type: ignore
+    import folder_paths
 
     # Force first lookup to fail direct path then succeed via extension probing
     def _gf(kind, name):
@@ -106,7 +106,7 @@ def test_unresolved_warning_once(tmp_path, monkeypatch):
 def test_lora_numeric_suffix_sidecar(tmp_path, monkeypatch):
     # Create versioned style name with numeric segment before extension
     lora_file = _make_file(tmp_path, "dark_gothic_fantasy_xl_3.01.safetensors", "content")
-    import folder_paths  # type: ignore
+    import folder_paths
 
     monkeypatch.setattr(
         folder_paths,
@@ -160,7 +160,7 @@ def test_version_override(monkeypatch):
 
 def test_sidecar_write_warning_once(tmp_path, monkeypatch):
     model_file = _make_file(tmp_path, "warnModel.safetensors", "data")
-    import folder_paths  # type: ignore
+    import folder_paths
 
     monkeypatch.setattr(
         folder_paths,

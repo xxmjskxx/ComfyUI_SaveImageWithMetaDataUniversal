@@ -15,7 +15,7 @@ from collections.abc import Iterable, Iterator
 from types import SimpleNamespace
 from typing import Any, NamedTuple
 
-import folder_paths  # type: ignore
+import folder_paths
 
 # Use the aggregated, runtime-merged definitions (defaults + extensions + optional user JSON)
 from .defs import CAPTURE_FIELD_LIST
@@ -64,8 +64,8 @@ else:  # Lightweight stub sufficient for get_inputs traversal
     hook = _HookStub()
 
 try:  # Runtime environment (ComfyUI) provides these; guard for static analysis / tests.
-    from comfy_execution.graph import DynamicPrompt  # type: ignore
-    from execution import get_input_data  # type: ignore
+    from comfy_execution.graph import DynamicPrompt
+    from execution import get_input_data
 except ImportError:  # Fallback stubs allow linting/tests outside ComfyUI runtime.
 
     def get_input_data(*args, **kwargs):
@@ -463,7 +463,7 @@ class Capture:
         # behavior (earlier versions tolerated missing runtime state) while still
         # exercising the rule traversal logic on provided prompt inputs.
         try:  # pragma: no cover - defensive path
-            outputs = hook.prompt_executer.caches.outputs  # type: ignore[attr-defined]
+            outputs = hook.prompt_executer.caches.outputs
         except Exception:
             outputs = {}
 
@@ -785,7 +785,7 @@ class Capture:
                         if isinstance(val, str):
                             raw_candidates.append(val)
                 if hasattr(hook, "current_prompt"):
-                    for node_data in getattr(hook, "current_prompt", {}).values():  # type: ignore[arg-type]
+                    for node_data in getattr(hook, "current_prompt", {}).values():
                         try:
                             for v in node_data.get("inputs", {}).values():
                                 if isinstance(v, list | tuple):
@@ -2540,7 +2540,7 @@ class Capture:
                 if key in compare_keys:
                     continue
                 try:
-                    lhash = calc_lora_hash(name, None)
+                    lhash = calc_lora_hash(name, [])
                 except Exception:
                     lhash = name
                 existing.append(_LoRARecord(display_name, lhash, ms, cs))
@@ -2600,7 +2600,7 @@ class Capture:
 
         for token in tokens:
             try:
-                computed = calc_lora_hash(token, None)
+                computed = calc_lora_hash(token, [])
             except Exception:
                 computed = None
             computed_norm = _normalize(computed)

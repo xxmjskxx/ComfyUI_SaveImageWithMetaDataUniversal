@@ -14,8 +14,8 @@ from .rules_writer import SaveCustomMetadataRules
 
 # Provide piexif at this module level so tests can monkeypatch here and the save node can reference it.
 try:  # Pillow EXIF helper (optional in test env)
-    import piexif  # type: ignore
-    import piexif.helper  # type: ignore
+    import piexif
+    import piexif.helper
 except Exception:  # noqa: BLE001
 
     class _PieExifStub:  # minimal stub for tests
@@ -73,7 +73,7 @@ except Exception:  # noqa: BLE001
             """
             return None
 
-        class HelperStub:  # type: ignore
+        class HelperStub:
             """A stub for the `helper` module in `piexif`."""
 
             class UserComment:
@@ -97,7 +97,7 @@ except Exception:  # noqa: BLE001
 
         helper = HelperStub  # expose attribute name piexif.helper
 
-    piexif = _PieExifStub()  # type: ignore
+    piexif = _PieExifStub()
 
 from ..defs import load_user_definitions  # re-export for legacy tests and used by save node
 

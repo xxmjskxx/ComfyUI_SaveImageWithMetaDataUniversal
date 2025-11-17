@@ -36,10 +36,10 @@ import os
 from typing import Any
 from collections.abc import Callable, Iterable, Sequence
 
-import folder_paths  # type: ignore
+import folder_paths
 
 try:  # local import guarded for tests (calc_hash optional patch)
-    from .hash import calc_hash  # type: ignore
+    from .hash import calc_hash
 except (ImportError, ModuleNotFoundError):  # pragma: no cover - test fallback
 
     def calc_hash(path: str) -> str:  # type: ignore
@@ -330,7 +330,7 @@ def try_resolve_artifact(
 def load_or_calc_hash(
     filepath: str,
     *,
-    truncate: int = 10,
+    truncate: int | None = 10,
     sidecar_ext: str = ".sha256",
     on_compute: Callable[[str], None] | None = None,
     sidecar_error_cb: Callable[[str, Exception], None] | None = None,

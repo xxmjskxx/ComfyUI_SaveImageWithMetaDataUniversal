@@ -11,7 +11,7 @@ from typing import Literal
 
 def _load_real_piexif():
     try:  # pragma: no cover
-        import piexif as real_piexif  # type: ignore
+        import piexif as real_piexif
     except (ImportError, ModuleNotFoundError):
         mod = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.node")
         real_piexif = getattr(mod, "piexif")

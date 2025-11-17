@@ -40,8 +40,8 @@ def _mock_folder_paths(root: str):
             return base
         return base  # emulate Comfy's return even if file missing; resolver checks existence
 
-    m.get_full_path = _get_full_path  # type: ignore[attr-defined]
-    m.get_folder_paths = lambda k: [os.path.join(root, k)]  # type: ignore[attr-defined]
+    m.get_full_path = _get_full_path
+    m.get_folder_paths = lambda k: [os.path.join(root, k)]
     return m
 
 

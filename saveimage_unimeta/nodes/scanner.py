@@ -601,7 +601,7 @@ class MetadataRuleScanner:
 
         # Ensure we have up-to-date union including user JSON & extensions for missing-only lens baseline.
         # Introduce lightweight caching keyed by user_rules file mtimes so repeated scans in UI are faster.
-        global _BASELINE_CACHE  # type: ignore
+        global _BASELINE_CACHE
         try:
             _BASELINE_CACHE
         except NameError:  # first init
@@ -611,7 +611,7 @@ class MetadataRuleScanner:
                 "mtimes": (),
                 "hits": 0,
                 "misses": 0,
-            }  # type: ignore
+            }
 
         def _current_rule_mtimes():
             """Return mtimes for user rule JSON files.
@@ -663,7 +663,7 @@ class MetadataRuleScanner:
         # Inverted semantics (2025-09): missing-only lens now active when include_existing is False
         missing_lens = not bool(include_existing)
         # Emit one-time informational log on first activation under new semantics
-        global _SCANNER_LENS_NOTICE_EMITTED  # type: ignore
+        global _SCANNER_LENS_NOTICE_EMITTED
         try:
             if missing_lens and not _SCANNER_LENS_NOTICE_EMITTED:
                 logger.info(
@@ -1273,8 +1273,8 @@ class MetadataRuleScanner:
         cache_hits = 0
         cache_misses = 0
         try:  # gather cache stats if present
-            cache_hits = int(_BASELINE_CACHE.get("hits", 0))  # type: ignore[arg-type]
-            cache_misses = int(_BASELINE_CACHE.get("misses", 0))  # type: ignore[arg-type]
+            cache_hits = int(_BASELINE_CACHE.get("hits", 0))
+            cache_misses = int(_BASELINE_CACHE.get("misses", 0))
         except Exception:
             pass  # Cache stats may be unavailable - use defaults (0)
 
@@ -1300,7 +1300,7 @@ class MetadataRuleScanner:
         env = os.environ
         if not env.get("PYTEST_CURRENT_TEST") and not env.get("METADATA_TEST_MODE"):
             try:
-                return {  # type: ignore[return-value]
+                return {
                     "ui": {"scan_results": [pretty_json], "diff_report": [diff_report]},
                     "scan_results": pretty_json,
                     "diff_report": diff_report,

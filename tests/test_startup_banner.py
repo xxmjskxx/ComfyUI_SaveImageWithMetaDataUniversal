@@ -46,7 +46,7 @@ def test_startup_message_emitted_once(monkeypatch: pytest.MonkeyPatch, caplog):
     saved_custom_nodes = sys.modules.get("custom_nodes")
     if saved_custom_nodes is None:
         custom_nodes_pkg = types.ModuleType("custom_nodes")
-        custom_nodes_pkg.__path__ = []  # type: ignore[attr-defined]
+        custom_nodes_pkg.__path__ = []
         sys.modules["custom_nodes"] = custom_nodes_pkg
         created_custom_nodes = True
     else:

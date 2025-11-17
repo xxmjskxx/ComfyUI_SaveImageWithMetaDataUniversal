@@ -5,11 +5,11 @@ from saveimage_unimeta.defs import formatters
 def _reset_mode(monkeypatch, propagate: str):
     monkeypatch.setenv("METADATA_HASH_LOG_PROPAGATE", propagate)
     # Force re-init and sync internal propagate flag
-    formatters._LOGGER_INITIALIZED = False  # type: ignore
+    formatters._LOGGER_INITIALIZED = False
     # Update internal flag used during initialization
-    formatters._HASH_LOG_PROPAGATE = propagate != "0"  # type: ignore
+    formatters._HASH_LOG_PROPAGATE = propagate != "0"
     # Reset warned sets to allow unresolved log emission each test
-    formatters._WARNED_UNRESOLVED.clear()  # type: ignore
+    formatters._WARNED_UNRESOLVED.clear()
 
 
 def test_hash_log_propagate_off(monkeypatch):

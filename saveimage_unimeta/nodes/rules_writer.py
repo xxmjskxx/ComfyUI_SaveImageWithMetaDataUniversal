@@ -345,24 +345,24 @@ class SaveCustomMetadataRules:
             if save_mode == "overwrite":
                 if not sanitized_nodes and not samplers_in:
                     return ("No valid 'nodes' or 'samplers' sections found.",)
-                status = [
+                status_parts = [
                     "mode=overwrite",
                     f"backup={metrics['backup']}",
                     f"pruned={metrics['pruned']}",
                     f"nodes={len(final_nodes)}",
                     f"samplers={len(final_samplers)}",
                 ]
-                return ("; ".join(status),)
+                return ("; ".join(status_parts),)
             else:
-                status = [
+                status_parts = [
                     "mode=append_new",
                     f"backup={metrics['backup']}",
                     f"pruned={metrics['pruned']}",
                 ]
                 if metrics["unchanged"]:
-                    status.append("unchanged=True")
+                    status_parts.append("unchanged=True")
                 else:
-                    status.extend(
+                    status_parts.extend(
                         [
                             f"nodes_added={metrics['nodes_added']}",
                             f"metafields_added={metrics['metafields_added']}",
@@ -374,7 +374,7 @@ class SaveCustomMetadataRules:
                             f"sampler_roles_skipped={metrics['sampler_roles_skipped_conflict']}",
                         ]
                     )
-                return ("; ".join(status),)
+                return ("; ".join(status_parts),)
         except Exception as e:  # pragma: no cover
             raise ValueError(f"Error saving rules: {e}")
 
@@ -718,7 +718,7 @@ class SaveCustomMetadataRules:
             node_names (list[str]): A list of node class names to check.
         """
         try:
-            from nodes import NODE_CLASS_MAPPINGS  # type: ignore
+            from nodes import NODE_CLASS_MAPPINGS
 
             missing = [n for n in node_names if n not in NODE_CLASS_MAPPINGS]
             if missing:

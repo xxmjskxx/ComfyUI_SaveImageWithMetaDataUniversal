@@ -9,7 +9,7 @@ def test_model_basename_retry(tmp_path, monkeypatch):
     model_file.parent.mkdir(parents=True, exist_ok=True)
     model_file.write_text("content-retry", encoding="utf-8")
 
-    import folder_paths  # type: ignore
+    import folder_paths
 
     # First lookup with token 'some/sub/dirs/retryModel' should fail direct resolution; basename retry should succeed
     def _gf(kind, name):

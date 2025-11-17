@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Iterable, Sequence
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -53,6 +54,21 @@ class AnyType(str):
 
 
 any_type = AnyType("*")
+
+
+def _format_shape(shape: Any) -> str:
+    """Return a safe string for tensor-like shape attributes."""
+
+    if shape is None:
+        return "?"
+    if isinstance(shape, str | bytes | bytearray):
+        return str(shape)
+    if isinstance(shape, Iterable):
+        try:
+            return str(tuple(shape))
+        except TypeError:
+            return str(shape)
+    return str(shape)
 
 
 def _safe_to_str(obj: Any, max_len: int = 2000) -> str:
@@ -94,7 +110,7 @@ def _safe_to_str(obj: Any, max_len: int = 2000) -> str:
                 try:
                     shape = getattr(obj, "shape", None)
                     dtype = getattr(obj, "dtype", None)
-                    s = f"<{obj.__class__.__name__} shape={tuple(shape)} dtype={dtype}>"
+                    s = f"<{obj.__class__.__name__} shape={_format_shape(shape)} dtype={dtype}>"
                 except Exception:  # noqa: BLE001
                     s = f"<{obj.__class__.__name__}>"
             # PIL-like
@@ -178,7 +194,13 @@ class ShowAnyToString:
     )
     CATEGORY = "SaveImageWithMetaDataUniversal/util"
 
-    def notify(self, value, display=None, unique_id=None, extra_pnginfo=None):
+    def notify(
+        self,
+        value: Sequence[Any] | None,
+        display: str | None = None,
+        unique_id: Sequence[str] | None = None,
+        extra_pnginfo: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
         """Convert the input to a string and return it.
 
         This method takes the input `value`, converts each item in the list to a
@@ -198,8 +220,9 @@ class ShowAnyToString:
                 converted strings as the output.
         """
         # Convert batched inputs to strings.
+        iterable = list(value) if value is not None else []
         try:
-            strings = [_safe_to_str(v) for v in (value or [])]
+            strings = [_safe_to_str(v) for v in iterable]
         except Exception as e:  # noqa: BLE001
             logger.warning("[ShowAny|unimeta] conversion error: %s", e)
             strings = ["<error: see log>"]

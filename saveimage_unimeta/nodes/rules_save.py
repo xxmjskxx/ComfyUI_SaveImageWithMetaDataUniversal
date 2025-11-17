@@ -90,7 +90,7 @@ class SaveGeneratedUserRules:
         except (ValueError, TypeError) as e:  # unlikely for source text but explicit
             return False, f"Error: {e}"
 
-    def _find_dict_span(self, text: str, name: str) -> tuple[int | None, int | None]:
+    def _find_dict_span(self, text: str, name: str) -> tuple[int, int] | None:
         """Find the start and end indices of a dictionary in a string.
 
         This method searches for a dictionary with a given name in the provided
@@ -109,7 +109,7 @@ class SaveGeneratedUserRules:
 
         m = re.search(rf"\b{name}\s*=\s*\{{", text)
         if not m:
-            return None, None
+            return None
         start = m.end() - 1  # position of '{'
         depth = 0
         i = start
@@ -136,7 +136,7 @@ class SaveGeneratedUserRules:
                     if depth == 0:
                         return start, i
             i += 1
-        return None, None
+        return None
 
     def _parse_top_level_entries(self, body: str) -> list[tuple[str, str]]:
         """Parse the key-value pairs from a dictionary's body.
@@ -230,17 +230,19 @@ class SaveGeneratedUserRules:
         Returns:
             str: The merged content of the Python file.
         """
-        es, ee = self._find_dict_span(existing_text, name)
-        if es is None:
-            ns, ne = self._find_dict_span(new_text, name)
-            if ns is None:
+        existing_span = self._find_dict_span(existing_text, name)
+        if existing_span is None:
+            new_span = self._find_dict_span(new_text, name)
+            if new_span is None:
                 return existing_text
+            ns, ne = new_span
             block = new_text[ns : ne + 1]
             return existing_text + f"\n\n{name} = {block}\n"
 
+        es, ee = existing_span
         e_body = existing_text[es + 1 : ee]
         nms = self._find_dict_span(new_text, name)
-        if nms == (None, None):
+        if nms is None:
             return existing_text
         ns, ne = nms
         n_body = new_text[ns + 1 : ne]

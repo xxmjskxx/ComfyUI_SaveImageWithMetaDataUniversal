@@ -11,11 +11,11 @@ stub that mimics the necessary components of the `piexif` library.
 from __future__ import annotations
 
 try:
-    from .nodes.node import piexif  # type: ignore  # noqa: F401
+    from .nodes.node import piexif  # noqa: F401
 except Exception:  # pragma: no cover - bootstrapping path
     try:
-        import piexif  # type: ignore
-        import piexif.helper  # type: ignore
+        import piexif
+        import piexif.helper
     except Exception:  # noqa: BLE001
 
         class _PieExifStub:  # minimal stub for tests
@@ -71,7 +71,7 @@ except Exception:  # pragma: no cover - bootstrapping path
                 """
                 return None
 
-            class HelperStub:  # type: ignore
+            class HelperStub:
                 """A stub for the `helper` module in `piexif`."""
 
                 class UserComment:
@@ -95,4 +95,4 @@ except Exception:  # pragma: no cover - bootstrapping path
 
             helper = HelperStub  # expose attribute name piexif.helper
 
-        piexif = _PieExifStub()  # type: ignore
+        piexif = _PieExifStub()

@@ -77,7 +77,7 @@ applyTo: '**/*.py'
 - Validate inputs early (empty prompts, invalid tensors, oversized metadata) and raise descriptive errors when necessary.
 - Update or add unit tests whenever capture logic, hashing, fallback behavior, or filename tokens change. Focus on suites such as `tests/test_capture_core.py`, `tests/test_guidance_and_exif_fallback.py`, `tests/test_hash_logging.py`, and related files.
 - Run `pytest -q` (or `coverage run -m pytest -q`) with `METADATA_TEST_MODE=1` before submitting changes to mirror CI behavior.
-- Store generated fixtures, workflow dumps, or hash logs under `saveimage_unimeta/_test_outputs/` or `tests/_artifacts/` so git history stays clean.
+- Store generated fixtures, workflow dumps, or hash logs under `tests/_test_outputs/` or `tests/_artifacts/` so git history stays clean.
 
 ## Example: Project Docstrings & Type Duality
 

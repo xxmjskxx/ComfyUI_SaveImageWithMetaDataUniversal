@@ -28,7 +28,7 @@ METADATA_ENV_FLAGS = {
     # Future: "METADATA_MAX_JPEG_EXIF_KB" (UI param presently preferred)
 }
 if not TEST_MODE:  # Only import heavy hook & nodes when running inside ComfyUI
-    from .hook import pre_execute, pre_get_input_data  # type: ignore
+    from .hook import pre_execute, pre_get_input_data
 else:  # Provide no-op placeholders for tests
 
     def pre_execute(*_, **__):  # type: ignore
@@ -45,7 +45,7 @@ else:  # Provide no-op placeholders for tests
 # that importing capture logic (and enums) still works. The stub only needs the
 # attributes we monkeypatch below.
 try:  # pragma: no cover - exercised implicitly
-    import execution  # type: ignore
+    import execution
 except Exception:  # noqa: BLE001 - broad to ensure test environment resilience
 
     class _ExecutionStub:  # pragma: no cover
@@ -62,7 +62,7 @@ except Exception:  # noqa: BLE001 - broad to ensure test environment resilience
             """A no-op `get_input_data` method."""
             return None
 
-    execution = _ExecutionStub()  # type: ignore
+    execution = _ExecutionStub()
 
 
 def prefix_function(function, prefunction):

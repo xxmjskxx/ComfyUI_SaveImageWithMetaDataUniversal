@@ -23,7 +23,7 @@ def _mk(tmp_path: Path, name: str, content: str = "data") -> str:
 def test_logging_initialization_and_hash_source(tmp_path, monkeypatch):
     model_file = _mk(tmp_path, "anonymodel.safetensors", "AAAA")
     # folder_paths stub
-    import folder_paths  # type: ignore
+    import folder_paths
 
     monkeypatch.setattr(
         folder_paths,
@@ -46,7 +46,7 @@ def test_logging_initialization_and_hash_source(tmp_path, monkeypatch):
 
 def test_lora_numeric_suffix_debug_logging(tmp_path, monkeypatch):
     lora_file = _mk(tmp_path, "obscure_theme_pack_7.05.safetensors", "BBBB")
-    import folder_paths  # type: ignore
+    import folder_paths
 
     monkeypatch.setattr(
         folder_paths,
@@ -66,7 +66,7 @@ def test_lora_numeric_suffix_debug_logging(tmp_path, monkeypatch):
 
 def test_force_rehash_env(tmp_path, monkeypatch):
     model_file = _mk(tmp_path, "anothermodel.safetensors", "CCCC")
-    import folder_paths  # type: ignore
+    import folder_paths
 
     monkeypatch.setattr(
         folder_paths,

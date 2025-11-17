@@ -13,19 +13,19 @@ import time
 from typing import Any
 import sys
 
-import folder_paths  # type: ignore
+import folder_paths
 
 try:  # Attempt real comfy imports (runtime environment)
-    from comfy.sd1_clip import (  # type: ignore
+    from comfy.sd1_clip import (
         SD1Tokenizer,
         escape_important,
         token_weights,
         unescape_important,
     )
-    from comfy.sdxl_clip import SDXLTokenizer  # type: ignore
-    from comfy.text_encoders.flux import FluxTokenizer  # type: ignore
-    from comfy.text_encoders.sd2_clip import SD2Tokenizer  # type: ignore
-    from comfy.text_encoders.sd3_clip import SD3Tokenizer  # type: ignore
+    from comfy.sdxl_clip import SDXLTokenizer
+    from comfy.text_encoders.flux import FluxTokenizer
+    from comfy.text_encoders.sd2_clip import SD2Tokenizer
+    from comfy.text_encoders.sd3_clip import SD3Tokenizer
 except (ImportError, ModuleNotFoundError):  # noqa: BLE001 - provide minimal stubs for tests
 
     class _BaseTok:
@@ -35,17 +35,17 @@ except (ImportError, ModuleNotFoundError):  # noqa: BLE001 - provide minimal stu
             """A stub for the `encode_with_weights` method."""
             return []
 
-    SD1Tokenizer = SDXLTokenizer = FluxTokenizer = SD2Tokenizer = SD3Tokenizer = _BaseTok  # type: ignore
+    SD1Tokenizer = SDXLTokenizer = FluxTokenizer = SD2Tokenizer = SD3Tokenizer = _BaseTok
 
-    def escape_important(x):  # type: ignore
+    def escape_important(x):
         """A stub for the `escape_important` function."""
         return x
 
-    def unescape_important(x):  # type: ignore
+    def unescape_important(x):
         """A stub for the `unescape_important` function."""
         return x
 
-    def token_weights(x):  # type: ignore
+    def token_weights(x):
         """A stub for the `token_weights` function."""
         return []
 
@@ -151,7 +151,7 @@ def _ensure_logger():  # runtime init when mode activated
         try:
             if not getattr(_ensure_logger, "_warned", False):
                 print("[Hash] logger initialization failed", file=sys.stderr)
-                _ensure_logger._warned = True  # type: ignore[attr-defined]
+                _ensure_logger._warned = True
         except Exception:  # pragma: no cover
             pass
 
@@ -273,7 +273,7 @@ def _hash_file(kind: str, path: str, truncate: int = 10) -> str | None:
     return hashed
 
 
-cache_model_hash = {}
+cache_model_hash: dict[str, str] = {}
 logger = logging.getLogger(__name__)
 
 _MAX_EMBEDDING_NAME_CHARS = 80

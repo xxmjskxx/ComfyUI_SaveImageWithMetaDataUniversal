@@ -24,7 +24,7 @@ from datetime import datetime
 # importing this module never hard-fails just because the test harness executed
 # imports in a different order.
 try:  # pragma: no cover - normal runtime path
-    import folder_paths  # type: ignore
+    import folder_paths
 except ModuleNotFoundError:  # pragma: no cover - isolated test fallback
 
     class _FolderPathsStub:  # minimal surface used by this module
@@ -49,23 +49,23 @@ except ModuleNotFoundError:  # pragma: no cover - isolated test fallback
         def get_full_path(self, kind, name):  # noqa: D401
             return name
 
-    folder_paths = _FolderPathsStub()  # type: ignore
+    folder_paths = _FolderPathsStub()
 import numpy as np
 from ..utils.color import cstr
 
 try:  # Comfy runtime provides this; tests may not
-    from comfy.cli_args import args  # type: ignore
+    from comfy.cli_args import args
 except (ImportError, ModuleNotFoundError):  # fall back in isolated tests
 
     class _ArgsStub:
         disable_metadata = False
 
-    args = _ArgsStub()  # type: ignore
+    args = _ArgsStub()
 from PIL import Image
 from PIL.PngImagePlugin import PngInfo
 
 try:  # Normal runtime
-    from .. import hook  # type: ignore
+    from .. import hook
 except (ImportError, ModuleNotFoundError):  # circular or missing in isolated test
 
     class _HookStub:  # minimal attributes used
@@ -434,7 +434,7 @@ class SaveImageWithMetaDataUniversal:
         piexif = _node.piexif  # noqa: F841 - used implicitly by subsequent code references
         # Apply unified hash logging preference
         try:
-            from ..defs import formatters as _formatters_mod  # type: ignore
+            from ..defs import formatters as _formatters_mod
 
             # Reinitialize hash logger only when the mode actually changes
             try:

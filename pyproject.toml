@@ -76,3 +76,22 @@ minversion = "6.0"
 testpaths = [
     "tests",
 ]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["saveimage_unimeta", "tests", "tests/comfyui_cli_tests"]
+exclude = [
+    "tests/cookiecutter_template/.*",
+    ".*\\{\\{cookiecutter.project_slug\\}\\}.*",
+    "saveimage_unimeta/_test_outputs/.*",
+    "saveimage_unimeta/tests/_test_outputs/.*",
+    ".*/backups/.*",
+    "ignore/.*",
+    "saveimage_unimeta/defs/ext/generated_user_rules.py",
+    "saveimage_unimeta/user_rules/*",
+    "tests/comfyui_cli_tests/*"
+]
+warn_unused_configs = true
+warn_unused_ignores = true
+explicit_package_bases = true
+ignore_missing_imports = true

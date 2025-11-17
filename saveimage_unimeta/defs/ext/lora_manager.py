@@ -75,11 +75,19 @@ def _parse_lora_syntax(text):
     raw_names, ms_list, cs_list = parse_lora_syntax(text)
     if not raw_names:
         return display_names, hashes, model_strengths, clip_strengths
-    display_names = resolve_lora_display_names(raw_names)
-    hashes = [calc_lora_hash(raw, None) for raw in raw_names]
-    model_strengths = ms_list
-    clip_strengths = cs_list
-    return display_names, hashes, model_strengths, clip_strengths
+    resolved_names = resolve_lora_display_names(raw_names)
+    filtered_names: list[str] = []
+    filtered_hashes: list[str] = []
+    filtered_model_strengths: list[float] = []
+    filtered_clip_strengths: list[float] = []
+    for raw, disp, ms_val, cs_val in zip(raw_names, resolved_names, ms_list, cs_list):
+        if raw is None:
+            continue
+        filtered_names.append(disp)
+        filtered_hashes.append(calc_lora_hash(raw, []))
+        filtered_model_strengths.append(ms_val)
+        filtered_clip_strengths.append(cs_val)
+    return filtered_names, filtered_hashes, filtered_model_strengths, filtered_clip_strengths
 
 
 def _get_lora_data_from_node(node_id, input_data):

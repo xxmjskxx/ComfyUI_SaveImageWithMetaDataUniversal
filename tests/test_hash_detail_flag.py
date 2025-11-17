@@ -7,7 +7,7 @@ try:
     MODULE_PATH = "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.capture"
 except ModuleNotFoundError:
     # Fallback for running tests from repo root without installation
-    from saveimage_unimeta.defs.meta import MetaField  # type: ignore
+    from saveimage_unimeta.defs.meta import MetaField
 
     MODULE_PATH = "saveimage_unimeta.capture"
 
