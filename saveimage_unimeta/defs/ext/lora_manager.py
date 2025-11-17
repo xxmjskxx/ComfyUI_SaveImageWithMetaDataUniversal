@@ -1,3 +1,22 @@
+"""Provides metadata definitions for the ComfyUI-Lora-Manager custom nodes.
+
+This module is designed to integrate with the `ComfyUI-Lora-Manager` custom node pack,
+which can be found at: https://github.com/willmiao/ComfyUI-Lora-Manager
+
+It specializes in parsing LoRA syntax (e.g., `<lora:name:model_strength:clip_strength>`)
+from various text fields within the LoraManager nodes. This allows for the capture
+of detailed LoRA information, including names, hashes, and separate model/CLIP strengths.
+
+The module includes a caching mechanism to avoid re-parsing the same LoRA syntax,
+improving performance on repeated workflow executions. It defines a set of selector
+functions that are mapped to several nodes from the LoraManager pack in the
+`CAPTURE_FIELD_LIST`.
+
+Attributes:
+    CAPTURE_FIELD_LIST (dict): A dictionary mapping various LoraManager nodes to their
+                               metadata capture configurations, utilizing custom
+                               selectors to parse and extract LoRA data.
+"""
 # https://github.com/willmiao/ComfyUI-Lora-Manager
 import logging
 
@@ -17,7 +36,18 @@ _NODE_DATA_CACHE: dict[int, dict] = {}
 
 
 def _select_text_field(input_data):
-    """Choose which field to parse based on availability (priority order)."""
+    """Selects the appropriate text field to parse for LoRA syntax.
+
+    This function checks for the presence of specific fields in a prioritized order
+    (`lora_syntax`, `loaded_loras`, then `text`) and returns the name of the first
+    field found that contains text.
+
+    Args:
+        input_data (dict): The input data for the node.
+
+    Returns:
+        str: The name of the field to be parsed.
+    """
     if input_data[0].get("lora_syntax", ""):
         return "lora_syntax"
     if input_data[0].get("loaded_loras", ""):
@@ -26,11 +56,17 @@ def _select_text_field(input_data):
 
 
 def _parse_lora_syntax(text):
-    """Return (display_names, hashes, model_strengths, clip_strengths).
+    """Parses a string containing LoRA syntax and extracts relevant data.
 
-    Behavior preserved:
-    - Hashes computed from raw name (pre-resolution) with calc_lora_hash(raw, None).
-    - Display names resolved via indexed filename when available.
+    This function takes a text string, identifies all LoRA tags within it, and
+    extracts their display names, hashes, model strengths, and CLIP strengths.
+
+    Args:
+        text (str): The string containing LoRA syntax.
+
+    Returns:
+        tuple: A tuple of four lists: display names, hashes, model strengths,
+               and CLIP strengths.
     """
     display_names: list[str] = []
     hashes: list[str] = []
@@ -47,7 +83,19 @@ def _parse_lora_syntax(text):
 
 
 def _get_lora_data_from_node(node_id, input_data):
-    """Parse LoRA tags and cache by node id + text snapshot. Supports dual strengths."""
+    """Extracts LoRA data from a node's input, utilizing a cache.
+
+    This function orchestrates the process of selecting the correct text field,
+    parsing the LoRA syntax from it, and caching the result. If the same node
+    is processed with identical text input, the cached data is returned.
+
+    Args:
+        node_id (int): The ID of the node.
+        input_data (dict): The input data for the node.
+
+    Returns:
+        dict: A dictionary containing the parsed LoRA data (names, hashes, etc.).
+    """
     global _NODE_DATA_CACHE
     field_to_parse = _select_text_field(input_data)
     raw_val = input_data[0].get(field_to_parse, "")
@@ -70,23 +118,28 @@ def _get_lora_data_from_node(node_id, input_data):
 
 # Selectors (note: *args[-1] is input_data structure from capture pipeline)
 def get_lora_model_names(node_id, *args):
+    """Selector to get LoRA model names from a LoraManager node."""
     return _get_lora_data_from_node(node_id, args[-1])["names"]
 
 
 def get_lora_model_hashes(node_id, *args):
+    """Selector to get LoRA model hashes from a LoraManager node."""
     return _get_lora_data_from_node(node_id, args[-1])["hashes"]
 
 
 def get_lora_model_strengths(node_id, *args):
+    """Selector to get LoRA model strengths from a LoraManager node."""
     return _get_lora_data_from_node(node_id, args[-1])["model_strengths"]
 
 
 def get_lora_clip_strengths(node_id, *args):
+    """Selector to get LoRA CLIP strengths from a LoraManager node."""
     return _get_lora_data_from_node(node_id, args[-1])["clip_strengths"]
 
 
 # Legacy selector (kept for backward compatibility) returns model strengths
 def get_lora_strengths(node_id, *args):
+    """Legacy selector for LoRA strengths, returning model strengths."""
     return _get_lora_data_from_node(node_id, args[-1])["model_strengths"]
 
 

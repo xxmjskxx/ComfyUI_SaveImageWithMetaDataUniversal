@@ -1,23 +1,9 @@
-"""Unified artifact name → path + hashing helpers (Phase 1).
+"""Provides utilities for resolving artifact paths and calculating hashes.
 
-Introduces consolidation primitives without refactoring existing call sites yet.
-Future phases can migrate model / VAE / LoRA / UNet hash functions to use these
-helpers. For now they provide:
-
-- Ordered extension preference constant (`EXTENSION_ORDER`).
-- Trailing punctuation normalization (Windows-friendly) via `sanitize_candidate`.
-- Generic recursive resolution: `try_resolve_artifact` handling list / tuple /
-  dict / attribute forms uniformly with depth guard.
-- Sidecar based hashing utility `load_or_calc_hash` (shared logic prototype).
-
-Design goals:
-- Non-invasive: existing behavior unchanged until explicit adoption.
-- Deterministic ordering & minimal logging except in debug contexts.
-- Extensibility: post-resolvers (e.g., LoRA index) can be chained later.
-
-NOTE: This module intentionally duplicates *some* logic now present in
-`defs/formatters.py`; subsequent refactors will remove that duplication once
-stability is verified.
+This module contains functions for resolving the file paths of various
+artifacts, such as models, VAEs, and LoRAs, from their names. It also
+includes a utility for calculating the SHA256 hash of a file with sidecar
+caching.
 """
 
 from __future__ import annotations
@@ -36,6 +22,7 @@ try:  # local import guarded for tests (calc_hash optional patch)
 except (ImportError, ModuleNotFoundError):  # pragma: no cover - test fallback
 
     def calc_hash(path: str) -> str:  # type: ignore
+        """A fallback hash calculation function for testing."""
         import hashlib
 
         with open(path, "rb") as f:
@@ -76,18 +63,20 @@ _HEX64_RE = re.compile(r"^[0-9a-fA-F]{64}$")
 
 
 def sanitize_candidate(name: str, trim_trailing_punct: bool = True) -> str:
-    """Return a normalized candidate filename stem.
+    """Normalize a candidate filename.
 
-    Behavior and rationale:
-    - Strips surrounding single/double quotes when the entire string is quoted.
-    - Optionally trims trailing spaces and dots only at the very end of the
-      string (internal punctuation is preserved). This is for Windows
-      portability: the Win32 layer normalizes paths so a trailing space/dot is
-      disallowed or silently collapsed (e.g., "foo." and "foo " map to
-      "foo"). Trimming here avoids lookup/hashing mismatches across OSes.
+    This function sanitizes a filename by stripping outer whitespace and
+    quotes. It also provides an option to trim trailing punctuation, which is
+    useful for ensuring cross-platform compatibility, particularly with
+    Windows.
 
-    Note: This function is conservative by design and does not alter internal
-    dots or spaces, only terminal punctuation when enabled.
+    Args:
+        name (str): The filename to be sanitized.
+        trim_trailing_punct (bool, optional): If True, trailing spaces and
+            dots are removed. Defaults to True.
+
+    Returns:
+        str: The sanitized filename.
     """
     if not isinstance(name, str):  # defensive
         return str(name)
@@ -107,11 +96,30 @@ def sanitize_candidate(name: str, trim_trailing_punct: bool = True) -> str:
 
 @dataclass(slots=True)
 class ResolutionResult:
+    """A data class to hold the results of artifact resolution.
+
+    Attributes:
+        display_name (str): The display name of the artifact.
+        full_path (str | None): The absolute path to the artifact file, or
+            None if not found.
+    """
+
     display_name: str
     full_path: str | None
 
 
 def _iter_container_candidates(container: Any) -> Iterable[Any]:
+    """Iterate over potential artifact names within a container.
+
+    This function extracts candidate names from various container types, such
+    as lists, tuples, dictionaries, and objects with specific attributes.
+
+    Args:
+        container (Any): The container to be iterated over.
+
+    Yields:
+        Iterable[Any]: An iterator over the candidate names.
+    """
     if isinstance(container, list | tuple):
         yield from container
     elif isinstance(container, dict):
@@ -130,18 +138,33 @@ def _iter_container_candidates(container: Any) -> Iterable[Any]:
 
 
 def has_supported_extension(name: str) -> bool:
-    """Return True if *name* ends with any supported extension (case-insensitive)."""
+    """Check if a filename has a supported model extension.
+
+    Args:
+        name (str): The filename to be checked.
+
+    Returns:
+        bool: True if the filename has a supported extension, False otherwise.
+    """
     ln = name.lower()
     return any(ln.endswith(ext) for ext in SUPPORTED_MODEL_EXTENSIONS)
 
 
 def _probe_folder(kind: str, base_name: str) -> str | None:
-    """Attempt direct + extension fallback lookups for *base_name* with debug candidate capture.
+    """Search for an artifact in a specific folder.
 
-    Enhancements over earlier version:
-      * Always records attempted candidate names into _LAST_PROBE_CANDIDATES.
-      * When a recognized extension lookup fails, still performs extension probing on the stem.
-      * Treats unknown/numeric extensions (e.g. .01) as part of stem and probes normal extension list.
+    This function attempts to find an artifact by its base name within a folder
+    of a given kind (e.g., 'checkpoints', 'loras'). It performs a direct
+    lookup and also tries adding supported extensions if the direct lookup
+    fails.
+
+    Args:
+        kind (str): The kind of folder to search in.
+        base_name (str): The base name of the artifact to find.
+
+    Returns:
+        str | None: The absolute path to the found artifact, or None if not
+            found.
     """
     _LAST_PROBE_CANDIDATES.clear()
     _LAST_PROBE_CANDIDATES.append(base_name)
@@ -197,18 +220,26 @@ def try_resolve_artifact(
     post_resolvers: Sequence[Callable[[str], str | None]] | None = None,
     max_depth: int = 5,
 ) -> ResolutionResult:
-    """Generic resolution algorithm.
+    """Resolve an artifact name to its full path.
+
+    This function attempts to find the full path of an artifact given a
+    "name-like" object, which can be a string, list, tuple, dictionary, or
+    other object containing a name reference. It uses a recursive approach to
+    search for a valid path and can be extended with post-resolver functions
+    for custom lookup logic.
 
     Args:
-        kind: folder type for `folder_paths` (e.g. 'checkpoints', 'loras').
-        name_like: Arbitrary structure containing a name reference.
-        post_resolvers: Optional callables taking the *display_name* and
-            returning an absolute path or None (e.g. LoRA index lookup) if the
-            primary folder/extension strategy fails.
-        max_depth: Prevent runaway recursion on pathological nested structures.
+        kind (str): The kind of artifact to resolve (e.g., 'checkpoints',
+            'loras').
+        name_like (Any): The object containing the name reference.
+        post_resolvers (Sequence[Callable[[str], str | None]] | None, optional):
+            A sequence of functions to be called if the primary resolution
+            fails. Defaults to None.
+        max_depth (int, optional): The maximum recursion depth. Defaults to 5.
 
     Returns:
-        ResolutionResult(display_name, full_path|None)
+        ResolutionResult: A `ResolutionResult` object containing the display
+            name and the full path of the artifact.
     """
     visited: set[int] = set()
 
@@ -266,18 +297,29 @@ def load_or_calc_hash(
     sidecar_error_cb: Callable[[str, Exception], None] | None = None,
     force_rehash: bool | None = None,
 ) -> str | None:
-    """Return truncated hash loading/writing a sidecar opportunistically.
-    Full hash is saved to sidecar for compatibility with existing usages in other modules and programs.
-    Truncated to 10 chars for compatibility with Civitai and other sites/tools that read metadata hashes.
+    """Load a hash from a sidecar file or calculate and save it.
+
+    This function provides an efficient way to get the hash of a file by
+    caching the result in a sidecar file. If the sidecar file exists, the hash
+    is read from it; otherwise, the hash is computed, saved to the sidecar,
+    and then returned.
 
     Args:
-        filepath: Absolute path to file to hash.
-        truncate: Number of starting characters to retain (None → full hash).
-        sidecar_ext: Extension appended to base path for caching.
-        on_compute: Optional callback invoked only when a new hash is computed.
+        filepath (str): The absolute path to the file to be hashed.
+        truncate (int, optional): The number of characters to truncate the hash
+            to. If None, the full hash is returned. Defaults to 10.
+        sidecar_ext (str, optional): The extension for the sidecar file.
+            Defaults to ".sha256".
+        on_compute (Callable[[str], None] | None, optional): A callback to be
+            invoked when a new hash is computed. Defaults to None.
+        sidecar_error_cb (Callable[[str, Exception], None] | None, optional):
+            A callback for handling errors when writing to the sidecar file.
+            Defaults to None.
+        force_rehash (bool | None, optional): If True, the hash is recomputed
+            even if a sidecar file exists. Defaults to None.
 
     Returns:
-        (Possibly truncated) hex hash or None on failure.
+        str | None: The (possibly truncated) hash, or None on failure.
     """
     if not filepath or not os.path.exists(filepath):
         return None

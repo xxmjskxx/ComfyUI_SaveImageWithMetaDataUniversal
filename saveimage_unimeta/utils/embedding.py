@@ -1,3 +1,10 @@
+"""A utility for resolving the file path of a text embedding.
+
+This module provides the `get_embedding_file_path` function, which is used to
+locate the file for a given embedding name by searching through the embedding
+directories specified in a CLIP object. It is designed to be compatible with
+the ComfyUI environment and includes a fallback for testing.
+"""
 import os
 from collections.abc import Sequence
 
@@ -6,6 +13,7 @@ try:  # Runtime import
 except Exception:  # noqa: BLE001 - test fallback
 
     def expand_directory_list(paths):  # type: ignore
+        """A stub for `expand_directory_list` for testing purposes."""
         # Simplistic passthrough stub for tests
         return list(paths)
 

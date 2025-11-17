@@ -1,3 +1,15 @@
+"""Initializes the `saveimage_unimeta` package and monkeypatches ComfyUI.
+
+This module is the entry point for the `saveimage_unimeta` package. It sets up
+the necessary hooks into the ComfyUI execution flow by monkeypatching the
+`execution` module. This allows the package to intercept the execution of the
+prompt and the retrieval of input data, which is essential for capturing the
+metadata.
+
+The module also defines environment flag constants for configuring the behavior
+of the metadata capture and provides stubs for the `execution` module and hook
+functions to allow for isolated unit testing.
+"""
 import functools  # noqa: N999 - module path mandated by ComfyUI folder naming
 import os
 
@@ -20,9 +32,11 @@ if not TEST_MODE:  # Only import heavy hook & nodes when running inside ComfyUI
 else:  # Provide no-op placeholders for tests
 
     def pre_execute(*_, **__):  # type: ignore
+        """A no-op placeholder for the `pre_execute` hook in test mode."""
         return None
 
     def pre_get_input_data(*_, **__):  # type: ignore
+        """A no-op placeholder for the `pre_get_input_data` hook in test mode."""
         return None
 
 
@@ -35,18 +49,39 @@ try:  # pragma: no cover - exercised implicitly
 except Exception:  # noqa: BLE001 - broad to ensure test environment resilience
 
     class _ExecutionStub:  # pragma: no cover
+        """A stub for the ComfyUI `execution` module for use in tests."""
+
         class PromptExecutor:  # minimal surface for monkeypatch
-            def execute(self, *_, **__):  # noqa: D401 - simple pass-through
+            """A stub for the `PromptExecutor` class."""
+
+            def execute(self, *_, **__):
+                """A no-op `execute` method."""
                 return None
 
-        def get_input_data(self, *_, **__):  # noqa: D401
+        def get_input_data(self, *_, **__):
+            """A no-op `get_input_data` method."""
             return None
 
     execution = _ExecutionStub()  # type: ignore
 
 
-# refer. https://stackoverflow.com/a/35758398
 def prefix_function(function, prefunction):
+    """Wraps a function to execute a prefunction before it.
+
+    This utility function takes two functions, `function` and `prefunction`,
+    and returns a new function that, when called, first executes `prefunction`
+    with the same arguments and then executes and returns the result of the
+    original `function`.
+
+    Args:
+        function (callable): The original function to be wrapped.
+        prefunction (callable): The function to be executed before the
+            original function.
+
+    Returns:
+        callable: The wrapped function.
+    """
+
     @functools.wraps(function)
     def run(*args, **kwargs):
         prefunction(*args, **kwargs)

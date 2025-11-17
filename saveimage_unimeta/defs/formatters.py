@@ -1,8 +1,10 @@
-"""Formatters & hashing helpers for metadata capture.
+"""Provides formatter and hashing functions for metadata capture.
 
-Provides resilient name resolution for models, VAEs, LoRAs, UNets, plus
-embedding extraction utilities and deterministic hashing with optional
-use of cached .sha256 sidecar files to avoid recomputation.
+This module contains a collection of functions used to format and process the
+raw data captured from a ComfyUI workflow. This includes functions for
+calculating hashes of models, VAEs, and LoRAs, as well as utilities for
+extracting embedding information from prompts and resolving artifact names to
+file paths.
 """
 
 import logging
@@ -27,18 +29,24 @@ try:  # Attempt real comfy imports (runtime environment)
 except (ImportError, ModuleNotFoundError):  # noqa: BLE001 - provide minimal stubs for tests
 
     class _BaseTok:
+        """A base stub for tokenizer classes."""
+
         def encode_with_weights(self, text):  # pragma: no cover - trivial stub
+            """A stub for the `encode_with_weights` method."""
             return []
 
     SD1Tokenizer = SDXLTokenizer = FluxTokenizer = SD2Tokenizer = SD3Tokenizer = _BaseTok  # type: ignore
 
     def escape_important(x):  # type: ignore
+        """A stub for the `escape_important` function."""
         return x
 
     def unescape_important(x):  # type: ignore
+        """A stub for the `unescape_important` function."""
         return x
 
     def token_weights(x):  # type: ignore
+        """A stub for the `token_weights` function."""
         return []
 
 
@@ -78,13 +86,22 @@ for _n in _ALT_NAMES:
 
 
 def set_hash_log_mode(mode: str):
-    """Programmatically adjust hash log mode (tests / UI) and re-init logger."""
+    """Set the logging mode for hashing operations.
+
+    This function allows for programmatically changing the hash logging mode,
+    which is useful for testing and dynamic configuration.
+
+    Args:
+        mode (str): The desired logging mode ('none', 'filename', 'path',
+            'detailed', or 'debug').
+    """
     global HASH_LOG_MODE, _LOGGER_INITIALIZED
     HASH_LOG_MODE = (mode or "none").lower()
     _LOGGER_INITIALIZED = False  # force re-init next log call
 
 
 def _ensure_logger():  # runtime init when mode activated
+    """Initialize the logger for hashing operations if not already done."""
     global _LOGGER_INITIALIZED, _HASH_LOG_PROPAGATE, _BANNER_PRINTED
     if _LOGGER_INITIALIZED:
         return
@@ -140,6 +157,13 @@ def _ensure_logger():  # runtime init when mode activated
 
 
 def _log(kind: str, msg: str, level=logging.INFO):
+    """Log a message related to hashing, subject to the current log mode.
+
+    Args:
+        kind (str): The kind of artifact being logged (e.g., 'model', 'lora').
+        msg (str): The message to be logged.
+        level (int, optional): The logging level. Defaults to logging.INFO.
+    """
     mode = (HASH_LOG_MODE or "none").lower()
     if mode == "none":
         return
@@ -151,6 +175,14 @@ def _log(kind: str, msg: str, level=logging.INFO):
 
 
 def _fmt_display(path: str) -> str:
+    """Format a path for display based on the current hash log mode.
+
+    Args:
+        path (str): The path to be formatted.
+
+    Returns:
+        str: The formatted path (either the full path or just the basename).
+    """
     mode = (HASH_LOG_MODE or "none").lower()
     if mode in {"path", "detailed", "debug"}:
         return path
@@ -158,7 +190,13 @@ def _fmt_display(path: str) -> str:
     return os.path.basename(path)
 
 
-def _sidecar_error_once(sidecar: str, exc: Exception):  # noqa: D401
+def _sidecar_error_once(sidecar: str, exc: Exception):
+    """Log a warning for a sidecar file error, only once per file.
+
+    Args:
+        sidecar (str): The path to the sidecar file.
+        exc (Exception): The exception that occurred.
+    """
     if sidecar in _WARNED_SIDECAR:
         return
     _WARNED_SIDECAR.add(sidecar)
@@ -166,6 +204,12 @@ def _sidecar_error_once(sidecar: str, exc: Exception):  # noqa: D401
 
 
 def _warn_unresolved_once(kind: str, token: str):
+    """Log a warning for an unresolved artifact, only once per artifact.
+
+    Args:
+        kind (str): The kind of artifact that was unresolved.
+        token (str): The token that could not be resolved.
+    """
     key = f"{kind}:{token}"
     if key in _WARNED_UNRESOLVED:
         return
@@ -174,6 +218,12 @@ def _warn_unresolved_once(kind: str, token: str):
 
 
 def _maybe_debug_candidates(kind: str, display: str):
+    """Log the candidate names for an artifact in debug mode.
+
+    Args:
+        kind (str): The kind of artifact.
+        display (str): The display name of the artifact.
+    """
     from ..utils.pathresolve import _LAST_PROBE_CANDIDATES  # lazy import
 
     mode = (HASH_LOG_MODE or "none").lower()
@@ -182,6 +232,17 @@ def _maybe_debug_candidates(kind: str, display: str):
 
 
 def _hash_file(kind: str, path: str, truncate: int = 10) -> str | None:
+    """Calculate the hash of a file with sidecar caching and logging.
+
+    Args:
+        kind (str): The kind of file being hashed.
+        path (str): The path to the file.
+        truncate (int, optional): The number of characters to truncate the
+            hash to. Defaults to 10.
+
+    Returns:
+        str | None: The truncated hash, or None on failure.
+    """
     # Centralized hashing with sidecar callback + timing & debug full hash
     from ..utils.pathresolve import load_or_calc_hash  # local import to avoid cycles
 

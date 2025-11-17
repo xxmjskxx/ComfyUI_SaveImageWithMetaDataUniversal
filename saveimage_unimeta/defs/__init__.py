@@ -34,7 +34,15 @@ from . import formatters as formatters  # re-exported via __all__ for direct imp
 _TEST_MODE = _os.environ.get("METADATA_TEST_MODE", "").strip().lower() in {"1", "true", "yes", "on"}
 
 
-def _is_test_mode() -> bool:  # pragma: no cover - trivial logic
+def _is_test_mode() -> bool:
+    """Check if the package is running in test mode.
+
+    This function checks the `METADATA_TEST_MODE` environment variable to
+    determine if the package should operate in test mode.
+
+    Returns:
+        bool: True if test mode is enabled, False otherwise.
+    """
     return _os.environ.get("METADATA_TEST_MODE", "").strip().lower() in {"1", "true", "yes", "on"}
 
 
@@ -49,14 +57,18 @@ FORCED_INCLUDE_CLASSES: set[str] = set()
 LOADED_RULES_VERSION: str | None = None
 
 
-def set_forced_include(raw: str) -> set[str]:  # pragma: no cover - simple setter
-    """Parse and store forced include node class names.
+def set_forced_include(raw: str) -> set[str]:
+    """Set the globally forced include node class names.
+
+    This function parses a string of comma- or newline-separated node class
+    names and adds them to the `FORCED_INCLUDE_CLASSES` set. These classes will
+    always be included in the metadata capture process.
 
     Args:
-        raw: Comma or whitespace separated class names.
+        raw (str): A string containing the node class names to be forced.
 
     Returns:
-        The updated global set (for chaining / debugging / test assertions).
+        set[str]: The updated set of forced include class names.
     """
     global FORCED_INCLUDE_CLASSES
     parsed = {c.strip() for c in raw.replace("\n", ",").split(",") if c.strip()}
@@ -65,11 +77,11 @@ def set_forced_include(raw: str) -> set[str]:  # pragma: no cover - simple sette
     return FORCED_INCLUDE_CLASSES
 
 
-def clear_forced_include() -> set[str]:  # pragma: no cover - simple helper
-    """Clear all globally forced include node classes.
+def clear_forced_include() -> set[str]:
+    """Clear the set of globally forced include node class names.
 
     Returns:
-        The now-empty global set (for chaining / test assertions).
+        set[str]: The (now empty) set of forced include class names.
     """
     FORCED_INCLUDE_CLASSES.clear()
     return FORCED_INCLUDE_CLASSES
@@ -94,7 +106,7 @@ DEFAULT_CAPTURES = CAPTURE_FIELD_LIST.copy()
 
 
 def _reset_to_defaults() -> None:
-    """Reset in-memory sampler & capture rule registries to their original defaults."""
+    """Reset the in-memory capture and sampler rules to their default state."""
     SAMPLERS.clear()
     CAPTURE_FIELD_LIST.clear()
     SAMPLERS.update(DEFAULT_SAMPLERS)
@@ -104,11 +116,7 @@ def _reset_to_defaults() -> None:
 
 
 def _load_extensions() -> None:
-    """Load python-based extensions from `defs/ext`.
-
-    Only import errors or attribute errors are logged; other exceptions are allowed
-    to propagate because they likely indicate programmer errors in extension code.
-    """
+    """Load and merge python-based extensions from the `defs/ext` directory."""
     dir_name = os.path.dirname(os.path.abspath(__file__))
     global LOADED_RULES_VERSION
     for module_path in glob.glob(os.path.join(dir_name, "ext", "*.py")):
@@ -181,17 +189,17 @@ def _load_extensions() -> None:
 
 
 def load_extensions_only() -> None:
-    """Public helper to reset and load only defaults + extensions."""
+    """Reset to defaults and load only the python-based extensions."""
     _reset_to_defaults()
     _load_extensions()
 
 
 def _merge_extension_capture_entry(node_name: str, rules) -> None:
-    """Merge a capture entry coming from an extension.
+    """Merge a capture rule entry from an extension into the main list.
 
-    Semantics (must match original inline logic):
-      * If the existing entry or new value isn't a mapping, assign directly.
-      * If both are mappings, shallow-update the existing mapping.
+    Args:
+        node_name (str): The name of the node the rule applies to.
+        rules (dict): The dictionary of rules to be merged.
     """
     existing = CAPTURE_FIELD_LIST.get(node_name)
     if (
@@ -205,11 +213,11 @@ def _merge_extension_capture_entry(node_name: str, rules) -> None:
 
 
 def _merge_user_capture_entry(node_name: str, rules) -> None:
-    """Merge a capture entry provided via user JSON.
+    """Merge a user-defined capture rule entry from JSON.
 
-    Semantics (must match original inline logic):
-      * Ensure a dict container exists for the node name.
-      * Only update when the provided rules value is a mapping; otherwise skip.
+    Args:
+        node_name (str): The name of the node the rule applies to.
+        rules (dict): The dictionary of rules to be merged.
     """
     if node_name not in CAPTURE_FIELD_LIST:
         CAPTURE_FIELD_LIST[node_name] = {}
@@ -218,12 +226,11 @@ def _merge_user_capture_entry(node_name: str, rules) -> None:
 
 
 def _merge_user_sampler_entry(key: str, val) -> None:
-    """Merge a single user-provided sampler mapping into ``SAMPLERS``.
+    """Merge a user-defined sampler entry from JSON.
 
-    Rules:
-      * Non-mapping values are skipped with a warning.
-      * If the existing entry is absent or not a mapping, the value is assigned.
-      * If both sides are mappings, perform an in-place update (shallow merge).
+    Args:
+        key (str): The key for the sampler entry.
+        val (dict): The dictionary of sampler information to be merged.
     """
     if not isinstance(val, Mapping):  # type: ignore[arg-type]
         logger.warning(
@@ -239,12 +246,21 @@ def _merge_user_sampler_entry(key: str, val) -> None:
 
 
 def load_user_definitions(required_classes: set | None = None, suppress_missing_log: bool = False) -> None:
-    """
-    Merge order and conditional loading per run:
-      1) Reset to defaults
-      2) Load python extensions (merge 1)
-      3) If required_classes fully covered by merge 1, skip user JSON
-         Otherwise, merge user JSON (merge 2)
+    """Load and merge user-defined capture and sampler rules.
+
+    This function orchestrates the loading of metadata definitions, following a
+    specific merge order:
+    1. Reset to the default rules.
+    2. Load and merge rules from python extensions.
+    3. Conditionally load and merge rules from user-defined JSON files, if
+       necessary to cover the `required_classes`.
+
+    Args:
+        required_classes (set | None, optional): A set of node class names that
+            must be covered by the loaded rules. If None, user JSON files are
+            always loaded. Defaults to None.
+        suppress_missing_log (bool, optional): If True, warnings about missing
+            class coverage are suppressed. Defaults to False.
     """
     logger.info("[Metadata Loader] Refreshing definitions (defaults + ext, then conditional user JSON)...")
 

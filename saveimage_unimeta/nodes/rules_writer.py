@@ -1,4 +1,10 @@
-"""Rules writer node (formerly in the monolithic node.py)."""
+"""A ComfyUI node for saving and managing custom metadata rules.
+
+This module provides the `SaveCustomMetadataRules` class, which is a ComfyUI
+node that allows users to save, back up, and restore their custom metadata
+capture rules. It supports both overwriting and appending to existing rule
+files and can generate a Python extension module from the rules.
+"""
 
 from __future__ import annotations
 
@@ -15,17 +21,25 @@ logger = logging.getLogger(__name__)
 
 
 class SaveCustomMetadataRules:
-    """Enhanced writer supporting overwrite/append, backups and restore.
+    """A node for managing metadata rules with backup and restore functionality.
 
-    Flow summary:
-      * Optional restore of a selected backup set (short-circuits other inputs except rebuild flag).
-      * Normal save path can create a timestamped backup (set folder) before applying changes.
-      * Two save modes: overwrite (legacy) and append_new (only add missing / optionally replace conflicts).
-      * Deterministic python extension generation (sorted order) when requested.
+    This class provides a comprehensive solution for managing user-defined
+    metadata rules. It allows for saving in overwrite or append mode, creating
+    timestamped backups, restoring from backups, and pruning old backups.
+    It also handles the generation of a Python extension from the JSON rules.
     """
 
     @classmethod
-    def INPUT_TYPES(cls):  # noqa: N802, N804
+    def INPUT_TYPES(cls):  # noqa: N802
+        """Define the input types for the `SaveCustomMetadataRules` node.
+
+        This method dynamically enumerates available backup sets to populate the
+        `restore_backup_set` dropdown. It defines inputs for the rules JSON,
+        save mode, backup options, and other settings.
+
+        Returns:
+            dict: A dictionary defining the input schema for the node.
+        """
         # Dynamic enumeration of backup sets each time the UI queries node spec.
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         user_rules_dir = os.path.join(base_dir, "user_rules")
@@ -139,7 +153,34 @@ class SaveCustomMetadataRules:
         replace_conflicts: bool = False,
         rebuild_python_rules: bool = True,
         limit_backup_sets: int = 20,
-    ) -> tuple[str]:  # noqa: D401
+    ) -> tuple[str]:
+        """Save, restore, or manage metadata rules.
+
+        This method is the main entry point for the node's functionality. It
+        handles the logic for restoring from a backup, saving rules in
+        different modes, and generating the Python extension file.
+
+        Args:
+            rules_json_string (str): The JSON string containing the metadata rules.
+            save_mode (str, optional): The save mode ('overwrite' or 'append_new').
+                Defaults to "overwrite".
+            backup_before_save (bool, optional): Whether to create a backup before
+                saving. Defaults to True.
+            restore_backup_set (str, optional): The name of the backup set to
+                restore. Defaults to "none".
+            replace_conflicts (bool, optional): Whether to replace conflicting
+                entries when appending. Defaults to False.
+            rebuild_python_rules (bool, optional): Whether to regenerate the
+                Python extension file. Defaults to True.
+            limit_backup_sets (int, optional): The maximum number of backup sets
+                to retain. Defaults to 20.
+
+        Returns:
+            tuple[str]: A tuple containing a status message.
+
+        Raises:
+            ValueError: If an error occurs during the saving process.
+        """
         # Path constants (shared with loader semantics)
         PY_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # noqa: N806
         # Test isolation parity with loader: if METADATA_TEST_MODE and an existing
@@ -342,9 +383,22 @@ class SaveCustomMetadataRules:
         samplers_path: str,
         ext_path: str,
     ) -> str | None:
-        """Create a backup set directory containing any existing rule files.
+        """Create a backup of the current rules files.
 
-        Returns the directory name (timestamp) if at least one file was copied, else None.
+        This method creates a timestamped directory and copies the existing
+        `user_captures.json`, `user_samplers.json`, and `generated_user_rules.py`
+        files into it.
+
+        Args:
+            backups_root (str): The root directory for backups.
+            timestamp (str): The timestamp to use for the backup directory name.
+            captures_path (str): The path to the `user_captures.json` file.
+            samplers_path (str): The path to the `user_samplers.json` file.
+            ext_path (str): The path to the `generated_user_rules.py` file.
+
+        Returns:
+            str | None: The name of the created backup directory, or None if no
+                files were backed up.
         """
         target_dir = os.path.join(backups_root, timestamp)
         if os.path.exists(target_dir):
@@ -373,6 +427,18 @@ class SaveCustomMetadataRules:
 
     @staticmethod
     def _prune_backups(backups_root: str, limit: int) -> int:
+        """Remove old backup sets to enforce the retention limit.
+
+        This method deletes the oldest backup sets if the total number of
+        backups exceeds the specified limit.
+
+        Args:
+            backups_root (str): The root directory for backups.
+            limit (int): The maximum number of backup sets to retain.
+
+        Returns:
+            int: The number of pruned backup sets.
+        """
         if limit <= 0:
             return 0
         try:
@@ -397,6 +463,17 @@ class SaveCustomMetadataRules:
 
     @staticmethod
     def _safe_load_json(path: str):
+        """Load a JSON file, returning None on failure.
+
+        This method provides a safe way to load a JSON file, handling
+        exceptions such as file not found or invalid JSON format.
+
+        Args:
+            path (str): The path to the JSON file.
+
+        Returns:
+            The loaded JSON data, or None if an error occurred.
+        """
         try:
             if os.path.exists(path):
                 with open(path, encoding="utf-8") as f:
@@ -414,6 +491,24 @@ class SaveCustomMetadataRules:
         replace_conflicts: bool,
         metrics: dict[str, Any],
     ) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Merge new rules into existing ones.
+
+        This method implements the 'append_new' save mode, merging new node
+        and sampler rules into the existing ones. It handles conflicts based
+        on the `replace_conflicts` flag and updates the metrics dictionary.
+
+        Args:
+            existing_nodes (dict[str, Any]): The existing node rules.
+            existing_samplers (dict[str, Any]): The existing sampler rules.
+            incoming_nodes (dict[str, Any]): The new node rules to merge.
+            incoming_samplers (dict[str, Any]): The new sampler rules to merge.
+            replace_conflicts (bool): Whether to replace conflicting entries.
+            metrics (dict[str, Any]): A dictionary to store metrics about the merge.
+
+        Returns:
+            tuple[dict[str, Any], dict[str, Any]]: A tuple containing the
+                merged node and sampler rules.
+        """
         nodes_out = json.loads(json.dumps(existing_nodes))  # deep-ish copy
         samplers_out = json.loads(json.dumps(existing_samplers))
 
@@ -472,6 +567,17 @@ class SaveCustomMetadataRules:
 
     @staticmethod
     def _generate_python_extension(path: str, nodes_dict: dict[str, Any], samplers_dict: dict[str, Any]) -> None:
+        """Generate the `generated_user_rules.py` extension file.
+
+        This method creates a Python module from the provided node and sampler
+        rules. The generated module is deterministic and includes imports,
+        helper functions, and the rules dictionaries.
+
+        Args:
+            path (str): The path to write the generated Python file to.
+            nodes_dict (dict[str, Any]): The dictionary of node rules.
+            samplers_dict (dict[str, Any]): The dictionary of sampler rules.
+        """
         # Build deterministic Python module similar to legacy builder but sorted
         lines: list[str] = []
         lines.append("from ..meta import MetaField")
@@ -598,6 +704,14 @@ class SaveCustomMetadataRules:
 
     @staticmethod
     def _warn_uninstalled_nodes(node_names):  # best-effort detection
+        """Log a warning for any node classes that are not currently installed.
+
+        This method checks the provided list of node names against the installed
+        nodes in ComfyUI and logs a warning if any are missing.
+
+        Args:
+            node_names (list[str]): A list of node class names to check.
+        """
         try:
             from nodes import NODE_CLASS_MAPPINGS  # type: ignore
 
@@ -612,6 +726,11 @@ class SaveCustomMetadataRules:
 
 
 def _timestamp() -> str:
+    """Generate a timestamp string in the format YYYYMMDD-HHMMSS.
+
+    Returns:
+        str: The formatted timestamp string.
+    """
     return time.strftime("%Y%m%d-%H%M%S", time.localtime())
 
 
@@ -619,12 +738,16 @@ _TIMESTAMP_BASE_LENGTH = 15  # len('YYYYMMDD-HHMMSS')
 
 
 def _looks_like_timestamp(name: str) -> bool:
-    """Return True for 'YYYYMMDD-HHMMSS' optionally followed by '-N' numeric suffix.
+    """Check if a string resembles a timestamp.
 
-    Examples:
-      20250101-123045 -> True
-      20250101-123045-1 -> True
-      20250101-1230 -> False (too short)
+    This function checks if a string is in the format 'YYYYMMDD-HHMMSS' or
+    'YYYYMMDD-HHMMSS-N', where N is a number.
+
+    Args:
+        name (str): The string to check.
+
+    Returns:
+        bool: True if the string looks like a timestamp, False otherwise.
     """
     if len(name) < _TIMESTAMP_BASE_LENGTH:
         return False

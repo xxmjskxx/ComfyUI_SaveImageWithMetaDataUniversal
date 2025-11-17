@@ -1,3 +1,10 @@
+"""Provides utilities for deserializing metadata capture rules from JSON.
+
+This module contains functions to load a JSON file, parse its contents, and
+reconstruct the Python objects (enums, functions, etc.) that are represented
+as strings in the JSON. It includes validation and logging to help identify
+and debug issues with the capture rules file.
+"""
 import json
 import logging
 
@@ -42,16 +49,28 @@ WARNINGS_ENABLED = False  # <--- flip this to False to silence warnings
 
 
 def log_warning(msg: str):
+    """Log a warning message if warnings are enabled.
+
+    Args:
+        msg (str): The warning message to log.
+    """
     if WARNINGS_ENABLED:
         logger.warning("[Metadata Loader] %s", msg)
 
 
 # --- Recursive fixer with validation ---
 def restore_values(obj):
-    """
-    Recursively traverses a dictionary or list loaded from JSON and restores
-    the string representations of enums and functions back to their proper
-    Python objects. Logs warnings if unknown names are encountered (non-fatal).
+    """Recursively restore Python objects from a JSON-decoded structure.
+
+    This function traverses a dictionary or list, replacing string
+    representations of enums and functions with their actual Python object
+    counterparts. It logs warnings for any unknown names it encounters.
+
+    Args:
+        obj: The dictionary or list to be processed.
+
+    Returns:
+        The processed object with enums and functions restored.
     """
     if isinstance(obj, dict):
         new_dict = {}
@@ -98,6 +117,18 @@ def restore_values(obj):
 
 # --- Pretty-printer (optional, for debugging) ---
 def format_config(obj, indent=0):
+    """Format a deserialized configuration for pretty-printing.
+
+    This function recursively formats a dictionary or list, representing enums
+    and functions by their names for improved readability.
+
+    Args:
+        obj: The object to be formatted.
+        indent (int, optional): The current indentation level. Defaults to 0.
+
+    Returns:
+        str: The formatted string representation of the object.
+    """
     pad = "    " * indent
     if isinstance(obj, dict):
         lines = ["{"]
@@ -130,6 +161,22 @@ def format_config(obj, indent=0):
 
 # --- Main function with validation ---
 def deserialize_input(json_path):
+    """Deserialize a JSON file of metadata capture rules.
+
+    This function loads a JSON file, restores the Python objects from their
+    string representations, and validates that the top-level object is a
+    dictionary.
+
+    Args:
+        json_path (str): The path to the JSON file.
+
+    Returns:
+        dict: The deserialized dictionary of capture rules.
+
+    Raises:
+        ValueError: If the top-level object in the JSON file is not a
+            dictionary.
+    """
     with open(json_path) as f:
         raw = json.load(f)
     # Restore JSON into real Python objects (enums/functions) and return the dict

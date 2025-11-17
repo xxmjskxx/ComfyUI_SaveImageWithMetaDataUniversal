@@ -1,11 +1,28 @@
-"""Shared version helpers for UniMeta runtime and rule stamping."""
+"""Provides version resolution for the `saveimage_unimeta` package.
+
+This module is responsible for determining the version of the package at
+runtime. It attempts to read the version from the package metadata and falls
+back to parsing the `pyproject.toml` file. It also allows for overriding the
+version through an environment variable, which is useful for testing and
+development.
+"""
 from __future__ import annotations
 
 import importlib.metadata
 import os
 
 
-def _read_pyproject_version() -> str | None:  # pragma: no cover - simple IO
+def _read_pyproject_version() -> str | None:
+    """Read the version from the `pyproject.toml` file.
+
+    This function searches for a `pyproject.toml` file in the parent
+    directories of the current file, parses it, and extracts the version
+    string from either the `[project]` or `[tool.poetry]` section.
+
+    Returns:
+        str | None: The version string, or None if the file cannot be found
+            or the version is not specified.
+    """
     toml_loader = None  # type: ignore
     try:
         import tomllib as toml_loader  # type: ignore[attr-defined]
@@ -46,7 +63,17 @@ _RESOLVED_VERSION = (
 
 
 def resolve_runtime_version() -> str:
-    """Return the effective version string, honoring env overrides."""
+    """Resolve the runtime version of the package.
+
+    This function determines the effective version string for the package. It
+    first checks for a version override from the `METADATA_VERSION_OVERRIDE`
+    environment variable. If no override is present, it returns the version
+    resolved from the package metadata or `pyproject.toml`.
+
+    Returns:
+        str: The resolved version string, or "unknown" if the version cannot
+            be determined.
+    """
 
     override = os.environ.get("METADATA_VERSION_OVERRIDE", "").strip()
     if override:

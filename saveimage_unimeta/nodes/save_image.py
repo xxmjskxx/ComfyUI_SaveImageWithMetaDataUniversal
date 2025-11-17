@@ -1,10 +1,9 @@
-﻿"""Core saver node responsible for writing images and UniMeta metadata.
+"""The core image saver node for ComfyUI.
 
-This module bridges ComfyUI's saver protocol with UniMeta's capture pipeline.
-It orchestrates Trace/Capture traversal, filename token expansion, metadata
-generation (PNGInfo/EXIF/WebP), JPEG fallback stages, optional workflow dumps,
-and hashing sidecars while remaining importable in isolated pytest runs via
-runtime stubs.
+This module provides the `SaveImageWithMetaDataUniversal` class, which is the
+primary node responsible for saving images and embedding rich metadata. It
+handles workflow tracing, metadata capture, filename token expansion, and
+various image format specifics, including JPEG EXIF fallback logic.
 """
 
 import json
@@ -90,6 +89,13 @@ _REFRESH_RULES_WORKFLOW = "example_workflows/refresh-rules.json"
 
 
 def _maybe_warn_outdated_rules() -> None:
+    """Warns the user if their metadata rules are outdated.
+
+    This function checks the version of the loaded metadata rules against the
+    runtime version of the package. If the versions do not match or the rules
+    version is missing, it logs a warning message with instructions on how to
+    refresh the rules.
+    """
     global _RULES_VERSION_WARNING_EMITTED
     if _RULES_VERSION_WARNING_EMITTED:
         return
@@ -115,10 +121,22 @@ def _maybe_warn_outdated_rules() -> None:
 
 
 class SaveImageWithMetaDataUniversal:
-    """ComfyUI saver that embeds UniMeta metadata alongside image outputs."""
+    """A ComfyUI node to save images with universal metadata embedding.
+
+    This node is responsible for saving images in various formats (PNG, JPEG,
+    WebP) while embedding comprehensive metadata captured from the workflow.
+    It supports dynamic filename generation, workflow tracing to find the
+    correct sampler, and handles the complexities of different metadata
+    formats, including size limitations in JPEGs.
+    """
     SAVE_FILE_FORMATS = ["png", "jpeg", "webp"]
 
     def __init__(self):
+        """Initialize the `SaveImageWithMetaDataUniversal` node.
+
+        This constructor sets up the initial state of the node, including the
+        output directory and default compression level.
+        """
         self.output_dir = folder_paths.get_output_directory()
         self.type = "output"
         self.prefix_append = ""
@@ -127,8 +145,16 @@ class SaveImageWithMetaDataUniversal:
         self._last_fallback_stages: list[str] = []
 
     @classmethod
-    def INPUT_TYPES(s):  # noqa: N802,N804 (ComfyUI API requires this signature)
-        """Describe the ComfyUI inputs that configure saver behavior."""
+    def INPUT_TYPES(cls):  # noqa: N802
+        """Define the input types for the `SaveImageWithMetaDataUniversal` node.
+
+        This method specifies the inputs that the node accepts, including the
+        images to be saved, filename options, sampler selection method, file
+        format, and various other settings to control the output and metadata.
+
+        Returns:
+            dict: A dictionary defining the input schema for the node.
+        """
         return {
             "required": {
                 "images": ("IMAGE",),
@@ -165,7 +191,7 @@ class SaveImageWithMetaDataUniversal:
                     },
                 ),
                 "file_format": (
-                    s.SAVE_FILE_FORMATS,
+                    cls.SAVE_FILE_FORMATS,
                     {
                         "tooltip": (
                             "Image format for output. PNG retains full metadata; JPEG/WebP may strip or "
@@ -330,39 +356,54 @@ class SaveImageWithMetaDataUniversal:
         guidance_as_cfg=False,
         suppress_missing_class_log=False,
     ):
-        """Persist images to disk with rich, optionally extended metadata.
+        """Save images to disk with embedded metadata.
+
+        This is the main execution method for the node. It processes each image,
+        generates the metadata, formats the filename, and saves the image in the
+        specified format. It also handles the logic for JPEG EXIF size limits and
+        fallback mechanisms.
 
         Args:
-            images: Batch of tensors emitted by upstream nodes.
-            filename_prefix: Template supporting tokens such as ``%seed%`` or
-                ``%date:yy-MM-dd%``.
-            sampler_selection_method: Strategy for picking the sampler whose
-                Steps/CFG/etc. should be recorded.
-            sampler_selection_node_id: Explicit sampler id used when the method
-                is "By node ID".
-            file_format: Output format (``png``, ``jpeg``, ``webp``).
-            model_hash_log: Verbosity for hashing logs/sidecars.
-            lossless_webp: Toggle lossless encoding for WebP saves.
-            quality: Lossy quality slider for JPEG/WebP (1-100).
-            save_workflow_json: Emit workflow JSON alongside the image file.
-            add_counter_to_filename: Append a numeric suffix to avoid
-                overwriting prior renders.
-            civitai_sampler: Attach Civitai-compatible sampler hints.
-            max_jpeg_exif_kb: Maximum EXIF payload size before fallback stages
-                kick in.
-            extra_metadata: Additional user-supplied metadata mapping.
-            prompt: Hidden ComfyUI workflow graph passed through from the UI.
-            extra_pnginfo: Additional PNG metadata entries provided by upstream
-                nodes (also used for widget persistence).
-            save_workflow_image: Disable to skip embedding workflow metadata.
-            include_lora_summary: Whether to append the aggregated LoRA line.
-            guidance_as_cfg: Record Guidance under CFG for model compatibility.
-            suppress_missing_class_log: Hide the informational log when default
-                capture coverage misses certain node classes.
+            images (torch.Tensor): A batch of images to be saved.
+            filename_prefix (str, optional): The prefix for the output filename,
+                which can contain tokens. Defaults to "ComfyUI".
+            sampler_selection_method (str, optional): The method to select the
+                sampler node. Defaults to the first method in `SAMPLER_SELECTION_METHOD`.
+            sampler_selection_node_id (int, optional): The ID of the sampler node
+                to use when the selection method is "By node ID". Defaults to 0.
+            file_format (str, optional): The output file format. Defaults to "png".
+            model_hash_log (str, optional): The logging level for model hashing.
+                Defaults to "none".
+            lossless_webp (bool, optional): Whether to use lossless compression
+                for WebP images. Defaults to True.
+            quality (int, optional): The quality for lossy formats (JPEG/WebP).
+                Defaults to 100.
+            save_workflow_json (bool, optional): Whether to save the workflow as a
+                separate JSON file. Defaults to False.
+            add_counter_to_filename (bool, optional): Whether to add a counter
+                to the filename to prevent overwrites. Defaults to True.
+            civitai_sampler (bool, optional): Whether to add Civitai-compatible
+                sampler information. Defaults to False.
+            max_jpeg_exif_kb (int, optional): The maximum size of the EXIF data
+                in kilobytes for JPEGs. Defaults to 60.
+            extra_metadata (dict, optional): Additional metadata to be included.
+                Defaults to {}.
+            prompt (dict, optional): The workflow prompt. Injected by ComfyUI.
+                Defaults to None.
+            extra_pnginfo (dict, optional): Additional PNG info. Injected by
+                ComfyUI. Defaults to None.
+            save_workflow_image (bool, optional): Whether to save the workflow
+                data within the image metadata. Defaults to True.
+            include_lora_summary (bool, optional): Whether to include a summary
+                of LoRAs in the metadata. Defaults to True.
+            guidance_as_cfg (bool, optional): Whether to treat guidance as CFG
+                scale. Defaults to False.
+            suppress_missing_class_log (bool, optional): Whether to suppress
+                warnings about missing node classes. Defaults to False.
 
         Returns:
-            Tuple containing the original ``images`` tensor batch (per the
-            ComfyUI saver contract).
+            dict: A dictionary containing the UI data and the result, which
+                includes the original images for passthrough.
         """
         # Refresh definitions each run with smarter merge order. We pass a set
         # of classes seen from the SaveImage node back through the graph so the
@@ -719,13 +760,18 @@ class SaveImageWithMetaDataUniversal:
 
     @staticmethod
     def _build_minimal_parameters(full_parameters: str) -> str:
-        """Return a trimmed parameter string keeping only a minimal compatibility allowlist.
+        """Generate a trimmed parameter string for JPEG fallback.
 
-        Preserves: Prompt header lines, Negative prompt, and a reduced parameter key set:
-            Steps, Sampler, CFG scale, Seed, Model, Model hash, VAE, VAE hash,
-            All Lora_* fields, Hashes, Metadata generator version.
+        This method creates a minimal version of the parameter string to be used
+        when the full metadata exceeds the size limits for JPEG EXIF data. It
+        preserves the most critical information while dropping less essential
+        fields.
 
-        Drops: Weight dtype, Size, Batch index/size, shifts, CLIP models, embeddings, extra custom keys.
+        Args:
+            full_parameters (str): The complete parameter string.
+
+        Returns:
+            str: The trimmed, minimal parameter string.
         """
         if not full_parameters:
             return full_parameters
@@ -775,6 +821,21 @@ class SaveImageWithMetaDataUniversal:
 
     @classmethod
     def gen_pnginfo(cls, sampler_selection_method, sampler_selection_node_id, save_civitai_sampler):
+        """Generate the PNG info dictionary from the workflow.
+
+        This method traces the workflow graph to identify the relevant sampler
+        and other nodes, then captures their input values to generate a
+        dictionary of metadata.
+
+        Args:
+            sampler_selection_method (str): The method for selecting the sampler node.
+            sampler_selection_node_id (int): The ID of the sampler node to use.
+            save_civitai_sampler (bool): Whether to include Civitai-compatible
+                sampler info.
+
+        Returns:
+            dict: A dictionary containing the captured metadata.
+        """
         # get all node inputs
         inputs = Capture.get_inputs()
 
@@ -816,6 +877,19 @@ class SaveImageWithMetaDataUniversal:
 
     @classmethod
     def format_filename(cls, filename, pnginfo_dict):
+        """Format the output filename using tokens from the metadata.
+
+        This method replaces tokens such as `%seed%`, `%width%`, and `%date%`
+        in the filename prefix with their corresponding values from the
+        `pnginfo_dict`.
+
+        Args:
+            filename (str): The filename prefix containing tokens.
+            pnginfo_dict (dict): The dictionary of metadata.
+
+        Returns:
+            str: The formatted filename.
+        """
         result = re.findall(cls.pattern_format, filename)
         for segment in result:
             parts = segment.replace("%", "").split(":")

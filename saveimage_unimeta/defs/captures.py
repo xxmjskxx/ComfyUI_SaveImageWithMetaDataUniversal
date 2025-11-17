@@ -1,3 +1,13 @@
+"""Defines the baseline metadata capture rules for various ComfyUI nodes.
+
+This module contains the `CAPTURE_FIELD_LIST`, a dictionary that maps node
+class types to a set of rules for capturing metadata from their inputs. Each
+rule specifies which `MetaField` to populate, which input field to read from,
+and optional formatting or validation functions to apply.
+
+These baseline rules provide out-of-the-box support for a wide range of common
+nodes, and they can be extended or overridden by user-defined rules.
+"""
 from .formatters import (
     calc_lora_hash,
     calc_model_hash,
@@ -14,7 +24,20 @@ from .validators import is_negative_prompt, is_positive_prompt
 
 
 def _passthrough(value, *_):
-    """Return value unchanged (helper for pre-hashed stub inputs)."""
+    """A passthrough formatter that returns the input value unchanged.
+
+    This function is used as a formatter in capture rules where the input
+    value is already in the desired format and does not require any
+    transformation. It is particularly useful for test nodes that provide
+    pre-hashed or pre-formatted values.
+
+    Args:
+        value: The input value.
+        *_ A catch-all for any additional arguments.
+
+    Returns:
+        The input value, unchanged.
+    """
     return value
 
 

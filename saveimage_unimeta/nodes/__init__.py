@@ -1,3 +1,12 @@
+"""Initializes the `saveimage_unimeta.nodes` package and registers custom nodes.
+
+This module imports all the custom nodes from the `saveimage_unimeta` package
+and registers them with ComfyUI. It defines the `NODE_CLASS_MAPPINGS` and
+`NODE_DISPLAY_NAME_MAPPINGS` dictionaries, which are used by ComfyUI to
+discover and display the custom nodes in the user interface. It also includes
+the `MetadataForceInclude` node for managing forced node class names.
+"""
+
 import logging
 import os
 
@@ -15,22 +24,25 @@ logger = logging.getLogger(__name__)
 
 
 class MetadataForceInclude:
-    """Configure globally forced node class names for metadata capture.
+    """A node to configure globally forced node class names for metadata capture.
 
-    Separated from the scanning node so the scanner (`MetadataRuleScanner` implemented
-    in `node.py`) can expose its own inputs: exclude_keywords, include_existing,
-    mode, force_include_metafields, etc.
-
-    Outputs:
-        forced_classes (FORCED_CLASSES): Internal custom type (semantic marker) containing the
-            comma-separated forced class list. Use mainly for tooling or future automation.
-        forced_classes_str (STRING): Plain comma-separated list of currently forced node class
-            names. Connect this to a text display node (e.g. Show Text (UniMeta)) to audit the
-            active configuration.
+    This node allows users to specify a list of node class names that should
+    always be included in the metadata capture process, regardless of the
+    rules defined in the `MetadataRuleScanner`. This is useful for ensuring
+    that certain nodes are always processed.
     """
 
     @classmethod
     def INPUT_TYPES(cls):  # noqa: N802
+        """Define the input types for the `MetadataForceInclude` node.
+
+        This method specifies the inputs for the node, including a multiline
+        string for the node class names, a boolean to reset the list, and a
+        dry run option.
+
+        Returns:
+            dict: A dictionary defining the input schema for the node.
+        """
         return {
             "required": {
                 "force_include_node_class": (
@@ -79,6 +91,24 @@ class MetadataForceInclude:
 
     @staticmethod
     def configure(force_include_node_class="", reset_forced=False, dry_run=False):
+        """Configure the forced include list.
+
+        This method updates the global set of forced include classes based on
+        the provided inputs. It can reset the list, add new classes, or perform
+        a dry run.
+
+        Args:
+            force_include_node_class (str, optional): A string of comma or
+                newline-separated node class names. Defaults to "".
+            reset_forced (bool, optional): If True, the existing list is cleared
+                before adding new classes. Defaults to False.
+            dry_run (bool, optional): If True, the global list is not modified.
+                Defaults to False.
+
+        Returns:
+            tuple[str, str]: A tuple containing the updated list of forced
+                classes as a comma-separated string.
+        """
         from ..defs import clear_forced_include  # local import to avoid cycle
 
         if reset_forced and not dry_run:
@@ -94,6 +124,14 @@ class MetadataForceInclude:
 
     @classmethod
     def IS_CHANGED(cls, *args, **kwargs):  # noqa: N802
+        """Indicate that the node's output can change even if inputs are the same.
+
+        This method returns `float("nan")` to signal to ComfyUI that this node
+        should be re-executed every time the graph is run.
+
+        Returns:
+            float: A NaN value.
+        """
         return float("nan")
 
 
