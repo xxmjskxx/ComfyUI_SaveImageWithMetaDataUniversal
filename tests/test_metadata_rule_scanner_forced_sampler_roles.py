@@ -11,8 +11,8 @@ class _DummyKSampler:
         return {"required": {"positive": ("STRING", {}), "negative": ("STRING", {}), "steps": ("INT", {})}}
 
 
-if "KSampler" not in nodes.NODE_CLASS_MAPPINGS:  # type: ignore
-    nodes.NODE_CLASS_MAPPINGS["KSampler"] = _DummyKSampler  # type: ignore
+if "KSampler" not in nodes.NODE_CLASS_MAPPINGS:
+    nodes.NODE_CLASS_MAPPINGS["KSampler"] = _DummyKSampler
 
 
 def test_forced_sampler_role_preserved_under_lens():

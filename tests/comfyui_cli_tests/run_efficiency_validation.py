@@ -29,6 +29,7 @@ import urllib.request
 from contextlib import nullcontext
 from pathlib import Path
 from collections.abc import Iterable
+from typing import TextIO
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parents[2]
@@ -227,7 +228,7 @@ class ServerController:
         self._health_url = health_url
         self._proc: subprocess.Popen[bytes] | None = None
         self._threads: list[threading.Thread] = []
-        self._log_handle: Path | None = None
+        self._log_handle: TextIO | None = None
 
     def __enter__(self) -> ServerController:
         self.start()

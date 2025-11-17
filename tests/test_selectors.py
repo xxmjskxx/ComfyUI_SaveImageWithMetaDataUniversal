@@ -98,7 +98,7 @@ def test_select_stack_by_prefix_skips_nonlist_and_nonstring_keys():
 
 def test_select_stack_by_prefix_empty_and_none_inputs():
     assert select_stack_by_prefix([], "lora_") == []
-    assert select_stack_by_prefix(None, "lora_") == []  # type: ignore[arg-type]
+    assert select_stack_by_prefix(None, "lora_") == []
 
 
 def test_select_by_prefix_basic_behavior():

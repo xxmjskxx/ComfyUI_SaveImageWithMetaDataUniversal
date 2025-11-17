@@ -30,7 +30,7 @@ def test_multi_image_mixed_fallback(monkeypatch):
         monkeypatch.setattr(mod, "piexif", build_piexif_stub("huge"))
         return orig_save(*a, **k)
 
-    node.save_images = wrapped_save  # type: ignore
+    node.save_images = wrapped_save
     monkeypatch.setattr(node, "_build_minimal_parameters", lambda p: p)
 
     node.save_images(images=images, file_format="jpeg", max_jpeg_exif_kb=4, prompt={})

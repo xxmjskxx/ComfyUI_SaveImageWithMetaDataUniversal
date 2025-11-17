@@ -27,7 +27,7 @@ def _mock_folder_paths(temp_dir: str):
             return direct_win
         raise FileNotFoundError(name)
 
-    mfp.get_full_path = _get_full_path  # type: ignore[attr-defined]
+    mfp.get_full_path = _get_full_path
     return mfp
 
 

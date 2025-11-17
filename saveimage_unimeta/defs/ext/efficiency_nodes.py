@@ -1,3 +1,25 @@
+"""Provides metadata definitions for the efficiency-nodes-comfyui custom nodes.
+
+This module is designed to integrate with the `efficiency-nodes-comfyui` custom
+node pack, available at: https://github.com/jags111/efficiency-nodes-comfyui
+
+It includes configurations for various nodes from this pack, such as loaders,
+samplers, and the `LoRA Stacker`. A key feature of this module is its ability
+to parse LoRA stack data, which can be provided either through the node's inputs
+or its outputs. This dual approach ensures compatibility with different versions
+and configurations of the Efficiency Nodes.
+
+The module defines custom selector functions to handle the extraction of LoRA
+names, hashes, and strengths, accommodating both simple and advanced modes of
+the `LoRA Stacker`.
+
+Attributes:
+    SAMPLERS (dict): A mapping of samplers from the Efficiency Nodes pack to their
+                     conditioning inputs.
+    CAPTURE_FIELD_LIST (dict): A dictionary that defines metadata capture rules for
+                               various nodes in the pack, covering model loading,
+                               sampling parameters, and LoRA stack management.
+"""
 # https://github.com/jags111/efficiency-nodes-comfyui
 import logging
 from ..formatters import calc_lora_hash, calc_model_hash, convert_skip_clip
@@ -11,7 +33,21 @@ _LORA_STACK_SHIM_WARNED = False
 
 
 def _stack_from_outputs(node_id, outputs):
-    """Return normalized `(name, model_strength, clip_strength)` tuples from node outputs."""
+    """Parses and normalizes LoRA stack data from a node's outputs.
+
+    This function attempts to find and interpret LoRA stack information that is
+    passed through the outputs of a node (e.g., `LoRA Stacker`). It searches for
+    keys like "lora_stack" and normalizes the data into a consistent format of
+    `(name, model_strength, clip_strength)` tuples.
+
+    Args:
+        node_id (int): The ID of the node being processed.
+        outputs (dict): The outputs dictionary from the workflow execution.
+
+    Returns:
+        list | None: A list of normalized LoRA stack tuples, or None if no valid
+                      stack data could be found in the outputs.
+    """
     if not isinstance(outputs, dict):
         return None
 
@@ -62,7 +98,17 @@ def _stack_from_outputs(node_id, outputs):
 
 
 def _is_advanced_mode(input_data) -> bool:
-    """Safely detect Efficiency Nodes 'advanced' mode from input_data."""
+    """Detects if a 'LoRA Stacker' node is in 'advanced' mode.
+
+    This function checks the input data of a node to determine if it is configured
+    to use the 'advanced' input mode, which affects how LoRA strengths are specified.
+
+    Args:
+        input_data (dict): The input data for the node.
+
+    Returns:
+        bool: True if the node is in 'advanced' mode, False otherwise.
+    """
     try:
         return (
             isinstance(input_data, list)
@@ -77,6 +123,22 @@ def _is_advanced_mode(input_data) -> bool:
 
 
 def get_lora_model_name_stack(node_id, obj, prompt, extra_data, outputs, input_data):
+    """Selector to get LoRA model names from a 'LoRA Stacker' node.
+
+    This function first attempts to get the LoRA stack from the node's outputs.
+    If that fails, it falls back to parsing the stack from the node's inputs.
+
+    Args:
+        node_id: The ID of the node.
+        obj: The node object.
+        prompt: The workflow prompt.
+        extra_data: Additional data.
+        outputs: The node's output data.
+        input_data: The node's input data.
+
+    Returns:
+        list: A list of LoRA model names.
+    """
     stack = _stack_from_outputs(node_id, outputs)
     if stack is None:
         stack = collect_lora_stack(input_data)
@@ -86,6 +148,21 @@ def get_lora_model_name_stack(node_id, obj, prompt, extra_data, outputs, input_d
 
 
 def get_lora_model_hash_stack(node_id, obj, prompt, extra_data, outputs, input_data):
+    """Selector to get LoRA model hashes from a 'LoRA Stacker' node.
+
+    This function retrieves the LoRA names and then computes a hash for each one.
+
+    Args:
+        node_id: The ID of the node.
+        obj: The node object.
+        prompt: The workflow prompt.
+        extra_data: Additional data.
+        outputs: The node's output data.
+        input_data: The node's input data.
+
+    Returns:
+        list: A list of hashes for the LoRA models.
+    """
     stack = _stack_from_outputs(node_id, outputs)
     if stack is None:
         stack = collect_lora_stack(input_data)
@@ -97,6 +174,21 @@ def get_lora_model_hash_stack(node_id, obj, prompt, extra_data, outputs, input_d
 
 
 def get_lora_strength_model_stack(node_id, obj, prompt, extra_data, outputs, input_data):
+    """Selector to get LoRA model strengths from a 'LoRA Stacker' node.
+
+    This function handles both simple and advanced modes for specifying strengths.
+
+    Args:
+        node_id: The ID of the node.
+        obj: The node object.
+        prompt: The workflow prompt.
+        extra_data: Additional data.
+        outputs: The node's output data.
+        input_data: The node's input data.
+
+    Returns:
+        list: A list of model strengths for the LoRAs.
+    """
     stack = _stack_from_outputs(node_id, outputs)
     if stack is None:
         stack = collect_lora_stack(input_data)
@@ -108,6 +200,21 @@ def get_lora_strength_model_stack(node_id, obj, prompt, extra_data, outputs, inp
 
 
 def get_lora_strength_clip_stack(node_id, obj, prompt, extra_data, outputs, input_data):
+    """Selector to get LoRA CLIP strengths from a 'LoRA Stacker' node.
+
+    This function handles both simple and advanced modes for specifying strengths.
+
+    Args:
+        node_id: The ID of the node.
+        obj: The node object.
+        prompt: The workflow prompt.
+        extra_data: Additional data.
+        outputs: The node's output data.
+        input_data: The node's input data.
+
+    Returns:
+        list: A list of CLIP strengths for the LoRAs.
+    """
     stack = _stack_from_outputs(node_id, outputs)
     if stack is None:
         stack = collect_lora_stack(input_data)
@@ -119,11 +226,18 @@ def get_lora_strength_clip_stack(node_id, obj, prompt, extra_data, outputs, inpu
 
 
 def get_lora_data_stack(input_data, attribute):
-    """Deprecated shim for older rules using get_lora_data_stack.
+    """Provides a deprecated shim for backward compatibility with older rules.
 
-    Prefer select_stack_by_prefix(input_data, attr, counter_key="lora_count").
-    Scheduled for removal no earlier than v1.3.0 (and at least 60 days after
-    a v1.2.0 release), pending downstream adoption.
+    This function was used in older versions to extract LoRA data. It is now
+    superseded by `select_stack_by_prefix`, which offers more flexibility. A
+    warning is logged when this shim is used.
+
+    Args:
+        input_data (dict): The input data for the node.
+        attribute (str): The attribute to extract.
+
+    Returns:
+        list: A list of the extracted attribute values.
     """
     global _LORA_STACK_SHIM_WARNED
     if not _LORA_STACK_SHIM_WARNED:

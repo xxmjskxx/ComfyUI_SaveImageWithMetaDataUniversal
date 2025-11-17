@@ -16,7 +16,7 @@ import os
 import random
 import statistics
 import time
-from collections.abc import Mapping, Callable
+from collections.abc import Callable, Mapping, MutableMapping
 from typing import Any
 
 SAMPLES = 2_000  # number of keys
@@ -34,10 +34,11 @@ def legacy_merge(base: dict[str, Any], user: dict[str, Any]) -> dict[str, Any]:
     target = {k: (v.copy() if isinstance(v, dict) else v) for k, v in base.items()}
     for key, val in user.items():
         if isinstance(val, Mapping):
-            if key not in target or not isinstance(target.get(key), Mapping):
-                target[key] = val
+            existing = target.get(key)
+            if not isinstance(existing, MutableMapping):
+                target[key] = dict(val)
             else:
-                target[key].update(val)  # type: ignore[assignment]
+                existing.update(val)
         else:
             pass  # simulate skip
     return target
@@ -50,10 +51,10 @@ def helper_merge(base: dict[str, Any], user: dict[str, Any]) -> dict[str, Any]:
         if not isinstance(val, Mapping):
             return
         existing = target.get(key)
-        if not isinstance(existing, Mapping):
-            target[key] = val
+        if not isinstance(existing, MutableMapping):
+            target[key] = dict(val)
         else:
-            existing.update(val)  # type: ignore[assignment]
+            existing.update(val)
 
     for key, val in user.items():
         _merge_user_sampler_entry(key, val)

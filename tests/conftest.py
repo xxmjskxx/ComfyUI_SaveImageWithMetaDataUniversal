@@ -19,12 +19,16 @@ if "folder_paths" not in sys.modules:  # pragma: no cover - test bootstrap
 
 # Force test mode before any package import so saveimage_unimeta avoids heavy runtime deps
 os.environ.setdefault("METADATA_TEST_MODE", "1")
+import importlib.util
+
 import numpy as np
 import pytest
 
-# Force-load pytest_cookies so the shared `cookies` fixture is always registered,
-# even when PYTEST_DISABLE_PLUGIN_AUTOLOAD is enabled in CI environments.
-pytest_plugins = ("pytest_cookies",)
+_PYTEST_COOKIES_AVAILABLE = importlib.util.find_spec("pytest_cookies") is not None
+
+# Force-load pytest_cookies so the shared `cookies` fixture is always registered
+# when available, even if PYTEST_DISABLE_PLUGIN_AUTOLOAD is set in CI.
+pytest_plugins = ("pytest_cookies",) if _PYTEST_COOKIES_AVAILABLE else ()
 
 # Ensure package root is on sys.path for absolute imports when pytest alters CWD.
 _ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -162,11 +166,11 @@ if "saveimage_unimeta.hook" not in sys.modules:  # pragma: no cover
     sys.modules["saveimage_unimeta.hook"] = hook_mod
 
 try:  # Prefer installed package style path
-    from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.save_image import (  # type: ignore
+    from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.save_image import (
         SaveImageWithMetaDataUniversal,
     )
 except ModuleNotFoundError:  # Fallback: relative (editable dev checkout)
-    from saveimage_unimeta.nodes.save_image import SaveImageWithMetaDataUniversal  # type: ignore
+    from saveimage_unimeta.nodes.save_image import SaveImageWithMetaDataUniversal
 
 
 @pytest.fixture()

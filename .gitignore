@@ -101,6 +101,7 @@ celerybeat.pid
 # Environments
 .env
 .venv
+.venv/
 env/
 venv/
 ENV/
@@ -177,6 +178,7 @@ tasksync/
 tests/comfyui_cli_tests/run_dev_workflows.bat
 tests/comfyui_cli_tests/validate_metadata.bat
 tests/comfyui_cli_tests/read_write_all_exif_to_txt.bat
+tests/comfyui_cli_tests/Test/
 run_dev_workflows.bat
 validate_metadata.bat
 read_write_all_exif_to_txt.bat

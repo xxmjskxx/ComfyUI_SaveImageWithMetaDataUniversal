@@ -37,10 +37,10 @@ def fixture_scanner_env():
     nodes_pkg.NODE_CLASS_MAPPINGS["PriorityLoRALoader"] = PriorityLoRALoader
     undo_global = None
     if global_nodes is not None and hasattr(global_nodes, "NODE_CLASS_MAPPINGS"):
-        global_nodes.NODE_CLASS_MAPPINGS["PriorityLoRALoader"] = PriorityLoRALoader  # type: ignore[attr-defined]
+        global_nodes.NODE_CLASS_MAPPINGS["PriorityLoRALoader"] = PriorityLoRALoader
 
         def _undo_global():
-            global_nodes.NODE_CLASS_MAPPINGS.pop("PriorityLoRALoader", None)  # type: ignore[attr-defined]
+            global_nodes.NODE_CLASS_MAPPINGS.pop("PriorityLoRALoader", None)
 
         undo_global = _undo_global
 
@@ -94,10 +94,10 @@ def test_priority_keywords_keep_fallback_when_no_clip_fields():
     nodes_pkg.NODE_CLASS_MAPPINGS[class_name] = ModelOnlyLoader
     undo_global = None
     if global_nodes is not None and hasattr(global_nodes, "NODE_CLASS_MAPPINGS"):
-        global_nodes.NODE_CLASS_MAPPINGS[class_name] = ModelOnlyLoader  # type: ignore[attr-defined]
+        global_nodes.NODE_CLASS_MAPPINGS[class_name] = ModelOnlyLoader
 
         def _undo_global():
-            global_nodes.NODE_CLASS_MAPPINGS.pop(class_name, None)  # type: ignore[attr-defined]
+            global_nodes.NODE_CLASS_MAPPINGS.pop(class_name, None)
 
         undo_global = _undo_global
 

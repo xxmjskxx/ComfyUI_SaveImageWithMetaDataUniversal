@@ -52,7 +52,7 @@ class WorkflowRunner:
         self.temp_dir = temp_dir
         self.extra_args = extra_args or []
         self.env_patch = env_patch or {}
-        self.server_process = None
+        self.server_process: subprocess.Popen[bytes] | None = None
         self.base_url = f"http://{host}:{port}"
 
     def is_server_running(self) -> bool:

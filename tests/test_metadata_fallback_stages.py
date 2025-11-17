@@ -38,7 +38,7 @@ def test_fallback_parametrized(monkeypatch, scenario, limit_kb, expectations):
     node = node_cls()
 
     long_params = "Sampler: test, Steps: 30, CFG scale: 7," + ", ".join([f"K{i}:{i}" for i in range(120)])
-    from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.capture import Capture as RealCapture  # type: ignore
+    from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.capture import Capture as RealCapture
 
     monkeypatch.setattr(RealCapture, "gen_parameters_str", staticmethod(lambda *_, **__: long_params))
 

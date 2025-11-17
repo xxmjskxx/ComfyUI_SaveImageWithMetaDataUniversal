@@ -1,4 +1,4 @@
-"""MetadataRuleScanner enumerates capture and sampler rule gaps.
+"""MetadataRuleScanner node scans node class mappings, enumerates capture and sampler rule gaps, and suggests metadata capture rules.
 
 Workflow
         1. Walk every class in ``nodes.NODE_CLASS_MAPPINGS`` and inspect declared
@@ -51,6 +51,20 @@ Heuristic reference
             sanity-check the matched input contents before surfacing it.
 
 For a concise glossary of the same options see :data:`HEURISTIC_RULES_DOC` below.
+
+This module provides the `MetadataRuleScanner` class, a node that inspects all
+installed custom nodes and suggests rules for capturing metadata based on a
+set of heuristics. It helps users to extend the metadata capture capabilities
+to new and unsupported nodes.
+
+The scanner operates in several modes, allowing users to view all possible
+rules, only new rules for existing nodes, or only rules for nodes that are
+already part of the capture baseline. It also supports a "missing-only lens"
+to focus on gaps in the current metadata capture configuration.
+
+The heuristics for rule suggestion are defined in the `HEURISTIC_RULES` list.
+Each rule in this list specifies how to identify a particular piece of metadata
+(a `MetaField`) based on the input names, types, and class names of the nodes.
 """
 
 import json
@@ -68,7 +82,41 @@ logger = logging.getLogger(__name__)
 _DEBUG_VERBOSE = os.environ.get("METADATA_DEBUG", "0") not in ("0", "false", "False", None, "")
 
 
-HEURISTIC_RULES_DOC = """
+HEURISTIC_RULES_DOC = """A glossary of keys used in the `HEURISTIC_RULES` dictionary.
+
+This documentation provides a reference for the keys that can be used within
+each rule dictionary in the `HEURISTIC_RULES` list. These keys define the
+logic for how the scanner identifies and suggests metadata capture rules.
+
+Attributes:
+    keywords (list[str]): A list of case-insensitive literal tokens to match
+        against input names.
+    keywords_regex (list[str]): A list of regex patterns to match against
+        input names.
+    excluded_keywords (list[str]): A list of tokens that must not appear in
+        the field name.
+    excluded_class_keywords (list[str]): A list of tokens that must not appear
+        in the class name.
+    required_context (list[str]): A list of other input names that must exist
+        on the node.
+    required_class_keywords (list[str]): A list of tokens that must be present
+        in the class name.
+    required_class_regex (list[str]): A list of regex patterns that the class
+        name must match.
+    required_class_keyword_groups (dict): A specification for more complex
+        class name matching, requiring a minimum number of keywords from
+        different groups.
+    type (str or list[str]): The allowed ComfyUI input type(s).
+    is_multi (bool): If True, all matching fields are returned as a list.
+    priority_keywords (list[tuple]): A list of keywords and match modes to
+        prioritize fields in `is_multi` mode.
+    format (str): The name of a formatter function to apply to the captured
+        value.
+    hash_field (MetaField): The `MetaField` to store the hash of the captured
+        value.
+    validate (str): The name of a validator function to check the captured
+        value.
+
 Heuristic dictionary keys referenced by :data:`HEURISTIC_RULES`:
 
 keywords / keywords_regex:
@@ -377,7 +425,13 @@ HEURISTIC_RULES = [
 
 
 class MetadataRuleScanner:
-    """Report missing capture rules/sampler roles for installed nodes.
+    """A node that scans for and reports missing metadata capture rules.
+
+    This class implements the `Metadata Rule Scanner` node for ComfyUI. It
+    inspects all installed nodes and suggests capture and sampler rules based
+    on a set of heuristics. The output is provided as a JSON string and a
+    condensed diff report, which can be used to update the user's custom
+    rules.
 
     The scanner inspects every class registered in ``nodes.NODE_CLASS_MAPPINGS``
     and produces two JSON-compatible payloads:
@@ -390,13 +444,16 @@ class MetadataRuleScanner:
     """
 
     @classmethod
-    def INPUT_TYPES(cls):  # noqa: N802,N804
-        """Expose scanner configuration inputs to ComfyUI.
+    def INPUT_TYPES(cls):  # noqa: N802
+        """Define the input types for the `MetadataRuleScanner` node.
+
+        This method specifies the inputs for configuring the scanner, including
+        keywords to exclude nodes, a mode to control the scope of the scan,
+        and options to force the inclusion of certain metafields or node
+        classes.
 
         Returns:
-            Mapping that adheres to the ComfyUI protocol with default values
-            plus tooltips describing *exclude*, *include_existing*, mode
-            selection, and force-include overrides.
+            dict: A dictionary defining the input schema for the node.
         """
         return {
             "required": {
@@ -474,7 +531,17 @@ class MetadataRuleScanner:
     NODE_NAME = "Metadata Rule Scanner"
 
     def find_common_prefix(self, strings: list[str] | tuple[str, ...]) -> str | None:
-        """Return the shared alphanumeric prefix for LoRA-style field groups."""
+        """Find the common alphanumeric prefix among a list of strings.
+
+        This method is used to identify the common base name for groups of
+        related fields, such as those used in LoRA stacks.
+
+        Args:
+            strings (list[str] | tuple[str, ...]): A list or tuple of strings.
+
+        Returns:
+            str | None: The common prefix, or None if no common prefix is found.
+        """
         if not strings or len(strings) < 2:
             return None
         prefix = os.path.commonprefix(strings)
@@ -488,10 +555,26 @@ class MetadataRuleScanner:
         force_include_metafields: str = "",
         force_include_node_class: str = "",
     ):
-        """Generate capture/sampler recommendations based on heuristics.
+        """Scan for metadata rules and generate suggestions based on Heuristic rules.
+
+        This is the main execution method for the scanner node. It iterates
+        through all installed nodes, applies the heuristic rules, and compares
+        the results against the current baseline to generate a set of suggested
+        rules.
 
         Args:
-            exclude_keywords: Comma-separated substrings that filter node class
+            exclude_keywords (str, optional): Comma-separated keywords to filter
+                out nodes by class name. Defaults to "".
+            include_existing (bool, optional): If False, enables the "missing-only
+                lens" to show only gaps in the current rules. Defaults to False.
+            mode (str, optional): The scanning mode ('new_only', 'all', or
+                'existing_only'). Defaults to "new_only".
+            force_include_metafields (str, optional): Comma-separated `MetaField`
+                names to always include. Defaults to "".
+            force_include_node_class (str, optional): Comma- or newline-separated
+                node class names to always include. Defaults to "".
+        Args:
+         exclude_keywords: Comma-separated substrings that filter node class
                 names. Entries still appear when forced via
                 ``force_include_node_class``.
             include_existing: When ``False`` (default), enables the
@@ -509,9 +592,8 @@ class MetadataRuleScanner:
                 ``mode``.
 
         Returns:
-            Either the tuple ``(json_text, diff_report)`` when invoked inside
-            automated tests or a dict payload for ComfyUI containing UI fields
-            plus the tuple.
+            tuple[str, str] | dict: A tuple containing the JSON of suggested
+                rules and a diff report, or a dictionary for the ComfyUI frontend.
         """
         if _DEBUG_VERBOSE:
             logger.info(cstr("[Metadata Scanner] Starting scan...").msg)
@@ -519,7 +601,7 @@ class MetadataRuleScanner:
 
         # Ensure we have up-to-date union including user JSON & extensions for missing-only lens baseline.
         # Introduce lightweight caching keyed by user_rules file mtimes so repeated scans in UI are faster.
-        global _BASELINE_CACHE  # type: ignore
+        global _BASELINE_CACHE
         try:
             _BASELINE_CACHE
         except NameError:  # first init
@@ -529,7 +611,7 @@ class MetadataRuleScanner:
                 "mtimes": (),
                 "hits": 0,
                 "misses": 0,
-            }  # type: ignore
+            }
 
         def _current_rule_mtimes():
             """Return mtimes for user rule JSON files.
@@ -581,7 +663,7 @@ class MetadataRuleScanner:
         # Inverted semantics (2025-09): missing-only lens now active when include_existing is False
         missing_lens = not bool(include_existing)
         # Emit one-time informational log on first activation under new semantics
-        global _SCANNER_LENS_NOTICE_EMITTED  # type: ignore
+        global _SCANNER_LENS_NOTICE_EMITTED
         try:
             if missing_lens and not _SCANNER_LENS_NOTICE_EMITTED:
                 logger.info(
@@ -1191,8 +1273,8 @@ class MetadataRuleScanner:
         cache_hits = 0
         cache_misses = 0
         try:  # gather cache stats if present
-            cache_hits = int(_BASELINE_CACHE.get("hits", 0))  # type: ignore[arg-type]
-            cache_misses = int(_BASELINE_CACHE.get("misses", 0))  # type: ignore[arg-type]
+            cache_hits = int(_BASELINE_CACHE.get("hits", 0))
+            cache_misses = int(_BASELINE_CACHE.get("misses", 0))
         except Exception:
             pass  # Cache stats may be unavailable - use defaults (0)
 
@@ -1218,7 +1300,7 @@ class MetadataRuleScanner:
         env = os.environ
         if not env.get("PYTEST_CURRENT_TEST") and not env.get("METADATA_TEST_MODE"):
             try:
-                return {  # type: ignore[return-value]
+                return {
                     "ui": {"scan_results": [pretty_json], "diff_report": [diff_report]},
                     "scan_results": pretty_json,
                     "diff_report": diff_report,

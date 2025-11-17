@@ -1,18 +1,30 @@
-"""Manual metadata helper nodes for UniMeta custom saves."""
+"""Provides the `CreateExtraMetaDataUniversal` node for ComfyUI.
+
+This module contains the implementation of a node that allows users to manually
+add key-value pairs to the metadata of a saved image. This is useful for
+adding information that is not automatically captured by the metadata scanner.
+"""
 
 
 class CreateExtraMetaDataUniversal:
-    """Collect key/value pairs and emit an ``EXTRA_METADATA`` payload.
+    """A node to collect key/value pairs and emit an EXTRA_METADATA payload.
 
-    The node exposes up to four manual entries plus an optional incoming
-    ``extra_metadata`` mapping so authors can merge handcrafted values into the
-    saver pipeline without touching rules files. This mirrors the UI-facing
-    behavior documented in README/user_rules examples.
+    This node allows users to manually input up to four key-value pairs, which
+    are then merged with an optional incoming `extra_metadata` mapping. This
+    enables the injection of custom data into the metadata pipeline without
+    modifying any configuration files.
     """
 
     @classmethod
-    def INPUT_TYPES(s):  # noqa: N802,N804
-        """Return the ComfyUI schema for manual key/value inputs."""
+    def INPUT_TYPES(cls):  # noqa: N802
+        """Define the input types for the `CreateExtraMetaDataUniversal` node.
+
+        This method specifies the required and optional inputs for the node,
+        including four key-value pairs and an optional `extra_metadata` input.
+
+        Returns:
+            dict: A dictionary defining the input schema for the node.
+        """
         return {
             "required": {
                 "key1": ("STRING", {"default": "", "multiline": False}),
@@ -49,7 +61,29 @@ class CreateExtraMetaDataUniversal:
         key4="",
         value4="",
     ):
-        """Merge provided key/value pairs into ``extra_metadata`` and return it."""
+        """Merge provided key/value pairs into a metadata dictionary.
+
+        This method combines the input key-value pairs with an optional existing
+        metadata dictionary and returns the result as a tuple, which is the
+        standard format for ComfyUI node outputs.
+
+        Args:
+            key1 (str): The first key for the metadata.
+            value1 (str): The first value for the metadata.
+            extra_metadata (dict, optional): An existing dictionary of metadata.
+                If None, a new dictionary is created. Defaults to None.
+            key2 (str, optional): The second key for the metadata. Defaults to "".
+            value2 (str, optional): The second value for the metadata. Defaults to "".
+            key3 (str, optional): The third key for the metadata. Defaults to "".
+            value3 (str, optional): The third value for the metadata. Defaults to "".
+            key4 (str, optional): The fourth key for the metadata. Defaults to "".
+            value4 (str, optional): The fourth value for the metadata. Defaults to "".
+
+        Returns:
+            tuple: A tuple containing the updated metadata dictionary.
+        """
+        if extra_metadata is None:
+            extra_metadata = {}
         extra_metadata.update(
             {
                 key1: value1,

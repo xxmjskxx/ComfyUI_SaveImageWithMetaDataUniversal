@@ -70,9 +70,9 @@ def test_missing_lens_filters_sampler_roles(monkeypatch):
     nodes_pkg.NODE_CLASS_MAPPINGS["RoleSamplerNode"] = DummySampler
     # Also register in the global 'nodes' stub module used by scanner (import nodes)
     try:  # pragma: no cover - registration glue
-        import nodes as _global_nodes  # type: ignore
+        import nodes as _global_nodes
 
-        _global_nodes.NODE_CLASS_MAPPINGS["RoleSamplerNode"] = DummySampler  # type: ignore
+        _global_nodes.NODE_CLASS_MAPPINGS["RoleSamplerNode"] = DummySampler
     except (ImportError, AttributeError):  # environment may not expose global nodes
         # Swallow only expected import/attr errors; other exceptions should surface.
         pass
@@ -81,7 +81,7 @@ def test_missing_lens_filters_sampler_roles(monkeypatch):
         defs_mod.SAMPLERS.setdefault("RoleSamplerNode", {})["positive"] = "positive"
         # Invalidate scanner baseline cache so it reflects injected baseline roles
         try:  # pragma: no cover - cache reset glue
-            import ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.scanner as scan_mod  # type: ignore
+            import ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.scanner as scan_mod
 
             if hasattr(scan_mod, "_BASELINE_CACHE"):
                 delattr(scan_mod, "_BASELINE_CACHE")

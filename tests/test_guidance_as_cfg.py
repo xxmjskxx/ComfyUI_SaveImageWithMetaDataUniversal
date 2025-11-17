@@ -7,7 +7,7 @@ PKG_ROOT = os.path.abspath(os.path.join(BASE, "..", "saveimage_unimeta"))
 if PKG_ROOT not in os.sys.path:
     os.sys.path.insert(0, os.path.abspath(os.path.join(BASE, "..")))
 
-from saveimage_unimeta.capture import Capture, MetaField  # type: ignore  # noqa: E402
+from saveimage_unimeta.capture import Capture, MetaField  # noqa: E402
 
 
 def _minimal_inputs(positive="a cat", negative=""):

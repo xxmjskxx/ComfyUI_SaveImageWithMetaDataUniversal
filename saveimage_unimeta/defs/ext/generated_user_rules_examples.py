@@ -1,32 +1,27 @@
-"""
-Reference examples for user-generated metadata capture rules.
+"""Provides a comprehensive set of reference examples for user-generated metadata capture rules.
 
-READ ME FIRST
-- This file is NOT imported by the loader at runtime. It is provided only as a reference.
-- Copy the bits you need into your actual user rules file:
-        saveimage_unimeta/defs/ext/generated_user_rules.py
-    or manage it via the UI nodes shown in the README.
-- Keep your file small and focused on nodes you actually use.
+This module serves as a detailed guide and a source of copy-pasteable examples for users who wish
+to customize their metadata capture by creating or editing the `generated_user_rules.py` file.
 
-Schema overview (matches the real generated_user_rules.py)
-- KNOWN: dict[str, callable] mapping stable names to callables used by rules.
-- CAPTURE_FIELD_LIST: dict[str, dict[MetaField, RuleSpec]]
-- SAMPLERS: dict[str, dict[str, str]] mapping semantic roles (e.g., "positive"/"negative")
-    to the actual input socket names for sampler-like nodes.
+**Important:** This file itself is not loaded at runtime. Its purpose is purely educational.
+Users are expected to transfer the relevant snippets to their live `generated_user_rules.py` file.
 
-RuleSpec keys supported by the capture engine:
-- "field_name": single input name to read (e.g., "ckpt_name").
-- "fields": list of input names to read uniformly.
-- "prefix": dynamic expansion for inputs with numeric suffixes (e.g., "clip_name1", "clip_name2").
-- "selector": callable to derive/transform a value before formatting.
-- "validate": predicate callable; if it returns False the field is skipped.
-- "format": callable to post-process raw values (e.g., compute hashes).
-- "value": constant literal to inject when not available from inputs.
+The module is structured to mirror the actual user rules file, with sections for:
+- `KNOWN`: A dictionary for registering callable functions (formatters, validators, selectors)
+  that can be referenced in the capture rules.
+- `CAPTURE_FIELD_LIST_EXAMPLES`: A dictionary containing a variety of rule examples for different
+  types of nodes, demonstrating various features of the rule engine such as simple field mapping,
+  use of formatters, validators, prefix-based matching, and injection of constant values.
+- `SAMPLERS_EXAMPLES`: A dictionary illustrating how to map the conceptual roles of "positive"
+  and "negative" prompts to the actual input names of custom sampler nodes.
 
-Recommended approach
-1) Run the Metadata Rule Scanner to generate a baseline generated_user_rules.py.
-2) Use these examples to refine or extend capture for special nodes.
-3) Save an image and review the parameter string to validate your changes.
+The examples cover a range of common use cases, from basic model and VAE loaders to more complex
+scenarios involving LoRA stacks and custom samplers. Each example is commented to explain the
+purpose and mechanics of the rule.
+
+The recommended workflow for users is to first generate a baseline `generated_user_rules.py` using
+the built-in Metadata Rule Scanner, and then to use the examples in this file to refine and
+extend the generated rules to suit their specific needs and custom nodes.
 """
 
 from typing import Any
