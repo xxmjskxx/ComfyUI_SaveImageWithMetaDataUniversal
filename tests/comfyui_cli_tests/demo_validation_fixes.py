@@ -7,8 +7,14 @@ This script demonstrates the key improvements made to the validation script:
 2. Extracting complex filename patterns
 3. Handling special workflows
 """
-
+import sys
 from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+WORKFLOW_DIR = SCRIPT_DIR / "dev_test_workflows"
 
 # Import the validator
 from validate_metadata import MetadataValidator, WorkflowAnalyzer
@@ -150,7 +156,7 @@ def demo_jpeg_fallback():
     ]
 
     for filename, kb_size, expected_stage in workflows:
-        filepath = Path(f"dev_test_workflows/{filename}")
+        filepath = WORKFLOW_DIR / filename
         exists = "✅" if filepath.exists() else "❌"
         print(f"{exists} {filename:35} (max_jpeg_exif_kb={kb_size}, expected: {expected_stage})")
         if not filepath.exists():

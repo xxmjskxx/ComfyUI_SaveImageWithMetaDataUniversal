@@ -26,10 +26,8 @@ from pathlib import Path
 
 try:
     from send2trash import send2trash
-
-    SEND2TRASH_AVAILABLE = True
 except ImportError:
-    SEND2TRASH_AVAILABLE = False
+    send2trash = None
 
 
 class WorkflowRunner:
@@ -169,7 +167,7 @@ class WorkflowRunner:
             print("  (It will be created when workflows run)")
             return True
 
-        if not SEND2TRASH_AVAILABLE:
+        if send2trash is None:
             print("⚠ Warning: send2trash not installed. Cannot clean output folder.")
             print("  Install with: pip install send2trash")
             return False

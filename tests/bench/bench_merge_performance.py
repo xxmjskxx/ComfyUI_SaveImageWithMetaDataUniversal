@@ -12,11 +12,11 @@ test artifacts) and prints a human-readable verdict.
 from __future__ import annotations
 
 import json
-import os
 import random
 import statistics
 import time
 from collections.abc import Callable, Mapping, MutableMapping
+from pathlib import Path
 from typing import Any
 
 SAMPLES = 2_000  # number of keys
@@ -95,15 +95,13 @@ def main():
         },
     }
     print(f"Delta: {diff:.6f}s ({pct:.2f}%) -> {verdict}")
-    # Use unified test outputs directory
-    out_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "tests/_test_outputs"))
-    # Fallback: project root tests/_test_outputs if relative path doesn't exist
-    if not os.path.isdir(out_dir):
-        out_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "tests/_test_outputs"))
-    os.makedirs(out_dir, exist_ok=True)
-    with open(os.path.join(out_dir, "merge_bench.json"), "w", encoding="utf-8") as f:
+    repo_root = Path(__file__).resolve().parents[2]
+    out_dir = repo_root / "tests" / "_test_outputs"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_file = out_dir / "merge_bench.json"
+    with out_file.open("w", encoding="utf-8") as f:
         json.dump(result, f, indent=2)
-    print(f"Wrote {os.path.join(out_dir, 'merge_bench.json')}")
+    print(f"Wrote {out_file}")
 
 
 if __name__ == "__main__":  # pragma: no cover - manual utility

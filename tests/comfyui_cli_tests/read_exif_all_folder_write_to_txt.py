@@ -4,9 +4,6 @@ import sys
 import os
 import argparse
 
-def replace_add_newlines(decoded_comment):
-    return decoded_comment
-
 def decode_user_comment(user_comment):
     try:
         # Decode the byte string as UTF-16 big-endian with backslash replacement
@@ -63,7 +60,7 @@ def get_exif_data(image_path: str) -> str:
                 end_index = binary_content.find(b'tEXt', near_end_index) - 9 if near_end_index != -1 else -1
                 if start_index != -1 and end_index != -1:
                     extracted_info = binary_content[start_index + len(b'parameters') + 1:end_index + 1].decode('utf-8', 'replace').strip()
-                    lines.append(replace_add_newlines(extracted_info))
+                    lines.append(extracted_info)
                 else:
                     lines.append("No valid parameter block found in PNG.")
             except Exception as e:

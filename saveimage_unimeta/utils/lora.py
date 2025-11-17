@@ -68,8 +68,7 @@ def build_lora_index() -> None:
     _LORA_INDEX_BUILT = True
     logger.info("[Metadata Lib] LoRA index built with %d entries.", len(_LORA_INDEX))
     try:
-        dump_env = os.environ.get("METADATA_DUMP_LORA_INDEX")
-        if dump_env:
+        if dump_env := os.environ.get("METADATA_DUMP_LORA_INDEX"):
             dump_path = dump_env.strip()
             if dump_path.lower() == "1":
                 dump_path = os.path.join(os.getcwd(), "_lora_index_dump.json")

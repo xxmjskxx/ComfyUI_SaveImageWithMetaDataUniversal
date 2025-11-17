@@ -39,12 +39,8 @@ DEFAULT_SCAN_WORKFLOW = DEFAULT_WORKFLOW_DIR / "1-scan-and-save-custom-metadata-
 DEFAULT_EFFICIENCY_WORKFLOW = DEFAULT_WORKFLOW_DIR / "efficiency-nodes-debug-hash.json"
 DEFAULT_LOG_DIR = SCRIPT_DIR / "Test"
 DEFAULT_COMFY_CLI = Path(os.environ.get("COMFY_CLI", "comfy"))
-DEFAULT_WORKSPACE = Path(
-    os.environ.get(
-        "COMFY_WORKSPACE",
-        r"C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI_windows_portable\ComfyUI",
-    )
-)
+ENV_WORKSPACE = os.environ.get("COMFY_WORKSPACE")
+DEFAULT_WORKSPACE = Path(ENV_WORKSPACE) if ENV_WORKSPACE else None
 DEFAULT_COMFY_EXTRA = ["--background"] if os.environ.get("COMFY_RUN_BACKGROUND") == "1" else []
 DEFAULT_SERVER_EXTRA = ["--windows-standalone-build", "--listen", "127.0.0.1", "--port", "8188"]
 DEFAULT_ENV = {
@@ -74,7 +70,12 @@ def parse_kv_pairs(pairs: Iterable[str]) -> dict[str, str]:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--comfy-cli", type=Path, default=DEFAULT_COMFY_CLI, help="Path to comfy executable")
-    parser.add_argument("--workspace", type=Path, default=DEFAULT_WORKSPACE, help="ComfyUI workspace directory")
+    parser.add_argument(
+        "--workspace",
+        type=Path,
+        default=DEFAULT_WORKSPACE,
+        help="ComfyUI workspace directory (defaults to COMFY_WORKSPACE env var)",
+    )
     parser.add_argument(
         "--scan-workflow",
         type=Path,
@@ -135,7 +136,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--server-extra",
         action="append",
-        default=DEFAULT_SERVER_EXTRA.copy(),
+        default=None,
         help="Arguments appended after the '--' when launching the ComfyUI server",
     )
     parser.add_argument(
@@ -480,20 +481,30 @@ def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
 
+    if args.workspace is None:
+        parser.error("--workspace is required when COMFY_WORKSPACE is not set.")
+
     output_folder = args.output_folder or args.workspace / "output" / "Test"
     log_dir = args.log_dir.resolve()
     log_dir.mkdir(parents=True, exist_ok=True)
     hash_log = log_dir / "hash_logs.txt"
 
     server_extra: list[str] = []
-    for chunk in args.server_extra or []:
-        server_extra.extend(chunk.split()) if isinstance(chunk, str) else server_extra.extend(chunk)
+    server_chunks = args.server_extra if args.server_extra is not None else DEFAULT_SERVER_EXTRA.copy()
+    for chunk in server_chunks:
+        if isinstance(chunk, str):
+            server_extra.extend(chunk.split())
+        else:
+            server_extra.extend(chunk)
     if not server_extra:
         server_extra = DEFAULT_SERVER_EXTRA.copy()
 
     launch_extra: list[str] = DEFAULT_COMFY_EXTRA.copy()
     for chunk in args.launch_extra or []:
-        launch_extra.extend(chunk.split()) if isinstance(chunk, str) else launch_extra.extend(chunk)
+        if isinstance(chunk, str):
+            launch_extra.extend(chunk.split())
+        else:
+            launch_extra.extend(chunk)
 
     comfy_cmd = [str(args.comfy_cli), f"--workspace={args.workspace}", "launch"]
     comfy_cmd.extend(launch_extra)

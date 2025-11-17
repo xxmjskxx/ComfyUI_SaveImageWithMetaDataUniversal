@@ -9,6 +9,7 @@ development.
 from __future__ import annotations
 
 import importlib.metadata
+from importlib import import_module
 import os
 from types import ModuleType
 
@@ -24,14 +25,15 @@ def _read_pyproject_version() -> str | None:
         str | None: The version string, or None if the file cannot be found
             or the version is not specified.
     """
-    toml_loader: ModuleType
-    try:
-        import tomllib as toml_loader
-    except ModuleNotFoundError:
+    toml_loader: ModuleType | None = None
+    for module_name in ("tomllib", "tomli"):
         try:
-            import tomli as toml_loader
+            toml_loader = import_module(module_name)
+            break
         except ModuleNotFoundError:
-            return None
+            continue
+    if toml_loader is None:
+        return None
     try:
         import pathlib
 
