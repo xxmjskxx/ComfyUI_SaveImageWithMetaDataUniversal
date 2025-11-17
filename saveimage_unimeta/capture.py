@@ -333,6 +333,18 @@ class Capture:
             yield Capture._extract_value(it)
 
     @staticmethod
+    def _looks_like_hex_hash(value: Any) -> bool:
+        """Return True when ``value`` resembles a truncated or full hex hash."""
+
+        if not isinstance(value, str):
+            return False
+        candidate = value.strip()
+        # Hash helpers emit 10 char truncations but allow longer (e.g., cached 64 char).
+        if len(candidate) < 8 or len(candidate) > 64:
+            return False
+        return bool(re.fullmatch(r"[0-9a-fA-F]+", candidate))
+
+    @staticmethod
     def _build_prompt_embedding_stub_input() -> tuple[dict[str, list[Any]], ...]:
         """Return a lightweight ``input_data`` stub so embedding hashes resolve.
 
@@ -2134,12 +2146,13 @@ class Capture:
             try:
                 if value is None:
                     return
-                v = str(value)
+                v = str(value).strip()
                 if not v or v.upper() == "N/A":
                     return
                 # Ignore object-like placeholders such as '<comfy.sd.VAE object at ...>'
-                vs = v.strip()
-                if vs.startswith("<") and ">" in vs:
+                if v.startswith("<") and ">" in v:
+                    return
+                if not cls._looks_like_hex_hash(v):
                     return
                 resource_hashes[key] = v
             except Exception:

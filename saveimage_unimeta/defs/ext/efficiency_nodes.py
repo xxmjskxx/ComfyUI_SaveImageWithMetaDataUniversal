@@ -24,7 +24,7 @@ Attributes:
 import logging
 from ..formatters import calc_lora_hash, calc_model_hash, convert_skip_clip
 from ..meta import MetaField
-from ..selectors import collect_lora_stack, select_stack_by_prefix
+from ..selectors import collect_lora_stack, select_stack_by_prefix, _aligned_strengths_for_prefix
 
 
 logger = logging.getLogger(__name__)
@@ -195,8 +195,8 @@ def get_lora_strength_model_stack(node_id, obj, prompt, extra_data, outputs, inp
     if stack:
         return [entry[1] for entry in stack]
     if _is_advanced_mode(input_data):
-        return select_stack_by_prefix(input_data, "model_str", counter_key="lora_count")
-    return select_stack_by_prefix(input_data, "lora_wt", counter_key="lora_count")
+        return _aligned_strengths_for_prefix(input_data, "model_str")
+    return _aligned_strengths_for_prefix(input_data, "lora_wt")
 
 
 def get_lora_strength_clip_stack(node_id, obj, prompt, extra_data, outputs, input_data):
@@ -221,8 +221,8 @@ def get_lora_strength_clip_stack(node_id, obj, prompt, extra_data, outputs, inpu
     if stack:
         return [entry[2] for entry in stack]
     if _is_advanced_mode(input_data):
-        return select_stack_by_prefix(input_data, "clip_str", counter_key="lora_count")
-    return select_stack_by_prefix(input_data, "lora_wt", counter_key="lora_count")
+        return _aligned_strengths_for_prefix(input_data, "clip_str")
+    return _aligned_strengths_for_prefix(input_data, "lora_wt")
 
 
 def get_lora_data_stack(input_data, attribute):

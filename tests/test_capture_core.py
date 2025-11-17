@@ -138,3 +138,46 @@ def test_collect_lora_records_uses_tuple_fallbacks():
     assert records[0].strength_clip == 0.15
     assert records[1].strength_model == 0.5
     assert records[1].strength_clip == 0.4
+
+
+def test_collect_lora_records_skips_orphan_strength_slots():
+    cap = importlib.import_module(MODULE_PATH)
+    meta_mod = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.meta")
+    MetaField = meta_mod.MetaField
+    inputs = {
+        MetaField.LORA_MODEL_NAME: [
+            (1, "Majora_Zelda.safetensors", "lora_name_1"),
+            (1, "ootlink-nvwls-v1.safetensors", "lora_name_2"),
+        ],
+        MetaField.LORA_MODEL_HASH: [],
+        MetaField.LORA_STRENGTH_MODEL: [
+            (1, 0.97, "model_str_1"),
+            (1, 0.6, "model_str_2"),
+            (1, 1.0, "model_str_50"),
+        ],
+        MetaField.LORA_STRENGTH_CLIP: [
+            (1, 0.88, "clip_str_1"),
+            (1, 0.51, "clip_str_2"),
+            (1, 1.0, "clip_str_50"),
+        ],
+    }
+    records, aggregate_error = cap.Capture._collect_lora_records(inputs)
+    assert not aggregate_error
+    assert [rec.name for rec in records] == [
+        "Majora_Zelda.safetensors",
+        "ootlink-nvwls-v1.safetensors",
+    ]
+    assert [rec.strength_model for rec in records] == [0.97, 0.6]
+    assert [rec.strength_clip for rec in records] == [0.88, 0.51]
+
+
+def test_get_hashes_for_civitai_skips_plaintext_vae_entries():
+    cap = importlib.import_module(MODULE_PATH)
+    hashes = cap.Capture.get_hashes_for_civitai(
+        inputs_before_sampler_node={},
+        inputs_before_this_node={},
+        pnginfo_dict={"Model hash": "abc123def0", "VAE hash": "Baked VAE"},
+        lora_records=[],
+    )
+    assert hashes["model"] == "abc123def0"
+    assert "vae" not in hashes

@@ -214,7 +214,13 @@ SELECTORS = {
 }
 
 
-def select_stack_by_prefix(input_data, prefix: str, counter_key: str | None = None, filter_none: bool = True):
+def select_stack_by_prefix(
+    input_data,
+    prefix: str,
+    counter_key: str | None = None,
+    filter_none: bool = True,
+    include_indices: bool = False,
+):
     """
     Return a list of input values for keys starting with a prefix.
 
@@ -232,8 +238,11 @@ def select_stack_by_prefix(input_data, prefix: str, counter_key: str | None = No
 
     Returns:
         list:
-            First elements from values whose keys start with prefix, possibly
-            limited by counter_key and filtered for "None".
+            When `include_indices` is False (default), returns the first
+            elements from values whose keys start with prefix. When True,
+            returns ``(index, value)`` tuples so callers can keep the numeric
+            suffix alongside the captured value. Both modes respect
+            ``counter_key`` trimming and "None" filtering.
 
     Notes:
         - Always coerce list-like values to the first element (v[0]).
@@ -261,7 +270,10 @@ def select_stack_by_prefix(input_data, prefix: str, counter_key: str | None = No
     if has_index:
         items.sort(key=lambda entry: (entry[0] is None, entry[0] if entry[0] is not None else entry[1]))
 
-    ordered_values = [entry[2] for entry in items]
+    if include_indices:
+        ordered_values = [(entry[0], entry[2]) for entry in items]
+    else:
+        ordered_values = [entry[2] for entry in items]
 
     if counter_key and counter_key in input_data[0] and isinstance(input_data[0][counter_key], list):
         try:
@@ -270,3 +282,49 @@ def select_stack_by_prefix(input_data, prefix: str, counter_key: str | None = No
         except Exception:
             return ordered_values
     return ordered_values
+
+
+def _aligned_strengths_for_prefix(input_data, strength_prefix: str):
+    """Return strengths matched to populated LoRA name indices.
+
+    When advanced stacker modes expose more strength fields than active
+    ``lora_name_*`` slots (for example, stray ``model_str_50`` values that
+    remain at defaults), we only want the entries that correspond to real
+    names. This helper mirrors the fallback traversal used by
+    ``get_lora_model_name_stack`` and filters the strength list so it stays in
+    lock-step with the resolved names.
+    """
+
+    name_entries = select_stack_by_prefix(
+        input_data,
+        "lora_name",
+        counter_key="lora_count",
+        include_indices=True,
+    )
+    if not name_entries:
+        return select_stack_by_prefix(
+            input_data,
+            strength_prefix,
+            counter_key="lora_count",
+        )
+    strength_entries = list(
+        select_stack_by_prefix(
+            input_data,
+            strength_prefix,
+            counter_key="lora_count",
+            include_indices=True,
+        )
+    )
+    matched: list = []
+    for idx, _name in name_entries:
+        chosen = None
+        if idx is not None:
+            for pos, (s_idx, sval) in enumerate(strength_entries):
+                if s_idx == idx:
+                    chosen = sval
+                    strength_entries.pop(pos)
+                    break
+        if chosen is None and strength_entries:
+            chosen = strength_entries.pop(0)[1]
+        matched.append(chosen)
+    return matched

@@ -95,7 +95,7 @@ def test_efficiency_stack_aligns_strengths_when_falling_back(monkeypatch):
             "model_str_1": [0.97],
             "lora_name_1": ["Majora_Zelda.safetensors"],
             "clip_str_3": [0.02],
-            "model_str_50": [1.0],
+            "model_str_3": [1.03],
             "model_str_2": [0.6],
             "clip_str_1": [0.88],
             "lora_name_3": ["None"],
@@ -117,6 +117,41 @@ def test_efficiency_stack_aligns_strengths_when_falling_back(monkeypatch):
     ]
     assert model_strengths[:2] == [0.97, 0.6]
     assert clip_strengths[:2] == [0.88, 0.51]
-    # Ensure additional slots remain sorted and trimmed by lora_count.
-    assert model_strengths == [0.97, 0.6, 1.0]
-    assert clip_strengths == [0.88, 0.51, 0.02]
+    # Only populated LoRA names should contribute strengths.
+    assert model_strengths == [0.97, 0.6]
+    assert clip_strengths == [0.88, 0.51]
+
+
+def test_efficiency_stack_ignores_orphan_strength_slots(monkeypatch):
+    node_id = 404
+    outputs = {}
+
+    advanced_input = [
+        {
+            "input_mode": ["advanced"],
+            "lora_count": [50],
+            "lora_name_1": ["Majora_Zelda.safetensors"],
+            "lora_name_2": ["ootlink-nvwls-v1.safetensors"],
+            "lora_name_3": ["None"],
+            # include the expected pair of strengths plus an orphaned high-index entry
+            "model_str_1": [0.97],
+            "model_str_2": [0.6],
+            "model_str_50": [1.0],
+            "clip_str_1": [0.88],
+            "clip_str_2": [0.51],
+            "clip_str_50": [1.0],
+        }
+    ]
+
+    monkeypatch.setattr(eff, "collect_lora_stack", lambda data: [])
+
+    names = eff.get_lora_model_name_stack(node_id, None, None, None, outputs, advanced_input)
+    model_strengths = eff.get_lora_strength_model_stack(node_id, None, None, None, outputs, advanced_input)
+    clip_strengths = eff.get_lora_strength_clip_stack(node_id, None, None, None, outputs, advanced_input)
+
+    assert names == [
+        "Majora_Zelda.safetensors",
+        "ootlink-nvwls-v1.safetensors",
+    ]
+    assert model_strengths == [0.97, 0.6]
+    assert clip_strengths == [0.88, 0.51]

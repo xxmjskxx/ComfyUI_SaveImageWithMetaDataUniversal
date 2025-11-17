@@ -129,7 +129,16 @@ def _load_extensions() -> None:
     """
     dir_name = os.path.dirname(os.path.abspath(__file__))
     global LOADED_RULES_VERSION
-    for module_path in glob.glob(os.path.join(dir_name, "ext", "*.py")):
+    module_paths = glob.glob(os.path.join(dir_name, "ext", "*.py"))
+    # Load generated_user_rules first so curated modules can override its raw field captures.
+    module_paths.sort(
+        key=lambda path: (
+            os.path.splitext(os.path.basename(path))[0].lower() != "generated_user_rules",
+            os.path.basename(path).lower(),
+        )
+    )
+
+    for module_path in module_paths:
         module_name = os.path.splitext(os.path.basename(module_path))[0]
         # Never import example/reference files
         if (

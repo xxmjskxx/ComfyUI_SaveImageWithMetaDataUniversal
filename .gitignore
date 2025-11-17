@@ -161,18 +161,6 @@ ignore/
 img/alt_logo/
 img/ignore/
 
-# Local settings files
-# .github/copilot-instructions.md
-# .github/instructions/
-saveimage_unimeta/defs/ext/mjsk_PCLazyLoraLoader.py
-scripts/
-.vscode/
-.vscode/settings.json
-.vscode
-.pytest_cache/
-.ruff_cache/
-tasksync/
-
 # Local development/testing files
 # /dev_test_workflows/
 tests/comfyui_cli_tests/run_dev_workflows.bat
@@ -193,6 +181,17 @@ tests/comfyui_cli_tests/Test/validation_log.txt
 tests/comfyui_cli_tests/Test/validation_log.txt.bak
 tests/comfyui_cli_tests/compare_hash_logs.bat
 
+# Local settings files
+# .github/copilot-instructions.md
+# .github/instructions/
+saveimage_unimeta/defs/ext/mjsk_PCLazyLoraLoader.py
+scripts/
+.vscode/
+.vscode/settings.json
+.vscode
+.pytest_cache/
+.ruff_cache/
+tasksync/
 
 # Ephemeral local drafting files (root only). Keep actual published notes in docs/.
 docs/HIGH_PRIORITY_TASKS.md
