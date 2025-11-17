@@ -1,0 +1,2 @@
+@echo off
+python tests/tools/run_dev_workflows.py --comfyui-path "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI_windows_portable" --python-exe "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI_windows_portable\python_embeded\python.exe" --temp-dir "F:\StableDiffusion\ComfyUI" --output-folder "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI_windows_portable\ComfyUI\output\Test" --extra-args="--windows-standalone-build"
