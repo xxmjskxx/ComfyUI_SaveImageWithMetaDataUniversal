@@ -37,13 +37,6 @@ def build_lora_index() -> None:
 
     Side Effects:
         Mutates module-level caches ``_LORA_INDEX`` and ``_LORA_INDEX_BUILT``.
-
-    Build an in-memory index of LoRA files for fast lookups.
-
-    This function scans the LoRA directories specified in ComfyUI's
-    `folder_paths`, creating an index that maps the base name of each LoRA file
-    to its full path and filename. The index is built only once and is then
-    cached for subsequent calls.
     """
     global _LORA_INDEX, _LORA_INDEX_BUILT
     if _LORA_INDEX_BUILT:

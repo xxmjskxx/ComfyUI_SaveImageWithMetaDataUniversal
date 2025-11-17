@@ -15,7 +15,7 @@ import json
 import random
 import statistics
 import time
-from collections.abc import Callable, Mapping, MutableMapping
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -35,7 +35,7 @@ def legacy_merge(base: dict[str, Any], user: dict[str, Any]) -> dict[str, Any]:
     for key, val in user.items():
         if isinstance(val, Mapping):
             existing = target.get(key)
-            if not isinstance(existing, MutableMapping):
+            if key not in target or not isinstance(existing, Mapping):
                 target[key] = dict(val)
             else:
                 existing.update(val)
@@ -51,7 +51,7 @@ def helper_merge(base: dict[str, Any], user: dict[str, Any]) -> dict[str, Any]:
         if not isinstance(val, Mapping):
             return
         existing = target.get(key)
-        if not isinstance(existing, MutableMapping):
+        if key not in target or not isinstance(existing, Mapping):
             target[key] = dict(val)
         else:
             existing.update(val)

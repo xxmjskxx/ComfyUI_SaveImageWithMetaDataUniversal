@@ -109,7 +109,7 @@ class WorkflowRunner:
             print(f"✗ Server did not start within {wait_time}s")
             return False
 
-        except Exception as e:
+        except (OSError, subprocess.SubprocessError) as e:
             print(f"✗ Failed to start server: {e}")
             return False
 
@@ -138,8 +138,10 @@ class WorkflowRunner:
                 prompt_id = result.get("prompt_id", "unknown")
                 return True, prompt_id
 
-        except Exception as e:
-            return False, str(e)
+        except urllib.error.URLError as e:
+            return False, f"URLError: {e}"
+        except json.JSONDecodeError as e:
+            return False, f"JSONDecodeError: {e}"
 
     def load_workflow(self, workflow_path: Path) -> dict | None:
         """Load and validate a workflow JSON file."""
@@ -156,7 +158,7 @@ class WorkflowRunner:
         except json.JSONDecodeError as e:
             print(f"  ✗ Error: Invalid JSON in {workflow_path.name}: {e}")
             return None
-        except Exception as e:
+        except (OSError, UnicodeDecodeError) as e:
             print(f"  ✗ Error loading {workflow_path.name}: {e}")
             return None
 
