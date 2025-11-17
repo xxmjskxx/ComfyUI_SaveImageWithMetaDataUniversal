@@ -4,6 +4,13 @@ This module provides a custom `ShowText` node that is adapted from the
 implementation in the `pythongosssss/ComfyUI-Custom-Scripts` repository. It is
 namespaced with `|unimeta` to prevent conflicts with other custom nodes that
 may provide a node with the same name.
+Key differences:
+- Uses mapping key "ShowText|unimeta" to avoid conflicts with other packs.
+- Display name includes a suffix for clarity.
+
+Logging Policy:
+    Uses module-level logger instead of bare prints for warnings so users can
+    configure verbosity. (Final mandated completion prints elsewhere remain.)
 """
 
 from __future__ import annotations

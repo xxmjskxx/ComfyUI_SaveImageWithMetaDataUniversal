@@ -10,6 +10,7 @@ the `MetadataForceInclude` node for managing forced node class names.
 import logging
 import os
 
+
 from .save_image import SaveImageWithMetaDataUniversal  # extracted from node.py
 from .extra_metadata import CreateExtraMetaDataUniversal  # extracted from node.py
 from .rules_view import ShowGeneratedUserRules  # extracted from node.py
@@ -18,6 +19,7 @@ from .scanner import MetadataRuleScanner  # extracted from node.py
 from .rules_writer import SaveCustomMetadataRules  # moved out of legacy node.py
 from .show_text import ShowText  # local unimeta variant (separate file for clarity)
 from .show_any import ShowAnyToString  # new any->string display node
+from .testing_stubs import MetadataTestSampler  # test stub node for metadata capture testing
 from ..defs import set_forced_include
 
 logger = logging.getLogger(__name__)
@@ -30,6 +32,16 @@ class MetadataForceInclude:
     always be included in the metadata capture process, regardless of the
     rules defined in the `MetadataRuleScanner`. This is useful for ensuring
     that certain nodes are always processed.
+    Separated from the scanning node so the scanner (`MetadataRuleScanner` implemented
+    in `node.py`) can expose its own inputs: exclude_keywords, include_existing,
+    mode, force_include_metafields, etc.
+
+    Outputs:
+        forced_classes (FORCED_CLASSES): Internal custom type (semantic marker) containing the
+            comma-separated forced class list. Use mainly for tooling or future automation.
+        forced_classes_str (STRING): Plain comma-separated list of currently forced node class
+            names. Connect this to a text display node (e.g. Show Text (UniMeta)) to audit the
+            active configuration.
     """
 
     @classmethod
@@ -150,6 +162,7 @@ NODE_CLASS_MAPPINGS = {
     "CreateExtraMetaDataUniversal": CreateExtraMetaDataUniversal,
     "MetadataForceInclude": MetadataForceInclude,
     "MetadataRuleScanner": MetadataRuleScanner,
+    "MetadataTestSampler|unimeta": MetadataTestSampler,
     "SaveCustomMetadataRules": SaveCustomMetadataRules,
     "ShowGeneratedUserRules": ShowGeneratedUserRules,
     "SaveGeneratedUserRules": SaveGeneratedUserRules,
@@ -161,6 +174,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CreateExtraMetaDataUniversal": "Create Extra MetaData",
     "MetadataForceInclude": "Metadata Force Include",
     "MetadataRuleScanner": "Metadata Rule Scanner",
+    "MetadataTestSampler|unimeta": "Metadata Test Sampler",
     "SaveCustomMetadataRules": "Save Custom Metadata Rules",
     "ShowGeneratedUserRules": "Show generated_user_rules.py",
     "SaveGeneratedUserRules": "Save generated_user_rules.py",

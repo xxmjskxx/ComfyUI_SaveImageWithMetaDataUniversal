@@ -1,9 +1,11 @@
-"""Provides utilities for indexing and parsing LoRA (Low-Rank Adaptation) files.
+"""Provides utilities for indexing and parsing LoRA files.
 
 This module includes functions for creating an in-memory index of available
 LoRA files for fast lookups, as well as helpers for parsing the LoRA syntax
 used in prompts (e.g., `<lora:name:strength>`). This allows for the efficient
 extraction and resolution of LoRA metadata from a ComfyUI workflow.
+Includes:
+* One-time index mapping LoRA base names to on-disk locations (for fast lookup).
 """
 
 import logging
@@ -22,7 +24,21 @@ logger = logging.getLogger(__name__)
 
 
 def build_lora_index() -> None:
-    """Build an in-memory index of LoRA files for fast lookups.
+    """Populate (idempotently) the in-memory LoRA file index.
+
+    Scan order & behavior:
+        * Enumerates every directory in ``folder_paths.get_folder_paths('loras')``.
+        * Recursively walks subdirectories.
+        * Records the FIRST occurrence of each base filename (stem) only.
+        * Supported extensions: ``.safetensors``, ``.st``, ``.pt``, ``.bin``, ``.ckpt``.
+
+    Idempotence:
+        Subsequent calls short-circuit once the index has been built (``_LORA_INDEX_BUILT`` flag).
+
+    Side Effects:
+        Mutates module-level caches ``_LORA_INDEX`` and ``_LORA_INDEX_BUILT``.
+
+    Build an in-memory index of LoRA files for fast lookups.
 
     This function scans the LoRA directories specified in ComfyUI's
     `folder_paths`, creating an index that maps the base name of each LoRA file
@@ -95,7 +111,12 @@ LEGACY = re.compile(r"<lora:([^:>]+):([^>]+)>")
 
 
 def coerce_first(val) -> str:
-    """Return the first element of a list or the value itself if not a list.
+    """Parse LoRA tags in text into (raw_names, model_strengths, clip_strengths).
+
+    - Uses STRICT first, then LEGACY fallback where clip=sm when missing or non-numeric.
+    - Names are not resolved to filenames here; call ``resolve_lora_display_names`` as needed.
+
+    Return the first element of a list or the value itself if not a list.
 
     Args:
         val: The value to be coerced.

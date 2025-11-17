@@ -2,8 +2,8 @@
 
 This module contains a collection of functions used to format and process the
 raw data captured from a ComfyUI workflow. This includes functions for
-calculating hashes of models, VAEs, and LoRAs, as well as utilities for
-extracting embedding information from prompts and resolving artifact names to
+deterministic hashing models, VAEs, and LoRAs, with optional use of cached .sha256 sidecar files to avoid recomputation, as well as
+utilities for extracting embedding information from prompts and resolving artifact names to
 file paths.
 """
 
@@ -86,7 +86,7 @@ for _n in _ALT_NAMES:
 
 
 def set_hash_log_mode(mode: str):
-    """Set the logging mode for hashing operations.
+    """Set the logging mode (tests / UI) for hashing operations and re-init logger.
 
     This function allows for programmatically changing the hash logging mode,
     which is useful for testing and dynamic configuration.

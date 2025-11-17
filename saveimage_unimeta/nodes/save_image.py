@@ -1,4 +1,10 @@
-"""The core image saver node for ComfyUI.
+"""The core image saver node for writing images and UniMeta metadata.
+
+This module bridges ComfyUI's saver protocol with UniMeta's capture pipeline.
+It orchestrates Trace/Capture traversal, filename token expansion, metadata
+generation (PNGInfo/EXIF/WebP), JPEG fallback stages, optional workflow dumps,
+and hashing sidecars while remaining importable in isolated pytest runs via
+runtime stubs.
 
 This module provides the `SaveImageWithMetaDataUniversal` class, which is the
 primary node responsible for saving images and embedding rich metadata. It
@@ -121,7 +127,7 @@ def _maybe_warn_outdated_rules() -> None:
 
 
 class SaveImageWithMetaDataUniversal:
-    """A ComfyUI node to save images with universal metadata embedding.
+    """A ComfyUI node to save images with universal node support for metadata embedding.
 
     This node is responsible for saving images in various formats (PNG, JPEG,
     WebP) while embedding comprehensive metadata captured from the workflow.
@@ -366,7 +372,8 @@ class SaveImageWithMetaDataUniversal:
         Args:
             images (torch.Tensor): A batch of images to be saved.
             filename_prefix (str, optional): The prefix for the output filename,
-                which can contain tokens. Defaults to "ComfyUI".
+                which can contain tokens such as `%seed%` or
+                `%date:yy-MM-dd%`. Defaults to "ComfyUI".
             sampler_selection_method (str, optional): The method to select the
                 sampler node. Defaults to the first method in `SAMPLER_SELECTION_METHOD`.
             sampler_selection_node_id (int, optional): The ID of the sampler node
@@ -766,6 +773,11 @@ class SaveImageWithMetaDataUniversal:
         when the full metadata exceeds the size limits for JPEG EXIF data. It
         preserves the most critical information while dropping less essential
         fields.
+        Preserves: Prompt header lines, Negative prompt, and a reduced parameter key set:
+            Steps, Sampler, CFG scale, Seed, Model, Model hash, VAE, VAE hash,
+            All Lora_* fields, Hashes, Metadata generator version.
+
+        Drops: Weight dtype, Size, Batch index/size, shifts, CLIP models, embeddings, extra custom keys.
 
         Args:
             full_parameters (str): The complete parameter string.

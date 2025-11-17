@@ -21,12 +21,17 @@ logger = logging.getLogger(__name__)
 
 
 class SaveCustomMetadataRules:
-    """A node for managing metadata rules with backup and restore functionality.
+    """A node for managing metadata rules with overwrite/append, backup and restore functionality.
 
     This class provides a comprehensive solution for managing user-defined
     metadata rules. It allows for saving in overwrite or append mode, creating
     timestamped backups, restoring from backups, and pruning old backups.
     It also handles the generation of a Python extension from the JSON rules.
+    Flow summary:
+      * Optional restore of a selected backup set (short-circuits other inputs except rebuild flag).
+      * Normal save path can create a timestamped backup (set folder) before applying changes.
+      * Two save modes: overwrite (legacy) and append_new (only add missing / optionally replace conflicts).
+      * Deterministic python extension generation (sorted order) when requested.
     """
 
     @classmethod
@@ -748,6 +753,10 @@ def _looks_like_timestamp(name: str) -> bool:
 
     Returns:
         bool: True if the string looks like a timestamp, False otherwise.
+    Examples:
+      20250101-123045 -> True
+      20250101-123045-1 -> True
+      20250101-1230 -> False (too short)
     """
     if len(name) < _TIMESTAMP_BASE_LENGTH:
         return False

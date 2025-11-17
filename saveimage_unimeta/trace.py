@@ -1,8 +1,8 @@
-"""Provides graph tracing utilities for ComfyUI workflows.
+"""Provides graph tracing utilities for for locating upstream sampler and related nodes.
 
 This module contains the `Trace` class, which is used to traverse the workflow
 graph, build a distance map from a starting node, and identify sampler nodes
-based on a set of heuristics. This is crucial for correctly identifying the
+based on a set of heuristics when not explicitly declared in the sampler definitions. This is crucial for correctly identifying the
 source of various metadata attributes in the workflow.
 """
 
@@ -123,6 +123,12 @@ class Trace:
             This helper function checks if a node's class type is present in the
             `SAMPLERS` dictionary or if its capture rules in `CAPTURE_FIELD_LIST`
             indicate that it is a sampler.
+
+            Heuristic to identify a sampler node when it isn't explicitly listed in SAMPLERS.
+            Priority:
+              1) Explicitly in SAMPLERS
+              2) Node capture rules include MetaField.SAMPLER_NAME
+              3) Node capture rules include both MetaField.STEPS and MetaField.CFG
 
             Args:
                 class_type (str): The class type of the node.

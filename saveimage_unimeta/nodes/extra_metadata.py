@@ -51,9 +51,9 @@ class CreateExtraMetaDataUniversal:
 
     def create_extra_metadata(
         self,
-        key1,
-        value1,
-        extra_metadata=None,
+        extra_metadata={},
+        key1="",
+        value1="",
         key2="",
         value2="",
         key3="",

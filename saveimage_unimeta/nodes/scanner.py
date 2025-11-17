@@ -1,4 +1,56 @@
-"""A ComfyUI node for scanning and suggesting metadata capture rules.
+"""MetadataRuleScanner node scans node class mappings, enumerates capture and sampler rule gaps, and suggests metadata capture rules.
+
+Workflow
+        1. Walk every class in ``nodes.NODE_CLASS_MAPPINGS`` and inspect declared
+             inputs/hidden fields.
+        2. Apply :data:`HEURISTIC_RULES` to locate potential MetaField + hash
+             candidates, recording *why* they matched via the rule metadata.
+        3. Compare the findings to the current capture baseline
+             (defaults + extensions + user JSON) so only missing pieces surface when
+             the "missing-only lens" is active.
+        4. Emit a pretty JSON block (for export) and a one-line diff summary for the
+             UI panel.
+
+Key behavior
+        * Missing-only lens mirrors the saver: when ``include_existing`` is false,
+            metafields already covered by the union baseline are suppressed unless a
+            user forces the MetaField or node class.
+        * A lightweight cache tracks the mtimes of ``user_rules/*.json`` (and the
+            test-mode mirror) so repeated scans during UI sessions skip redundant
+            reloads.
+        * Debug logging honors ``METADATA_DEBUG`` to avoid log spam in production.
+
+Heuristic reference
+        Each entry inside :data:`HEURISTIC_RULES` is declarative and may include the
+        following keys (optional unless noted):
+
+        * ``metafield`` (required): the :class:`saveimage_unimeta.defs.meta.MetaField`
+            to capture when the rule matches.
+        * ``keywords`` / ``keywords_regex``: literal strings or regex patterns used
+            to match node input names (case-insensitive). Substring matches apply
+            unless ``exact_only`` is set.
+        * ``excluded_keywords`` / ``excluded_class_keywords``: tokens that disqualify
+            either the input field or the node class.
+        * ``required_context``: other input names that must be present on the node
+            (for example, ``height`` alongside ``width``).
+        * ``required_class_keywords`` / ``required_class_regex`` /
+            ``required_class_keyword_groups``: class-name filters ranging from simple
+            substrings to regexes or group-count requirements that dramatically reduce
+            false positives.
+        * ``type``: allowed ComfyUI declared types (``INT``, ``FLOAT``, ``STRING``).
+            The scanner skips fields whose declared type falls outside this set.
+        * ``is_multi``: surface every matching field (returned via ``fields``) while
+            preserving numeric ordering for patterns like ``lora_1``..``lora_n``.
+        * ``priority_keywords``: optional ordering hints for ``is_multi`` rules. Each entry
+            supplies keyword tuples plus a match mode controlling how strictly the scanner
+            prioritizes the matching fields.
+        * ``format`` / ``hash_field``: instruct the scanner to pair the matched
+            field with a hash entry by invoking helpers from
+            ``saveimage_unimeta.utils.formatters``.
+        * ``validate``: name of a helper (``is_positive_prompt``, etc.) that can
+            sanity-check the matched input contents before surfacing it.
+
+For a concise glossary of the same options see :data:`HEURISTIC_RULES_DOC` below.
 
 This module provides the `MetadataRuleScanner` class, a node that inspects all
 installed custom nodes and suggests rules for capturing metadata based on a
@@ -64,6 +116,37 @@ Attributes:
         value.
     validate (str): The name of a validator function to check the captured
         value.
+
+Heuristic dictionary keys referenced by :data:`HEURISTIC_RULES`:
+
+keywords / keywords_regex:
+    Case-insensitive literal tokens or regex patterns used to match input
+    names. Substring checks apply unless ``exact_only`` is set.
+excluded_keywords / excluded_class_keywords:
+    Tokens that must not appear in the field or class name.
+required_context:
+    Additional inputs that must exist on the node (for example ``height`` when
+    inferring a ``width`` metafield).
+required_class_keywords / required_class_regex / required_class_keyword_groups:
+    Filters that gate evaluation until the class name contains select tokens,
+    matches regex patterns, or satisfies minimum counts per keyword group.
+type:
+    Accepted ComfyUI declared input types (``INT``, ``FLOAT``, ``STRING``, etc.).
+is_multi:
+    Surfaces every match and returns ``fields`` instead of ``field_name`` so
+    multi-slot structures such as LoRA stacks preserve ordering.
+priority_keywords:
+    List of ``(keywords, mode)`` tuples applied to ``is_multi`` matches. Modes:
+    ``1`` = substring, ``2`` = prefix, ``3`` = suffix. Fields matching earlier
+    entries rank ahead of later ones while preserving numeric/alphabetic order
+    within each priority bucket.
+format / hash_field:
+    Name+hash companions. ``format`` references helpers from
+    ``saveimage_unimeta.utils.formatters`` and ``hash_field`` points to the
+    :class:`MetaField` that should store the hash.
+validate:
+    Optional validator helper (``is_positive_prompt``, ``is_negative_prompt``)
+    used to double-check the captured field content.
 """
 
 HEURISTIC_RULES = [
@@ -349,6 +432,15 @@ class MetadataRuleScanner:
     on a set of heuristics. The output is provided as a JSON string and a
     condensed diff report, which can be used to update the user's custom
     rules.
+
+    The scanner inspects every class registered in ``nodes.NODE_CLASS_MAPPINGS``
+    and produces two JSON-compatible payloads:
+
+    * ``suggested_rules_json`` – pretty-printed capture/sampler suggestions.
+    * ``diff_report`` – condensed summary for log/tooltips.
+
+    The implementation honours UI overrides, caching, ``METADATA_TEST_MODE``,
+    and ``METADATA_DEBUG`` just like the rest of the UniMeta saver stack.
     """
 
     @classmethod
@@ -463,7 +555,7 @@ class MetadataRuleScanner:
         force_include_metafields: str = "",
         force_include_node_class: str = "",
     ):
-        """Scan for metadata rules and generate suggestions.
+        """Scan for metadata rules and generate suggestions based on Heuristic rules.
 
         This is the main execution method for the scanner node. It iterates
         through all installed nodes, applies the heuristic rules, and compares
@@ -481,6 +573,23 @@ class MetadataRuleScanner:
                 names to always include. Defaults to "".
             force_include_node_class (str, optional): Comma- or newline-separated
                 node class names to always include. Defaults to "".
+        Args:
+         exclude_keywords: Comma-separated substrings that filter node class
+                names. Entries still appear when forced via
+                ``force_include_node_class``.
+            include_existing: When ``False`` (default), enables the
+                "missing-only lens" that filters out metadata already covered
+                by defaults/extensions/user JSON; when ``True`` the scanner
+                reports inclusive results similar to pre-2025 behaviour.
+            mode: ``new_only`` (default) emits only missing metafields per
+                node, ``all`` emits both new and existing matches, and
+                ``existing_only`` restricts output to nodes already recorded in
+                the capture baseline.
+            force_include_metafields: CSV of :class:`MetaField` names that must
+                remain in the output even if already satisfied by the baseline.
+            force_include_node_class: CSV/newline separated class names that
+                bypass keyword filters and appear even when omitted by
+                ``mode``.
 
         Returns:
             tuple[str, str] | dict: A tuple containing the JSON of suggested

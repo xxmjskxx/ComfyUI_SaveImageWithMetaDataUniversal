@@ -64,7 +64,7 @@ def restore_values(obj):
 
     This function traverses a dictionary or list, replacing string
     representations of enums and functions with their actual Python object
-    counterparts. It logs warnings for any unknown names it encounters.
+    counterparts. It logs warnings for any unknown names it encounters (non-fatal).
 
     Args:
         obj: The dictionary or list to be processed.

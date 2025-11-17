@@ -24,7 +24,7 @@ from .validators import is_negative_prompt, is_positive_prompt
 
 
 def _passthrough(value, *_):
-    """A passthrough formatter that returns the input value unchanged.
+    """A passthrough formatter that returns the input value unchanged (helper for pre-hashed stub inputs).
 
     This function is used as a formatter in capture rules where the input
     value is already in the desired format and does not require any

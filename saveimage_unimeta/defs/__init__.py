@@ -65,10 +65,10 @@ def set_forced_include(raw: str) -> set[str]:
     always be included in the metadata capture process.
 
     Args:
-        raw (str): A string containing the node class names to be forced.
+        raw (str): A string containing comma or whitespace separated node class names to be forced.
 
     Returns:
-        set[str]: The updated set of forced include class names.
+        set[str]: The updated set of forced include class names (for chaining / debugging / test assertions).
     """
     global FORCED_INCLUDE_CLASSES
     parsed = {c.strip() for c in raw.replace("\n", ",").split(",") if c.strip()}
@@ -81,7 +81,7 @@ def clear_forced_include() -> set[str]:
     """Clear the set of globally forced include node class names.
 
     Returns:
-        set[str]: The (now empty) set of forced include class names.
+        set[str]: The (now empty) set of forced include class names (for chaining / test assertions).
     """
     FORCED_INCLUDE_CLASSES.clear()
     return FORCED_INCLUDE_CLASSES
@@ -116,7 +116,10 @@ def _reset_to_defaults() -> None:
 
 
 def _load_extensions() -> None:
-    """Load and merge python-based extensions from the `defs/ext` directory."""
+    """Load and merge python-based extensions from the `defs/ext` directory.
+    Only import errors or attribute errors are logged; other exceptions are allowed
+    to propagate because they likely indicate programmer errors in extension code.
+    """
     dir_name = os.path.dirname(os.path.abspath(__file__))
     global LOADED_RULES_VERSION
     for module_path in glob.glob(os.path.join(dir_name, "ext", "*.py")):
@@ -196,7 +199,9 @@ def load_extensions_only() -> None:
 
 def _merge_extension_capture_entry(node_name: str, rules) -> None:
     """Merge a capture rule entry from an extension into the main list.
-
+    Semantics (must match original inline logic):
+      * If the existing entry or new value isn't a mapping, assign directly.
+      * If both are mappings, shallow-update the existing mapping.
     Args:
         node_name (str): The name of the node the rule applies to.
         rules (dict): The dictionary of rules to be merged.
@@ -214,7 +219,9 @@ def _merge_extension_capture_entry(node_name: str, rules) -> None:
 
 def _merge_user_capture_entry(node_name: str, rules) -> None:
     """Merge a user-defined capture rule entry from JSON.
-
+    Semantics (must match original inline logic):
+      * Ensure a dict container exists for the node name.
+      * Only update when the provided rules value is a mapping; otherwise skip.
     Args:
         node_name (str): The name of the node the rule applies to.
         rules (dict): The dictionary of rules to be merged.
@@ -227,7 +234,10 @@ def _merge_user_capture_entry(node_name: str, rules) -> None:
 
 def _merge_user_sampler_entry(key: str, val) -> None:
     """Merge a user-defined sampler entry from JSON.
-
+    Rules:
+      * Non-mapping values are skipped with a warning.
+      * If the existing entry is absent or not a mapping, the value is assigned.
+      * If both sides are mappings, perform an in-place update (shallow merge).
     Args:
         key (str): The key for the sampler entry.
         val (dict): The dictionary of sampler information to be merged.

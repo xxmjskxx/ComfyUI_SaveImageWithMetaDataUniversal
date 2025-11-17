@@ -334,6 +334,10 @@ class MetadataTestSampler:
             clip_name3 (str, optional): The name of the third CLIP model. Defaults to "".
             clip_name4 (str, optional): The name of the fourth CLIP model. Defaults to "".
 
+        All parameters except width, height, batch_size, and colour_* are intentionally
+        unused in this stub node. They exist solely to be captured by the Save node
+        via the prompt graph for metadata generation without requiring actual models.
+
         Returns:
             tuple[torch.Tensor | np.ndarray]: A tuple containing the batch of
                 generated images.

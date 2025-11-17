@@ -1,4 +1,13 @@
-"""A ComfyUI node to display any input type as a string.
+"""Show Any (Any to String) node (UniMeta variant) to display any input type as a string.
+
+Accepts any input type, converts to a human-readable string, displays it in the UI,
+and outputs it as a STRING for wiring into nodes that only accept strings
+(e.g. Create Extra MetaData).
+
+Notes:
+- Mirrors the behavior of the local Show Text (UniMeta) node for UI persistence.
+- Input is treated as a list (Comfy batching). Each element is converted to a string.
+- Conversion is conservative; large/complex objects are summarized to avoid huge UI blobs.
 
 This module provides the `ShowAnyToString` node, which can accept any data
 type as input, convert it to a human-readable string, display it in the
@@ -24,6 +33,14 @@ class AnyType(str):
     operators to always return `True` for equality and `False` for inequality.
     This is a common pattern in ComfyUI for creating nodes that can accept any
     input type.
+
+    Wildcard type that compares equal to any type name.
+
+    This mirrors a common ComfyUI pattern for accepting any input type by
+    using a custom string subclass that always returns True for equality
+    comparisons. We also override __ne__ for safety.
+    A special class that is always equal in not equal comparisons. Credit to
+    pythongosssss / rgthree.
     """
 
     def __eq__(self, __value: object) -> bool:
@@ -41,18 +58,24 @@ any_type = AnyType("*")
 def _safe_to_str(obj: Any, max_len: int = 2000) -> str:
     """Safely convert any object to a string with a maximum length.
 
-    This function attempts to convert an object to a string in a robust and
-    safe manner. It handles primitive types, bytes, and provides summaries for
-    common large objects like tensors and images. If the resulting string is
-    longer than `max_len`, it is truncated.
+     This function attempts to convert an object to a string in a robust and
+     safe manner. It handles primitive types, bytes, and provides summaries for
+     common large objects like tensors and images. If the resulting string is
+     longer than `max_len`, it is truncated.
 
-    Args:
-        obj (Any): The object to convert to a string.
-        max_len (int, optional): The maximum length of the output string.
-            Defaults to 2000.
+     - str for primitives
+     - decode bytes as utf-8 (ignore errors)
+     - summarize arrays/tensors/images if shape/size available
+     - fall back to json.dumps(default=str) then repr/str
+     Truncates long results with an ellipsis marker.
 
-    Returns:
-        str: The string representation of the object.
+     Args:
+         obj (Any): The object to convert to a string.
+         max_len (int, optional): The maximum length of the output string.
+             Defaults to 2000.
+
+     Returns:
+         str: The string representation of the object.
     """
     try:
         # Fast paths

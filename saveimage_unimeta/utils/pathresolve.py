@@ -4,6 +4,27 @@ This module contains functions for resolving the file paths of various
 artifacts, such as models, VAEs, and LoRAs, from their names. It also
 includes a utility for calculating the SHA256 hash of a file with sidecar
 caching.
+
+Unified artifact name → path + hashing helpers (Phase 1).
+
+Introduces consolidation primitives without refactoring existing call sites yet.
+Future phases can migrate model / VAE / LoRA / UNet hash functions to use these
+helpers. For now they provide:
+
+- Ordered extension preference constant (`EXTENSION_ORDER`).
+- Trailing punctuation normalization (Windows-friendly) via `sanitize_candidate`.
+- Generic recursive resolution: `try_resolve_artifact` handling list / tuple /
+  dict / attribute forms uniformly with depth guard.
+- Sidecar based hashing utility `load_or_calc_hash` (shared logic prototype).
+
+Design goals:
+- Non-invasive: existing behavior unchanged until explicit adoption.
+- Deterministic ordering & minimal logging except in debug contexts.
+- Extensibility: post-resolvers (e.g., LoRA index) can be chained later.
+
+NOTE: This module intentionally duplicates *some* logic now present in
+`defs/formatters.py`; subsequent refactors will remove that duplication once
+stability is verified.
 """
 
 from __future__ import annotations
@@ -69,6 +90,17 @@ def sanitize_candidate(name: str, trim_trailing_punct: bool = True) -> str:
     quotes. It also provides an option to trim trailing punctuation, which is
     useful for ensuring cross-platform compatibility, particularly with
     Windows.
+
+    Behavior and rationale:
+    - Strips surrounding single/double quotes when the entire string is quoted.
+    - Optionally trims trailing spaces and dots only at the very end of the
+      string (internal punctuation is preserved). This is for Windows
+      portability: the Win32 layer normalizes paths so a trailing space/dot is
+      disallowed or silently collapsed (e.g., "foo." and "foo " map to
+      "foo"). Trimming here avoids lookup/hashing mismatches across OSes.
+
+    Note: This function is conservative by design and does not alter internal
+    dots or spaces, only terminal punctuation when enabled.
 
     Args:
         name (str): The filename to be sanitized.
@@ -157,6 +189,13 @@ def _probe_folder(kind: str, base_name: str) -> str | None:
     of a given kind (e.g., 'checkpoints', 'loras'). It performs a direct
     lookup and also tries adding supported extensions if the direct lookup
     fails.
+
+    Attempt direct + extension fallback lookups for *base_name* with debug candidate capture.
+
+    Enhancements over earlier version:
+      * Always records attempted candidate names into _LAST_PROBE_CANDIDATES.
+      * When a recognized extension lookup fails, still performs extension probing on the stem.
+      * Treats unknown/numeric extensions (e.g. .01) as part of stem and probes normal extension list.
 
     Args:
         kind (str): The kind of folder to search in.

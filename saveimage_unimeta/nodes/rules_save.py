@@ -1,10 +1,13 @@
 """A ComfyUI node for persisting generated metadata rules to a file.
 
 This module provides the `SaveGeneratedUserRules` class, a ComfyUI node that
-allows users to save the output of the `MetadataRuleScanner` to a Python file.
+allows users to save the output of the `MetadataRuleScanner` to a Python file `generated_user_rules.py`.
 The node supports both overwriting and appending to the existing rules file,
 and it includes validation to ensure that the saved text is syntactically
 correct Python code.
+It validates input via ``ast.parse`` before touching disk and mirrors
+the same file layout used by the runtime loader so developers can iterate
+entirely from within ComfyUI
 """
 
 import logging
@@ -17,7 +20,7 @@ class SaveGeneratedUserRules:
     """A node to persist scanner output to `defs/ext/generated_user_rules.py`.
 
     This node provides a user interface for saving generated metadata rules.
-    It includes a text area for the rules and a boolean toggle to control
+    It includes a text area (`rules_text`) for the rules and a boolean toggle (`append`) to control
     whether the new rules should overwrite or be appended to the existing file.
     Appending merges new entries into the `SAMPLERS` and `CAPTURE_FIELD_LIST`
     dictionaries.
