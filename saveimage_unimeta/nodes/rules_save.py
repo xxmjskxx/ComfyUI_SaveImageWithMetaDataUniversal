@@ -1,3 +1,15 @@
+"""A ComfyUI node for persisting generated metadata rules to a file.
+
+This module provides the `SaveGeneratedUserRules` class, a ComfyUI node that
+allows users to save the output of the `MetadataRuleScanner` to a Python file `generated_user_rules.py`.
+The node supports both overwriting and appending to the existing rules file,
+and it includes validation to ensure that the saved text is syntactically
+correct Python code.
+It validates input via ``ast.parse`` before touching disk and mirrors
+the same file layout used by the runtime loader so developers can iterate
+entirely from within ComfyUI
+"""
+
 import logging
 import os
 
@@ -5,8 +17,25 @@ logger = logging.getLogger(__name__)
 
 
 class SaveGeneratedUserRules:
+    """A node to persist scanner output to `defs/ext/generated_user_rules.py`.
+
+    This node provides a user interface for saving generated metadata rules.
+    It includes a text area (`rules_text`) for the rules and a boolean toggle (`append`) to control
+    whether the new rules should overwrite or be appended to the existing file.
+    Appending merges new entries into the `SAMPLERS` and `CAPTURE_FIELD_LIST`
+    dictionaries.
+    """
+
     @classmethod
-    def INPUT_TYPES(s):  # noqa: N802,N804
+    def INPUT_TYPES(cls):  # noqa: N802
+        """Define the input types for the `SaveGeneratedUserRules` node.
+
+        This method specifies a multiline string input for the rules text and a
+        boolean input to control the append behavior.
+
+        Returns:
+            dict: A dictionary defining the input schema for the node.
+        """
         return {
             "required": {
                 "rules_text": ("STRING", {"default": "", "multiline": True}),
@@ -27,10 +56,30 @@ class SaveGeneratedUserRules:
     DESCRIPTION = "Save the edited rules text back to generated_user_rules.py, with syntax validation."
 
     def _rules_path(self) -> str:
+        """Construct the canonical path to `generated_user_rules.py`.
+
+        This method determines the absolute path to the user-defined rules
+        file, which is located in the `defs/ext` directory of the package.
+
+        Returns:
+            str: The absolute path to the `generated_user_rules.py` file.
+        """
         base_py = os.path.dirname(os.path.dirname(__file__))  # .../py
         return os.path.join(base_py, "defs", "ext", "generated_user_rules.py")
 
     def _validate_python(self, text: str) -> tuple[bool, str | None]:
+        """Validate that the given text is a valid Python source code.
+
+        This method uses the `ast` module to parse the input text. If parsing
+        succeeds, the text is considered valid Python.
+
+        Args:
+            text (str): The Python code to validate.
+
+        Returns:
+            tuple[bool, str | None]: A tuple containing a boolean indicating
+                validity and an error message if the text is invalid.
+        """
         import ast
 
         try:
@@ -41,12 +90,26 @@ class SaveGeneratedUserRules:
         except (ValueError, TypeError) as e:  # unlikely for source text but explicit
             return False, f"Error: {e}"
 
-    def _find_dict_span(self, text: str, name: str) -> tuple[int | None, int | None]:
+    def _find_dict_span(self, text: str, name: str) -> tuple[int, int] | None:
+        """Find the start and end indices of a dictionary in a string.
+
+        This method searches for a dictionary with a given name in the provided
+        text and returns the start and end indices of its content, including
+        the curly braces.
+
+        Args:
+            text (str): The text to search within.
+            name (str): The name of the dictionary to find.
+
+        Returns:
+            tuple[int | None, int | None]: A tuple containing the start and end
+                indices of the dictionary, or (None, None) if not found.
+        """
         import re
 
         m = re.search(rf"\b{name}\s*=\s*\{{", text)
         if not m:
-            return None, None
+            return None
         start = m.end() - 1  # position of '{'
         depth = 0
         i = start
@@ -73,9 +136,20 @@ class SaveGeneratedUserRules:
                     if depth == 0:
                         return start, i
             i += 1
-        return None, None
+        return None
 
     def _parse_top_level_entries(self, body: str) -> list[tuple[str, str]]:
+        """Parse the key-value pairs from a dictionary's body.
+
+        This method extracts the top-level key-value pairs from the string
+        representation of a dictionary's content.
+
+        Args:
+            body (str): The string content of the dictionary (without braces).
+
+        Returns:
+            list[tuple[str, str]]: A list of (key, value_text) tuples.
+        """
         entries = []
         i = 0
         n = len(body)
@@ -142,17 +216,33 @@ class SaveGeneratedUserRules:
         return entries
 
     def _rebuild_dict(self, name: str, existing_text: str, new_text: str) -> str:
-        es, ee = self._find_dict_span(existing_text, name)
-        if es is None:
-            ns, ne = self._find_dict_span(new_text, name)
-            if ns is None:
+        """Merge entries from a new dictionary into an existing one.
+
+        This method takes the string representations of two Python files,
+        finds a dictionary with a specific name in both, and merges the
+        entries from the new dictionary into the existing one.
+
+        Args:
+            name (str): The name of the dictionary to merge.
+            existing_text (str): The content of the existing Python file.
+            new_text (str): The content of the new Python file.
+
+        Returns:
+            str: The merged content of the Python file.
+        """
+        existing_span = self._find_dict_span(existing_text, name)
+        if existing_span is None:
+            new_span = self._find_dict_span(new_text, name)
+            if new_span is None:
                 return existing_text
+            ns, ne = new_span
             block = new_text[ns : ne + 1]
             return existing_text + f"\n\n{name} = {block}\n"
 
+        es, ee = existing_span
         e_body = existing_text[es + 1 : ee]
         nms = self._find_dict_span(new_text, name)
-        if nms == (None, None):
+        if nms is None:
             return existing_text
         ns, ne = nms
         n_body = new_text[ns + 1 : ne]
@@ -189,6 +279,21 @@ class SaveGeneratedUserRules:
         return existing_text[:es] + "{" + new_body + "}" + existing_text[ee + 1 :]
 
     def save_rules(self, rules_text: str = "", append: bool = True) -> tuple[str]:
+        """Save the provided rules text to a file.
+
+        This method writes the given `rules_text` to the user rules file.
+        If `append` is True, it merges the new rules with the existing ones.
+        Otherwise, it overwrites the file. It performs validation before
+        writing to the file.
+
+        Args:
+            rules_text (str, optional): The text of the rules to save. Defaults to "".
+            append (bool, optional): Whether to append to the existing file.
+                Defaults to True.
+
+        Returns:
+            tuple[str]: A tuple containing a status message.
+        """
         path = self._rules_path()
         ok, err = self._validate_python(rules_text)
         if not ok:

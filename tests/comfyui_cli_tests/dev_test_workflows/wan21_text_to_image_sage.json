@@ -57,7 +57,7 @@
   },
   "6": {
     "inputs": {
-      "seed": 82628696717253,
+      "seed": 706190577933098,
       "steps": 4,
       "cfg": 1,
       "sampler_name": "dpmpp_2m",
@@ -100,8 +100,8 @@
   },
   "8": {
     "inputs": {
-      "width": 1344,
-      "height": 1504,
+      "width": 800,
+      "height": 448,
       "length": 1,
       "batch_size": 1
     },
@@ -158,13 +158,40 @@
       "lora_name": "wan\\turbo\\lightx2v_T2V_14B_cfg_step_distill_v2_lora_rank64_bf16_.safetensors",
       "strength_model": 1,
       "model": [
-        "5",
+        "13",
         0
       ]
     },
     "class_type": "LoraLoaderModelOnly",
     "_meta": {
       "title": "LoraLoaderModelOnly"
+    }
+  },
+  "13": {
+    "inputs": {
+      "sage_attention": "auto",
+      "allow_compile": false,
+      "model": [
+        "14",
+        0
+      ]
+    },
+    "class_type": "PathchSageAttentionKJ",
+    "_meta": {
+      "title": "Patch Sage Attention KJ"
+    }
+  },
+  "14": {
+    "inputs": {
+      "backend": "inductor",
+      "model": [
+        "5",
+        0
+      ]
+    },
+    "class_type": "TorchCompileModel",
+    "_meta": {
+      "title": "TorchCompileModel"
     }
   }
 }

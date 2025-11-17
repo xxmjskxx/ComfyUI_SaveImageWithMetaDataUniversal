@@ -1,4 +1,5 @@
 import importlib
+from typing import Any
 from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.meta import MetaField
 
 MODULE_PATH = "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.capture"
@@ -9,19 +10,27 @@ def _prime(monkeypatch, prompt_text: str):
 
     class DummyPromptExecuter:
         class Caches:
-            outputs = {}
+            outputs: dict[str, Any] = {}
+
         caches = Caches()
 
     class DummyHook:
-        current_prompt = {
+        current_prompt: dict[str, dict[str, Any]] = {
             "1": {"class_type": "KSampler", "inputs": {"positive": [prompt_text]}},
         }
-        current_extra_data = {}
-        prompt_executer = DummyPromptExecuter()
+        current_extra_data: dict[str, Any] = {}
+        prompt_executer: DummyPromptExecuter = DummyPromptExecuter()
 
     monkeypatch.setattr(cap, "NODE_CLASS_MAPPINGS", {"KSampler": object})
 
-    def fake_get_input_data(node_inputs, obj_class, node_id, outputs, dyn_prompt, extra):
+    def fake_get_input_data(
+        node_inputs: dict[str, Any],
+        obj_class: object,
+        node_id: str,
+        outputs: dict[str, Any],
+        dyn_prompt: Any,
+        extra: Any,
+    ) -> tuple[dict[str, Any]]:
         return (node_inputs,)
 
     monkeypatch.setattr(cap, "get_input_data", fake_get_input_data)

@@ -9,10 +9,11 @@ from saveimage_unimeta.defs import (
     load_extensions_only,
     load_user_definitions,
 )
+from saveimage_unimeta.defs.meta import MetaField
 
 
 def _node_pack_py_dir() -> str:
-    # Place test user rule artifacts under _test_outputs/user_rules to avoid polluting real tree.
+    # Place test user rule artifacts under tests/_test_outputs/user_rules to avoid polluting real tree.
     here = os.path.dirname(__file__)
     pack_root = os.path.abspath(os.path.join(here, os.pardir))
     return os.path.join(pack_root, "tests/_test_outputs", "user_rules")
@@ -47,6 +48,24 @@ class TestLoaderMergeBehavior:
         _cleanup(os.path.join(base, "user_samplers.json"))
         load_extensions_only()
 
+    def test_efficiency_lora_stacker_prefers_selectors(self):
+        load_extensions_only()
+        entry = CAPTURE_FIELD_LIST.get("LoRA Stacker")
+        if not entry:
+            pytest.skip("LoRA Stacker rules missing; efficiency extension not loaded")
+
+        meta_fields = (
+            MetaField.LORA_MODEL_NAME,
+            MetaField.LORA_MODEL_HASH,
+            MetaField.LORA_STRENGTH_MODEL,
+            MetaField.LORA_STRENGTH_CLIP,
+        )
+        for meta in meta_fields:
+            config = entry.get(meta)
+            assert isinstance(config, dict), f"Expected dict config for {meta}"
+            assert "selector" in config, f"Selector missing for {meta}"
+            assert "fields" not in config, f"Generated fields should not override selector for {meta}"
+
     def test_skip_user_json_when_coverage_satisfied(self, metadata_test_mode):
         base = _node_pack_py_dir()
         user_caps = os.path.join(base, "user_captures.json")
@@ -61,6 +80,7 @@ class TestLoaderMergeBehavior:
             # In CI with METADATA_TEST_MODE enabled defaults may intentionally be empty; skip.
             if metadata_test_mode:
                 import pytest as _pytest
+
                 _pytest.skip("Baseline empty under test mode; skip coverage satisfied scenario.")
             raise AssertionError("Expected defaults/ext to provide some coverage")
         covered_subset = set(list(cover)[: min(3, len(cover))])
@@ -80,6 +100,7 @@ class TestLoaderMergeBehavior:
         if not CAPTURE_FIELD_LIST:
             if metadata_test_mode:
                 import pytest as _pytest
+
                 _pytest.skip("Baseline empty under test mode; skip merge test.")
             raise AssertionError("Expected baseline captures to be non-empty")
         existing_class = next(iter(CAPTURE_FIELD_LIST.keys()))

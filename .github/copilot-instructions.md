@@ -1,80 +1,65 @@
 # AI Assistant Project Instructions
-Concise guide for AI agents working on `ComfyUI_SaveImageWithMetaDataUniversal`. Favor minimal diffs, reference concrete files, avoid speculative refactors.
+Authoritative onboarding for `ComfyUI_SaveImageWithMetaDataUniversal`. This repo is a Python custom-node pack (~220 tracked files excluding local-only `.venv`/outputs) targeting the ComfyUI runtime; edits usually run inside ComfyUI but must stay testable via pure Python.
 
-## Architecture (What Lives Where)
-`saveimage_unimeta/nodes/node.py`: Save node + auxiliary nodes; builds PNGInfo/EXIF, handles JPEG fallback, filename tokens.
-`saveimage_unimeta/defs/`: Capture definitions (`captures.py` = `CAPTURE_FIELD_LIST`, `meta.py` = `MetaField`, `samplers.py`, `combo.py`).
-`saveimage_unimeta/trace.py`: BFS trace + sampler heuristics.
-`Capture` (imported): Generates ordered metadata dict + parameter string using loaded rules.
-Forced include + rule generation handled by separate nodes; merged via `FORCED_INCLUDE_CLASSES` before capture. Hash helpers & embedding/lora utilities in `saveimage_unimeta/utils/` (hash, lora, embedding).
+## Overview & Tech Stack
+- Purpose: `saveimage_unimeta/nodes/node.py` saves images with rich Automatic1111/Civitai-compatible metadata, hashes, workflow JSON, and filename tokens while degrading gracefully on JPEG limits.
+- Languages & tooling: Python 3.9+ (CI runs 3.10–3.13), Pillow/Numpy/Piexif, ComfyUI APIs (`folder_paths`, `nodes`, `execution`). Browser assets under `web/` use HTML/JavaScript for optional UI helpers. Linting via Ruff (`ruff.toml`), testing via Pytest (`tests/`), coverage tracked by `.coveragerc`.
+- Dependencies live in `requirements.txt` (runtime) and `requirements-test.txt` (adds pytest, ruff, coverage). Installing editable dev extras: `pip install -e .[dev]` (see `pyproject.toml`).
 
-## External Dependencies
-Relies on ComfyUI runtime (`folder_paths`, sampler nodes), Pillow (`PIL`), optional `piexif`. Provide stubs when unavailable (tests).
-Avoid adding heavy deps; prefer extending formatters.
+## Repository Layout (edit here before searching)
+- Root: `saveimage_unimeta/` (core package), `tests/` (unit suites hitting public APIs), `docs/` (JPEG fallback, workflow compression, futures), `example_workflows/`, `user_rules/` (shipped examples), `.github/workflows/*.yml` (CI/publish), `web/` (static JS/CSS helpers referenced by ComfyUI UI), `ruff.toml`, `.pre-commit-config.yaml`.
+- `saveimage_unimeta/defs/`: canonical capture metadata definitions, sampler heuristics, combo helpers, plus `ext/` for shipped extensions. Never bypass these when adding fields.
+- `saveimage_unimeta/nodes/`: save node + supporting UI tooling (scanner, rule writers, extra metadata nodes, test stubs). Each node must keep tooltip text ≤140 chars (see `pyproject` metadata for copy text).
+- `saveimage_unimeta/capture.py`: merges defs + `user_rules` + `FORCED_INCLUDE_CLASSES`, normalizes prompts, ensures `Metadata generator version` is always last. Relies on `saveimage_unimeta/hook.py` to read the active ComfyUI prompt cache (tests shim this when `METADATA_TEST_MODE=1`).
+- `saveimage_unimeta/trace.py`: BFS graph traversal + sampler selection heuristics (exact match in `defs/samplers.py`, else `MetaField.SAMPLER_NAME` or `{STEPS, CFG_SCALE}` hint). `Trace.filter_inputs_by_trace_tree` guarantees deterministic ordering upstream of capture.
+- `saveimage_unimeta/utils/`: hashing (`formatters.py`), LoRA/embed utilities, logging helpers (`color.py`). Always use these helpers—no ad-hoc hashing/log formatting, and prefer `pathresolve` for filesystem work.
+- `web/`: static TypeScript/JavaScript snippets for optional UI affordances (see `web/js/`); keep them aligned with node parameter expectations when changing UI-visible behavior.
 
-## Dev Workflows
-Run lint: `ruff check .`  (keep code style consistent).
-Run tests (if present): `pytest -q` (multiline parameter mode via `METADATA_TEST_MODE=1`).
-Keep all test scripts in 'tests'.
-Write any test file outputs to '_test_outputs'.
-Manual debug: set `METADATA_DEBUG_PROMPTS=1` or temporarily raise logger level for module.
-Validate JPEG fallback: lower `max_jpeg_exif_kb` (e.g. 8) and confirm staged marker progression.
+## Data Flow & Runtime Contracts
+1. `Trace.trace` builds a distance map from the save node back through executed nodes; `sampler_selection_method` (UI) controls farthest/nearest/explicit traversal.
+2. `Capture.gen_pnginfo_dict` / `.gen_parameters_str` iterate that ordering, apply rule merges, sanitize prompts, and append deterministic fields (metadata generator version last).
+3. `saveimage_unimeta/nodes/save_image.py` writes PNGInfo or EXIF/WebP metadata, attempts JPEG EXIF up to `max_jpeg_exif_kb` (≤64 KB enforced). `_last_fallback_stages` mirrors whichever fallback stage fired.
+4. JPEG fallback follows the multi-stage pipeline documented in `.github/instructions/python.instructions.md`; `_last_fallback_stages` mirrors whichever stage triggered so downstream tests can assert the markers.
+5. Hashing: `saveimage_unimeta/utils/formatters.py` caches full SHA256 hashes in `.sha256` sidecars which are truncated to 10-chars when written to metadata; `METADATA_FORCE_REHASH=1` invalidates caches. Hash log verbosity controlled via `METADATA_HASH_LOG_MODE` and `METADATA_HASH_LOG_PROPAGATE`.
 
-## Core Flow
-1. Trace upstream (`Trace.trace`). 
-2. Pick sampler (`Trace.find_sampler_node_id`). 
-3. Build dict (`Capture.gen_pnginfo_dict`).
-4. Render parameters (`Capture.gen_parameters_str`). 
-5. Save PNG (PNGInfo) or JPEG/WebP (EXIF → fallback if oversize).
+## Runtime Integration & Environment Flags
+- Runs embedded in ComfyUI; expect access to `folder_paths`, sampler nodes, and numerous other `comfy.` imports, and PIL. When unit testing, `saveimage_unimeta/piexif_alias.py` and `hook.py` provide safe stubs—only extend the stub surface actually required.
+- Runtime feature flags (read at execution time, no restart needed) include: `METADATA_TEST_MODE`, `METADATA_NO_HASH_DETAIL`, `METADATA_NO_LORA_SUMMARY`, `METADATA_FORCE_REHASH`, `METADATA_HASH_LOG_MODE`, `METADATA_HASH_LOG_PROPAGATE`, `METADATA_DUMP_LORA_INDEX`, `METADATA_ENABLE_TEST_NODES`, `METADATA_DEBUG_PROMPTS`. UI checkbox `include_lora_summary` overrides the env flag.
+- JPEG/env documentation source of truth: `docs/JPEG_METADATA_FALLBACK.md`, `docs/WORKFLOW_COMPRESSION_DESIGN.md`, `docs/FUTURE_AND_PROTOTYPES.md`. Update both docs + this file when behavior changes.
 
-## JPEG Fallback Logic
-APP1 limit ~64KB. Stages: full → `reduced-exif` (params only) → `minimal` (trim allowlist) → `com-marker` (no EXIF, comment marker). Append `, Metadata Fallback: <stage>` once.
-Allowlist in `_build_minimal_parameters`: prompts header + {Steps, Sampler, CFG scale, Seed, Model, Model hash, VAE, VAE hash, Hashes, Metadata generator version, all Lora_*}.
-Per-image stage logged + stored in `_last_fallback_stages`.
+## Build, Lint, Test (validated locally and mirrored by CI)
+1. **Bootstrap** (from repo root, Python ≥3.9):
+	```cmd
+	python -m venv .venv
+	.venv\Scripts\activate
+	python -m pip install --upgrade pip
+	pip install -e .[dev]
+	```
+	(Alternatively, `pip install -r requirements.txt -r requirements-test.txt`.)
+2. **Lint**: `ruff check .` (configured by `ruff.toml`; CI fails on lint). Optional: `pre-commit run --all-files` (hooks defined in `.pre-commit-config.yaml`).
+3. **Unit tests**: `pytest -q` (Pytest auto-discovers under `tests/`). Set `METADATA_TEST_MODE=1` to match CI matrix determinism. Coverage is gathered in CI via `coverage run -m pytest -q`; run locally when touching core pipeline.
+4. **Workflow/CLI tests**: optional but recommended before shipping metadata format changes. Use `python tests/comfyui_cli_tests/run_dev_workflows.py --comfyui-path "<your ComfyUI root>" [--workflow-dir ...]` (see `tests/comfyui_cli_tests/README.md` + `ignore/DEV_WORKFLOW_TESTING.md`). Always ensure workflows are in API format and clean outputs with `--temp-dir` or manual deletion.
+5. **Integration sanity**: when touching JPEG fallback, temporarily set `max_jpeg_exif_kb=8` via the node UI or JSON to coerce fallback coverage; inspect `_last_fallback_stages` and resulting metadata strings to confirm markers append exactly once.
+6. **CI awareness**: `.github/workflows/ci.yml` runs Ruff + Pytest across Python 3.10–3.13 and toggles `METADATA_TEST_MODE`. `unimeta-ci.yml` covers packaging/comfy-registry smoke tests; `publish_action.yml` handles release packaging. Match local tooling to avoid failures.
 
-## Sampler Detection
-Exact match in `SAMPLERS` else heuristic: rule includes `MetaField.SAMPLER_NAME` or both `STEPS` & `CFG`.
-Selection method (`SAMPLER_SELECTION_METHOD`): Farthest | Nearest | By node ID.
+## Rules, Scanner & User Overrides
+- `saveimage_unimeta/nodes/scanner.py` inspects installed node classes and suggests capture rules. `rules_save.py` + `rules_view.py` manage JSON/Python persistence (`saveimage_unimeta/user_rules/generated_user_rules.py`). After editing `defs/captures.py`, re-run scanner + saver so automated tests (`tests/test_generated_user_rules.py`) stay in sync.
+- `rules_writer.py` stamps a `RULES_VERSION` constant into generated modules; `defs.load_user_definitions` caches it as `LOADED_RULES_VERSION`. `save_image.py` logs a one-time warning when the saved rules are missing or outdated—ask users to re-run `Metadata Rule Scanner` + `Save Custom Metadata Rules` or execute `example_workflows/refresh-rules.json` after updates.
+- `Metadata Force Include` node feeds `FORCED_INCLUDE_CLASSES` used during capture merge; keep manual overrides inside `saveimage_unimeta/user_rules/` so merges remain deterministic.
+- Manual capture additions must update: `defs/captures.py`, `_build_minimal_parameters` (only if the field must survive minimal fallback), docs (README + `docs/...`), targeted tests (e.g., `tests/test_capture_core.py`, `tests/test_guidance_and_exif_fallback.py`).
 
-## Environment Flags (Runtime Evaluated)
-`METADATA_NO_HASH_DETAIL`, `METADATA_NO_LORA_SUMMARY`, `METADATA_TEST_MODE`, `METADATA_DEBUG_PROMPTS`,
-`METADATA_HASH_LOG_MODE`, `METADATA_HASH_LOG_PROPAGATE`, `METADATA_FORCE_REHASH`, `METADATA_DUMP_LORA_INDEX`.
-UI param `include_lora_summary` overrides env. Test mode switches to multiline parameters.
-Hash log modes: none|filename|path|detailed|debug. Propagate off with `METADATA_HASH_LOG_PROPAGATE=0` to keep noise local. `METADATA_FORCE_REHASH=1` bypasses sidecar reuse for mismatch debugging. `METADATA_DUMP_LORA_INDEX` dumps LoRA index JSON (value `1` → `_lora_index_dump.json`).
+## Conventions & Safety Nets
+- `.github/instructions/python.instructions.md` is the authoritative source for coding conventions, logging patterns, runtime import guards, metadata ordering, JPEG fallback behavior, filename token safety, helper usage, UI override precedence, sanitization rules, and artifact locations. Follow it whenever editing `.py` files.
+- `.github/instructions/comfy.instructions.md` documents the ComfyUI manifest contract (`__init__.py` exports, `NODE_CLASS_MAPPINGS`, `NODE_DISPLAY_NAME_MAPPINGS`) and protocol expectations (`CATEGORY`, `RETURN_TYPES`, `INPUT_TYPES`, `FUNCTION`, tuple returns). Reference it when adding or modifying nodes.
 
-## Hashing & Caching
-Model / VAE / LoRA hashes via helpers in `formatters.py`; truncated sha256 (10 chars). Sidecar `.sha256` reused if present; create if absent. Full 64‑char digest only in sidecar / debug log. Force recompute with `METADATA_FORCE_REHASH=1`.
+## Integration Resources & Troubleshooting
+- **Docs**: `docs/JPEG_METADATA_FALLBACK.md`, `docs/MIGRATIONS.md`, `docs/V3_SCHEMA_MIGRATION.md` (for future migration to V3; no specific timeline for implementing this yet), `docs/WAN22_SUPPORT.md`, `docs/FUTURE_AND_PROTOTYPES.md` (historical context). Keep them synchronized with behavior changes.
+- **Workflow samples**: `example_workflows/*.json` showcase Force Include, extra metadata, LoRA stacks, WAN/FLUX flows. Use them to reproduce bugs quickly.
+- **Testing aids**: `saveimage_unimeta/nodes/testing_stubs.py` exposes lightweight sampler nodes when `METADATA_ENABLE_TEST_NODES=1`; `tests/` contains stub fixtures demonstrating how to patch ComfyUI APIs.
+- **Troubleshooting tips**: enable `METADATA_DEBUG_PROMPTS=1` to log prompt aliasing, drop `max_jpeg_exif_kb` to 8 to hit fallback paths, set `METADATA_NO_HASH_DETAIL=1` or `METADATA_NO_LORA_SUMMARY=1` to verify UI overrides. Hash mismatches? delete `.sha256` sidecars or set `METADATA_FORCE_REHASH=1`.
 
-## Filename Tokens
-`%seed%`, `%width%`, `%height%`, `%pprompt%[:n]`, `%nprompt%[:n]`, `%model%[:n]`, `%date%` or `%date:pattern%` (yyyy, MM, dd, hh, mm, ss).
-
-## Conventions
-No raw `print`; use module logger.
-Wrap tooltips ≤ ~140 chars (exclude the description field in pyproject.toml from this rule).
-Replace commas in extra metadata values with `/` to avoid downstream split issues.
-Keep ordering stable; only append new fields.
-
-## Safe Edit Rules
-Do not raise 64KB JPEG EXIF cap without updating README.
-Preserve fallback marker semantics.
-Keep `_last_fallback_stages` contract.
-Document new env flags immediately (README Environment Flags + this file). Keep runtime evaluation (no restart).
-
-## Adding Metadata Fields
-Add rule in `captures.py` (or extension file). If it should survive minimal trimming, add its key to `_build_minimal_parameters` allowlist. Regenerate parameters; test with low `max_jpeg_exif_kb`.
-
-## Error Handling & Resilience
-- Metadata failures must not abort image saving: wrap risky sections in `try/except` with guarded fallback.
-- Use logging rather than silent failure; include context (node id, field name).
-- Use colored logging for visibility during debug runs (use `cstr` and message templates from `saveimage_unimeta/utils/color.py`).
-- Fallback strategy: skip field (omit) rather than emit malformed placeholder—except where placeholders signal recoverable parsing issues (`error: see log`).
-
-## Workflow Compression (Future)
-Planned: gzip+base64 workflow JSON pre-EXIF; fallback logic unchanged; add detection marker. Leave placeholder only—don’t implement silently.
-
-## Do / Don't
-Do: use existing Capture/Trace pipeline; small diffs; update docs with behavior changes.
-Don't: reorder stable keys, duplicate `Metadata Fallback:` marker, add multi-segment EXIF hacks.
-
----
-Always return minimal diffs; ask only when blocked by missing context.
+## Working Style & Search Discipline
+- Start from this file: it summarizes architecture, commands, and directory hotspots—search the codebase only if something here is missing or inaccurate. When in doubt, inspect `saveimage_unimeta/` modules referenced above before global greps.
+- Keep diffs surgical: modify only the modules relevant to your change, maintain doc parity (README + docs + this file), and update/extend tests covering the touched behavior. CI enforces Ruff + Pytest; aim to replicate locally before pushing.
+- Document new env flags, workflow parameters, or fallback behaviors immediately here and in the README/doc section they affect. Avoid conflicting guidance—the coding agent will obey the strictest rule present.
+- Trust these instructions. Only run exploratory searches if the required information isn’t covered or appears outdated, and if you discover drift, update this file as part of your change.

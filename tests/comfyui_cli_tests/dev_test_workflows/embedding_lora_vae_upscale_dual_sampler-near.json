@@ -1,21 +1,8 @@
 {
-  "1": {
-    "inputs": {
-      "filename_prefix": "Test\\Embedding-without-meta",
-      "images": [
-        "3",
-        0
-      ]
-    },
-    "class_type": "SaveImage",
-    "_meta": {
-      "title": "Save Image"
-    }
-  },
   "2": {
     "inputs": {
       "upscale_method": "nearest-exact",
-      "scale_by": 2,
+      "scale_by": 1.1,
       "samples": [
         "8",
         0
@@ -111,12 +98,12 @@
   },
   "8": {
     "inputs": {
-      "seed": 123,
+      "seed": 25668654,
       "steps": 20,
-      "cfg": 8,
-      "sampler_name": "dpmpp_2m",
-      "scheduler": "karras",
-      "denoise": 1,
+      "cfg": 6.5,
+      "sampler_name": "dpm_fast",
+      "scheduler": "beta",
+      "denoise": 0.99,
       "model": [
         "13",
         0
@@ -221,8 +208,8 @@
   },
   "17": {
     "inputs": {
-      "filename_prefix": "Test\\Embedding-Vae",
-      "sampler_selection_method": "Farthest",
+      "filename_prefix": "Test\\Embedding-Vae-near",
+      "sampler_selection_method": "Nearest",
       "sampler_selection_node_id": 0,
       "file_format": "png",
       "lossless_webp": true,

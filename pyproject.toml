@@ -27,6 +27,10 @@ dev = [
     "ruff",  # linting and formatting
     "pytest",  # testing framework
     "pytest-cov",  # coverage reporting
+    "pytest-cookies",  # cookiecutter fixture support
+    "cookiecutter",  # template generator
+    "jinja2-time",  # template time helpers for cookiecutter tests
+    "click",  # CLI support for template bake tests
     "bump-my-version",  # version management
     "pip-audit",  # security auditing
     "pre-commit",  # git hooks
@@ -39,7 +43,7 @@ line-length = 140
 target-version = "py39"  # Adjust based on your Python version
 # extend-exclude = ["static", "ci/templates"]
 src = ["src", "tests"]
-exclude = ["*cookiecutter.project_slug*"]
+exclude = ["*cookiecutter.project_slug*", "tests/cookiecutter_template/**"]
 
 
 [tool.ruff.lint]
@@ -72,3 +76,22 @@ minversion = "6.0"
 testpaths = [
     "tests",
 ]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["saveimage_unimeta", "tests", "tests/comfyui_cli_tests"]
+exclude = [
+    "tests/cookiecutter_template/.*",
+    ".*\\{\\{cookiecutter.project_slug\\}\\}.*",
+    "saveimage_unimeta/_test_outputs/.*",
+    "saveimage_unimeta/tests/_test_outputs/.*",
+    ".*/backups/.*",
+    "ignore/.*",
+    "saveimage_unimeta/defs/ext/generated_user_rules.py",
+    "saveimage_unimeta/user_rules/*",
+    "tests/comfyui_cli_tests/*"
+]
+warn_unused_configs = true
+warn_unused_ignores = true
+explicit_package_bases = true
+ignore_missing_imports = true

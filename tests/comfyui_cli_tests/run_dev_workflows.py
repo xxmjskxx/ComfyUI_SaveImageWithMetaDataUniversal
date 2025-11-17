@@ -16,6 +16,7 @@ Requirements:
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import time
@@ -25,6 +26,7 @@ from pathlib import Path
 
 try:
     from send2trash import send2trash
+
     SEND2TRASH_AVAILABLE = True
 except ImportError:
     SEND2TRASH_AVAILABLE = False
@@ -41,6 +43,7 @@ class WorkflowRunner:
         port: int = 8188,
         temp_dir: str | None = None,
         extra_args: list[str] | None = None,
+        env_patch: dict[str, str] | None = None,
     ):
         self.comfyui_path = Path(comfyui_path).resolve()
         self.python_exe = python_exe or sys.executable
@@ -48,7 +51,8 @@ class WorkflowRunner:
         self.port = port
         self.temp_dir = temp_dir
         self.extra_args = extra_args or []
-        self.server_process = None
+        self.env_patch = env_patch or {}
+        self.server_process: subprocess.Popen[bytes] | None = None
         self.base_url = f"http://{host}:{port}"
 
     def is_server_running(self) -> bool:
@@ -84,11 +88,16 @@ class WorkflowRunner:
 
         try:
             # Start server in background
+            env = os.environ.copy()
+            if self.env_patch:
+                env.update(self.env_patch)
+
             self.server_process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 cwd=str(self.comfyui_path),
+                env=env,
             )
 
             # Wait for server to start
@@ -243,7 +252,7 @@ Examples:
   python run_dev_workflows.py --comfyui-path "C:\\StableDiffusion\\ComfyUI" ^
     --python-exe "C:\\StableDiffusion\\python_embeded\\python.exe" ^
     --temp-dir "F:\\StableDiffusion\\ComfyUI" --extra-args "--windows-standalone-build" ^
-    --output-folder "C:\\StableDiffusion\\StabilityMatrix-win-x64\\Data\\Packages\\ComfyUI\\output\\Test"
+    --output-folder "C:\\StableDiffusion\\StabilityMatrix-win-x64\\Data\\Packages\\ComfyUI_windows_portable\\ComfyUI\\output\\Test"
 
   # Linux/Mac (simpler)
   python run_dev_workflows.py --comfyui-path "/path/to/ComfyUI"
@@ -269,7 +278,8 @@ Examples:
     parser.add_argument(
         "--workflow-dir",
         type=str,
-        default="tests/comfyui_cli_tests/dev_test_workflows",
+        # old default path default="tests/comfyui_cli_tests/dev_test_workflows",
+        default="dev_test_workflows",
         help="Directory containing workflow JSON files (default: tests/comfyui_cli_tests/dev_test_workflows)",
     )
 
@@ -330,6 +340,15 @@ Examples:
         help="Skip cleaning the output folder before running workflows",
     )
 
+    parser.add_argument(
+        "--enable-test-stubs",
+        action="store_true",
+        help=(
+            "Enable fast metadata stub nodes (sets METADATA_ENABLE_TEST_NODES=1) so workflows "
+            "can use MetadataTestSampler instead of full diffusion models."
+        ),
+    )
+
     args = parser.parse_args()
 
     # Convert workflow_dir to absolute path relative to script location
@@ -339,6 +358,10 @@ Examples:
     # Parse extra args
     extra_args = args.extra_args.split() if args.extra_args else []
 
+    env_patch: dict[str, str] = {}
+    if args.enable_test_stubs:
+        env_patch["METADATA_ENABLE_TEST_NODES"] = "1"
+
     # Create runner
     runner = WorkflowRunner(
         comfyui_path=args.comfyui_path,
@@ -347,6 +370,7 @@ Examples:
         port=args.port,
         temp_dir=args.temp_dir,
         extra_args=extra_args,
+        env_patch=env_patch,
     )
 
     print("=" * 70)

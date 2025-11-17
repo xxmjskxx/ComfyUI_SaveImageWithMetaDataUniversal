@@ -5,6 +5,7 @@ Covers:
 - Sidecar hash reuse (ensures hashing not recomputed when .sha256 present).
 - Ambiguous extension selection honors EXTENSION_ORDER.
 """
+
 from __future__ import annotations
 
 import os
@@ -23,6 +24,7 @@ from saveimage_unimeta.utils.pathresolve import EXTENSION_ORDER
 
 # ---------------- Fixtures ---------------- #
 
+
 @pytest.fixture
 def temp_artifact_dir():
     with tempfile.TemporaryDirectory() as td:
@@ -31,23 +33,30 @@ def temp_artifact_dir():
 
 def _mock_folder_paths(root: str):
     m = MagicMock()
+
     def _get_full_path(kind: str, name: str):
         base = os.path.join(root, kind, name)
         if os.path.exists(base):
             return base
         return base  # emulate Comfy's return even if file missing; resolver checks existence
-    m.get_full_path = _get_full_path  # type: ignore[attr-defined]
-    m.get_folder_paths = lambda k: [os.path.join(root, k)]  # type: ignore[attr-defined]
+
+    m.get_full_path = _get_full_path
+    m.get_folder_paths = lambda k: [os.path.join(root, k)]
     return m
+
 
 # ---------------- Tests ---------------- #
 
-@pytest.mark.parametrize("hash_func,kind,content", [
-    (calc_model_hash, "checkpoints", "model content"),
-    (calc_vae_hash, "vae", "vae content"),
-    (calc_unet_hash, "unet", "unet content"),
-    (calc_lora_hash, "loras", "lora content"),
-])
+
+@pytest.mark.parametrize(
+    "hash_func,kind,content",
+    [
+        (calc_model_hash, "checkpoints", "model content"),
+        (calc_vae_hash, "vae", "vae content"),
+        (calc_unet_hash, "unet", "unet content"),
+        (calc_lora_hash, "loras", "lora content"),
+    ],
+)
 def test_trailing_dot_and_space_normalization(hash_func, kind, content, temp_artifact_dir):
     base_name = "sample_model"
     os.makedirs(os.path.join(temp_artifact_dir, kind), exist_ok=True)
@@ -56,8 +65,10 @@ def test_trailing_dot_and_space_normalization(hash_func, kind, content, temp_art
     with open(full_path, "w", encoding="utf-8") as f:
         f.write(content)
     mfp = _mock_folder_paths(temp_artifact_dir)
-    with patch("saveimage_unimeta.defs.formatters.folder_paths", mfp), \
-         patch("saveimage_unimeta.utils.pathresolve.folder_paths", mfp):
+    with (
+        patch("saveimage_unimeta.defs.formatters.folder_paths", mfp),
+        patch("saveimage_unimeta.utils.pathresolve.folder_paths", mfp),
+    ):
         # Provide names with trailing punctuation - should still resolve
         for variant in [base_name + ".", base_name + "..", base_name + " ", base_name + ". "]:
             result = hash_func(variant, [])
@@ -78,10 +89,12 @@ def test_sidecar_hash_reuse(temp_artifact_dir):
     with open(sidecar, "w", encoding="utf-8") as f:
         f.write(known_hash)
     mfp = _mock_folder_paths(temp_artifact_dir)
-    with patch("saveimage_unimeta.defs.formatters.folder_paths", mfp), \
-         patch("saveimage_unimeta.utils.pathresolve.folder_paths", mfp):
-       h = calc_model_hash("reuse_test", [])
-       assert h == known_hash[:10]
+    with (
+        patch("saveimage_unimeta.defs.formatters.folder_paths", mfp),
+        patch("saveimage_unimeta.utils.pathresolve.folder_paths", mfp),
+    ):
+        h = calc_model_hash("reuse_test", [])
+        assert h == known_hash[:10]
 
 
 def test_extension_order_priority(temp_artifact_dir):
@@ -95,11 +108,14 @@ def test_extension_order_priority(temp_artifact_dir):
             f.write(ext)
         created.append(p)
     mfp = _mock_folder_paths(temp_artifact_dir)
-    with patch("saveimage_unimeta.defs.formatters.folder_paths", mfp), \
-         patch("saveimage_unimeta.utils.pathresolve.folder_paths", mfp):
+    with (
+        patch("saveimage_unimeta.defs.formatters.folder_paths", mfp),
+        patch("saveimage_unimeta.utils.pathresolve.folder_paths", mfp),
+    ):
         h = calc_model_hash(base, [])
         # Hash corresponds to first extension file's contents
         with open(created[0], "rb") as f:
             import hashlib
+
             expected = hashlib.sha256(f.read()).hexdigest()[:10]
         assert h == expected, "Did not honor extension ordering preference"

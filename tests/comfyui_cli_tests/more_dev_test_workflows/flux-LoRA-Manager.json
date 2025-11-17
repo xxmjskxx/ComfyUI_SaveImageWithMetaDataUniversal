@@ -74,7 +74,7 @@
   },
   "9": {
     "inputs": {
-      "filename_prefix": "%date:yyyy-MM-dd%//%date:yyyy-MM-dd-hhmmss%-lora-manager",
+      "filename_prefix": "Test\\%date:yyyy-MM-dd%//%date:yyyy-MM-dd-hhmmss%-lora-manager",
       "sampler_selection_method": "Farthest",
       "sampler_selection_node_id": 0,
       "file_format": "png",
