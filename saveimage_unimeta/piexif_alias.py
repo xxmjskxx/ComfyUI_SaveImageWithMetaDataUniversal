@@ -14,8 +14,12 @@ try:
     from .nodes.node import piexif  # noqa: F401
 except Exception:  # pragma: no cover - bootstrapping path
     try:
-        import piexif
-        import piexif.helper
+        import piexif as _piexif_module  # type: ignore
+        import piexif.helper as _piexif_helper  # type: ignore
+
+        piexif = _piexif_module
+        if not hasattr(piexif, "helper"):
+            piexif.helper = _piexif_helper  # type: ignore[attr-defined]
     except Exception:  # noqa: BLE001
 
         class _PieExifStub:  # minimal stub for tests

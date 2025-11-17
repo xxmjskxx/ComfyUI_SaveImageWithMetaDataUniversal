@@ -2528,8 +2528,7 @@ class Capture:
                     if isinstance(s, str) and "<lora:" in s.lower():
                         aggregated_text_candidates.append(s)
                 except Exception as e:
-                    logging.debug(f"Failed to extract LoRA from prompt value '{v}': {e}")
-                    pass
+                    logging.debug("Failed to extract LoRA from prompt value %r: %s", v, e)
         if not aggregated_text_candidates:
             return existing
 

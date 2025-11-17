@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 import subprocess
 import sys
@@ -53,6 +54,8 @@ DEFAULT_ENV = {
     "METADATA_ENABLE_TEST_NODES": "1",
 }
 DEFAULT_REQUIRED_NODES = ["MetadataRuleScanner"]
+
+logger = logging.getLogger(__name__)
 
 
 def parse_kv_pairs(pairs: Iterable[str]) -> dict[str, str]:
@@ -349,8 +352,8 @@ def wait_for_nodes(
                 payload = json.load(response)
             available = set(payload.get("nodes", {}).keys())
             missing -= available
-        except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, json.JSONDecodeError):
-            pass
+        except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, json.JSONDecodeError) as err:
+            logger.debug("Failed to poll object_info for required nodes: %s", err)
         time.sleep(1)
     return missing
 
