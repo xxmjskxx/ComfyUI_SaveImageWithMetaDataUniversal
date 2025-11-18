@@ -90,6 +90,26 @@ class TestLoaderMergeBehavior:
         assert user_only_class not in CAPTURE_FIELD_LIST
         assert user_only_class not in SAMPLERS
 
+    def test_user_override_applies_even_if_coverage_complete(self, metadata_test_mode):
+        base = _node_pack_py_dir()
+        user_caps = os.path.join(base, "user_captures.json")
+
+        load_extensions_only()
+        if not CAPTURE_FIELD_LIST:
+            if metadata_test_mode:
+                pytest.skip("No baseline captures under test mode; skipping override test.")
+            raise AssertionError("Expected baseline captures for override scenario")
+
+        existing_class = next(iter(CAPTURE_FIELD_LIST.keys()))
+        override_key = "user_override_field"
+        _write_json(user_caps, {existing_class: {override_key: {"field_name": "custom"}}})
+
+        # Provide a coverage set that is fully satisfied by defaults to trigger the previous skip path
+        load_user_definitions(required_classes={existing_class}, suppress_missing_log=True)
+
+        assert existing_class in CAPTURE_FIELD_LIST
+        assert override_key in CAPTURE_FIELD_LIST[existing_class]
+
     def test_merge_user_json_when_missing_classes(self, metadata_test_mode):
         base = _node_pack_py_dir()
         user_caps = os.path.join(base, "user_captures.json")

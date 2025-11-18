@@ -258,6 +258,30 @@ def test_collect_lora_records_preserves_strengths_per_node():
     assert records[2].strength_clip == 0.55
 
 
+def test_collect_lora_records_keeps_per_selector_hashes():
+    cap = importlib.import_module(MODULE_PATH)
+    meta_mod = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.meta")
+    MetaField = meta_mod.MetaField
+    inputs = {
+        MetaField.LORA_MODEL_NAME: [
+            ("node_10", "StackedEntry", "stack_selector"),
+            ("node_10", "ManagerEntry", "manager_selector"),
+        ],
+        # Only provide a hash for the manager selector to ensure provenance keeps it aligned.
+        MetaField.LORA_MODEL_HASH: [
+            ("node_10", "managed-hash", "manager_selector"),
+        ],
+    }
+    records, _ = cap.Capture._collect_lora_records(inputs)
+    assert len(records) == 2
+    # First entry has no explicit hash, so it should fall back to a computed value (non empty string)
+    assert records[0].name == "StackedEntry"
+    assert records[0].hash
+    # Second entry must re-use the provided hash even though its selector emitted after the first.
+    assert records[1].name == "ManagerEntry"
+    assert records[1].hash == "managed-hash"
+
+
 def test_get_hashes_for_civitai_skips_plaintext_vae_entries():
     cap = importlib.import_module(MODULE_PATH)
     hashes = cap.Capture.get_hashes_for_civitai(

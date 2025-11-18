@@ -35,3 +35,31 @@ def test_pclazy_hashes_use_raw_names(monkeypatch):
     assert seen == raw
     # Validate returned hashes match fake hashing of raw names
     assert hashes == ["hash(rawA)", "hash(rawB)"]
+
+
+def test_pclazy_loader_reports_clip_strengths(monkeypatch):
+    mod = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.ext.PCLazyLoraLoader")
+    mod._NODE_DATA_CACHE.clear()
+    monkeypatch.setattr(mod, "resolve_lora_display_names", lambda names: names)
+    monkeypatch.setattr(mod, "calc_lora_hash", lambda name, _input: f"hash::{name}")
+
+    input_data = [{"text": "<lora:Foo:0.8:0.3> <lora:Bar:0.25>"}]
+    model_strengths = mod.get_lora_strengths(1, None, input_data)
+    clip_strengths = mod.get_lora_clip_strengths(1, None, input_data)
+    assert model_strengths == [0.8, 0.25]
+    assert clip_strengths == [0.3, 0.25]
+
+
+def test_mjsk_loader_reports_clip_strengths(monkeypatch):
+    mod = importlib.import_module(
+        "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.ext.mjsk_PCLazyLoraLoader"
+    )
+    mod._NODE_DATA_CACHE.clear()
+    monkeypatch.setattr(mod, "calc_lora_hash", lambda name, _input: f"hash::{name}")
+    monkeypatch.setattr(mod, "find_lora_info", lambda name: {"filename": name})
+    input_data = [{"text": "<lora:Solo:0.6:0.1>"}]
+
+    model_strengths = mod.get_lora_strengths(2, None, input_data)
+    clip_strengths = mod.get_lora_clip_strengths(2, None, input_data)
+    assert model_strengths == [0.6]
+    assert clip_strengths == [0.1]

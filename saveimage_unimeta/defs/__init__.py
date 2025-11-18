@@ -341,22 +341,23 @@ def load_user_definitions(required_classes: set | None = None, suppress_missing_
             except Exception as e:  # pragma: no cover
                 logger.warning("[Metadata Loader] Failed migrating user_samplers.json: %s", e)
 
-    # Decide whether to attempt user JSON merge.
-    # Previous logic skipped user JSON when all required classes already covered by defaults/ext.
-    # However tests rely on merging user JSON when requesting *only* missing classes (none covered yet)
-    # and when extending existing classes. To keep behavior intuitive while preserving skip optimization:
-    #   * If required_classes provided and every class is already covered, skip (fast path).
-    #   * Otherwise (some missing OR no required_classes specified), perform merge.
-    need_user_merge = True
+    user_rules_exist = os.path.exists(USER_CAPTURES_FILE) or os.path.exists(USER_SAMPLERS_FILE)
+
+    # Decide whether to attempt user JSON merge. We always merge when user files exist so that
+    # overrides apply even if built-in coverage already handles the classes. When no user files are
+    # present we skip the disk work unless the caller explicitly requested missing classes.
+    need_user_merge = user_rules_exist or not required_classes
     if required_classes:
-        all_covered = all(ct in cover_set for ct in required_classes)
-        if all_covered:
-            need_user_merge = False
-            logger.info("[Metadata Loader] Coverage satisfied by defaults+ext; skipping user JSON merge.")
-        else:
+        missing = [ct for ct in required_classes if ct not in cover_set]
+        if missing:
+            need_user_merge = True
             if not suppress_missing_log:
-                missing = [ct for ct in required_classes if ct not in cover_set]
                 logger.info("[Metadata Loader] Missing classes in defaults+ext: %s. Will merge user JSON.", missing)
+        elif not user_rules_exist:
+            need_user_merge = False
+            logger.info(
+                "[Metadata Loader] Coverage satisfied by defaults+ext and no user rule files detected; skipping user JSON merge.",
+            )
 
     if need_user_merge:
         if os.path.exists(USER_SAMPLERS_FILE):

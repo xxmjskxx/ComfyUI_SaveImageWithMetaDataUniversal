@@ -67,15 +67,23 @@ def _get_lora_data_from_node(node_id, input_data):
     if cached and cached.get("text") == text_to_parse:
         return cached["data"]
 
-    names, strengths = [], []
-    raw_names, ms_list, _cs_list = parse_lora_syntax(text_to_parse)
+    names: list[str] = []
+    model_strengths: list[float] = []
+    clip_strengths: list[float] = []
+    raw_names, ms_list, cs_list = parse_lora_syntax(text_to_parse)
     if raw_names:
         names = resolve_lora_display_names(raw_names)
-        strengths = ms_list
+        model_strengths = ms_list
+        clip_strengths = cs_list
     # Hashes must be computed from raw_names (not display names)
     hashes = [calc_lora_hash(raw, input_data) for raw in raw_names] if raw_names else []
 
-    result = {"names": names, "hashes": hashes, "strengths": strengths}
+    result = {
+        "names": names,
+        "hashes": hashes,
+        "model_strengths": model_strengths,
+        "clip_strengths": clip_strengths,
+    }
     _NODE_DATA_CACHE[node_id] = {"text": text_to_parse, "data": result}
     return result
 
@@ -131,7 +139,13 @@ def get_lora_strengths(node_id, *args):
     Returns:
         list: A list of LoRA strengths.
     """
-    return _get_lora_data_from_node(node_id, args[-1])["strengths"]
+    return _get_lora_data_from_node(node_id, args[-1])["model_strengths"]
+
+
+def get_lora_clip_strengths(node_id, *args):
+    """Selector function to retrieve LoRA CLIP strengths from a node."""
+
+    return _get_lora_data_from_node(node_id, args[-1])["clip_strengths"]
 
 
 # We need to update the main capture list with our new definition
@@ -141,13 +155,13 @@ CAPTURE_FIELD_LIST = {
         MetaField.LORA_MODEL_NAME: {"selector": get_lora_model_names},
         MetaField.LORA_MODEL_HASH: {"selector": get_lora_model_hashes},
         MetaField.LORA_STRENGTH_MODEL: {"selector": get_lora_strengths},
-        MetaField.LORA_STRENGTH_CLIP: {"selector": get_lora_strengths},
+        MetaField.LORA_STRENGTH_CLIP: {"selector": get_lora_clip_strengths},
     },
     "PCLazyLoraLoaderAdvanced": {
         # The 'validate' key is now correctly placed inside each field's definition.
         MetaField.LORA_MODEL_NAME: {"selector": get_lora_model_names},
         MetaField.LORA_MODEL_HASH: {"selector": get_lora_model_hashes},
         MetaField.LORA_STRENGTH_MODEL: {"selector": get_lora_strengths},
-        MetaField.LORA_STRENGTH_CLIP: {"selector": get_lora_strengths},
+        MetaField.LORA_STRENGTH_CLIP: {"selector": get_lora_clip_strengths},
     },
 }

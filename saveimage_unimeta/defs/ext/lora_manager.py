@@ -34,6 +34,13 @@ logger.debug("[Meta DBG] Lora Loader (LoraManager) metadata definition file load
 
 # Cache LoRA parse results per node_id AND text snapshot to avoid stale data.
 _NODE_DATA_CACHE: dict[int, dict] = {}
+_STACK_FIELD_CANDIDATES: tuple[str, ...] = (
+    "lora_stack",
+    "loras",
+    "loaded_loras",
+    "scheduled_loras",
+    "lora_queue",
+)
 
 
 def _select_text_field(input_data):
@@ -179,6 +186,18 @@ def _build_result_from_entries(raw_entries):
     }
 
 
+def _extract_structured_entries(batch: dict) -> tuple[str | None, tuple[tuple[str | None, float | None, float | None], ...]]:
+    """Return the first stack-like field that yields concrete entries."""
+
+    for field in _STACK_FIELD_CANDIDATES:
+        if field not in batch:
+            continue
+        entries = _parse_stack_entries_from_value(batch[field])
+        if entries:
+            return field, tuple(entries)
+    return None, ()
+
+
 def _get_lora_data_from_node(node_id, input_data):
     """Extracts LoRA data from a node's input, utilizing a cache.
 
@@ -195,17 +214,24 @@ def _get_lora_data_from_node(node_id, input_data):
     """
     global _NODE_DATA_CACHE
 
-    # Prefer structured lora_stack inputs when present (covers Efficiency stacker bridges)
-    stack_value = input_data[0].get("lora_stack") if input_data and input_data[0] else None
-    stack_entries = _parse_stack_entries_from_value(stack_value) if stack_value is not None else []
-    if stack_entries:
-        payload = tuple(stack_entries)
+    batch = input_data[0] if input_data and input_data[0] else None
+    stack_field = None
+    stack_payload: tuple[tuple[str | None, float | None, float | None], ...] = ()
+    if isinstance(batch, dict):
+        stack_field, stack_payload = _extract_structured_entries(batch)
+
+    if stack_field and stack_payload:
+        cache_mode = f"stack:{stack_field}"
         cached = _NODE_DATA_CACHE.get(node_id)
-        if cached and cached.get("mode") == "stack" and cached.get("payload") == payload:
+        if cached and cached.get("mode") == cache_mode and cached.get("payload") == stack_payload:
             return cached["data"]
-        result = _build_result_from_entries(stack_entries)
+        result = _build_result_from_entries(list(stack_payload))
         if result:
-            _NODE_DATA_CACHE[node_id] = {"mode": "stack", "payload": payload, "data": result}
+            _NODE_DATA_CACHE[node_id] = {
+                "mode": cache_mode,
+                "payload": stack_payload,
+                "data": result,
+            }
             return result
 
     field_to_parse = _select_text_field(input_data)

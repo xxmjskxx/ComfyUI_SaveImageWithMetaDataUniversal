@@ -537,10 +537,16 @@ class Capture:
                 if "prefix" in field_data:
                     prefix = field_data["prefix"]
                     values = [
-                        v[0] for k, v in input_data[0].items() if k.startswith(prefix) and isinstance(v, list) and v and v[0] != "None"
+                        v[0]
+                        for k, v in input_data[0].items()
+                        if k.startswith(prefix) and isinstance(v, list) and v and v[0] != "None"
                     ]
+                    tag = field_data.get("source_tag") or f"prefix:{prefix}"
                     for val in values:
-                        inputs[meta].append((node_id, val))
+                        if tag is not None:
+                            inputs[meta].append((node_id, val, tag))
+                        else:
+                            inputs[meta].append((node_id, val))
                     continue
 
                 # NEW: Handle explicit multi-field list enumeration produced by upgraded scanner ("fields": [list])
@@ -626,11 +632,12 @@ class Capture:
                                                 funcname,
                                                 e,
                                             )
+                                tag = field_data.get("source_tag") or fname
                                 if isinstance(v, list):
                                     for x in v:
-                                        inputs[meta].append((node_id, x, fname))
+                                        inputs[meta].append((node_id, x, tag))
                                 else:
-                                    inputs[meta].append((node_id, v, fname))
+                                    inputs[meta].append((node_id, v, tag))
                             except KeyError as e:  # missing field in input_data mapping
                                 logger.debug(
                                     "[Metadata Capture] Missing expected field '%s' in multi-field rule: %r",
@@ -665,11 +672,18 @@ class Capture:
                             e,
                         )
                         v = None
+                    tag = field_data.get("source_tag") or getattr(selector, "__name__", None)
                     if isinstance(v, list):
                         for x in v:
-                            inputs[meta].append((node_id, x))
+                            if tag is not None:
+                                inputs[meta].append((node_id, x, tag))
+                            else:
+                                inputs[meta].append((node_id, x))
                     elif v is not None:
-                        inputs[meta].append((node_id, v))
+                        if tag is not None:
+                            inputs[meta].append((node_id, v, tag))
+                        else:
+                            inputs[meta].append((node_id, v))
                     continue
 
                 if "field_name" in field_data:
@@ -739,11 +753,12 @@ class Capture:
                                         funcname,
                                         e,
                                     )
+                        tag = field_data.get("source_tag") or field_name
                         if isinstance(v, list):
                             for x in v:
-                                inputs[meta].append((node_id, x, field_name))
+                                inputs[meta].append((node_id, x, tag))
                         else:
-                            inputs[meta].append((node_id, v, field_name))
+                            inputs[meta].append((node_id, v, tag))
 
         # --- Flux dual-prompt fallback ---
         try:
@@ -2384,15 +2399,60 @@ class Capture:
                     return "__anon__"
             return "__anon__"
 
-        name_slots: dict[str, list[dict[str, Any]]] = defaultdict(list)
-        hash_slots: dict[str, list[Any]] = defaultdict(list)
-        strength_model_slots: dict[str, list[float | None]] = defaultdict(list)
-        strength_clip_slots: dict[str, list[float | None]] = defaultdict(list)
-        slot_order: list[tuple[str, int]] = []
+        def _normalize_source_tag(tag) -> str | None:
+            if tag is None:
+                return None
+            try:
+                text = str(tag).strip()
+            except Exception:
+                return None
+            return text or None
+
+        def _entry_source_tag(item) -> str | None:
+            if isinstance(item, list | tuple) and len(item) >= 3:
+                return _normalize_source_tag(item[2])
+            return None
+
+        def _append_slot(
+            group: dict[str, dict[str | None, list[dict[str, Any]]]],
+            fallback: dict[str, list[dict[str, Any]]],
+            node_id: str,
+            tag: str | None,
+            value: dict[str, Any],
+        ) -> tuple[int, int]:
+            node_bucket = group.setdefault(node_id, {})
+            seq = node_bucket.setdefault(tag, [])
+            seq.append(value)
+            fallback_seq = fallback.setdefault(node_id, [])
+            fallback_seq.append(value)
+            return len(seq) - 1, len(fallback_seq) - 1
+
+        def _append_value(
+            group: dict[str, dict[str | None, list[Any]]],
+            fallback: dict[str, list[Any]],
+            node_id: str,
+            tag: str | None,
+            value,
+        ) -> None:
+            node_bucket = group.setdefault(node_id, {})
+            seq = node_bucket.setdefault(tag, [])
+            seq.append(value)
+            fallback.setdefault(node_id, []).append(value)
+
+        name_slots: dict[str, dict[str | None, list[dict[str, Any]]]] = {}
+        name_slots_any: dict[str, list[dict[str, Any]]] = {}
+        hash_slots: dict[str, dict[str | None, list[Any]]] = {}
+        hash_slots_any: dict[str, list[Any]] = {}
+        strength_model_slots: dict[str, dict[str | None, list[float | None]]] = {}
+        strength_model_slots_any: dict[str, list[float | None]] = {}
+        strength_clip_slots: dict[str, dict[str | None, list[float | None]]] = {}
+        strength_clip_slots_any: dict[str, list[float | None]] = {}
+        slot_order: list[tuple[str, str | None, int, int]] = []
 
         for raw_entry in model_names:
             try:
                 node_id = _entry_node_id(raw_entry)
+                source_tag = _entry_source_tag(raw_entry)
                 value = Capture._extract_value(raw_entry)
                 lookup_token = value
                 tuple_sm = None
@@ -2413,9 +2473,10 @@ class Capture:
                     "lookup_token": lookup_token,
                     "tuple_sm": tuple_sm,
                     "tuple_sc": tuple_sc,
+                    "source_tag": source_tag,
                 }
-                name_slots[node_id].append(slot)
-                slot_order.append((node_id, len(name_slots[node_id]) - 1))
+                idx_local, idx_global = _append_slot(name_slots, name_slots_any, node_id, source_tag, slot)
+                slot_order.append((node_id, source_tag, idx_local, idx_global))
             except Exception as e:
                 logger.debug("[Metadata Lib] Skipping LoRA name entry due to error: %r", e)
 
@@ -2423,7 +2484,8 @@ class Capture:
             try:
                 node_id = _entry_node_id(raw_hash)
                 value = Capture._extract_value(raw_hash)
-                hash_slots[node_id].append(value)
+                source_tag = _entry_source_tag(raw_hash)
+                _append_value(hash_slots, hash_slots_any, node_id, source_tag, value)
             except Exception as e:
                 logger.debug("[Metadata Lib] Skipping LoRA hash entry due to error: %r", e)
 
@@ -2431,7 +2493,14 @@ class Capture:
             try:
                 node_id = _entry_node_id(raw_strength)
                 value = Capture._extract_value(raw_strength)
-                strength_model_slots[node_id].append(to_float_or_none(value))
+                source_tag = _entry_source_tag(raw_strength)
+                _append_value(
+                    strength_model_slots,
+                    strength_model_slots_any,
+                    node_id,
+                    source_tag,
+                    to_float_or_none(value),
+                )
             except Exception as e:
                 logger.debug("[Metadata Lib] Skipping LoRA model strength entry due to error: %r", e)
 
@@ -2439,36 +2508,68 @@ class Capture:
             try:
                 node_id = _entry_node_id(raw_strength)
                 value = Capture._extract_value(raw_strength)
-                strength_clip_slots[node_id].append(to_float_or_none(value))
+                source_tag = _entry_source_tag(raw_strength)
+                _append_value(
+                    strength_clip_slots,
+                    strength_clip_slots_any,
+                    node_id,
+                    source_tag,
+                    to_float_or_none(value),
+                )
             except Exception as e:
                 logger.debug("[Metadata Lib] Skipping LoRA clip strength entry due to error: %r", e)
 
-        def _group_lookup(group: dict[str, list[Any]], node_id: str, idx: int):
-            seq = group.get(node_id)
-            if not seq:
-                return None
-            if idx < len(seq):
-                return seq[idx]
+        def _group_lookup(
+            group: dict[str, dict[str | None, list[Any]]],
+            fallback: dict[str, list[Any]],
+            node_id: str,
+            tag: str | None,
+            tag_idx: int,
+            global_idx: int,
+        ):
+            node_bucket = group.get(node_id)
+            if node_bucket:
+                seq = node_bucket.get(tag)
+                if seq is None and tag is not None:
+                    seq = node_bucket.get(None)
+                if seq is not None and tag_idx < len(seq):
+                    return seq[tag_idx]
+            seq_any = fallback.get(node_id)
+            if seq_any and global_idx < len(seq_any):
+                return seq_any[global_idx]
             return None
 
         cleaned: list[_LoRARecord] = []
-        for node_id, slot_idx in slot_order:
-            slots = name_slots.get(node_id)
-            if not slots or slot_idx >= len(slots):
+        for node_id, source_tag, slot_idx, global_idx in slot_order:
+            slot = _group_lookup(name_slots, name_slots_any, node_id, source_tag, slot_idx, global_idx)
+            if not slot:
                 continue
-            slot = slots[slot_idx]
             name_disp = slot.get("name_value")
             if not name_disp or cls._is_invalid_lora_name(name_disp):
                 continue
             sm_final = slot.get("tuple_sm")
             if sm_final is None:
-                sm_final = _group_lookup(strength_model_slots, node_id, slot_idx)
+                sm_final = _group_lookup(
+                    strength_model_slots,
+                    strength_model_slots_any,
+                    node_id,
+                    source_tag,
+                    slot_idx,
+                    global_idx,
+                )
             sc_final = slot.get("tuple_sc")
             if sc_final is None:
-                sc_final = _group_lookup(strength_clip_slots, node_id, slot_idx)
+                sc_final = _group_lookup(
+                    strength_clip_slots,
+                    strength_clip_slots_any,
+                    node_id,
+                    source_tag,
+                    slot_idx,
+                    global_idx,
+                )
             resolved_hash = cls._resolve_lora_hash(
                 name_disp,
-                _group_lookup(hash_slots, node_id, slot_idx),
+                _group_lookup(hash_slots, hash_slots_any, node_id, source_tag, slot_idx, global_idx),
                 slot.get("lookup_token"),
             )
             cleaned.append(_LoRARecord(name_disp, resolved_hash, sm_final, sc_final))
