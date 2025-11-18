@@ -1,13 +1,28 @@
+"""A utility for calculating the SHA256 hash of a file.
+
+This module provides a function for computing the SHA256 hash of a file, with
+an in-memory cache to avoid recomputing hashes for the same file.
+"""
 import hashlib
 
 cache_model_hash: dict[str, str] = {}
 
 
 def calc_hash(filename: str, *, full: bool = True) -> str:
-    """Return sha256 hash (full 64 chars by default).
+    """Calculate the SHA256 hash of a file.
 
-    Legacy callers expected truncated (10) elsewhere, so sidecar logic now
-    requests full and truncation happens at the formatting layer.
+    This function computes the SHA256 hash of a given file. It includes an
+    in-memory cache to store the results for previously hashed files, which
+    can improve performance when the same file is hashed multiple times.
+
+    Args:
+        filename (str): The path to the file to be hashed.
+        full (bool, optional): If True, the full 64-character hash is
+            returned. If False, a truncated 10-character hash is returned for
+            legacy compatibility. Defaults to True.
+
+    Returns:
+        str: The SHA256 hash of the file.
     """
     if filename in cache_model_hash and full:
         return cache_model_hash[filename]

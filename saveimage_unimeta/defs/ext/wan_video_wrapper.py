@@ -1,21 +1,32 @@
-"""Capture rules for ComfyUI-WanVideoWrapper.
+"""Provides a comprehensive set of metadata capture rules for the ComfyUI-WanVideoWrapper.
 
-Ref: https://github.com/kijai/ComfyUI-WanVideoWrapper
+This module is designed to integrate with the `ComfyUI-WanVideoWrapper` custom node pack,
+which can be found at: https://github.com/kijai/ComfyUI-WanVideoWrapper
 
-Coverage summary:
-- Model/UNet: `WanVideoModelLoader` (supports up to two models; capture primary and
-    secondary when present).
-- VAE: `WanVideoVAELoader` and `WanVideoTinyVAELoader` capture VAE name and VAE hash.
-- Extra model selectors: `WanVideoVACEModelSelect`, `WanVideoExtraModelSelect` capture
-    model name and UNet hash.
-- LoRA: `WanVideoLoraSelect`, `WanVideoLoraSelectByName`, `WanVideoLoraSelectMulti`
-    capture model names, hashes, and model strengths.
-- CLIP encoders: `LoadWanVideoT5TextEncoder` and `LoadWanVideoClipTextEncoder` capture
-    CLIP model name.
-- Prompts: `WanVideoTextEncode`, `WanVideoTextEncodeCached`, `WanVideoTextEncodeSingle`
-    capture positive/negative or single prompt as appropriate.
+It defines a wide range of capture rules to extract metadata from the various nodes
+provided by this pack. The coverage includes:
+
+- **Model and UNet Loading**: Captures primary and secondary models from `WanVideoModelLoader`.
+- **VAE Loading**: Handles `WanVideoVAELoader` and `WanVideoTinyVAELoader`.
+- **Extra Model Selection**: Captures data from `WanVideoVACEModelSelect` and
+  `WanVideoExtraModelSelect`.
+- **LoRA Handling**: Supports various LoRA nodes, including `WanVideoLoraSelect`,
+  `WanVideoLoraSelectByName`, and `WanVideoLoraSelectMulti`, capturing names,
+  hashes, and strengths.
+- **CLIP Encoders**: Extracts CLIP model names from `LoadWanVideoT5TextEncoder` and
+  `LoadWanVideoClipTextEncoder`.
+- **Text Prompts**: Parses positive and negative prompts from `WanVideoTextEncode`,
+  `WanVideoTextEncodeCached`, and `WanVideoTextEncodeSingle`.
+- **Sampling**: A special handler is included for the `WanVideo Sampler` to parse
+  its combined `scheduler` field, which can contain both sampler and scheduler names
+  in various formats.
+
+This extensive set of rules ensures that detailed and accurate metadata is captured
+when using the WanVideoWrapper in a workflow.
+
+Attributes:
+    CAPTURE_FIELD_LIST (dict): The main dictionary of capture rules for the WanVideoWrapper nodes.
 """
-
 import logging
 
 from ..validators import is_negative_prompt, is_positive_prompt
@@ -74,17 +85,35 @@ CAPTURE_FIELD_LIST = {
         MetaField.CLIP_MODEL_NAME: {"field_name": "clip_name"},
     },
     "WanVideoTextEncode": {
-        MetaField.POSITIVE_PROMPT: {"field_name": "positive_prompt", "validate": is_positive_prompt},
-        MetaField.NEGATIVE_PROMPT: {"field_name": "negative_prompt", "validate": is_negative_prompt},
+        MetaField.POSITIVE_PROMPT: {
+            "field_name": "positive_prompt",
+            "validate": is_positive_prompt,
+        },
+        MetaField.NEGATIVE_PROMPT: {
+            "field_name": "negative_prompt",
+            "validate": is_negative_prompt,
+        },
     },
     "WanVideoTextEncodeCached": {
-        MetaField.POSITIVE_PROMPT: {"field_name": "positive_prompt", "validate": is_positive_prompt},
-        MetaField.NEGATIVE_PROMPT: {"field_name": "negative_prompt", "validate": is_negative_prompt},
+        MetaField.POSITIVE_PROMPT: {
+            "field_name": "positive_prompt",
+            "validate": is_positive_prompt,
+        },
+        MetaField.NEGATIVE_PROMPT: {
+            "field_name": "negative_prompt",
+            "validate": is_negative_prompt,
+        },
         MetaField.CLIP_MODEL_NAME: {"field_name": "model_name"},
     },
     "WanVideoTextEncodeSingle": {
-        MetaField.POSITIVE_PROMPT: {"field_name": "prompt", "validate": is_positive_prompt},
-        MetaField.NEGATIVE_PROMPT: {"field_name": "prompt", "validate": is_negative_prompt},
+        MetaField.POSITIVE_PROMPT: {
+            "field_name": "prompt",
+            "validate": is_positive_prompt,
+        },
+        MetaField.NEGATIVE_PROMPT: {
+            "field_name": "prompt",
+            "validate": is_negative_prompt,
+        },
     },
     # Sampler: captures steps, cfg, shift, seed, denoise; splits combined scheduler field
     # which may carry both sampler and scheduler information.

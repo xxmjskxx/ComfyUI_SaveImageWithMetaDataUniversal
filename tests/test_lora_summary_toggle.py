@@ -16,14 +16,17 @@ def build_minimal_pnginfo():
     }
 
 
-@pytest.mark.parametrize("ui_flag, env_flag, expect_summary", [
-    (True, False, True),   # UI forces include
-    (False, False, False), # UI suppresses
-    (None, False, True),   # Default include when no env suppression and no UI override
-    (None, True, False),   # Env suppression when no UI override
-    (True, True, True),    # UI include overrides env suppression
-    (False, True, False),  # UI suppress overrides (still suppressed)
-])
+@pytest.mark.parametrize(
+    "ui_flag, env_flag, expect_summary",
+    [
+        (True, False, True),  # UI forces include
+        (False, False, False),  # UI suppresses
+        (None, False, True),  # Default include when no env suppression and no UI override
+        (None, True, False),  # Env suppression when no UI override
+        (True, True, True),  # UI include overrides env suppression
+        (False, True, False),  # UI suppress overrides (still suppressed)
+    ],
+)
 def test_include_lora_summary_toggle(monkeypatch, ui_flag, env_flag, expect_summary):
     pnginfo = build_minimal_pnginfo()
 

@@ -1,4 +1,10 @@
-"""Rules writer node (formerly in the monolithic node.py)."""
+"""A ComfyUI node for saving and managing custom metadata rules.
+
+This module provides the `SaveCustomMetadataRules` class, which is a ComfyUI
+node that allows users to save, back up, and restore their custom metadata
+capture rules. It supports both overwriting and appending to existing rule
+files and can generate a Python extension module from the rules.
+"""
 
 from __future__ import annotations
 
@@ -9,12 +15,18 @@ import shutil
 import time
 from typing import Any
 
+from ..version import resolve_runtime_version
+
 logger = logging.getLogger(__name__)
 
 
 class SaveCustomMetadataRules:
-    """Enhanced writer supporting overwrite/append, backups and restore.
+    """A node for managing metadata rules with overwrite/append, backup and restore functionality.
 
+    This class provides a comprehensive solution for managing user-defined
+    metadata rules. It allows for saving in overwrite or append mode, creating
+    timestamped backups, restoring from backups, and pruning old backups.
+    It also handles the generation of a Python extension from the JSON rules.
     Flow summary:
       * Optional restore of a selected backup set (short-circuits other inputs except rebuild flag).
       * Normal save path can create a timestamped backup (set folder) before applying changes.
@@ -23,7 +35,16 @@ class SaveCustomMetadataRules:
     """
 
     @classmethod
-    def INPUT_TYPES(cls):  # noqa: N802, N804
+    def INPUT_TYPES(cls):  # noqa: N802
+        """Define the input types for the `SaveCustomMetadataRules` node.
+
+        This method dynamically enumerates available backup sets to populate the
+        `restore_backup_set` dropdown. It defines inputs for the rules JSON,
+        save mode, backup options, and other settings.
+
+        Returns:
+            dict: A dictionary defining the input schema for the node.
+        """
         # Dynamic enumeration of backup sets each time the UI queries node spec.
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         user_rules_dir = os.path.join(base_dir, "user_rules")
@@ -124,9 +145,7 @@ class SaveCustomMetadataRules:
     RETURN_NAMES = ("status",)
     FUNCTION = "save_rules"
     CATEGORY = "SaveImageWithMetaDataUniversal/rules"
-    DESCRIPTION = (
-        "Manage custom metadata capture rules: overwrite or append + backups + restore."
-    )
+    DESCRIPTION = "Manage custom metadata capture rules: overwrite or append + backups + restore."
     NODE_NAME = "Save Custom Metadata Rules"
     OUTPUT_NODE = True
 
@@ -139,15 +158,42 @@ class SaveCustomMetadataRules:
         replace_conflicts: bool = False,
         rebuild_python_rules: bool = True,
         limit_backup_sets: int = 20,
-    ) -> tuple[str]:  # noqa: D401
+    ) -> tuple[str]:
+        """Save, restore, or manage metadata rules.
+
+        This method is the main entry point for the node's functionality. It
+        handles the logic for restoring from a backup, saving rules in
+        different modes, and generating the Python extension file.
+
+        Args:
+            rules_json_string (str): The JSON string containing the metadata rules.
+            save_mode (str, optional): The save mode ('overwrite' or 'append_new').
+                Defaults to "overwrite".
+            backup_before_save (bool, optional): Whether to create a backup before
+                saving. Defaults to True.
+            restore_backup_set (str, optional): The name of the backup set to
+                restore. Defaults to "none".
+            replace_conflicts (bool, optional): Whether to replace conflicting
+                entries when appending. Defaults to False.
+            rebuild_python_rules (bool, optional): Whether to regenerate the
+                Python extension file. Defaults to True.
+            limit_backup_sets (int, optional): The maximum number of backup sets
+                to retain. Defaults to 20.
+
+        Returns:
+            tuple[str]: A tuple containing a status message.
+
+        Raises:
+            ValueError: If an error occurs during the saving process.
+        """
         # Path constants (shared with loader semantics)
         PY_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # noqa: N806
         # Test isolation parity with loader: if METADATA_TEST_MODE and an existing
-        # _test_outputs/user_rules directory is present, prefer it so writer output
+        # tests/_test_outputs/user_rules directory is present, prefer it so writer output
         # does not pollute real tree. (Do not auto-create to avoid unintended
         # divergence from loader semantics which only prefers when it already exists.)
         test_mode = os.environ.get("METADATA_TEST_MODE", "").strip().lower() in {"1", "true", "yes", "on"}
-        preferred_test_dir = os.path.join(PY_DIR, "_test_outputs", "user_rules")
+        preferred_test_dir = os.path.join(PY_DIR, "tests/_test_outputs", "user_rules")
         if test_mode and os.path.isdir(preferred_test_dir):
             USER_RULES_DIR = preferred_test_dir  # noqa: N806
         else:
@@ -185,9 +231,7 @@ class SaveCustomMetadataRules:
                     BACKUPS_ROOT, pre_ts, USER_CAPTURES_FILE, USER_SAMPLERS_FILE, GENERATED_EXT_FILE
                 )
                 if created_dir:
-                    logger.info(
-                        "[Metadata Loader] Created backup %s before restoring %s.", pre_ts, restore_backup_set
-                    )
+                    logger.info("[Metadata Loader] Created backup %s before restoring %s.", pre_ts, restore_backup_set)
                 metrics["restored"] = True
                 target_dir = os.path.join(BACKUPS_ROOT, restore_backup_set)
                 if not os.path.isdir(target_dir):
@@ -247,9 +291,7 @@ class SaveCustomMetadataRules:
 
             if backup_before_save:
                 ts = _timestamp()
-                if self._create_backup(
-                    BACKUPS_ROOT, ts, USER_CAPTURES_FILE, USER_SAMPLERS_FILE, GENERATED_EXT_FILE
-                ):
+                if self._create_backup(BACKUPS_ROOT, ts, USER_CAPTURES_FILE, USER_SAMPLERS_FILE, GENERATED_EXT_FILE):
                     metrics["backup"] = ts
                     if limit_backup_sets and limit_backup_sets > 0:
                         metrics["pruned"] = self._prune_backups(BACKUPS_ROOT, limit_backup_sets)
@@ -296,33 +338,31 @@ class SaveCustomMetadataRules:
                 try:
                     self._generate_python_extension(GENERATED_EXT_FILE, final_nodes, final_samplers)
                 except Exception as gen_err:  # pragma: no cover
-                    logger.warning(
-                        "[Metadata Loader] Could not generate python ext from rules: %s", gen_err
-                    )
+                    logger.warning("[Metadata Loader] Could not generate python ext from rules: %s", gen_err)
 
             self._warn_uninstalled_nodes(list(sanitized_nodes.keys()))
 
             if save_mode == "overwrite":
                 if not sanitized_nodes and not samplers_in:
                     return ("No valid 'nodes' or 'samplers' sections found.",)
-                status = [
+                status_parts = [
                     "mode=overwrite",
                     f"backup={metrics['backup']}",
                     f"pruned={metrics['pruned']}",
                     f"nodes={len(final_nodes)}",
                     f"samplers={len(final_samplers)}",
                 ]
-                return ("; ".join(status),)
+                return ("; ".join(status_parts),)
             else:
-                status = [
+                status_parts = [
                     "mode=append_new",
                     f"backup={metrics['backup']}",
                     f"pruned={metrics['pruned']}",
                 ]
                 if metrics["unchanged"]:
-                    status.append("unchanged=True")
+                    status_parts.append("unchanged=True")
                 else:
-                    status.extend(
+                    status_parts.extend(
                         [
                             f"nodes_added={metrics['nodes_added']}",
                             f"metafields_added={metrics['metafields_added']}",
@@ -334,7 +374,7 @@ class SaveCustomMetadataRules:
                             f"sampler_roles_skipped={metrics['sampler_roles_skipped_conflict']}",
                         ]
                     )
-                return ("; ".join(status),)
+                return ("; ".join(status_parts),)
         except Exception as e:  # pragma: no cover
             raise ValueError(f"Error saving rules: {e}")
 
@@ -348,9 +388,22 @@ class SaveCustomMetadataRules:
         samplers_path: str,
         ext_path: str,
     ) -> str | None:
-        """Create a backup set directory containing any existing rule files.
+        """Create a backup of the current rules files.
 
-        Returns the directory name (timestamp) if at least one file was copied, else None.
+        This method creates a timestamped directory and copies the existing
+        `user_captures.json`, `user_samplers.json`, and `generated_user_rules.py`
+        files into it.
+
+        Args:
+            backups_root (str): The root directory for backups.
+            timestamp (str): The timestamp to use for the backup directory name.
+            captures_path (str): The path to the `user_captures.json` file.
+            samplers_path (str): The path to the `user_samplers.json` file.
+            ext_path (str): The path to the `generated_user_rules.py` file.
+
+        Returns:
+            str | None: The name of the created backup directory, or None if no
+                files were backed up.
         """
         target_dir = os.path.join(backups_root, timestamp)
         if os.path.exists(target_dir):
@@ -379,6 +432,18 @@ class SaveCustomMetadataRules:
 
     @staticmethod
     def _prune_backups(backups_root: str, limit: int) -> int:
+        """Remove old backup sets to enforce the retention limit.
+
+        This method deletes the oldest backup sets if the total number of
+        backups exceeds the specified limit.
+
+        Args:
+            backups_root (str): The root directory for backups.
+            limit (int): The maximum number of backup sets to retain.
+
+        Returns:
+            int: The number of pruned backup sets.
+        """
         if limit <= 0:
             return 0
         try:
@@ -403,6 +468,17 @@ class SaveCustomMetadataRules:
 
     @staticmethod
     def _safe_load_json(path: str):
+        """Load a JSON file, returning None on failure.
+
+        This method provides a safe way to load a JSON file, handling
+        exceptions such as file not found or invalid JSON format.
+
+        Args:
+            path (str): The path to the JSON file.
+
+        Returns:
+            The loaded JSON data, or None if an error occurred.
+        """
         try:
             if os.path.exists(path):
                 with open(path, encoding="utf-8") as f:
@@ -420,6 +496,24 @@ class SaveCustomMetadataRules:
         replace_conflicts: bool,
         metrics: dict[str, Any],
     ) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Merge new rules into existing ones.
+
+        This method implements the 'append_new' save mode, merging new node
+        and sampler rules into the existing ones. It handles conflicts based
+        on the `replace_conflicts` flag and updates the metrics dictionary.
+
+        Args:
+            existing_nodes (dict[str, Any]): The existing node rules.
+            existing_samplers (dict[str, Any]): The existing sampler rules.
+            incoming_nodes (dict[str, Any]): The new node rules to merge.
+            incoming_samplers (dict[str, Any]): The new sampler rules to merge.
+            replace_conflicts (bool): Whether to replace conflicting entries.
+            metrics (dict[str, Any]): A dictionary to store metrics about the merge.
+
+        Returns:
+            tuple[dict[str, Any], dict[str, Any]]: A tuple containing the
+                merged node and sampler rules.
+        """
         nodes_out = json.loads(json.dumps(existing_nodes))  # deep-ish copy
         samplers_out = json.loads(json.dumps(existing_samplers))
 
@@ -478,6 +572,17 @@ class SaveCustomMetadataRules:
 
     @staticmethod
     def _generate_python_extension(path: str, nodes_dict: dict[str, Any], samplers_dict: dict[str, Any]) -> None:
+        """Generate the `generated_user_rules.py` extension file.
+
+        This method creates a Python module from the provided node and sampler
+        rules. The generated module is deterministic and includes imports,
+        helper functions, and the rules dictionaries.
+
+        Args:
+            path (str): The path to write the generated Python file to.
+            nodes_dict (dict[str, Any]): The dictionary of node rules.
+            samplers_dict (dict[str, Any]): The dictionary of sampler rules.
+        """
         # Build deterministic Python module similar to legacy builder but sorted
         lines: list[str] = []
         lines.append("from ..meta import MetaField")
@@ -488,39 +593,54 @@ class SaveCustomMetadataRules:
             "    extract_embedding_names, extract_embedding_hashes\n"
             ")"
         )
+        lines.append("from ..validators import (\n" "    is_positive_prompt, is_negative_prompt\n" ")")
         lines.append(
-            "from ..validators import (\n"
-            "    is_positive_prompt, is_negative_prompt\n"
+            "from ..selectors import (\n"
+            "    select_stack_by_prefix,\n"
+            "    collect_lora_stack,\n"
+            "    select_lora_names,\n"
+            "    select_lora_model_strengths,\n"
+            "    select_lora_clip_strengths,\n"
             ")"
         )
-        lines.append("from ..selectors import select_stack_by_prefix")
         lines.append("")
-        lines.append("def _is_advanced_mode(input_data):")
-        lines.append("    try:")
+        lines.append("def _collect_lora_stack(input_data):")
+        lines.append("    stack = collect_lora_stack(input_data)")
+        lines.append("    if stack:")
+        lines.append("        return stack")
+        lines.append("    names = select_stack_by_prefix(input_data, 'lora_name', counter_key='lora_count')")
+        lines.append("    if not names:")
+        lines.append("        return []")
+        lines.append("    model_strengths = select_stack_by_prefix(input_data, 'model_str', counter_key='lora_count')")
+        lines.append("    if not model_strengths:")
         lines.append(
-            "        return (isinstance(input_data, list) and input_data and isinstance(input_data[0], dict) and "
-            "isinstance(input_data[0].get('input_mode'), list) and input_data[0]['input_mode'] and "
-            "input_data[0]['input_mode'][0] == 'advanced')"
+            "        model_strengths = select_stack_by_prefix(input_data, 'lora_wt', counter_key='lora_count')"
         )
-        lines.append("    except Exception:")
-        lines.append("        return False")
+        lines.append("    clip_strengths = select_stack_by_prefix(input_data, 'clip_str', counter_key='lora_count')")
+        lines.append("    if not clip_strengths:")
+        lines.append("        clip_strengths = select_stack_by_prefix(input_data, 'lora_wt', counter_key='lora_count')")
+        lines.append("    stack = []")
+        lines.append("    for idx, name in enumerate(names):")
+        lines.append("        model = model_strengths[idx] if idx < len(model_strengths) else None")
+        lines.append("        clip = clip_strengths[idx] if idx < len(clip_strengths) else model")
+        lines.append("        stack.append((name, model, clip))")
+        lines.append("    return stack")
         lines.append("")
         lines.append("def get_lora_model_name_stack(node_id, obj, prompt, extra_data, outputs, input_data):")
-        lines.append("    return select_stack_by_prefix(input_data, 'lora_name', counter_key='lora_count')")
+        lines.append("    stack = _collect_lora_stack(input_data)")
+        lines.append("    return [entry[0] for entry in stack]")
         lines.append("")
         lines.append("def get_lora_model_hash_stack(node_id, obj, prompt, extra_data, outputs, input_data):")
-        lines.append("    names = select_stack_by_prefix(input_data, 'lora_name', counter_key='lora_count')")
-        lines.append("    return [calc_lora_hash(n, input_data) for n in names]")
+        lines.append("    stack = _collect_lora_stack(input_data)")
+        lines.append("    return [calc_lora_hash(entry[0], input_data) for entry in stack]")
         lines.append("")
         lines.append("def get_lora_strength_model_stack(node_id, obj, prompt, extra_data, outputs, input_data):")
-        lines.append("    if _is_advanced_mode(input_data):")
-        lines.append("        return select_stack_by_prefix(input_data, 'model_str', counter_key='lora_count')")
-        lines.append("    return select_stack_by_prefix(input_data, 'lora_wt', counter_key='lora_count')")
+        lines.append("    stack = _collect_lora_stack(input_data)")
+        lines.append("    return [entry[1] for entry in stack]")
         lines.append("")
         lines.append("def get_lora_strength_clip_stack(node_id, obj, prompt, extra_data, outputs, input_data):")
-        lines.append("    if _is_advanced_mode(input_data):")
-        lines.append("        return select_stack_by_prefix(input_data, 'clip_str', counter_key='lora_count')")
-        lines.append("    return select_stack_by_prefix(input_data, 'lora_wt', counter_key='lora_count')")
+        lines.append("    stack = _collect_lora_stack(input_data)")
+        lines.append("    return [entry[2] for entry in stack]")
         lines.append("")
         lines.append("KNOWN = {")
         lines.append("    'calc_model_hash': calc_model_hash,")
@@ -534,11 +654,17 @@ class SaveCustomMetadataRules:
         lines.append("    'extract_embedding_hashes': extract_embedding_hashes,")
         lines.append("    'is_positive_prompt': is_positive_prompt,")
         lines.append("    'is_negative_prompt': is_negative_prompt,")
+        lines.append("    'collect_lora_stack': collect_lora_stack,")
+        lines.append("    'select_lora_names': select_lora_names,")
+        lines.append("    'select_lora_model_strengths': select_lora_model_strengths,")
+        lines.append("    'select_lora_clip_strengths': select_lora_clip_strengths,")
         lines.append("    'get_lora_model_name_stack': get_lora_model_name_stack,")
         lines.append("    'get_lora_model_hash_stack': get_lora_model_hash_stack,")
         lines.append("    'get_lora_strength_model_stack': get_lora_strength_model_stack,")
         lines.append("    'get_lora_strength_clip_stack': get_lora_strength_clip_stack,")
         lines.append("}")
+        lines.append("")
+        lines.append(f"RULES_VERSION = {json.dumps(resolve_runtime_version())}")
         lines.append("")
         lines.append("SAMPLERS = " + json.dumps(samplers_dict, indent=4))
         lines.append("")
@@ -583,8 +709,17 @@ class SaveCustomMetadataRules:
 
     @staticmethod
     def _warn_uninstalled_nodes(node_names):  # best-effort detection
+        """Log a warning for any node classes that are not currently installed.
+
+        This method checks the provided list of node names against the installed
+        nodes in ComfyUI and logs a warning if any are missing.
+
+        Args:
+            node_names (list[str]): A list of node class names to check.
+        """
         try:
-            from nodes import NODE_CLASS_MAPPINGS  # type: ignore
+            from nodes import NODE_CLASS_MAPPINGS
+
             missing = [n for n in node_names if n not in NODE_CLASS_MAPPINGS]
             if missing:
                 logger.warning(
@@ -596,12 +731,28 @@ class SaveCustomMetadataRules:
 
 
 def _timestamp() -> str:
+    """Generate a timestamp string in the format YYYYMMDD-HHMMSS.
+
+    Returns:
+        str: The formatted timestamp string.
+    """
     return time.strftime("%Y%m%d-%H%M%S", time.localtime())
+
+
 _TIMESTAMP_BASE_LENGTH = 15  # len('YYYYMMDD-HHMMSS')
 
-def _looks_like_timestamp(name: str) -> bool:
-    """Return True for 'YYYYMMDD-HHMMSS' optionally followed by '-N' numeric suffix.
 
+def _looks_like_timestamp(name: str) -> bool:
+    """Check if a string resembles a timestamp.
+
+    This function checks if a string is in the format 'YYYYMMDD-HHMMSS' or
+    'YYYYMMDD-HHMMSS-N', where N is a number.
+
+    Args:
+        name (str): The string to check.
+
+    Returns:
+        bool: True if the string looks like a timestamp, False otherwise.
     Examples:
       20250101-123045 -> True
       20250101-123045-1 -> True

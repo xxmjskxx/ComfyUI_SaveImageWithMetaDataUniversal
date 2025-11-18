@@ -1,10 +1,21 @@
+"""Capture and format ComfyUI workflow metadata with runtime fallbacks.
+
+The module wires together the runtime-merged capture definitions (defaults +
+extensions + optional user rules), the `saveimage_unimeta.hook` prompt cache,
+and the PNGInfo/A1111 output helpers so every save node can emit hashes,
+workflow context, and filenames consistently with the rules in
+`.github/copilot-instructions.md`.
+"""
+
 import json
 import logging
 import os
 import re
 from collections.abc import Iterable, Iterator
-from typing import Any
-import importlib.metadata
+from types import SimpleNamespace
+from typing import Any, NamedTuple
+
+import folder_paths
 
 # Use the aggregated, runtime-merged definitions (defaults + extensions + optional user JSON)
 from .defs import CAPTURE_FIELD_LIST
@@ -15,11 +26,14 @@ from .defs.formatters import (
     calc_vae_hash,
     display_model_name,
     display_vae_name,
+    extract_embedding_hashes,
+    extract_embedding_names,
 )
 from .defs import formatters as _hashfmt  # access HASH_LOG_MODE at runtime
 from .defs.meta import MetaField
 from .utils.color import cstr
 from .utils import pathresolve
+from .version import resolve_runtime_version
 
 from nodes import NODE_CLASS_MAPPINGS
 
@@ -31,12 +45,18 @@ if not _TEST_MODE:
 else:  # Lightweight stub sufficient for get_inputs traversal
 
     class _PromptExecuterStub:  # pragma: no cover - simple container
+        """A stub for the `PromptExecuter` class for testing purposes."""
+
         class Caches:
+            """A stub for the `Caches` class."""
+
             outputs = {}
 
         caches = Caches()
 
     class _HookStub:  # pragma: no cover
+        """A stub for the `hook` module for testing purposes."""
+
         current_prompt = {}
         current_extra_data = {}
         prompt_executer = _PromptExecuterStub()
@@ -44,132 +64,127 @@ else:  # Lightweight stub sufficient for get_inputs traversal
     hook = _HookStub()
 
 try:  # Runtime environment (ComfyUI) provides these; guard for static analysis / tests.
-    from comfy_execution.graph import DynamicPrompt  # type: ignore
-    from execution import get_input_data  # type: ignore
+    from comfy_execution.graph import DynamicPrompt
+    from execution import get_input_data
 except ImportError:  # Fallback stubs allow linting/tests outside ComfyUI runtime.
 
     def get_input_data(*args, **kwargs):
+        """A stub for the `get_input_data` function for testing purposes."""
         return ({},)  # Minimal shape: first element mapping
 
     class DynamicPrompt(dict):
+        """A stub for the `DynamicPrompt` class for testing purposes."""
+
         def __init__(self, *a, **k):
+            """Initializes the `DynamicPrompt` stub."""
             super().__init__()
 
 
 class _OutputCacheCompat:
-    """Compatibility wrapper for ComfyUI API changes.
+    """Bridge ComfyUI 0.3.64 dict caches with the 0.3.65+ execution API.
 
-    ComfyUI 0.3.65+ changed get_input_data to expect an execution_list with
-    get_output_cache() method instead of a plain dict. This wrapper provides
-    backward compatibility by wrapping the outputs dict with the expected interface.
-
-    Some ComfyUI versions call get_output_cache() while others call get_cache().
-    This wrapper provides both methods for maximum compatibility.
+    Starting in 0.3.65 the runtime calls ``get_input_data`` with an object that
+    exposes ``get_output_cache`` (and sometimes ``get_cache``) instead of a raw
+    dict. Older builds still pass a dict populated by ``prompt_executer``. This
+    wrapper keeps our capture traversal stable by presenting the newer methods
+    while delegating lookups to the original outputs mapping.
     """
+
     def __init__(self, outputs_dict):
+        """Initializes the `_OutputCacheCompat` wrapper.
+
+        Args:
+            outputs_dict (dict): The dictionary of node outputs.
+        """
         self._outputs = outputs_dict if outputs_dict is not None else {}
 
     def get_output_cache(self, input_unique_id, unique_id):
-        """Return cached output for the given node ID.
+        """Return the cached output for a given node ID.
 
         Args:
-            input_unique_id: The node ID to get output from
-            unique_id: The current node ID (unused in dict-based cache)
+            input_unique_id (str): The ID of the node to get the output from.
+            unique_id (str): The ID of the current node (unused).
 
         Returns:
-            The cached output tuple or None if not found
+            The cached output, or None if not found.
         """
         return self._outputs.get(input_unique_id)
 
     def get_cache(self, input_unique_id, unique_id):
-        """Alias for get_output_cache for compatibility with different ComfyUI versions.
+        """An alias for `get_output_cache` for backward compatibility.
 
         Args:
-            input_unique_id: The node ID to get output from
-            unique_id: The current node ID (unused in dict-based cache)
+            input_unique_id (str): The ID of the node to get the output from.
+            unique_id (str): The ID of the current node (unused).
 
         Returns:
-            The cached output tuple or None if not found
+            The cached output, or None if not found.
         """
         return self.get_output_cache(input_unique_id, unique_id)
 
 
-# Versioning and feature flags
-# Primary: use installed distribution metadata (fast, authoritative when packaged).
-# Fallback: if running from a cloned repo (not installed), parse nearest pyproject.toml.
-def _read_pyproject_version() -> str | None:  # pragma: no cover - simple IO
-    _toml_loader = None  # type: ignore
-    try:
-        import tomllib as _toml_loader  # type: ignore[attr-defined]
-    except ModuleNotFoundError:
-        try:
-            import tomli as _toml_loader  # type: ignore
-        except ModuleNotFoundError:
-            return None
-    try:
-        import pathlib
-        here = pathlib.Path(__file__).resolve()
-        for parent in here.parents:
-            pyproject = parent / "pyproject.toml"
-            if pyproject.is_file():
-                with pyproject.open("rb") as f:
-                    data = _toml_loader.load(f)  # type: ignore[arg-type]
-                return (
-                    data.get("project", {}).get("version")
-                    or data.get("tool", {}).get("poetry", {}).get("version")
-                    or None
-                )
-    except (OSError, KeyError, ValueError):
-        return None
-    return None
-
-try:
-    _dist_version = importlib.metadata.version("SaveImageWithMetaDataUniversal")
-except importlib.metadata.PackageNotFoundError:
-    _dist_version = None
-_pyproj_version = _read_pyproject_version()
-_RESOLVED_VERSION = (
-    _pyproj_version
-    if (_pyproj_version and (_dist_version is None or _pyproj_version != _dist_version))
-    else (_dist_version or _pyproj_version or "unknown")
-)
-
-def resolve_runtime_version() -> str:
-    """Return version string (env override > cached pyproject/dist result).
-
-    We do not re-read pyproject after import because ComfyUI restart is expected
-    on node pack update (user instruction). Environment override allows ad-hoc
-    debugging or temporary version stamping.
-    """
-    ov = os.environ.get("METADATA_VERSION_OVERRIDE", "").strip()
-    if ov:
-        return ov
-    return _RESOLVED_VERSION or "unknown"
-
-
 # Dynamic flag function so tests can toggle at runtime instead of snapshot at import
-def _include_hash_detail() -> bool:  # noqa: D401
+def _include_hash_detail() -> bool:
+    """Check if hash detail should be included in the metadata.
+
+    This function checks the `METADATA_NO_HASH_DETAIL` environment variable to
+    determine whether to include a detailed hash section in the metadata.
+
+    Returns:
+        bool: True if hash detail should be included, False otherwise.
+    """
     return os.environ.get("METADATA_NO_HASH_DETAIL", "").strip() == ""
 
 
 # LoRA summary toggle (enabled by default). Set METADATA_NO_LORA_SUMMARY to suppress
-def _include_lora_summary() -> bool:  # noqa: D401
-    """Return True if the aggregated 'LoRAs' summary line should be included.
+def _include_lora_summary() -> bool:
+    """Return True when the aggregated ``LoRAs:`` summary line may be emitted.
 
-    Environment variable:
-        METADATA_NO_LORA_SUMMARY: When set (to any non-empty string), disables
-        the compact comma-separated LoRA strengths summary that is normally
-        inserted just before the Hashes entry. Individual per-LoRA fields
-        (Lora_X Model name / Strength) remain unaffected.
+    ``METADATA_NO_LORA_SUMMARY`` disables only the compact comma-separated
+    summary that sits immediately before the ``Hashes`` entry so uploads remain
+    tidy. Individual ``Lora_X Model name`` / ``Strength`` rows are preserved
+    even when the summary is suppressed.
+
+    Returns:
+        bool: True if the LoRA summary should be included, False otherwise.
     """
     return os.environ.get("METADATA_NO_LORA_SUMMARY", "").strip() == ""
 
 
 logger = logging.getLogger(__name__)
 
+
 def _debug_prompts_enabled() -> bool:
-    """Return True if verbose prompt/sampler debug logging is enabled (runtime evaluated)."""
+    """Check if verbose prompt and sampler debug logging is enabled.
+
+    This function checks the `METADATA_DEBUG_PROMPTS` environment variable to
+    determine whether detailed logging for prompt and sampler processing should
+    be activated.
+
+    Returns:
+        bool: True if debug logging is enabled, False otherwise.
+    """
     return os.environ.get("METADATA_DEBUG_PROMPTS", "").strip() != ""
+
+
+class _LoRARecord(NamedTuple):
+    """A structured record for holding LoRA metadata.
+
+    Attributes:
+        name (str): The name of the LoRA.
+        hash (str | None): The hash of the LoRA.
+        strength_model (float | None): The model strength of the LoRA.
+        strength_clip (float | None): The CLIP strength of the LoRA.
+    """
+
+    name: str
+    hash: str | None
+    strength_model: float | None
+    strength_clip: float | None
+
+
+_LORA_FIELD_INDEX_RE = re.compile(r"(\d+)(?!.*\d)")
+
 
 # If user toggled debug flag, ensure logger emits DEBUG regardless of inherited root level.
 if _debug_prompts_enabled():
@@ -195,46 +210,60 @@ if _debug_prompts_enabled():
 class Capture:
     """Metadata capture and formatting orchestration.
 
-    Core responsibilities:
-        * Traverse the active ComfyUI graph and collect raw inputs according to declarative rules.
-        * Normalize, validate, and post-process captured values (prompts, model/vae/LoRA names, strengths, etc.).
-        * Compute or look up hashes (model / VAE / UNet / LoRA) and optionally include structured hash detail.
-        * Generate a PNG info dictionary (`pnginfo_dict`) and flatten it into an Automatic1111‑style parameter string.
+        Core responsibilities:
+                * Traverse the active ComfyUI graph and collect raw inputs according to
+                    declarative rules (``CAPTURE_FIELD_LIST``).
+                * Normalize, validate, and post-process captured values (prompts,
+                    model/VAE/LoRA names, strengths, hashes, etc.).
+                * Generate a PNGInfo dictionary and flatten it into an
+                    Automatic1111-style parameter string.
 
-    Environment Flags (evaluated per call):
-        METADATA_NO_HASH_DETAIL: Suppress structured hash detail JSON section.
-        METADATA_NO_LORA_SUMMARY: Suppress aggregated `LoRAs:` summary line (per‑LoRA entries remain).
-        METADATA_TEST_MODE: Enable multiline deterministic formatting for tests.
-        METADATA_DEBUG_PROMPTS: Emit detailed prompt capture diagnostics to the logger.
+        Environment flags (evaluated per call):
+                * ``METADATA_NO_HASH_DETAIL`` – suppress the structured hash detail JSON
+                    section.
+                * ``METADATA_NO_LORA_SUMMARY`` – suppress the aggregated ``LoRAs:`` line
+                    (per-LoRA entries remain).
+                * ``METADATA_TEST_MODE`` – enable deterministic multiline formatting and
+                    hook stubs for tests.
+                * ``METADATA_DEBUG_PROMPTS`` – emit verbose prompt capture diagnostics.
 
     Notes:
-        The public surface intentionally keeps backward compatibility with the historical
-        `gen_parameters_str(pnginfo_dict)` signature; new keyword overrides (e.g. `include_lora_summary`)
-        are optional and ignored by legacy callers.
+        The public API intentionally stays backward compatible with the
+        historical ``gen_parameters_str(pnginfo_dict)`` signature; keyword
+        overrides (e.g., ``include_lora_summary``) remain optional for legacy
+        callers.
     """
 
     @staticmethod
     def _clean_name(value: Any, drop_extension: bool = False) -> str:
-        """Normalize model / embedding / LoRA / CLIP names into a stable display form.
+        """Normalize a model, embedding, or LoRA name for display.
 
-        Processing steps (applied in order):
-            1. If ``value`` is a list/tuple, take its first element (some loaders wrap single names).
-            2. Coerce to ``str`` (fall back to ``repr``-like behavior via ``str(obj)`` if not already a string).
-            3. Extract just the basename (drop directory components).
-            4. Strip surrounding single/double quotes and outer whitespace.
-            5. Collapse escaped Windows path sequences (``\\\\`` -> ``\\``).
-            6. Optionally remove the file extension when ``drop_extension`` is True.
+        This method takes a raw value, which may be a string, a list, or a
+        tuple, and processes it to produce a clean, human-readable name. It
+        handles the extraction of the name from container types, removes path
+        information and quotes, and optionally strips the file extension.
 
         Args:
-            value: Raw input that may be a container, object with ``__str__``, or primitive string.
-            drop_extension: Whether to strip the final extension (useful for CLIP or embedding stem comparisons).
+            value (Any): The raw value to be cleaned.
+            drop_extension (bool, optional): If True, the file extension is
+                removed from the name. Defaults to False.
 
         Returns:
-            A cleaned name (best-effort) or the literal string "unknown" if normalization fails.
+            str: The cleaned name, or "unknown" if normalization fails.
         """
         try:
-            if isinstance(value, list | tuple) and len(value) >= 1:  # noqa: UP038
-                value = value[0]
+            if isinstance(value, list | tuple):  # noqa: UP038
+                # Capture tuples may include contextual metadata: (node_id, actual_value, optional_field_name).
+                # For 2+ element tuples: extract index 1 (the actual value), not index 0 (the node id).
+                # This ensures we display "EasyNegative.safetensors" rather than node id "42"
+                # when processing captures like (42, "EasyNegative.safetensors", "text").
+                # For single-element containers: some loaders wrap names in a list, so extract index 0.
+                if len(value) >= 2:
+                    value = value[1]
+                elif len(value) == 1:
+                    value = value[0]
+                else:
+                    return "unknown"
             if not isinstance(value, str):
                 value = str(value)
             # Normalize path separators first (support mixed or escaped sequences)
@@ -260,16 +289,23 @@ class Capture:
     def _extract_value(item: Any) -> Any:
         """Extract the payload component from capture entries of varying shapes.
 
-        Accepted shapes (produced by different rule expansion paths):
+        This method handles the different formats of capture entries that can be
+        produced by the rule evaluation layer. It extracts the core value from
+        tuples or lists, which may contain additional contextual information
+        such as the node ID.
+
+        Accepted shapes (emitted by different rule expansion paths):
             * ``(node_id, value)`` — common single-source capture.
-            * ``(node_id, value, distance)`` or ``(node_id, value, field_name)`` — enriched context.
+            * ``(node_id, value, distance)`` or ``(node_id, value, field_name)``
+              — enriched context tuples.
             * ``value`` — bare value when no node provenance was attached.
 
         Args:
-            item: A tuple/list or bare object as emitted by the capture rule evaluation layer.
+            item (Any): The capture entry, which can be a tuple, list, or a
+                bare object.
 
         Returns:
-            The extracted value component; ``None`` if the container was empty.
+            Any: The extracted value, or None if the entry is an empty container.
         """
         if isinstance(item, list | tuple):  # noqa: UP038
             if len(item) >= 2:
@@ -281,40 +317,156 @@ class Capture:
 
     @staticmethod
     def _iter_values(items: Iterable[Any]) -> Iterator[Any]:
-        """Yield only the underlying values from capture tuples.
+        """Iterate over the values of capture entries, yielding only the underlying values from heterogenous capture tuples.
+
+        This method takes an iterable of capture entries and yields the
+        underlying value of each entry, using `_extract_value` to handle the
+        different entry formats.
 
         Args:
-            items: Iterable of heterogenous capture entries (lists/tuples or bare values).
+            items (Iterable[Any]): An iterable of capture entries.
 
         Yields:
-            Underlying scalar/string/object values suitable for downstream formatting.
+            Iterator[Any]: An iterator over the extracted values. Underlying scalar/string/object values suitable for downstream formatting.
         """
         for it in items:
             yield Capture._extract_value(it)
 
-    @classmethod
-    def get_inputs(cls) -> dict[MetaField, list[tuple[Any, ...]]]:
-        """Traverse the active prompt graph and aggregate raw metadata inputs per MetaField.
+    @staticmethod
+    def _looks_like_hex_hash(value: Any) -> bool:
+        """Return True when ``value`` resembles a truncated or full hex hash."""
 
-        The traversal walks each node present in ``hook.current_prompt`` whose class type has
-        an entry in ``CAPTURE_FIELD_LIST``. For every applicable rule it applies:
-            * Validation (``validate`` callable) — skip field when predicate fails.
-            * Prefix expansion (``prefix``) — enumerate dynamic inputs like ``clip_name1``, ``clip_name2``.
-            * Explicit multi-field enumeration (``fields`` list) — gather several named inputs uniformly.
-            * Selector invocation (``selector`` callable) — compute derived values (e.g. prompt variants).
-            * Direct field extraction (``field_name``) — capture literal node input value.
+        if not isinstance(value, str):
+            return False
+        candidate = value.strip()
+        # Hash helpers emit 10 char truncations but allow longer (e.g., cached 64 char).
+        if len(candidate) < 8 or len(candidate) > 64:
+            return False
+        return bool(re.fullmatch(r"[0-9a-fA-F]+", candidate))
 
-        Fallbacks / Augmentations:
-            * Flux dual-prompt fallback: If T5 or CLIP prompt missing after validation, attempt recovery
-              from ``CLIPTextEncodeFlux`` node inputs.
-            * Inline LoRA parsing: When no explicit LoRA loader outputs are captured, scan *all* captured
-              text-bearing inputs (and raw workflow input strings) for ``<lora:name:sm[:sc]>`` patterns and
-              synthesize corresponding MetaField entries.
+    @staticmethod
+    def _build_prompt_embedding_stub_input() -> tuple[dict[str, list[Any]], ...]:
+        """Return a lightweight ``input_data`` stub so embedding hashes resolve.
+
+        The helper mirrors the structure produced by ``get_input_data`` just
+        enough for ``extract_embedding_names`` / ``extract_embedding_hashes`` to
+        work. It wires a faux tokenizer/CLIP stack whose ``embedding_directory``
+        entries come from ``folder_paths.get_folder_paths('embeddings')``.
+        This stub is used by the embedding
+        formatters to resolve the paths to embedding files and compute their
+        hashes, even in the absence of a true CLIP node in the workflow.
 
         Returns:
-            Mapping of MetaField -> list of tuples ``(node_id, value[, source_field])`` preserving origin context.
+            tuple[dict[str, list[Any]], ...]: A tuple containing a dictionary
+                that represents the stub input data.
         """
-        inputs = {}
+
+        try:
+            embed_dirs = folder_paths.get_folder_paths("embeddings")
+        except Exception:
+            embed_dirs = []
+
+        clip_stub = SimpleNamespace(
+            embedding_directory=embed_dirs,
+            embedding_identifier="embedding:",
+        )
+        tokenizer_stub = SimpleNamespace(
+            clip_l=clip_stub,
+            clip_h=clip_stub,
+            clip_g=clip_stub,
+            clip=clip_stub,
+        )
+        container = SimpleNamespace(tokenizer=tokenizer_stub)
+        return ({"clip": [container]},)
+
+    @classmethod
+    def _augment_embeddings_from_prompts(cls, inputs: dict[MetaField, list[tuple[Any, ...]]]) -> None:
+        """Extract embedding information from prompt text.
+
+        This method scans the positive and negative prompt strings for embedding
+        tokens (e.g., `embedding:my_embedding`). When found, it extracts the
+        embedding name and hash and adds them to the `inputs` dictionary as if
+        they were captured from a dedicated embedding loader node.
+
+        Args:
+            inputs (dict[MetaField, list[tuple[Any, ...]]]): The dictionary of
+                captured inputs to be augmented.
+        """
+
+        prompt_fields: tuple[tuple[str, MetaField], ...] = (
+            ("positive_prompt", MetaField.POSITIVE_PROMPT),
+            ("negative_prompt", MetaField.NEGATIVE_PROMPT),
+        )
+
+        try:
+            stub_input = cls._build_prompt_embedding_stub_input()
+        except Exception as exc:  # pragma: no cover - defensive path
+            logger.debug("[Metadata Lib] Failed to build embedding stub input: %r", exc)
+            return
+
+        existing: set[str] = set()
+        for entry in inputs.get(MetaField.EMBEDDING_NAME, []):
+            cleaned = cls._clean_name(cls._extract_value(entry), drop_extension=True).lower()
+            if cleaned:
+                existing.add(cleaned)
+
+        def _source_key(item: tuple[Any, ...]) -> Any:
+            if isinstance(item, list | tuple) and item:
+                return item[0]
+            return "prompt-scan"
+
+        for label, metafield in prompt_fields:
+            prompt_entries = inputs.get(metafield, [])
+            if not prompt_entries:
+                continue
+            for entry in prompt_entries:
+                text = cls._extract_value(entry)
+                if not isinstance(text, str) or "embedding:" not in text.lower():
+                    continue
+                try:
+                    names = extract_embedding_names(text, stub_input)
+                    hashes = extract_embedding_hashes(text, stub_input)
+                except Exception as exc:  # pragma: no cover - defensive path
+                    logger.debug("[Metadata Lib] Prompt embedding scan failed: %r", exc)
+                    continue
+                for idx, name in enumerate(names):
+                    key = cls._clean_name(name, drop_extension=True).lower()
+                    if not key or key in existing:
+                        continue
+                    existing.add(key)
+                    src = _source_key(entry)
+                    field_marker = f"{label}_embedding"
+                    inputs.setdefault(MetaField.EMBEDDING_NAME, []).append((src, name, field_marker))
+                    hash_val = hashes[idx] if idx < len(hashes) else None
+                    if hash_val:
+                        inputs.setdefault(MetaField.EMBEDDING_HASH, []).append((src, hash_val, field_marker))
+
+    @classmethod
+    def get_inputs(cls) -> dict[MetaField, list[tuple[Any, ...]]]:
+        """Traverse the active prompt graph and aggregate metadata per ``MetaField``.
+
+        For every node whose class type appears in ``CAPTURE_FIELD_LIST`` the
+        traversal applies, in order:
+            * validation hooks (skip entries when predicates fail),
+            * prefix expansion for dynamic inputs (``clip_name1`` / ``clip_name2``),
+            * explicit multi-field enumerations,
+            * selector callables for derived data, and
+            * direct ``field_name`` extraction fallbacks.
+
+        Fallback augmentations retain previous behavior: Flux dual-prompt values
+        are recovered from ``CLIPTextEncodeFlux`` inputs when validated fields
+        are missing, inline ``<lora:...>`` patterns are parsed when loader nodes
+        were absent, and embeddings referenced in prompt text are synthesized so
+        downstream hashing stays consistent.
+
+        Returns:
+            dict[MetaField, list[tuple[Any, ...]]]: A dictionary mapping each
+                `MetaField` to a list of captured values. Each value is a tuple
+                containing the node ID, the captured value, and optionally the
+                source field name.
+        """
+        inputs: dict[MetaField, list[tuple[Any, ...]]] = {}
+        inline_prompt_nodes: set[str] = set()
         prompt = hook.current_prompt
         extra_data = hook.current_extra_data
         # In lightweight test mode or if a caller invoked capture before the runtime
@@ -324,7 +476,7 @@ class Capture:
         # behavior (earlier versions tolerated missing runtime state) while still
         # exercising the rule traversal logic on provided prompt inputs.
         try:  # pragma: no cover - defensive path
-            outputs = hook.prompt_executer.caches.outputs  # type: ignore[attr-defined]
+            outputs = hook.prompt_executer.caches.outputs
         except Exception:
             outputs = {}
 
@@ -373,19 +525,27 @@ class Capture:
                 if meta not in inputs:
                     inputs[meta] = []
 
+                allow_inline = bool(field_data.get("inline_lora_candidate")) and meta in {
+                    MetaField.POSITIVE_PROMPT,
+                    MetaField.NEGATIVE_PROMPT,
+                }
+                if allow_inline:
+                    inline_prompt_nodes.add(str(node_id))
+
                 # Handle our new "prefix" based selectors for multi-input nodes
                 if "prefix" in field_data:
                     prefix = field_data["prefix"]
                     values = [
                         v[0]
                         for k, v in input_data[0].items()
-                        if k.startswith(prefix)
-                        and isinstance(v, list)
-                        and v
-                        and v[0] != "None"
+                        if k.startswith(prefix) and isinstance(v, list) and v and v[0] != "None"
                     ]
+                    tag = field_data.get("source_tag") or f"prefix:{prefix}"
                     for val in values:
-                        inputs[meta].append((node_id, val))
+                        if tag is not None:
+                            inputs[meta].append((node_id, val, tag))
+                        else:
+                            inputs[meta].append((node_id, val))
                     continue
 
                 # NEW: Handle explicit multi-field list enumeration produced by upgraded scanner ("fields": [list])
@@ -433,10 +593,7 @@ class Capture:
                                             looks_like_file = (
                                                 "\\" in v_str
                                                 or "/" in v_str
-                                                or any(
-                                                    vl.endswith(ext)
-                                                    for ext in pathresolve.SUPPORTED_MODEL_EXTENSIONS
-                                                )
+                                                or any(vl.endswith(ext) for ext in pathresolve.SUPPORTED_MODEL_EXTENSIONS)
                                             )
                                         # If user enabled hash logging, allow calling even for name-like tokens
                                         try:
@@ -474,11 +631,12 @@ class Capture:
                                                 funcname,
                                                 e,
                                             )
+                                tag = field_data.get("source_tag") or fname
                                 if isinstance(v, list):
                                     for x in v:
-                                        inputs[meta].append((node_id, x, fname))
+                                        inputs[meta].append((node_id, x, tag))
                                 else:
-                                    inputs[meta].append((node_id, v, fname))
+                                    inputs[meta].append((node_id, v, tag))
                             except KeyError as e:  # missing field in input_data mapping
                                 logger.debug(
                                     "[Metadata Capture] Missing expected field '%s' in multi-field rule: %r",
@@ -513,11 +671,18 @@ class Capture:
                             e,
                         )
                         v = None
+                    tag = field_data.get("source_tag") or getattr(selector, "__name__", None)
                     if isinstance(v, list):
                         for x in v:
-                            inputs[meta].append((node_id, x))
+                            if tag is not None:
+                                inputs[meta].append((node_id, x, tag))
+                            else:
+                                inputs[meta].append((node_id, x))
                     elif v is not None:
-                        inputs[meta].append((node_id, v))
+                        if tag is not None:
+                            inputs[meta].append((node_id, v, tag))
+                        else:
+                            inputs[meta].append((node_id, v))
                     continue
 
                 if "field_name" in field_data:
@@ -539,12 +704,7 @@ class Capture:
                         )
                         if format_func is not None and not skip_hash_on_name:
                             funcname = getattr(format_func, "__name__", "").lower()
-                            if (
-                                "unet_hash" in funcname
-                                or "model_hash" in funcname
-                                or "vae_hash" in funcname
-                                or "lora_hash" in funcname
-                            ):
+                            if "unet_hash" in funcname or "model_hash" in funcname or "vae_hash" in funcname or "lora_hash" in funcname:
                                 try:
                                     v_str = v if isinstance(v, str) else str(v)
                                 except Exception:  # pragma: no cover
@@ -555,10 +715,7 @@ class Capture:
                                     looks_like_file = (
                                         "\\" in v_str
                                         or "/" in v_str
-                                        or any(
-                                            vl.endswith(ext)
-                                            for ext in pathresolve.SUPPORTED_MODEL_EXTENSIONS
-                                        )
+                                        or any(vl.endswith(ext) for ext in pathresolve.SUPPORTED_MODEL_EXTENSIONS)
                                     )
                                 try:
                                     log_mode = getattr(_hashfmt, "HASH_LOG_MODE", "none")
@@ -595,11 +752,12 @@ class Capture:
                                         funcname,
                                         e,
                                     )
+                        tag = field_data.get("source_tag") or field_name
                         if isinstance(v, list):
                             for x in v:
-                                inputs[meta].append((node_id, x, field_name))
+                                inputs[meta].append((node_id, x, tag))
                         else:
-                            inputs[meta].append((node_id, v, field_name))
+                            inputs[meta].append((node_id, v, tag))
 
         # --- Flux dual-prompt fallback ---
         try:
@@ -651,18 +809,34 @@ class Capture:
 
         # Inline LoRA fallback extraction for test mode / prompt-only presence
         try:
-            if MetaField.LORA_MODEL_NAME not in inputs:
+            has_lora_entries = bool(inputs.get(MetaField.LORA_MODEL_NAME))
+            inline_filter: set[str] | None = {str(node_id) for node_id in inline_prompt_nodes} if inline_prompt_nodes else None
+            should_attempt_inline = (not has_lora_entries) and bool(inline_filter)
+            if should_attempt_inline:
                 import re
 
                 pattern = re.compile(r"<lora:([A-Za-z0-9_\-]+):([0-9]*\.?[0-9]+)(?::([0-9]*\.?[0-9]+))?>")
                 raw_candidates: list[str] = []
-                for mf_vals in inputs.values():
-                    for tup in mf_vals:
+                for prompt_meta in (MetaField.POSITIVE_PROMPT, MetaField.NEGATIVE_PROMPT):
+                    for tup in inputs.get(prompt_meta) or ():
+                        node_ref = None
+                        if isinstance(tup, list | tuple) and tup:
+                            node_ref = str(tup[0])
+                        node_id_allowed = True
+                        if inline_filter is not None:
+                            if node_ref is None:
+                                node_id_allowed = False
+                            else:
+                                node_id_allowed = node_ref in inline_filter
+                        if not node_id_allowed:
+                            continue
                         val = cls._extract_value(tup)
                         if isinstance(val, str):
                             raw_candidates.append(val)
                 if hasattr(hook, "current_prompt"):
-                    for node_data in getattr(hook, "current_prompt", {}).values():  # type: ignore[arg-type]
+                    for node_id, node_data in getattr(hook, "current_prompt", {}).items():
+                        if inline_filter is not None and str(node_id) not in inline_filter:
+                            continue
                         try:
                             for v in node_data.get("inputs", {}).values():
                                 if isinstance(v, list | tuple):
@@ -688,6 +862,9 @@ class Capture:
         except Exception:  # pragma: no cover
             pass  # Inline LoRA extraction may fail - continue with captured data
 
+        inputs["__inline_prompt_nodes__"] = tuple(sorted(str(nid) for nid in inline_prompt_nodes))
+        cls._augment_embeddings_from_prompts(inputs)
+
         return inputs
 
     @classmethod
@@ -697,25 +874,35 @@ class Capture:
         inputs_before_this_node: dict[MetaField, list[tuple[Any, ...]]],
         save_civitai_sampler: bool = False,
     ) -> dict[str, Any]:
-        """Build the core PNG info dictionary from captured input mappings.
+        """Merge two capture snapshots into the normalized PNGInfo payload.
 
-        Rationale for dual snapshots:
-            Some metadata (e.g. sampler, seed, denoise) may be inferred most reliably *before* certain
-            downstream transformations. By passing both the snapshot taken immediately prior to the sampler
-            node and the snapshot taken just before this saving node, we can prefer the earlier authoritative
-            values while still falling back to later ones when needed.
+        Values captured before the sampler node take precedence, but the
+        snapshot taken at the save node provides fallbacks so prompt merges,
+        sampler/scheduler pairs, model and VAE identifiers, LoRA/embedding
+        summaries, and optional Civitai sampler strings remain complete.
+        Structured hash detail is appended unless ``METADATA_NO_HASH_DETAIL``
+        disables it.
 
-        If ``save_civitai_sampler`` is True, a Civitai-compatible sampler string variant is recorded to
-        maximize portability when images are uploaded to Civitai.
+        Processes the raw captured data, normalizes it, and
+        assembles it into a dictionary suitable for embedding in a PNG file. It
+        handles the merging of prompts, model and VAE information, LoRA and
+        embedding data, and optionally includes a structured hash detail section.
+
+        The method takes two snapshots of the workflow inputs: one before the
+        sampler node and one before the save node. This allows for more
+        reliable inference of certain metadata fields by comparing the values at
+        different stages of the workflow.
 
         Args:
-            inputs_before_sampler_node: Graph metadata collected prior to a sampler node execution.
-            inputs_before_this_node: Graph metadata collected prior to this save node invocation.
-            save_civitai_sampler: Whether to emit Civitai sampler notation (side effect on Sampler field choice).
+            inputs_before_sampler_node (dict[MetaField, list[tuple[Any, ...]]]):
+                Dictionary of metadata captured before the sampler node.
+            inputs_before_this_node (dict[MetaField, list[tuple[Any, ...]]]):
+                Dictionary of metadata captured immediately before this save node.
+            save_civitai_sampler (bool, optional): Emit a Civitai-compatible
+                sampler token when True. Defaults to False.
 
         Returns:
-            A normalized dictionary merging prompts, model/vae identifiers + hashes, LoRA & embedding info,
-            and (optionally) structured hash details ready for flattening.
+            dict[str, Any]: PNGInfo-ready metadata dictionary.
         """
         pnginfo_dict = {}
         # Insert version stamp early so downstream additions (e.g., Hash detail) can reference it.
@@ -877,8 +1064,8 @@ class Capture:
         _merge_prompt_variants(MetaField.POSITIVE_PROMPT, positive=True)
         _merge_prompt_variants(MetaField.NEGATIVE_PROMPT, positive=False)
 
-    # Post-pass: If Negative prompt was never truly provided (empty, 'none',
-    # or identical to positive with no variant merge), blank it.
+        # Post-pass: If Negative prompt was never truly provided (empty, 'none',
+        # or identical to positive with no variant merge), blank it.
         neg_raw = pnginfo_dict.get("Negative prompt")
         pos_raw = pnginfo_dict.get("Positive prompt")
 
@@ -963,16 +1150,12 @@ class Capture:
                         pnginfo_dict["CLIP Prompt"] = pos_prompt_val
                         if DEBUG_PROMPTS:
                             logger.debug(
-                                cstr(
-                                    "[Metadata Debug] Dual prompt aliasing applied with clip_names=%s"
-                                ).msg,
+                                cstr("[Metadata Debug] Dual prompt aliasing applied with clip_names=%s").msg,
                                 clip_names,
                             )
                     elif DEBUG_PROMPTS:
                         logger.debug(
-                            cstr(
-                                "[Metadata Debug] Dual prompt aliasing conditions not met clip_names=%s"
-                            ).msg,
+                            cstr("[Metadata Debug] Dual prompt aliasing conditions not met clip_names=%s").msg,
                             clip_names,
                         )
         except Exception:
@@ -1006,17 +1189,13 @@ class Capture:
         # Fallback: some sampler nodes may have their own inputs excluded by the "before sampler" boundary.
         # If we missed SAMPLER_NAME upstream, attempt to recover it from the full pre-this-node capture set.
         if not sampler_names:
-            fallback_sampler_names = inputs_before_this_node.get(
-                MetaField.SAMPLER_NAME, []
-            )
+            fallback_sampler_names = inputs_before_this_node.get(MetaField.SAMPLER_NAME, [])
             if fallback_sampler_names:
                 sampler_names = fallback_sampler_names
                 if _debug_prompts_enabled():
                     try:
                         logger.debug(
-                            cstr(
-                                "[Metadata Debug] Recovered sampler_names from inputs_before_this_node: %r"
-                            ).msg,
+                            cstr("[Metadata Debug] Recovered sampler_names from inputs_before_this_node: %r").msg,
                             sampler_names,
                         )
                     except Exception:
@@ -1055,9 +1234,7 @@ class Capture:
                         sampler_names = [(nid, raw_val, "sampler_name")]  # reshape to captured tuple form
                         if _debug_prompts_enabled():
                             logger.debug(
-                                cstr(
-                                    "[Metadata Debug] Sampler name recovered via graph introspection from %s: %r"
-                                ).msg,
+                                cstr("[Metadata Debug] Sampler name recovered via graph introspection from %s: %r").msg,
                                 ctype,
                                 sampler_names,
                             )
@@ -1094,6 +1271,7 @@ class Capture:
                 "uni_pc",
                 "uni_pc_bh2",
             }
+
             def _scan_for_token(src_dict):
                 for vals in src_dict.values():
                     for v in Capture._iter_values(vals):
@@ -1104,13 +1282,12 @@ class Capture:
                         if s in KNOWN_SAMPLER_TOKENS:
                             return [("heuristic_sampler", v)]
                 return []
+
             sampler_names = _scan_for_token(inputs_before_sampler_node)
             if not sampler_names:
                 sampler_names = _scan_for_token(inputs_before_this_node)
             if sampler_names and _debug_prompts_enabled():
-                logger.debug(
-                    "[Metadata Debug] Heuristic sampler token recovered: %r", sampler_names
-                )
+                logger.debug("[Metadata Debug] Heuristic sampler token recovered: %r", sampler_names)
 
         # Re-prioritize sampler_names: prefer entries whose field tag (3rd tuple element) is 'sampler_name'
         # and whose value is a clean string, ahead of generic 'sampler' object references that stringify to
@@ -1134,9 +1311,7 @@ class Capture:
                     except Exception:
                         sval = ""
                 if (
-                    field_name == "sampler_name"
-                    and sval
-                    and not sval.strip().startswith("<")  # skip raw object reprs
+                    field_name == "sampler_name" and sval and not sval.strip().startswith("<")  # skip raw object reprs
                 ):
                     preferred.append(ent)
                 else:
@@ -1196,9 +1371,7 @@ class Capture:
                         recovered_nid = nid
                         break
                 if recovered:
-                    sampler_names = [
-                        (recovered_nid, recovered, recovered_field or "sampler_name")
-                    ] + (sampler_names or [])
+                    sampler_names = [(recovered_nid, recovered, recovered_field or "sampler_name")] + (sampler_names or [])
                     clean_sampler_text = recovered
                     if _debug_prompts_enabled():
                         logger.debug(
@@ -1297,8 +1470,8 @@ class Capture:
 
         update_pnginfo_dict(inputs_before_sampler_node, MetaField.CLIP_SKIP, "Clip skip")
 
-    # Size handling: support discrete width/height, a single dimensions tuple,
-    # or strings like "832 x 1216  (portrait)"
+        # Size handling: support discrete width/height, a single dimensions tuple,
+        # or strings like "832 x 1216  (portrait)"
         image_widths = inputs_before_sampler_node.get(MetaField.IMAGE_WIDTH, [])
         image_heights = inputs_before_sampler_node.get(MetaField.IMAGE_HEIGHT, [])
         size_set = False
@@ -1414,9 +1587,7 @@ class Capture:
                 mdisp = pnginfo_dict["Model"]
                 mdisp_l = mdisp.lower() if isinstance(mdisp, str) else ""
                 looks_like_file = isinstance(mdisp, str) and (
-                    "\\" in mdisp
-                    or "/" in mdisp
-                    or any(mdisp_l.endswith(ext) for ext in pathresolve.SUPPORTED_MODEL_EXTENSIONS)
+                    "\\" in mdisp or "/" in mdisp or any(mdisp_l.endswith(ext) for ext in pathresolve.SUPPORTED_MODEL_EXTENSIONS)
                 )
                 if looks_like_file:
                     # Try UNet first (Flux et al.), then checkpoint
@@ -1527,12 +1698,11 @@ class Capture:
                 pass  # VAE hash calculation may fail - continue without hash
 
         # Append LoRA and Embedding info
-        pnginfo_dict.update(cls.gen_loras(inputs_before_sampler_node))
+        lora_records, lora_fields = cls._build_lora_metadata(inputs_before_sampler_node)
+        pnginfo_dict.update(lora_fields)
         pnginfo_dict.update(cls.gen_embeddings(inputs_before_sampler_node))
 
-        hashes_for_civitai = cls.get_hashes_for_civitai(
-            inputs_before_sampler_node, inputs_before_this_node, pnginfo_dict
-        )
+        hashes_for_civitai = cls.get_hashes_for_civitai(inputs_before_sampler_node, inputs_before_this_node, pnginfo_dict, lora_records)
         if len(hashes_for_civitai) > 0:
             pnginfo_dict["Hashes"] = json.dumps(hashes_for_civitai)
 
@@ -1546,27 +1716,33 @@ class Capture:
 
     @classmethod
     def gen_parameters_str(cls, *args, **kwargs):
-        """Return an Automatic1111‑style parameter string from a PNG info mapping.
+        """Format metadata into an Automatic1111-style parameter string.
 
-        Backward compatible invocation patterns:
-            gen_parameters_str(pnginfo_dict)
-            gen_parameters_str(inputs_before_sampler, inputs_before_this)
+        Accepts either ``(pnginfo_dict,)`` or ``(inputs_before_sampler,
+        inputs_before_this)`` so older callers keep working. The
+        ``include_lora_summary`` kwarg overrides the ``METADATA_NO_LORA_SUMMARY``
+        flag, ``guidance_as_cfg`` copies ``Guidance`` into ``CFG scale``, and
+        ``METADATA_TEST_MODE`` forces multiline output for deterministic tests.
 
-        Keyword Args:
-            include_lora_summary: Optional boolean explicit override for LoRA summary line inclusion.
-                True  -> force include summary
-                False -> force suppress summary
-                None / omitted -> defer to environment flag logic
+        Takes a PNG info dictionary and formats it into a string with the format used by Automatic1111's web UI. It
+        handles the ordering of parameters, the inclusion of a LoRA summary, and
+        the option to format the output as a single line or multiline for
+        testing.
 
-        Environment Interaction:
-            METADATA_NO_LORA_SUMMARY suppresses summary only when no explicit override provided.
-            METADATA_TEST_MODE emits multiline output (one field per line) instead of single-line.
+        The method is backward compatible and can be called with either a single
+        `pnginfo_dict` argument or with the two input snapshot dictionaries.
+
+        Args:
+            *args: A PNGInfo dictionary or the two capture snapshots described
+                above.
+            **kwargs: Optional ``include_lora_summary`` and ``guidance_as_cfg``
+                switches.
 
         Returns:
-            Fully formatted parameter string ending with a newline.
+            str: The formatted parameter string.
 
         Raises:
-            TypeError: If positional arguments are not of length 1 or 2.
+            TypeError: If the number of positional arguments is not 1 or 2.
         """
         # Backwards compatibility wrapper: accept either (pnginfo_dict) or (inputs_before_sampler, inputs_before_this)
         if len(args) == 1:
@@ -1762,8 +1938,8 @@ class Capture:
         if _mgv is not None:
             ordered_items.append(("Metadata generator version", _mgv))
 
-    # Safety pass: ensure critical legacy fields captured if they existed in
-    # original pnginfo but were somehow missed.
+        # Safety pass: ensure critical legacy fields captured if they existed in
+        # original pnginfo but were somehow missed.
         critical_fields = [
             "Steps",
             "Sampler",
@@ -1819,6 +1995,11 @@ class Capture:
             except Exception:
                 pass  # LoRA summary insertion may fail - continue without it
 
+        if _mgv is not None:
+            # Ensure metadata generator version remains last after any subsequent insertions
+            ordered_items = [item for item in ordered_items if item[0] != "Metadata generator version"]
+            ordered_items.append(("Metadata generator version", _mgv))
+
         def _format_sampler(raw: str) -> str:
             """Return display value for sampler.
 
@@ -1865,7 +2046,7 @@ class Capture:
                         # Represent full-run steps as 0-(steps-1) only if there are segment samplers too
                         any_segments = any(x.get("start_step") is not None for x in multi_entries)
                         if any_segments and isinstance(e.get("steps"), int):
-                            rng = f"0-{int(e['steps'])-1}" if int(e['steps']) > 0 else "0-0"
+                            rng = f"0-{int(e['steps']) - 1}" if int(e["steps"]) > 0 else "0-0"
                             segs.append(f"{name} ({rng})")
                         else:
                             segs.append(f"{name}")
@@ -1904,15 +2085,15 @@ class Capture:
 
     @classmethod
     def add_hash_detail_section(cls, pnginfo_dict):
-        """Generate a machine-readable JSON summary of key name/hash pairs.
+        """Add a structured JSON summary of hashes to the metadata.
 
-        Structure:
-          Hash detail = {
-            "model": {"name": ..., "hash": ...},
-            "vae": {"name": ..., "hash": ...},
-            "loras": [ {index, name, hash, strength_model, strength_clip}, ...],
-            "embeddings": [ {index, name, hash}, ... ]
-          }
+        This method generates a JSON string containing a detailed breakdown of
+        the model, VAE, LoRA, and embedding hashes, and adds it to the
+        `pnginfo_dict` under the "Hash detail" key. This provides a
+        machine-readable summary of the key components used in the workflow.
+
+        Args:
+            pnginfo_dict (dict): The PNG info dictionary to be augmented.
         """
         if not _include_hash_detail():
             return
@@ -1973,19 +2154,45 @@ class Capture:
             logger.warning("[Metadata Lib] Failed to build Hash detail section: %r", e)
 
     @classmethod
-    def get_hashes_for_civitai(cls, inputs_before_sampler_node, inputs_before_this_node, pnginfo_dict=None):
+    def get_hashes_for_civitai(
+        cls,
+        inputs_before_sampler_node,
+        inputs_before_this_node,
+        pnginfo_dict=None,
+        lora_records: list[_LoRARecord] | None = None,
+    ):
+        """Get a dictionary of hashes formatted for Civitai.
+
+        This method collects the hashes for the model, VAE, LoRAs, and
+        embeddings and formats them into a dictionary with keys that are
+        compatible with the Civitai platform.
+
+        Args:
+            inputs_before_sampler_node (dict): The dictionary of metadata
+                captured before the sampler node.
+            inputs_before_this_node (dict): The dictionary of metadata
+                captured before the save node.
+            pnginfo_dict (dict, optional): The PNG info dictionary, if already
+                generated. Defaults to None.
+            lora_records (list[_LoRARecord] | None, optional): A list of
+                `_LoRARecord` objects. Defaults to None.
+
+        Returns:
+            dict: A dictionary of resource hashes for Civitai.
+        """
         resource_hashes = {}
 
         def add_if_valid(key, value):
             try:
                 if value is None:
                     return
-                v = str(value)
+                v = str(value).strip()
                 if not v or v.upper() == "N/A":
                     return
                 # Ignore object-like placeholders such as '<comfy.sd.VAE object at ...>'
-                vs = v.strip()
-                if vs.startswith("<") and ">" in vs:
+                if v.startswith("<") and ">" in v:
+                    return
+                if not cls._looks_like_hex_hash(v):
                     return
                 resource_hashes[key] = v
             except Exception:
@@ -2007,17 +2214,14 @@ class Capture:
             if len(vae_hashes) > 0:
                 add_if_valid("vae", Capture._extract_value(vae_hashes[0]))
 
-        lora_model_names = inputs_before_sampler_node.get(MetaField.LORA_MODEL_NAME, [])
-        lora_model_hashes = inputs_before_sampler_node.get(MetaField.LORA_MODEL_HASH, [])
-        for lora_model_name, lora_model_hash in zip(lora_model_names, lora_model_hashes):
+        records = lora_records
+        if records is None:
+            records, _ = cls._collect_lora_records(inputs_before_sampler_node)
+        for record in records:
             try:
-                raw_name = Capture._extract_value(lora_model_name)
-                if isinstance(raw_name, list | tuple) and raw_name:  # noqa: UP038
-                    raw_name = raw_name[0]
-                ln = Capture._clean_name(raw_name, drop_extension=True)
-                lh = Capture._extract_value(lora_model_hash)
-                if ln and lh:
-                    add_if_valid(f"lora:{ln}", lh)
+                norm_name = Capture._clean_name(record.name, drop_extension=True)
+                if norm_name and record.hash:
+                    add_if_valid(f"lora:{norm_name}", record.hash)
             except Exception as e:
                 logger.debug("[Metadata Lib] Skipping LoRA hash entry due to error: %r", e)
 
@@ -2056,39 +2260,101 @@ class Capture:
 
     @classmethod
     def gen_loras(cls, inputs):
-        pnginfo_dict = {}
+        """Expose the formatted LoRA metadata produced from captured inputs.
 
+        This method serves as a wrapper around `_build_lora_metadata` to
+        provide a public interface for generating LoRA metadata from the
+        captured inputs.
+
+        Args:
+            inputs (dict): Dictionary of metadata captured before the save node.
+
+        Returns:
+            dict: PNGInfo-friendly LoRA fields.
+        """
+        _records, formatted = cls._build_lora_metadata(inputs)
+        return formatted
+
+    @classmethod
+    def _build_lora_metadata(cls, inputs):
+        """Collect raw LoRA slots and return both records and formatted fields.
+
+        Orchestrates the collection and formatting of LoRA metadata.
+        Calls `_collect_lora_records` to gather the raw data and then
+        `_format_lora_records` to produce a dictionary suitable for inclusion in
+        the PNG info.
+
+        Args:
+            inputs (dict): Dictionary of metadata captured before the save node.
+
+        Returns:
+            tuple[list[_LoRARecord], dict]: The structured records plus the
+                PNGInfo-ready dictionary built from them.
+        """
+        records, aggregate_error = cls._collect_lora_records(inputs)
+        return records, cls._format_lora_records(records, aggregate_error)
+
+    @staticmethod
+    def _format_lora_records(records: list[_LoRARecord], aggregate_error: bool) -> dict[str, Any]:
+        """Convert `_LoRARecord` objects into PNGInfo key/value pairs.
+
+        This method takes a list of `_LoRARecord` objects and converts it into
+        a dictionary with keys formatted for the PNG info, such as
+        "Lora_0 Model name", "Lora_0 Model hash", etc.
+
+        Args:
+            records (list[_LoRARecord]): Structured LoRA records.
+            aggregate_error (bool): True when aggregated prompt parsing failed.
+
+        Returns:
+            dict[str, Any]: Formatted LoRA metadata (or error placeholders).
+        """
+        pnginfo_dict: dict[str, Any] = {}
+        if not records:
+            if aggregate_error:
+                pnginfo_dict["Lora_0 Model name"] = "error: see log"
+                pnginfo_dict["Lora_0 Model hash"] = "error"
+            return pnginfo_dict
+        for index, record in enumerate(records):
+            prefix = f"Lora_{index}"
+            pnginfo_dict[f"{prefix} Model name"] = record.name
+            pnginfo_dict[f"{prefix} Model hash"] = record.hash
+            if record.strength_model is not None:
+                pnginfo_dict[f"{prefix} Strength model"] = record.strength_model
+            if record.strength_clip is not None:
+                pnginfo_dict[f"{prefix} Strength clip"] = record.strength_clip
+        return pnginfo_dict
+
+    @classmethod
+    def _collect_lora_records(cls, inputs) -> tuple[list[_LoRARecord], bool]:
+        """Normalize raw LoRA capture fields into `_LoRARecord` objects.
+
+        Inline prompt syntax (``<lora:...>``) is parsed as a fallback so LoRAs
+        noted only in text still appear, and the boolean return flag indicates
+        whether that aggregated parse raised an error.
+
+        Gathers the raw data for LoRA names, hashes, and strengths
+        from the `inputs` dictionary. It then processes this data, handling
+        different formats and potential inconsistencies, to produce a clean list
+        of `_LoRARecord` objects. It also includes a fallback for parsing LoRA
+        information from prompt text.
+
+        Args:
+            inputs (dict): Metadata captured before the save node.
+
+        Returns:
+            tuple[list[_LoRARecord], bool]: Structured LoRA records and a flag
+                noting aggregated-text parsing failures.
+        """
         model_names = inputs.get(MetaField.LORA_MODEL_NAME, [])
         model_hashes = inputs.get(MetaField.LORA_MODEL_HASH, [])
         strength_models = inputs.get(MetaField.LORA_STRENGTH_MODEL, [])
         strength_clips = inputs.get(MetaField.LORA_STRENGTH_CLIP, [])
 
-        # Log list length mismatch (will silently zip to shortest)
-        try:
-            ln, lh, lsm, lsc = (
-                len(model_names),
-                len(model_hashes),
-                len(strength_models),
-                len(strength_clips),
-            )
-            if len({ln, lh, lsm, lsc}) > 1 and _debug_prompts_enabled():
-                logger.debug(
-                    "[Metadata Lib] LoRA list length mismatch names=%s hashes=%s smodel=%s sclip=%s",
-                    ln,
-                    lh,
-                    lsm,
-                    lsc,
-                )
-        except Exception:
-            pass  # Debug logging may fail - continue processing
-
-        # Pre-filter: remove any entries that are clearly aggregated syntax blobs like
-        # "<lora:foo:0.5> <lora:bar:0.7>" which can appear if a raw text field slipped through.
         def _is_aggregate(value):
             try:
                 if not isinstance(value, str):
                     return False
-                # Heuristic: contains "> <lora:" or two or more '<lora:' occurrences
                 if "<lora:" in value and value.count("<lora:") > 1:
                     return True
                 if "> <lora:" in value:
@@ -2111,156 +2377,364 @@ class Capture:
         strength_models = _filtered(strength_models)
         strength_clips = _filtered(strength_clips)
 
-        # Collect cleaned entries first, then deduplicate and emit
-        cleaned = []
-        for model_name, model_hashe, strength_model, strength_clip in zip(
-            model_names, model_hashes, strength_models, strength_clips
-        ):
+        def to_float_or_none(x):
             try:
-                mn = Capture._extract_value(model_name)
-                mh = Capture._extract_value(model_hashe)
-                sm = Capture._extract_value(strength_model)
-                sc = Capture._extract_value(strength_clip)
+                if isinstance(x, int | float):  # noqa: UP038
+                    return float(x)
+                if isinstance(x, str):
+                    xs = x.strip()
+                    if xs == "":
+                        return None
+                    return float(xs)
+            except Exception:
+                return None
+            return None
+
+        def _entry_node_id(item) -> str:
+            if isinstance(item, list | tuple) and item:
+                try:
+                    return str(item[0])
+                except Exception:
+                    return "__anon__"
+            return "__anon__"
+
+        def _normalize_source_tag(tag) -> str | None:
+            if tag is None:
+                return None
+            try:
+                text = str(tag).strip()
+            except Exception:
+                return None
+            return text or None
+
+        def _entry_source_tag(item) -> str | None:
+            if isinstance(item, list | tuple) and len(item) >= 3:
+                return _normalize_source_tag(item[2])
+            return None
+
+        def _append_slot(
+            group: dict[str, dict[str | None, list[dict[str, Any]]]],
+            fallback: dict[str, list[dict[str, Any]]],
+            node_id: str,
+            tag: str | None,
+            value: dict[str, Any],
+        ) -> tuple[int, int]:
+            node_bucket = group.setdefault(node_id, {})
+            seq = node_bucket.setdefault(tag, [])
+            seq.append(value)
+            fallback_seq = fallback.setdefault(node_id, [])
+            fallback_seq.append(value)
+            return len(seq) - 1, len(fallback_seq) - 1
+
+        def _append_value(
+            group: dict[str, dict[str | None, list[Any]]],
+            fallback: dict[str, list[Any]],
+            node_id: str,
+            tag: str | None,
+            value,
+        ) -> None:
+            node_bucket = group.setdefault(node_id, {})
+            seq = node_bucket.setdefault(tag, [])
+            seq.append(value)
+            fallback.setdefault(node_id, []).append(value)
+
+        name_slots: dict[str, dict[str | None, list[dict[str, Any]]]] = {}
+        name_slots_any: dict[str, list[dict[str, Any]]] = {}
+        hash_slots: dict[str, dict[str | None, list[Any]]] = {}
+        hash_slots_any: dict[str, list[Any]] = {}
+        strength_model_slots: dict[str, dict[str | None, list[float | None]]] = {}
+        strength_model_slots_any: dict[str, list[float | None]] = {}
+        strength_clip_slots: dict[str, dict[str | None, list[float | None]]] = {}
+        strength_clip_slots_any: dict[str, list[float | None]] = {}
+        slot_order: list[tuple[str, str | None, int, int]] = []
+
+        for raw_entry in model_names:
+            try:
+                node_id = _entry_node_id(raw_entry)
+                source_tag = _entry_source_tag(raw_entry)
+                value = Capture._extract_value(raw_entry)
+                lookup_token = value
                 tuple_sm = None
                 tuple_sc = None
-                if isinstance(mn, tuple | list) and len(mn) >= 1:  # noqa: UP038
-                    raw_path = mn[0]
-                    if len(mn) >= 2 and (sm is None or (isinstance(sm, str) and sm.strip() == "")):
-                        try:
-                            tuple_sm = float(mn[1])
-                        except Exception:
-                            tuple_sm = None
-                    if len(mn) >= 3 and (sc is None or (isinstance(sc, str) and sc.strip() == "")):
-                        try:
-                            tuple_sc = float(mn[2])
-                        except Exception:
-                            tuple_sc = None
-                    mn = raw_path
-                name_disp = Capture._clean_name(mn, drop_extension=False)
-
-                def to_float_or_none(x):
-                    try:
-                        if isinstance(x, int | float):  # noqa: UP038
-                            return float(x)
-                        if isinstance(x, str):
-                            xs = x.strip()
-                            if xs == "":
-                                return None
-                            return float(xs)
-                    except Exception:
-                        return None
-                    return None
-
-                sm_num = to_float_or_none(sm)
-                sc_num = to_float_or_none(sc)
-                sm_final = sm_num if sm_num is not None else tuple_sm
-                sc_final = sc_num if sc_num is not None else tuple_sc
-                cleaned.append((name_disp, mh, sm_final, sc_final))
+                if isinstance(value, tuple | list) and value:  # noqa: UP038
+                    raw_path = value[0]
+                    lookup_token = raw_path
+                    if len(value) >= 2:
+                        tuple_sm = to_float_or_none(value[1])
+                    if len(value) >= 3:
+                        tuple_sc = to_float_or_none(value[2])
+                    value = raw_path
+                name_disp = Capture._clean_name(value, drop_extension=False)
+                if cls._is_invalid_lora_name(name_disp):
+                    continue
+                slot = {
+                    "name_value": name_disp,
+                    "lookup_token": lookup_token,
+                    "tuple_sm": tuple_sm,
+                    "tuple_sc": tuple_sc,
+                    "source_tag": source_tag,
+                }
+                idx_local, idx_global = _append_slot(name_slots, name_slots_any, node_id, source_tag, slot)
+                slot_order.append((node_id, source_tag, idx_local, idx_global))
             except Exception as e:
-                logger.debug("[Metadata Lib] Skipping LoRA entry due to error: %r", e)
+                logger.debug("[Metadata Lib] Skipping LoRA name entry due to error: %r", e)
+
+        for raw_hash in model_hashes:
+            try:
+                node_id = _entry_node_id(raw_hash)
+                value = Capture._extract_value(raw_hash)
+                source_tag = _entry_source_tag(raw_hash)
+                _append_value(hash_slots, hash_slots_any, node_id, source_tag, value)
+            except Exception as e:
+                logger.debug("[Metadata Lib] Skipping LoRA hash entry due to error: %r", e)
+
+        for raw_strength in strength_models:
+            try:
+                node_id = _entry_node_id(raw_strength)
+                value = Capture._extract_value(raw_strength)
+                source_tag = _entry_source_tag(raw_strength)
+                _append_value(
+                    strength_model_slots,
+                    strength_model_slots_any,
+                    node_id,
+                    source_tag,
+                    to_float_or_none(value),
+                )
+            except Exception as e:
+                logger.debug("[Metadata Lib] Skipping LoRA model strength entry due to error: %r", e)
+
+        for raw_strength in strength_clips:
+            try:
+                node_id = _entry_node_id(raw_strength)
+                value = Capture._extract_value(raw_strength)
+                source_tag = _entry_source_tag(raw_strength)
+                _append_value(
+                    strength_clip_slots,
+                    strength_clip_slots_any,
+                    node_id,
+                    source_tag,
+                    to_float_or_none(value),
+                )
+            except Exception as e:
+                logger.debug("[Metadata Lib] Skipping LoRA clip strength entry due to error: %r", e)
+
+        def _group_lookup(
+            group: dict[str, dict[str | None, list[Any]]],
+            fallback: dict[str, list[Any]],
+            node_id: str,
+            tag: str | None,
+            tag_idx: int,
+            global_idx: int,
+        ):
+            node_bucket = group.get(node_id)
+            if node_bucket:
+                seq = node_bucket.get(tag)
+                if seq is None and tag is not None:
+                    seq = node_bucket.get(None)
+                if seq is not None and tag_idx < len(seq):
+                    return seq[tag_idx]
+            seq_any = fallback.get(node_id)
+            if seq_any and global_idx < len(seq_any):
+                return seq_any[global_idx]
+            return None
+
+        cleaned: list[_LoRARecord] = []
+        for node_id, source_tag, slot_idx, global_idx in slot_order:
+            slot = _group_lookup(name_slots, name_slots_any, node_id, source_tag, slot_idx, global_idx)
+            if not slot:
                 continue
-
-        # Deduplicate with smarter preference:
-        # 1. Group by normalized name (case-insensitive, ignore extension only if one side lacks one)
-        # 2. Within group, prefer entries with a real hash (not None, not 'N/A')
-        # 3. Preserve first occurrence ordering among equally valid candidates.
-        groups = {}
-
-        def norm_key(n):
-            try:
-                return n.lower()
-            except Exception:
-                return str(n)
-
-        for name_disp, mh, sm_final, sc_final in cleaned:
-            nk = norm_key(name_disp)
-            groups.setdefault(nk, []).append((name_disp, mh, sm_final, sc_final))
-        dedup = []
-        for nk, entries in groups.items():
-            # Partition by hash validity
-            with_hash = [e for e in entries if e[1] and isinstance(e[1], str) and e[1].upper() != "N/A"]
-            chosen = with_hash[0] if with_hash else entries[0]
-            dedup.append(chosen)
-
-        # Attempt to parse aggregated lora_syntax / loaded_loras text if present and add missing entries
-        try:
-            aggregated_text_candidates = []
-            # Inputs may have captured raw text fields under the same metafield names
-            # but we filtered earlier; search generic prompt fields
-            possible_meta_text_fields = [
-                MetaField.POSITIVE_PROMPT,
-                MetaField.NEGATIVE_PROMPT,
-            ]
-            for mf in possible_meta_text_fields:
-                vals = inputs.get(mf, [])
-                for v in vals:
-                    try:
-                        s = Capture._extract_value(v)
-                        if isinstance(s, str) and "<lora:" in s.lower():
-                            aggregated_text_candidates.append(s)
-                    except Exception:
-                        pass  # Value extraction may fail - skip this value
-            import re as _re
-
-            syntax_pattern = _re.compile(
-                r"<lora:([^:>]+):([0-9]*\.?[0-9]+)(?::([0-9]*\.?[0-9]+))?>",
-                _re.IGNORECASE,
+            name_disp = slot.get("name_value")
+            if not name_disp or cls._is_invalid_lora_name(name_disp):
+                continue
+            sm_final = slot.get("tuple_sm")
+            if sm_final is None:
+                sm_final = _group_lookup(
+                    strength_model_slots,
+                    strength_model_slots_any,
+                    node_id,
+                    source_tag,
+                    slot_idx,
+                    global_idx,
+                )
+            sc_final = slot.get("tuple_sc")
+            if sc_final is None:
+                sc_final = _group_lookup(
+                    strength_clip_slots,
+                    strength_clip_slots_any,
+                    node_id,
+                    source_tag,
+                    slot_idx,
+                    global_idx,
+                )
+            resolved_hash = cls._resolve_lora_hash(
+                name_disp,
+                _group_lookup(hash_slots, hash_slots_any, node_id, source_tag, slot_idx, global_idx),
+                slot.get("lookup_token"),
             )
-            for blob in aggregated_text_candidates:
-                for name, ms_str, cs_str in syntax_pattern.findall(blob):
-                    try:
-                        ms = float(ms_str)
-                    except Exception:
-                        ms = 1.0
-                    try:
-                        cs = float(cs_str) if cs_str else ms
-                    except Exception:
-                        cs = ms
-                    # Skip if already present by name (case-insensitive) OR present with a real hash
-                    norm_name = name.lower()
-                    already = False
-                    for existing_name, existing_hash, _, _ in dedup:
-                        base_existing = existing_name.lower()
-                        if base_existing == norm_name:
-                            already = True
-                            break
-                    if already:
-                        continue
-                    # Hash attempt: rely on calc_lora_hash if available via name; fallback to name stub
-                    # Reuse global calc_lora_hash if imported at module level; fallback None
-                    try:
-                        _calc_lora_hash = calc_lora_hash  # type: ignore
-                    except Exception:
-                        _calc_lora_hash = None
-                    try:
-                        lhash = _calc_lora_hash(name, None) if _calc_lora_hash else name
-                    except Exception:
-                        lhash = name
-                    dedup.append((name, lhash, ms, cs))
+            cleaned.append(_LoRARecord(name_disp, resolved_hash, sm_final, sc_final))
+
+        dedup = cls._deduplicate_lora_records(cleaned)
+        aggregate_error = False
+        try:
+            dedup = cls._append_loras_from_text(inputs, dedup)
         except Exception as e:
+            aggregate_error = True
             logger.debug("[Metadata Lib] LoRA aggregated syntax parse failed: %r", e)
-            # Insert a visible placeholder so user can see something went wrong
+        return dedup, aggregate_error
+
+    @staticmethod
+    def _deduplicate_lora_records(records: list[_LoRARecord]) -> list[_LoRARecord]:
+        """Collapse duplicate LoRA records, preferring hashed entries."""
+        if not records:
+            return []
+        groups: dict[str, list[_LoRARecord]] = {}
+
+        def norm_key(name: str) -> str:
             try:
-                if not any(k.startswith("Lora_") for k in pnginfo_dict.keys()):
-                    pnginfo_dict["Lora_0 Model name"] = "error: see log"
-                    pnginfo_dict["Lora_0 Model hash"] = "error"
+                return name.lower()
             except Exception:
-                pass  # Error placeholder insertion may fail - continue anyway
+                return str(name)
 
-        # Stable sort: original order of appearance already preserved in dedup
-        for index, (name_disp, mh, sm_final, sc_final) in enumerate(dedup):
-            prefix = f"Lora_{index}"
-            pnginfo_dict[f"{prefix} Model name"] = name_disp
-            pnginfo_dict[f"{prefix} Model hash"] = mh
-            if sm_final is not None:
-                pnginfo_dict[f"{prefix} Strength model"] = sm_final
-            if sc_final is not None:
-                pnginfo_dict[f"{prefix} Strength clip"] = sc_final
+        for record in records:
+            key = norm_key(record.name)
+            groups.setdefault(key, []).append(record)
 
-        return pnginfo_dict
+        dedup: list[_LoRARecord] = []
+        for key in groups:
+            entries = groups[key]
+            with_hash = [e for e in entries if isinstance(e.hash, str) and e.hash and e.hash.upper() != "N/A"]
+            dedup.append(with_hash[0] if with_hash else entries[0])
+        return dedup
+
+    @classmethod
+    def _append_loras_from_text(cls, inputs, existing: list[_LoRARecord]) -> list[_LoRARecord]:
+        """Scan prompt text for ``<lora:...>`` syntax and extend the record list.
+
+        Args:
+            inputs (dict): Metadata captured before the save node.
+            existing (list[_LoRARecord]): Records derived from explicit nodes.
+
+        Returns:
+            list[_LoRARecord]: Combined records with inline references included.
+        """
+        inline_sources = {
+            str(x)
+            for x in inputs.get("__inline_prompt_nodes__", ())
+            if isinstance(x, str)
+        }
+        if not inline_sources:
+            return existing
+
+        aggregated_text_candidates = []
+        for mf in (MetaField.POSITIVE_PROMPT, MetaField.NEGATIVE_PROMPT):
+            vals = inputs.get(mf, [])
+            for v in vals:
+                try:
+                    node_ref = None
+                    if isinstance(v, list | tuple) and v:
+                        node_ref = str(v[0])
+                    if node_ref is None or node_ref not in inline_sources:
+                        continue
+                    s = Capture._extract_value(v)
+                    if isinstance(s, str) and "<lora:" in s.lower():
+                        aggregated_text_candidates.append(s)
+                except Exception as e:
+                    logging.debug("Failed to extract LoRA from prompt value %r: %s", v, e)
+        if not aggregated_text_candidates:
+            return existing
+
+        pattern = re.compile(
+            r"<lora:([^:>]+):([0-9]*\.?[0-9]+)(?::([0-9]*\.?[0-9]+))?>",
+            re.IGNORECASE,
+        )
+        compare_keys = {cls._normalize_lora_key(rec.name) for rec in existing}
+        for blob in aggregated_text_candidates:
+            for name, ms_str, cs_str in pattern.findall(blob):
+                try:
+                    ms = float(ms_str)
+                except Exception:
+                    ms = 1.0
+                try:
+                    cs = float(cs_str) if cs_str else ms
+                except Exception:
+                    cs = ms
+                display_name = Capture._clean_name(name, drop_extension=False)
+                key = cls._normalize_lora_key(display_name)
+                if key in compare_keys:
+                    continue
+                try:
+                    lhash = calc_lora_hash(name, [])
+                except Exception:
+                    lhash = name
+                existing.append(_LoRARecord(display_name, lhash, ms, cs))
+                compare_keys.add(key)
+        return existing
+
+    @staticmethod
+    def _normalize_lora_key(name: str) -> str:
+        """Normalize LoRA names for case-insensitive comparisons."""
+        try:
+            return name.lower()
+        except Exception:
+            return str(name)
+
+    @staticmethod
+    def _is_invalid_lora_name(name: str) -> bool:
+        """Reject empty, placeholder, or purely numeric LoRA names."""
+        if not name:
+            return True
+        lowered = name.strip().lower()
+        if lowered in {"none", "n/a", ""}:
+            return True
+        stripped = name.strip()
+        if any(ch in stripped for ch in ("/", "\\")):
+            return False
+        if any(ch.isalpha() for ch in stripped):
+            return False
+        try:
+            float(stripped)
+            return True
+        except Exception:
+            return False
+
+    @staticmethod
+    def _resolve_lora_hash(name: str, captured_hash, lookup_token=None) -> str | None:
+        """Attempt to compute a LoRA hash, falling back to captured text.
+
+        Attempts to compute the hash for a LoRA using the provided
+        `name` and `lookup_token`. If computation fails, it falls back to the
+        `captured_hash`."""
+
+        def _normalize(value) -> str | None:
+            if value is None:
+                return None
+            try:
+                text = str(value).strip()
+            except Exception:
+                return None
+            if not text or text.upper() == "N/A":
+                return None
+            return text
+
+        tokens = []
+        if lookup_token not in (None, ""):
+            tokens.append(lookup_token)
+        tokens.append(name)
+
+        for token in tokens:
+            try:
+                computed = calc_lora_hash(token, [])
+            except Exception:
+                computed = None
+            computed_norm = _normalize(computed)
+            if computed_norm:
+                return computed_norm
+
+        return _normalize(captured_hash)
 
     @classmethod
     def gen_embeddings(cls, inputs):
+        """Format embedding names and hashes into PNGInfo fields."""
         pnginfo_dict = {}
 
         embedding_names = inputs.get(MetaField.EMBEDDING_NAME, [])
@@ -2284,20 +2758,14 @@ class Capture:
 
     @classmethod
     def get_sampler_for_civitai(cls, sampler_names, schedulers):
-        """
-        Get the pretty sampler name for Civitai in the form of `<Sampler Name> <Scheduler name>`.
-            - `dpmpp_2m` and `karras` will return `DPM++ 2M Karras`
+        """Return a Civitai-compatible sampler string from captured nodes.
 
-        If there is a matching sampler name but no matching scheduler name, return only the matching sampler name.
-            - `dpmpp_2m` and `exponential` will return only `DPM++ 2M`
+        Args:
+            sampler_names (list): Candidate sampler tuples or strings.
+            schedulers (list): Candidate scheduler tuples or strings.
 
-        if there is no matching sampler and scheduler name, return `<sampler_name>_<scheduler_name>`
-            - `ipndm` and `normal` will return `ipndm`
-            - `ipndm` and `karras` will return `ipndm_karras`
-
-        Reference: https://github.com/civitai/civitai/blob/main/src/server/common/constants.ts
-
-        Last update: https://github.com/civitai/civitai/blob/a2e6d267eefe6f44811a640c570739bcb078e4a5/src/server/common/constants.ts#L138-L165
+        Returns:
+            str: Formatted sampler value (may be empty when none qualify).
         """
 
         def sampler_with_karras_exponential(sampler, scheduler):
@@ -2387,9 +2855,7 @@ class Capture:
         if _debug_prompts_enabled():
             try:
                 logger.debug(
-                    cstr(
-                        "[Metadata Debug] Civitai mapper unwrapped sampler=%r scheduler=%r (pre-scan)"
-                    ).msg,
+                    cstr("[Metadata Debug] Civitai mapper unwrapped sampler=%r scheduler=%r (pre-scan)").msg,
                     sampler,
                     scheduler,
                 )
@@ -2412,11 +2878,7 @@ class Capture:
         if not sampler and sampler_names:
             raw_entry = sampler_names[0]
             try:
-                raw_value = (
-                    raw_entry[1]
-                    if isinstance(raw_entry, list | tuple) and len(raw_entry) > 1
-                    else raw_entry
-                )
+                raw_value = raw_entry[1] if isinstance(raw_entry, list | tuple) and len(raw_entry) > 1 else raw_entry
             except Exception:
                 raw_value = raw_entry
             # Attempt to mine known sampler tokens from attributes / __dict__
@@ -2467,9 +2929,7 @@ class Capture:
         if _debug_prompts_enabled():
             try:
                 logger.debug(
-                    cstr(
-                        "[Metadata Debug] Civitai mapper tokens sampler_l=%r scheduler_l=%r"
-                    ).msg,
+                    cstr("[Metadata Debug] Civitai mapper tokens sampler_l=%r scheduler_l=%r").msg,
                     sampler_l,
                     scheduler_l,
                 )
@@ -2480,9 +2940,7 @@ class Capture:
         if not sampler:
             if _debug_prompts_enabled():
                 logger.debug(
-                    cstr(
-                        "[Metadata Debug] Civitai mapper: missing sampler; returning scheduler=%r"
-                    ).msg,
+                    cstr("[Metadata Debug] Civitai mapper: missing sampler; returning scheduler=%r").msg,
                     scheduler,
                 )
             return scheduler or ""

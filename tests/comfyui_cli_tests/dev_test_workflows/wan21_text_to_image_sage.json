@@ -1,0 +1,197 @@
+{
+  "1": {
+    "inputs": {
+      "clip_name": "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+      "type": "wan",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "Load CLIP"
+    }
+  },
+  "2": {
+    "inputs": {
+      "vae_name": "wan_2.1_vae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "3": {
+    "inputs": {
+      "text": "色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走",
+      "clip": [
+        "1",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Negative Prompt)"
+    }
+  },
+  "4": {
+    "inputs": {
+      "text": "a fox moving quickly in a beautiful winter scenery nature trees mountains daytime tracking camera",
+      "clip": [
+        "1",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Positive Prompt)"
+    }
+  },
+  "5": {
+    "inputs": {
+      "unet_name": "flux\\wan\\Wan2_1-T2V-14B_fp8_e4m3fn_scaled_KJ.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "Load Diffusion Model"
+    }
+  },
+  "6": {
+    "inputs": {
+      "seed": 706190577933098,
+      "steps": 4,
+      "cfg": 1,
+      "sampler_name": "dpmpp_2m",
+      "scheduler": "karras",
+      "denoise": 1,
+      "model": [
+        "7",
+        0
+      ],
+      "positive": [
+        "4",
+        0
+      ],
+      "negative": [
+        "3",
+        0
+      ],
+      "latent_image": [
+        "8",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler"
+    }
+  },
+  "7": {
+    "inputs": {
+      "shift": 8,
+      "model": [
+        "11",
+        0
+      ]
+    },
+    "class_type": "ModelSamplingSD3",
+    "_meta": {
+      "title": "ModelSamplingSD3"
+    }
+  },
+  "8": {
+    "inputs": {
+      "width": 800,
+      "height": 448,
+      "length": 1,
+      "batch_size": 1
+    },
+    "class_type": "EmptyHunyuanLatentVideo",
+    "_meta": {
+      "title": "EmptyHunyuanLatentVideo"
+    }
+  },
+  "9": {
+    "inputs": {
+      "samples": [
+        "6",
+        0
+      ],
+      "vae": [
+        "2",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "10": {
+    "inputs": {
+      "filename_prefix": "Test\\Wan21",
+      "sampler_selection_method": "Farthest",
+      "sampler_selection_node_id": 0,
+      "file_format": "png",
+      "lossless_webp": true,
+      "quality": 100,
+      "max_jpeg_exif_kb": 60,
+      "save_workflow_json": false,
+      "add_counter_to_filename": true,
+      "civitai_sampler": false,
+      "guidance_as_cfg": false,
+      "save_workflow_image": true,
+      "include_lora_summary": false,
+      "suppress_missing_class_log": true,
+      "model_hash_log": "none",
+      "images": [
+        "9",
+        0
+      ]
+    },
+    "class_type": "SaveImageWithMetaDataUniversal",
+    "_meta": {
+      "title": "Save Image w/ Metadata Universal"
+    }
+  },
+  "11": {
+    "inputs": {
+      "lora_name": "wan\\turbo\\lightx2v_T2V_14B_cfg_step_distill_v2_lora_rank64_bf16_.safetensors",
+      "strength_model": 1,
+      "model": [
+        "13",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "LoraLoaderModelOnly"
+    }
+  },
+  "13": {
+    "inputs": {
+      "sage_attention": "auto",
+      "allow_compile": false,
+      "model": [
+        "14",
+        0
+      ]
+    },
+    "class_type": "PathchSageAttentionKJ",
+    "_meta": {
+      "title": "Patch Sage Attention KJ"
+    }
+  },
+  "14": {
+    "inputs": {
+      "backend": "inductor",
+      "model": [
+        "5",
+        0
+      ]
+    },
+    "class_type": "TorchCompileModel",
+    "_meta": {
+      "title": "TorchCompileModel"
+    }
+  }
+}

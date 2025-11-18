@@ -1,3 +1,17 @@
+"""The core image saver node for writing images and UniMeta metadata.
+
+This module bridges ComfyUI's saver protocol with UniMeta's capture pipeline.
+It orchestrates Trace/Capture traversal, filename token expansion, metadata
+generation (PNGInfo/EXIF/WebP), JPEG fallback stages, optional workflow dumps,
+and hashing sidecars while remaining importable in isolated pytest runs via
+runtime stubs.
+
+This module provides the `SaveImageWithMetaDataUniversal` class, which is the
+primary node responsible for saving images and embedding rich metadata. It
+handles workflow tracing, metadata capture, filename token expansion, and
+various image format specifics, including JPEG EXIF fallback logic.
+"""
+
 import json
 import logging
 import os
@@ -10,12 +24,14 @@ from datetime import datetime
 # importing this module never hard-fails just because the test harness executed
 # imports in a different order.
 try:  # pragma: no cover - normal runtime path
-    import folder_paths  # type: ignore
+    import folder_paths
 except ModuleNotFoundError:  # pragma: no cover - isolated test fallback
+
     class _FolderPathsStub:  # minimal surface used by this module
         def __init__(self):
             import os as _os
-            self._out = _os.path.abspath("_test_outputs")
+
+            self._out = _os.path.abspath("tests/_test_outputs")
             try:
                 _os.makedirs(self._out, exist_ok=True)
             except OSError:
@@ -32,33 +48,39 @@ except ModuleNotFoundError:  # pragma: no cover - isolated test fallback
 
         def get_full_path(self, kind, name):  # noqa: D401
             return name
-    folder_paths = _FolderPathsStub()  # type: ignore
+
+    folder_paths = _FolderPathsStub()
 import numpy as np
 from ..utils.color import cstr
+
 try:  # Comfy runtime provides this; tests may not
-    from comfy.cli_args import args  # type: ignore
+    from comfy.cli_args import args
 except (ImportError, ModuleNotFoundError):  # fall back in isolated tests
+
     class _ArgsStub:
         disable_metadata = False
 
-    args = _ArgsStub()  # type: ignore
+    args = _ArgsStub()
 from PIL import Image
 from PIL.PngImagePlugin import PngInfo
 
 try:  # Normal runtime
-    from .. import hook  # type: ignore
+    from .. import hook
 except (ImportError, ModuleNotFoundError):  # circular or missing in isolated test
+
     class _HookStub:  # minimal attributes used
         current_save_image_node_id = 0
         current_prompt = {}
 
     hook = _HookStub()  # type: ignore
+from .. import defs as defs_module
 from ..capture import Capture
-from ..defs import FORCED_INCLUDE_CLASSES
 from ..defs import CAPTURE_FIELD_LIST
+from ..defs import FORCED_INCLUDE_CLASSES
 from ..defs.combo import SAMPLER_SELECTION_METHOD
 from ..defs.samplers import SAMPLERS
 from ..trace import Trace
+from ..version import resolve_runtime_version
 
 logger = logging.getLogger(__name__)
 _DEBUG_VERBOSE = os.environ.get("METADATA_DEBUG", "0") not in (
@@ -68,12 +90,59 @@ _DEBUG_VERBOSE = os.environ.get("METADATA_DEBUG", "0") not in (
     None,
     "",
 )
+_RULES_VERSION_WARNING_EMITTED = False
+_REFRESH_RULES_WORKFLOW = "example_workflows/refresh-rules.json"
+
+
+def _maybe_warn_outdated_rules() -> None:
+    """Warns the user if their metadata rules are outdated.
+
+    This function checks the version of the loaded metadata rules against the
+    runtime version of the package. If the versions do not match or the rules
+    version is missing, it logs a warning message with instructions on how to
+    refresh the rules.
+    """
+    global _RULES_VERSION_WARNING_EMITTED
+    if _RULES_VERSION_WARNING_EMITTED:
+        return
+    runtime_version = resolve_runtime_version()
+    rules_version = getattr(defs_module, "LOADED_RULES_VERSION", None)
+    if not rules_version:
+        reason = "Metadata capture rules are missing a version stamp."
+    elif rules_version != runtime_version:
+        reason = (
+            "Metadata capture rules are out of date "
+            f"(rules={rules_version}, package={runtime_version})."
+        )
+    else:
+        return
+    guidance = (
+        "Refresh metadata capture rules via "
+    )
+    nodes_workflow = cstr("Metadata Rule Scanner").YELLOW + " + " + cstr("Save Custom Metadata Rules nodes").YELLOW + " " + \
+        "or run the refresh workflow at " + cstr(f"{_REFRESH_RULES_WORKFLOW}.").YELLOW
+    version_warning = cstr(f"[Metadata Loader] {reason} {guidance}").warn + nodes_workflow
+    logger.warning(version_warning)
+    _RULES_VERSION_WARNING_EMITTED = True
 
 
 class SaveImageWithMetaDataUniversal:
+    """A ComfyUI node to save images with universal node support for metadata embedding.
+
+    This node is responsible for saving images in various formats (PNG, JPEG,
+    WebP) while embedding comprehensive metadata captured from the workflow.
+    It supports dynamic filename generation, workflow tracing to find the
+    correct sampler, and handles the complexities of different metadata
+    formats, including size limitations in JPEGs.
+    """
     SAVE_FILE_FORMATS = ["png", "jpeg", "webp"]
 
     def __init__(self):
+        """Initialize the `SaveImageWithMetaDataUniversal` node.
+
+        This constructor sets up the initial state of the node, including the
+        output directory and default compression level.
+        """
         self.output_dir = folder_paths.get_output_directory()
         self.type = "output"
         self.prefix_append = ""
@@ -82,7 +151,16 @@ class SaveImageWithMetaDataUniversal:
         self._last_fallback_stages: list[str] = []
 
     @classmethod
-    def INPUT_TYPES(s):  # noqa: N802,N804 (ComfyUI API requires this signature)
+    def INPUT_TYPES(cls):  # noqa: N802
+        """Define the input types for the `SaveImageWithMetaDataUniversal` node.
+
+        This method specifies the inputs that the node accepts, including the
+        images to be saved, filename options, sampler selection method, file
+        format, and various other settings to control the output and metadata.
+
+        Returns:
+            dict: A dictionary defining the input schema for the node.
+        """
         return {
             "required": {
                 "images": ("IMAGE",),
@@ -119,7 +197,7 @@ class SaveImageWithMetaDataUniversal:
                     },
                 ),
                 "file_format": (
-                    s.SAVE_FILE_FORMATS,
+                    cls.SAVE_FILE_FORMATS,
                     {
                         "tooltip": (
                             "Image format for output. PNG retains full metadata; JPEG/WebP may strip or "
@@ -133,9 +211,7 @@ class SaveImageWithMetaDataUniversal:
                     "BOOLEAN",
                     {
                         "default": True,
-                        "tooltip": (
-                            "If using WebP, toggles lossless mode (ignores quality slider)."
-                        ),
+                        "tooltip": ("If using WebP, toggles lossless mode (ignores quality slider)."),
                     },
                 ),
                 "quality": (
@@ -144,16 +220,14 @@ class SaveImageWithMetaDataUniversal:
                         "default": 100,
                         "min": 1,
                         "max": 100,
-                        "tooltip": (
-                            "Quality for lossy formats (JPEG/WebP lossy). 100 = best quality, larger files."
-                        ),
+                        "tooltip": ("Quality for lossy formats (JPEG/WebP lossy). 100 = best quality, larger files."),
                     },
                 ),
                 "max_jpeg_exif_kb": (
                     "INT",
                     {
                         "default": 60,
-                        "min": 4,
+                        "min": 1,
                         "max": 64,  # Hard UI cap: real single APP1 EXIF segment practical limit ~64KB
                         "step": 1,
                         "tooltip": (
@@ -169,9 +243,7 @@ class SaveImageWithMetaDataUniversal:
                     "BOOLEAN",
                     {
                         "default": False,
-                        "tooltip": (
-                            "Save the workflow as a JSON file alongside the image."
-                        ),
+                        "tooltip": ("Save the workflow as a JSON file alongside the image."),
                     },
                 ),
                 "add_counter_to_filename": (
@@ -217,9 +289,7 @@ class SaveImageWithMetaDataUniversal:
                     "BOOLEAN",
                     {
                         "default": True,
-                        "tooltip": (
-                            "If disabled, the workflow data will not be saved in the image metadata."
-                        ),
+                        "tooltip": ("If disabled, the workflow data will not be saved in the image metadata."),
                     },
                 ),
                 "include_lora_summary": (
@@ -292,30 +362,55 @@ class SaveImageWithMetaDataUniversal:
         guidance_as_cfg=False,
         suppress_missing_class_log=False,
     ):
-        """Persist images to disk with rich, optionally extended metadata.
+        """Save images to disk with embedded metadata.
+
+        This is the main execution method for the node. It processes each image,
+        generates the metadata, formats the filename, and saves the image in the
+        specified format. It also handles the logic for JPEG EXIF size limits and
+        fallback mechanisms.
 
         Args:
-            images: Batch tensor list from upstream nodes.
-            filename_prefix: Template (supports tokens like %seed%, %width%).
-            sampler_selection_method: Strategy for sampler field selection.
-            sampler_selection_node_id: Node id considered for sampler extraction.
-            file_format: Output image format ('png', 'jpeg', 'webp').
-            lossless_webp: Whether to use lossless mode for WEBP.
-            quality: Quality (1-100) for lossy formats.
-            save_workflow_json: Emit workflow JSON alongside saved image.
-            add_counter_to_filename: Append numeric counter to avoid collisions.
-            civitai_sampler: Emit Civitai compatible sampler key if True.
-            max_jpeg_exif_kb: Upper bound for JPEG EXIF size before fallback logic triggers.
-            extra_metadata: Additional user-provided key/value entries.
-            prompt: Full workflow prompt graph (JSON serializable) for embedding.
-            extra_pnginfo: Extra PNG info dictionary from upstream nodes.
-            save_workflow_image: If False, omit workflow from embedded metadata.
-            include_lora_summary: Override aggregated LoRA summary line inclusion.
-            force_include_node_class: Comma separated node class names to force include during rule scanning.
-            suppress_missing_class_log: Hide informational missing-class coverage log.
+            images (torch.Tensor): A batch of images to be saved.
+            filename_prefix (str, optional): The prefix for the output filename,
+                which can contain tokens such as `%seed%` or
+                `%date:yy-MM-dd%`. Defaults to "ComfyUI".
+            sampler_selection_method (str, optional): The method to select the
+                sampler node. Defaults to the first method in `SAMPLER_SELECTION_METHOD`.
+            sampler_selection_node_id (int, optional): The ID of the sampler node
+                to use when the selection method is "By node ID". Defaults to 0.
+            file_format (str, optional): The output file format. Defaults to "png".
+            model_hash_log (str, optional): The logging level for model hashing.
+                Defaults to "none".
+            lossless_webp (bool, optional): Whether to use lossless compression
+                for WebP images. Defaults to True.
+            quality (int, optional): The quality for lossy formats (JPEG/WebP).
+                Defaults to 100.
+            save_workflow_json (bool, optional): Whether to save the workflow as a
+                separate JSON file. Defaults to False.
+            add_counter_to_filename (bool, optional): Whether to add a counter
+                to the filename to prevent overwrites. Defaults to True.
+            civitai_sampler (bool, optional): Whether to add Civitai-compatible
+                sampler information. Defaults to False.
+            max_jpeg_exif_kb (int, optional): The maximum size of the EXIF data
+                in kilobytes for JPEGs. Defaults to 60.
+            extra_metadata (dict, optional): Additional metadata to be included.
+                Defaults to {}.
+            prompt (dict, optional): The workflow prompt. Injected by ComfyUI.
+                Defaults to None.
+            extra_pnginfo (dict, optional): Additional PNG info. Injected by
+                ComfyUI. Defaults to None.
+            save_workflow_image (bool, optional): Whether to save the workflow
+                data within the image metadata. Defaults to True.
+            include_lora_summary (bool, optional): Whether to include a summary
+                of LoRAs in the metadata. Defaults to True.
+            guidance_as_cfg (bool, optional): Whether to treat guidance as CFG
+                scale. Defaults to False.
+            suppress_missing_class_log (bool, optional): Whether to suppress
+                warnings about missing node classes. Defaults to False.
 
         Returns:
-            Tuple containing the original `images` tensor batch (ComfyUI node contract).
+            dict: A dictionary containing the UI data and the result, which
+                includes the original images for passthrough.
         """
         # Refresh definitions each run with smarter merge order. We pass a set
         # of classes seen from the SaveImage node back through the graph so the
@@ -332,12 +427,15 @@ class SaveImageWithMetaDataUniversal:
             required_classes.update(FORCED_INCLUDE_CLASSES)
         # Defer to node module export so tests can monkeypatch node.load_user_definitions
         from . import node as _node  # local import to avoid circular at module load
+
         _node.load_user_definitions(required_classes, suppress_missing_log=suppress_missing_class_log)
+        _maybe_warn_outdated_rules()
         # Ensure piexif references are patched via node module during tests
         piexif = _node.piexif  # noqa: F841 - used implicitly by subsequent code references
         # Apply unified hash logging preference
         try:
-            from ..defs import formatters as _formatters_mod  # type: ignore
+            from ..defs import formatters as _formatters_mod
+
             # Reinitialize hash logger only when the mode actually changes
             try:
                 new_mode = (model_hash_log or "none").lower()
@@ -539,9 +637,7 @@ class SaveImageWithMetaDataUniversal:
                             else:
                                 # Stage 2 fallback: trimmed parameter string (minimal)
                                 trimmed_parameters = (
-                                    self._build_minimal_parameters(parameters)
-                                    if parameters
-                                    else parameters
+                                    self._build_minimal_parameters(parameters) if parameters else parameters
                                 )
                                 if trimmed_parameters and trimmed_parameters != parameters:
                                     uc_trim = piexif.helper.UserComment.dump(trimmed_parameters, encoding="unicode")
@@ -585,15 +681,11 @@ class SaveImageWithMetaDataUniversal:
                         logger.debug(
                             cstr("[SaveImageWithMetaData] JPEG save EXIF=%s size=%s fallback=%s").msg,
                             "yes" if "exif" in save_kwargs else "no",
-                            exif_size if 'exif_size' in locals() else 0,
+                            exif_size if "exif_size" in locals() else 0,
                             fallback_stage,
                         )
                 except ValueError as e:
-                    if (
-                        "EXIF data is too long" in str(e)
-                        and file_format in {"jpeg", "jpg"}
-                        and "exif" in save_kwargs
-                    ):
+                    if "EXIF data is too long" in str(e) and file_format in {"jpeg", "jpg"} and "exif" in save_kwargs:
                         logger.warning(
                             "[SaveImageWithMetaData] Pillow rejected EXIF (%s). Retrying with COM marker fallback.",
                             e,
@@ -675,13 +767,23 @@ class SaveImageWithMetaDataUniversal:
 
     @staticmethod
     def _build_minimal_parameters(full_parameters: str) -> str:
-        """Return a trimmed parameter string keeping only a minimal compatibility allowlist.
+        """Generate a trimmed parameter string for JPEG fallback.
 
+        This method creates a minimal version of the parameter string to be used
+        when the full metadata exceeds the size limits for JPEG EXIF data. It
+        preserves the most critical information while dropping less essential
+        fields.
         Preserves: Prompt header lines, Negative prompt, and a reduced parameter key set:
             Steps, Sampler, CFG scale, Seed, Model, Model hash, VAE, VAE hash,
             All Lora_* fields, Hashes, Metadata generator version.
 
         Drops: Weight dtype, Size, Batch index/size, shifts, CLIP models, embeddings, extra custom keys.
+
+        Args:
+            full_parameters (str): The complete parameter string.
+
+        Returns:
+            str: The trimmed, minimal parameter string.
         """
         if not full_parameters:
             return full_parameters
@@ -731,6 +833,21 @@ class SaveImageWithMetaDataUniversal:
 
     @classmethod
     def gen_pnginfo(cls, sampler_selection_method, sampler_selection_node_id, save_civitai_sampler):
+        """Generate the PNG info dictionary from the workflow.
+
+        This method traces the workflow graph to identify the relevant sampler
+        and other nodes, then captures their input values to generate a
+        dictionary of metadata.
+
+        Args:
+            sampler_selection_method (str): The method for selecting the sampler node.
+            sampler_selection_node_id (int): The ID of the sampler node to use.
+            save_civitai_sampler (bool): Whether to include Civitai-compatible
+                sampler info.
+
+        Returns:
+            dict: A dictionary containing the captured metadata.
+        """
         # get all node inputs
         inputs = Capture.get_inputs()
 
@@ -772,6 +889,19 @@ class SaveImageWithMetaDataUniversal:
 
     @classmethod
     def format_filename(cls, filename, pnginfo_dict):
+        """Format the output filename using tokens from the metadata.
+
+        This method replaces tokens such as `%seed%`, `%width%`, and `%date%`
+        in the filename prefix with their corresponding values from the
+        `pnginfo_dict`.
+
+        Args:
+            filename (str): The filename prefix containing tokens.
+            pnginfo_dict (dict): The dictionary of metadata.
+
+        Returns:
+            str: The formatted filename.
+        """
         result = re.findall(cls.pattern_format, filename)
         for segment in result:
             parts = segment.replace("%", "").split(":")

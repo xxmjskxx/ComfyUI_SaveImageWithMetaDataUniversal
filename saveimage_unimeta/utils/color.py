@@ -1,7 +1,24 @@
+"""A utility for creating colored string output in the console.
+
+This module provides the `cstr` class, a string subclass that allows for easy
+colorization and styling of text using ANSI escape codes. It is adapted from
+the implementation in the `WAS_Node_Suite` for ComfyUI.
+"""
 # mostly from https://github.com/ltdrdata/was-node-suite-comfyui/blob/main/WAS_Node_Suite.py
 
+
 class cstr(str):  # noqa: N801 - external public API relies on lowercase name
+    """A string subclass for creating colored and styled console output.
+
+    This class allows for chaining of color and style attributes to a string,
+    which are then translated into ANSI escape codes. For example,
+    `cstr("Hello").red.bold` will produce a red and bold "Hello" in the
+    console.
+    """
+
     class color:  # noqa: N801 - nested helper intentionally lowercase for attribute style access
+        """A container for ANSI escape codes for colors and styles."""
+
         END = "\33[0m"
         BOLD = "\33[1m"
         ITALIC = "\33[3m"
@@ -53,15 +70,40 @@ class cstr(str):  # noqa: N801 - external public API relies on lowercase name
 
         @staticmethod
         def add_code(name, code):
+            """Add a new color or style code to the `color` class.
+
+            Args:
+                name (str): The name of the new code.
+                code (str): The ANSI escape code.
+
+            Raises:
+                ValueError: If a code with the same name already exists.
+            """
             if not hasattr(cstr.color, name.upper()):
                 setattr(cstr.color, name.upper(), code)
             else:
                 raise ValueError(f"'cstr' object already contains a code with the name '{name}'.")
 
     def __new__(cls, text):
+        """Create a new `cstr` instance."""
         return super().__new__(cls, text)
 
     def __getattr__(self, attr):
+        """Apply a color or style to the string.
+
+        This method is called when an attribute is accessed on a `cstr`
+        instance. It looks up the corresponding ANSI escape code in the `color`
+        class and wraps the string with the code.
+
+        Args:
+            attr (str): The name of the color or style attribute.
+
+        Returns:
+            cstr: A new `cstr` instance with the applied color or style.
+
+        Raises:
+            AttributeError: If the attribute is not a valid color or style.
+        """
         if attr.lower().startswith("_cstr"):
             code = getattr(self.color, attr.upper().lstrip("_cstr"))
             modified_text = self.replace(f"__{attr[1:]}__", f"{code}")
@@ -76,6 +118,7 @@ class cstr(str):  # noqa: N801 - external public API relies on lowercase name
             raise AttributeError(f"'cstr' object has no attribute '{attr}'")
 
     def print(self, **kwargs):
+        """Print the colored string to the console."""
         print(self, **kwargs)
 
 
@@ -85,6 +128,10 @@ cstr.color.add_code("msg_o", f"{cstr.color.DARKORANGE}SaveImageWithMetaData: {cs
 cstr.color.add_code(
     "warning",
     f"{cstr.color.LIGHTYELLOW}[Warning] {cstr.color.BLUE}SaveImageWithMetaData: {cstr.color.END}",
+)
+cstr.color.add_code(
+    "warn",
+    f"{cstr.color.YELLOW}[Warning] {cstr.color.DARKORANGE}SaveImageWithMetaData: {cstr.color.END}",
 )
 cstr.color.add_code(
     "error",

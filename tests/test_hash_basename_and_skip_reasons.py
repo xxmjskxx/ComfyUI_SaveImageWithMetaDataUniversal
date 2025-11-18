@@ -9,7 +9,7 @@ def test_model_basename_retry(tmp_path, monkeypatch):
     model_file.parent.mkdir(parents=True, exist_ok=True)
     model_file.write_text("content-retry", encoding="utf-8")
 
-    import folder_paths  # type: ignore
+    import folder_paths
 
     # First lookup with token 'some/sub/dirs/retryModel' should fail direct resolution; basename retry should succeed
     def _gf(kind, name):
@@ -18,9 +18,9 @@ def test_model_basename_retry(tmp_path, monkeypatch):
             return str(model_file)
         return None
 
-    monkeypatch.setattr(folder_paths, 'get_full_path', _gf)
+    monkeypatch.setattr(folder_paths, "get_full_path", _gf)
     captured: list[str] = []
-    monkeypatch.setattr(formatters, '_log', lambda k, m, level=logging.INFO: captured.append(m))
+    monkeypatch.setattr(formatters, "_log", lambda k, m, level=logging.INFO: captured.append(m))
     formatters.set_hash_log_mode("debug")
     # Include extension in the provided token path to reduce dependence on extension probing nuances
     h = formatters.calc_model_hash("some/sub/dirs/retryModel.safetensors", None)
@@ -32,7 +32,7 @@ def test_model_basename_retry(tmp_path, monkeypatch):
 
 def test_hash_skipped_reason_debug(monkeypatch):
     captured: list[str] = []
-    monkeypatch.setattr(formatters, '_log', lambda k, m, level=logging.INFO: captured.append(m))
+    monkeypatch.setattr(formatters, "_log", lambda k, m, level=logging.INFO: captured.append(m))
     formatters.set_hash_log_mode("debug")
     # Unresolvable model
     h1 = formatters.calc_model_hash("does_not_exist_model_123", None)

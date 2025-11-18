@@ -36,8 +36,8 @@ def test_startup_message_only_once():
         if "METADATA_TEST_MODE" in os.environ:
             del os.environ["METADATA_TEST_MODE"]
         # Import the module multiple times
-        with patch(NCM_ATTR_PATH, {'TestNode': 'TestClass'}):
-            with patch(NDNM_ATTR_PATH, {'TestNode': 'Test Node'}):
+        with patch(NCM_ATTR_PATH, {"TestNode": "TestClass"}):
+            with patch(NDNM_ATTR_PATH, {"TestNode": "Test Node"}):
                 # First import
                 spec = importlib.util.find_spec(module_name)
                 if spec is None:
@@ -61,8 +61,7 @@ def test_startup_message_only_once():
         # Should only have one startup message despite multiple imports
         expected_max = 1
         assert startup_messages <= expected_max, (
-            f"Expected at most {expected_max} startup message, got {startup_messages}. "
-            f"Log output: {log_output}"
+            f"Expected at most {expected_max} startup message, got {startup_messages}. " f"Log output: {log_output}"
         )
 
     finally:
