@@ -242,7 +242,7 @@ def _merge_user_capture_entry(node_name: str, rules, allowed: set[str] | None) -
         node_name (str): The name of the node the rule applies to.
         rules (dict): The dictionary of rules to be merged.
     """
-    if allowed is not None and node_name not in allowed:
+    if allowed is not None and node_name not in allowed and node_name not in CAPTURE_FIELD_LIST:
         return
     container = CAPTURE_FIELD_LIST.setdefault(node_name, {})
     if isinstance(container, MutableMapping) and isinstance(rules, Mapping):
@@ -259,7 +259,7 @@ def _merge_user_sampler_entry(key: str, val, allowed: set[str] | None) -> None:
         key (str): The key for the sampler entry.
         val (dict): The dictionary of sampler information to be merged.
     """
-    if allowed is not None and key not in allowed:
+    if allowed is not None and key not in allowed and key not in SAMPLERS:
         return
     if not isinstance(val, Mapping):
         logger.warning(
