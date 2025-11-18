@@ -717,7 +717,7 @@ class MetadataRuleScanner:
             if missing_lens and not _SCANNER_LENS_NOTICE_EMITTED:
                 logger.info(
                     "[Metadata Scanner] Missing-only lens active (include_existing=False). "
-                    "Set include_existing=True for previous inclusive behavior."
+                    "Set include_existing=True for inclusive behavior."
                 )
                 _SCANNER_LENS_NOTICE_EMITTED = True
         except NameError:  # first use
@@ -725,7 +725,7 @@ class MetadataRuleScanner:
             if missing_lens:
                 logger.info(
                     "[Metadata Scanner] Missing-only lens active (include_existing=False). "
-                    "Set include_existing=True for previous inclusive behavior."
+                    "Set include_existing=True for inclusive behavior."
                 )
 
         if missing_lens:

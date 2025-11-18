@@ -88,24 +88,20 @@ CAPTURE_FIELD_LIST = {
         MetaField.POSITIVE_PROMPT: {
             "field_name": "positive_prompt",
             "validate": is_positive_prompt,
-            "inline_lora_candidate": True,
         },
         MetaField.NEGATIVE_PROMPT: {
             "field_name": "negative_prompt",
             "validate": is_negative_prompt,
-            "inline_lora_candidate": True,
         },
     },
     "WanVideoTextEncodeCached": {
         MetaField.POSITIVE_PROMPT: {
             "field_name": "positive_prompt",
             "validate": is_positive_prompt,
-            "inline_lora_candidate": True,
         },
         MetaField.NEGATIVE_PROMPT: {
             "field_name": "negative_prompt",
             "validate": is_negative_prompt,
-            "inline_lora_candidate": True,
         },
         MetaField.CLIP_MODEL_NAME: {"field_name": "model_name"},
     },
@@ -113,12 +109,10 @@ CAPTURE_FIELD_LIST = {
         MetaField.POSITIVE_PROMPT: {
             "field_name": "prompt",
             "validate": is_positive_prompt,
-            "inline_lora_candidate": True,
         },
         MetaField.NEGATIVE_PROMPT: {
             "field_name": "prompt",
             "validate": is_negative_prompt,
-            "inline_lora_candidate": True,
         },
     },
     # Sampler: captures steps, cfg, shift, seed, denoise; splits combined scheduler field

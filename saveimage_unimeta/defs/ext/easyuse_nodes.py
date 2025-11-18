@@ -177,11 +177,9 @@ CAPTURE_FIELD_LIST = {
         MetaField.CLIP_SKIP: {"field_name": "clip_skip", "format": convert_skip_clip},
         MetaField.POSITIVE_PROMPT: {
             "field_name": "positive",
-            "inline_lora_candidate": True,
         },
         MetaField.NEGATIVE_PROMPT: {
             "field_name": "negative",
-            "inline_lora_candidate": True,
         },
         MetaField.IMAGE_WIDTH: {"field_name": "empty_latent_width"},
         MetaField.IMAGE_HEIGHT: {"field_name": "empty_latent_height"},
@@ -196,11 +194,9 @@ CAPTURE_FIELD_LIST = {
         MetaField.CLIP_SKIP: {"field_name": "clip_skip", "format": convert_skip_clip},
         MetaField.POSITIVE_PROMPT: {
             "field_name": "positive",
-            "inline_lora_candidate": True,
         },
         MetaField.NEGATIVE_PROMPT: {
             "field_name": "negative",
-            "inline_lora_candidate": True,
         },
         MetaField.IMAGE_WIDTH: {"field_name": "empty_latent_width"},
         MetaField.IMAGE_HEIGHT: {"field_name": "empty_latent_height"},

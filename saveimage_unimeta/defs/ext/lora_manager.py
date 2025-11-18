@@ -18,6 +18,7 @@ Attributes:
                                selectors to parse and extract LoRA data.
 """
 # https://github.com/willmiao/ComfyUI-Lora-Manager
+import json
 import logging
 
 from ...utils.lora import (
@@ -90,6 +91,94 @@ def _parse_lora_syntax(text):
     return filtered_names, filtered_hashes, filtered_model_strengths, filtered_clip_strengths
 
 
+def _coerce_float(value):
+    try:
+        if value is None:
+            return None
+        if isinstance(value, int | float):
+            return float(value)
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                return None
+            return float(stripped)
+    except Exception:
+        return None
+    return None
+
+
+def _flatten_singleton(value):
+    while isinstance(value, list | tuple) and len(value) == 1:
+        value = value[0]
+    return value
+
+
+def _parse_stack_entries_from_value(value):
+    entries: list[tuple[str | None, float | None, float | None]] = []
+    value = _flatten_singleton(value)
+    if isinstance(value, str):
+        stripped = value.strip()
+        if stripped.startswith("["):
+            try:
+                parsed = json.loads(stripped)
+            except Exception:
+                return []
+            return _parse_stack_entries_from_value(parsed)
+        return []
+    if isinstance(value, dict):
+        name = value.get("name") or value.get("model")
+        if name is not None and any(k in value for k in ("strength", "clipStrength", "clip_strength")):
+            ms = value.get("strength") or value.get("model_strength") or value.get("weight")
+            cs = value.get("clipStrength") or value.get("clip_strength") or ms
+            entries.append((name, _coerce_float(ms), _coerce_float(cs)))
+            return entries
+        for candidate in value.values():
+            entries.extend(_parse_stack_entries_from_value(candidate))
+        return entries
+    if isinstance(value, list | tuple):
+        if value and all(isinstance(item, list | tuple | dict) for item in value):
+            for item in value:
+                entries.extend(_parse_stack_entries_from_value(item))
+            return entries
+        if value:
+            name = value[0]
+            ms = value[1] if len(value) > 1 else None
+            cs = value[2] if len(value) > 2 else ms
+            entries.append((name, _coerce_float(ms), _coerce_float(cs)))
+        return entries
+    return entries
+
+
+def _build_result_from_entries(raw_entries):
+    filtered = [(name, ms, cs if cs is not None else ms) for name, ms, cs in raw_entries if name]
+    if not filtered:
+        return None
+    raw_names = [entry[0] for entry in filtered]
+    resolved_names = resolve_lora_display_names(raw_names)
+    names: list[str] = []
+    hashes: list[str] = []
+    model_strengths: list[float] = []
+    clip_strengths: list[float] = []
+    for raw, disp, (name, ms, cs) in zip(raw_names, resolved_names, filtered):
+        try:
+            names.append(disp)
+            hashes.append(calc_lora_hash(raw, []))
+            ms_val = ms if ms is not None else 1.0
+            cs_val = cs if cs is not None else ms_val
+            model_strengths.append(ms_val)
+            clip_strengths.append(cs_val)
+        except Exception:
+            continue
+    if not names:
+        return None
+    return {
+        "names": names,
+        "hashes": hashes,
+        "model_strengths": model_strengths,
+        "clip_strengths": clip_strengths,
+    }
+
+
 def _get_lora_data_from_node(node_id, input_data):
     """Extracts LoRA data from a node's input, utilizing a cache.
 
@@ -105,12 +194,27 @@ def _get_lora_data_from_node(node_id, input_data):
         dict: A dictionary containing the parsed LoRA data (names, hashes, etc.).
     """
     global _NODE_DATA_CACHE
+
+    # Prefer structured lora_stack inputs when present (covers Efficiency stacker bridges)
+    stack_value = input_data[0].get("lora_stack") if input_data and input_data[0] else None
+    stack_entries = _parse_stack_entries_from_value(stack_value) if stack_value is not None else []
+    if stack_entries:
+        payload = tuple(stack_entries)
+        cached = _NODE_DATA_CACHE.get(node_id)
+        if cached and cached.get("mode") == "stack" and cached.get("payload") == payload:
+            return cached["data"]
+        result = _build_result_from_entries(stack_entries)
+        if result:
+            _NODE_DATA_CACHE[node_id] = {"mode": "stack", "payload": payload, "data": result}
+            return result
+
     field_to_parse = _select_text_field(input_data)
-    raw_val = input_data[0].get(field_to_parse, "")
+    raw_val = input_data[0].get(field_to_parse, "") if input_data and input_data[0] else ""
     text_to_parse = coerce_first(raw_val)
 
+    cache_mode = f"text:{field_to_parse}"
     cached = _NODE_DATA_CACHE.get(node_id)
-    if cached and cached.get(field_to_parse) == text_to_parse:
+    if cached and cached.get("mode") == cache_mode and cached.get("payload") == text_to_parse:
         return cached["data"]
 
     names, hashes, model_strengths, clip_strengths = _parse_lora_syntax(text_to_parse)
@@ -120,7 +224,7 @@ def _get_lora_data_from_node(node_id, input_data):
         "model_strengths": model_strengths,
         "clip_strengths": clip_strengths,
     }
-    _NODE_DATA_CACHE[node_id] = {field_to_parse: text_to_parse, "data": result}
+    _NODE_DATA_CACHE[node_id] = {"mode": cache_mode, "payload": text_to_parse, "data": result}
     return result
 
 

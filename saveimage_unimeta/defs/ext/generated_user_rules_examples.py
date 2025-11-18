@@ -103,12 +103,10 @@ CAPTURE_FIELD_LIST_EXAMPLES: dict[str, Mapping[MetaField, Mapping[str, Any]]] = 
         MetaField.POSITIVE_PROMPT: {
             "field_name": "text",
             "validate": KNOWN["is_positive_prompt"],
-            "inline_lora_candidate": True,
         },
         MetaField.NEGATIVE_PROMPT: {
             "field_name": "text",
             "validate": KNOWN["is_negative_prompt"],
-            "inline_lora_candidate": True,
         },
     },
     # Example 3: CLIP loaders capturing multiple inputs by prefix (clip_name, clip_name1, clip_name2, ...)

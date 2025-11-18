@@ -22,7 +22,6 @@ CAPTURE_FIELD_LIST = {
     "Miaoshouai_Flux_CLIPTextEncode": {
         MetaField.POSITIVE_PROMPT: {
             "field_name": "caption",
-            "inline_lora_candidate": True,
         },
         MetaField.GUIDANCE: {"field_name": "guidance"},
     },

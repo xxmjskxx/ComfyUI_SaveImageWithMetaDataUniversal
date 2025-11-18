@@ -125,6 +125,13 @@ def test_inline_lora_fallback_runs_when_opted_in(monkeypatch):
     assert "StackedDemo" in names
 
 
+def test_inline_prompt_text_not_recorded_without_opt_in(monkeypatch):
+    cap, MetaField = _setup_inline_prompt_environment(monkeypatch, inline_flag=False)
+    inputs = cap.Capture.get_inputs()
+    records, _ = cap.Capture._collect_lora_records(inputs)
+    assert all("StackedDemo" not in rec.name for rec in records)
+
+
 def test_generate_pnginfo_version_stamp():
     cap = importlib.import_module(MODULE_PATH)
     # meta_mod = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.meta")
@@ -220,6 +227,35 @@ def test_collect_lora_records_skips_orphan_strength_slots():
     ]
     assert [rec.strength_model for rec in records] == [0.97, 0.6]
     assert [rec.strength_clip for rec in records] == [0.88, 0.51]
+
+
+def test_collect_lora_records_preserves_strengths_per_node():
+    cap = importlib.import_module(MODULE_PATH)
+    meta_mod = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.meta")
+    MetaField = meta_mod.MetaField
+    inputs = {
+        MetaField.LORA_MODEL_NAME: [
+            ("node_a", "FirstStyle", "lora_name"),
+            ("node_b", "SecondStyle", "lora_name"),
+            ("node_c", "ThirdStyle", "lora_name"),
+        ],
+        MetaField.LORA_STRENGTH_MODEL: [
+            ("node_b", 0.42, "strength_model"),
+            ("node_c", 0.73, "strength_model"),
+        ],
+        MetaField.LORA_STRENGTH_CLIP: [
+            ("node_c", 0.55, "strength_clip"),
+        ],
+    }
+    records, _ = cap.Capture._collect_lora_records(inputs)
+    assert [rec.name for rec in records] == ["FirstStyle", "SecondStyle", "ThirdStyle"]
+    assert records[0].strength_model is None
+    assert records[1].strength_model == 0.42
+    assert records[2].strength_model == 0.73
+    # Clip strength should only land on the originating node
+    assert records[0].strength_clip is None
+    assert records[1].strength_clip is None
+    assert records[2].strength_clip == 0.55
 
 
 def test_get_hashes_for_civitai_skips_plaintext_vae_entries():

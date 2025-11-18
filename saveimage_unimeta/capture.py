@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import re
+from collections import defaultdict
 from collections.abc import Iterable, Iterator
 from types import SimpleNamespace
 from typing import Any, NamedTuple
@@ -795,9 +796,8 @@ class Capture:
         # Inline LoRA fallback extraction for test mode / prompt-only presence
         try:
             has_lora_entries = bool(inputs.get(MetaField.LORA_MODEL_NAME))
-            prompt_entries_present = bool(inputs.get(MetaField.POSITIVE_PROMPT)) or bool(inputs.get(MetaField.NEGATIVE_PROMPT))
-            inline_filter: set[str] | None = set(inline_prompt_nodes) if inline_prompt_nodes else None
-            should_attempt_inline = (not has_lora_entries) and (inline_filter is not None or not prompt_entries_present)
+            inline_filter: set[str] | None = {str(node_id) for node_id in inline_prompt_nodes} if inline_prompt_nodes else None
+            should_attempt_inline = (not has_lora_entries) and bool(inline_filter)
             if should_attempt_inline:
                 import re
 
@@ -848,6 +848,7 @@ class Capture:
         except Exception:  # pragma: no cover
             pass  # Inline LoRA extraction may fail - continue with captured data
 
+        inputs["__inline_prompt_nodes__"] = tuple(sorted(str(nid) for nid in inline_prompt_nodes))
         cls._augment_embeddings_from_prompts(inputs)
 
         return inputs
@@ -2336,24 +2337,6 @@ class Capture:
         strength_models = inputs.get(MetaField.LORA_STRENGTH_MODEL, [])
         strength_clips = inputs.get(MetaField.LORA_STRENGTH_CLIP, [])
 
-        try:
-            ln, lh, lsm, lsc = (
-                len(model_names),
-                len(model_hashes),
-                len(strength_models),
-                len(strength_clips),
-            )
-            if len({ln, lh, lsm, lsc}) > 1 and _debug_prompts_enabled():
-                logger.debug(
-                    "[Metadata Lib] LoRA list length mismatch names=%s hashes=%s smodel=%s sclip=%s",
-                    ln,
-                    lh,
-                    lsm,
-                    lsc,
-                )
-        except Exception:
-            pass
-
         def _is_aggregate(value):
             try:
                 if not isinstance(value, str):
@@ -2380,22 +2363,6 @@ class Capture:
         strength_models = _filtered(strength_models)
         strength_clips = _filtered(strength_clips)
 
-        def _components(item):
-            field_name = None
-            value = item
-            if isinstance(item, list | tuple):  # noqa: UP038 (python 3.11 compat)
-                if len(item) >= 3 and isinstance(item[2], str):
-                    field_name = item[2]
-                value = Capture._extract_value(item)
-            return value, field_name
-
-        def _slot_key(field_name: str | None, fallback_idx: int) -> str:
-            if isinstance(field_name, str):
-                match = _LORA_FIELD_INDEX_RE.search(field_name)
-                if match:
-                    return f"slot-{match.group(1)}"
-            return f"idx-{fallback_idx}"
-
         def to_float_or_none(x):
             try:
                 if isinstance(x, int | float):  # noqa: UP038
@@ -2409,95 +2376,101 @@ class Capture:
                 return None
             return None
 
-        slot_entries: dict[str, dict[str, Any]] = {}
-        slot_order: list[str] = []
+        def _entry_node_id(item) -> str:
+            if isinstance(item, list | tuple) and item:
+                try:
+                    return str(item[0])
+                except Exception:
+                    return "__anon__"
+            return "__anon__"
 
-        def _ensure_slot(slot_id: str) -> dict[str, Any]:
-            if slot_id not in slot_entries:
-                slot_entries[slot_id] = {}
-                slot_order.append(slot_id)
-            return slot_entries[slot_id]
+        name_slots: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        hash_slots: dict[str, list[Any]] = defaultdict(list)
+        strength_model_slots: dict[str, list[float | None]] = defaultdict(list)
+        strength_clip_slots: dict[str, list[float | None]] = defaultdict(list)
+        slot_order: list[tuple[str, int]] = []
 
-        for idx, raw_entry in enumerate(model_names):
+        for raw_entry in model_names:
             try:
-                mn, field_name = _components(raw_entry)
-                slot_id = _slot_key(field_name, idx)
-                slot = _ensure_slot(slot_id)
-                lookup_token = mn
+                node_id = _entry_node_id(raw_entry)
+                value = Capture._extract_value(raw_entry)
+                lookup_token = value
                 tuple_sm = None
                 tuple_sc = None
-                if isinstance(mn, tuple | list) and len(mn) >= 1:  # noqa: UP038
-                    raw_path = mn[0]
+                if isinstance(value, tuple | list) and value:  # noqa: UP038
+                    raw_path = value[0]
                     lookup_token = raw_path
-                    if len(mn) >= 2:
-                        try:
-                            tuple_sm = float(mn[1])
-                        except Exception:
-                            tuple_sm = None
-                    if len(mn) >= 3:
-                        try:
-                            tuple_sc = float(mn[2])
-                        except Exception:
-                            tuple_sc = None
-                    mn = raw_path
-                name_disp = Capture._clean_name(mn, drop_extension=False)
+                    if len(value) >= 2:
+                        tuple_sm = to_float_or_none(value[1])
+                    if len(value) >= 3:
+                        tuple_sc = to_float_or_none(value[2])
+                    value = raw_path
+                name_disp = Capture._clean_name(value, drop_extension=False)
                 if cls._is_invalid_lora_name(name_disp):
                     continue
-                slot.setdefault("lookup_token", lookup_token)
-                if tuple_sm is not None and slot.get("tuple_sm") is None:
-                    slot["tuple_sm"] = tuple_sm
-                if tuple_sc is not None and slot.get("tuple_sc") is None:
-                    slot["tuple_sc"] = tuple_sc
-                if slot.get("name_value") is None:
-                    slot["name_value"] = name_disp
+                slot = {
+                    "name_value": name_disp,
+                    "lookup_token": lookup_token,
+                    "tuple_sm": tuple_sm,
+                    "tuple_sc": tuple_sc,
+                }
+                name_slots[node_id].append(slot)
+                slot_order.append((node_id, len(name_slots[node_id]) - 1))
             except Exception as e:
                 logger.debug("[Metadata Lib] Skipping LoRA name entry due to error: %r", e)
 
-        for idx, raw_hash in enumerate(model_hashes):
+        for raw_hash in model_hashes:
             try:
-                value, field_name = _components(raw_hash)
-                slot_id = _slot_key(field_name, idx)
-                slot = _ensure_slot(slot_id)
-                if slot.get("hash_value") is None:
-                    slot["hash_value"] = value
+                node_id = _entry_node_id(raw_hash)
+                value = Capture._extract_value(raw_hash)
+                hash_slots[node_id].append(value)
             except Exception as e:
                 logger.debug("[Metadata Lib] Skipping LoRA hash entry due to error: %r", e)
 
-        for idx, raw_strength in enumerate(strength_models):
+        for raw_strength in strength_models:
             try:
-                value, field_name = _components(raw_strength)
-                slot_id = _slot_key(field_name, idx)
-                slot = _ensure_slot(slot_id)
-                coerced = to_float_or_none(value)
-                if coerced is not None and slot.get("strength_model") is None:
-                    slot["strength_model"] = coerced
+                node_id = _entry_node_id(raw_strength)
+                value = Capture._extract_value(raw_strength)
+                strength_model_slots[node_id].append(to_float_or_none(value))
             except Exception as e:
                 logger.debug("[Metadata Lib] Skipping LoRA model strength entry due to error: %r", e)
 
-        for idx, raw_strength in enumerate(strength_clips):
+        for raw_strength in strength_clips:
             try:
-                value, field_name = _components(raw_strength)
-                slot_id = _slot_key(field_name, idx)
-                slot = _ensure_slot(slot_id)
-                coerced = to_float_or_none(value)
-                if coerced is not None and slot.get("strength_clip") is None:
-                    slot["strength_clip"] = coerced
+                node_id = _entry_node_id(raw_strength)
+                value = Capture._extract_value(raw_strength)
+                strength_clip_slots[node_id].append(to_float_or_none(value))
             except Exception as e:
                 logger.debug("[Metadata Lib] Skipping LoRA clip strength entry due to error: %r", e)
 
+        def _group_lookup(group: dict[str, list[Any]], node_id: str, idx: int):
+            seq = group.get(node_id)
+            if not seq:
+                return None
+            if idx < len(seq):
+                return seq[idx]
+            return None
+
         cleaned: list[_LoRARecord] = []
-        for slot_id in slot_order:
-            slot = slot_entries.get(slot_id) or {}
+        for node_id, slot_idx in slot_order:
+            slots = name_slots.get(node_id)
+            if not slots or slot_idx >= len(slots):
+                continue
+            slot = slots[slot_idx]
             name_disp = slot.get("name_value")
             if not name_disp or cls._is_invalid_lora_name(name_disp):
                 continue
-            sm_final = slot.get("strength_model")
+            sm_final = slot.get("tuple_sm")
             if sm_final is None:
-                sm_final = slot.get("tuple_sm")
-            sc_final = slot.get("strength_clip")
+                sm_final = _group_lookup(strength_model_slots, node_id, slot_idx)
+            sc_final = slot.get("tuple_sc")
             if sc_final is None:
-                sc_final = slot.get("tuple_sc")
-            resolved_hash = cls._resolve_lora_hash(name_disp, slot.get("hash_value"), slot.get("lookup_token"))
+                sc_final = _group_lookup(strength_clip_slots, node_id, slot_idx)
+            resolved_hash = cls._resolve_lora_hash(
+                name_disp,
+                _group_lookup(hash_slots, node_id, slot_idx),
+                slot.get("lookup_token"),
+            )
             cleaned.append(_LoRARecord(name_disp, resolved_hash, sm_final, sc_final))
 
         dedup = cls._deduplicate_lora_records(cleaned)
@@ -2544,11 +2517,24 @@ class Capture:
         Returns:
             list[_LoRARecord]: Combined records with inline references included.
         """
+        inline_sources = {
+            str(x)
+            for x in inputs.get("__inline_prompt_nodes__", ())
+            if isinstance(x, str)
+        }
+        if not inline_sources:
+            return existing
+
         aggregated_text_candidates = []
         for mf in (MetaField.POSITIVE_PROMPT, MetaField.NEGATIVE_PROMPT):
             vals = inputs.get(mf, [])
             for v in vals:
                 try:
+                    node_ref = None
+                    if isinstance(v, list | tuple) and v:
+                        node_ref = str(v[0])
+                    if node_ref is None or node_ref not in inline_sources:
+                        continue
                     s = Capture._extract_value(v)
                     if isinstance(s, str) and "<lora:" in s.lower():
                         aggregated_text_candidates.append(s)

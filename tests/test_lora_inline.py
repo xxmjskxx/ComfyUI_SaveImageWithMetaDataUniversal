@@ -38,6 +38,16 @@ def _prime_module(monkeypatch, prompt_text: str):
 
     monkeypatch.setattr(cap, "get_input_data", fake_get_input_data)
     monkeypatch.setattr(cap, "hook", DummyHook)
+    monkeypatch.setattr(
+        cap,
+        "CAPTURE_FIELD_LIST",
+        {
+            "KSampler": {
+                MetaField.POSITIVE_PROMPT: {"field_name": "positive", "inline_lora_candidate": True},
+                MetaField.NEGATIVE_PROMPT: {"field_name": "negative", "inline_lora_candidate": True},
+            }
+        },
+    )
     return cap
 
 

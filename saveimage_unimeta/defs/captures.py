@@ -93,12 +93,10 @@ CAPTURE_FIELD_LIST = {
         MetaField.POSITIVE_PROMPT: {
             "field_name": "text",
             "validate": is_positive_prompt,
-            "inline_lora_candidate": True,
         },
         MetaField.NEGATIVE_PROMPT: {
             "field_name": "text",
             "validate": is_negative_prompt,
-            "inline_lora_candidate": True,
         },
         MetaField.EMBEDDING_NAME: {
             "field_name": "text",
@@ -209,12 +207,10 @@ CAPTURE_FIELD_LIST = {
         MetaField.POSITIVE_PROMPT: {
             "field_name": "prompt",
             "validate": is_positive_prompt,
-            "inline_lora_candidate": True,
         },
         MetaField.NEGATIVE_PROMPT: {
             "field_name": "prompt",
             "validate": is_negative_prompt,
-            "inline_lora_candidate": True,
         },
     },
     "MetadataTestSampler": {
