@@ -163,6 +163,7 @@ img/ignore/
 
 # Local development/testing files
 # /dev_test_workflows/
+tests/tools/__pycache__/
 tests/tools/show_all_nodes_and_fields.py
 tests/comfyui_cli_tests/run_dev_workflows.bat
 tests/comfyui_cli_tests/validate_metadata.bat
