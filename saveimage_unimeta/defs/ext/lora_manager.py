@@ -41,25 +41,25 @@ _STACK_FIELD_CANDIDATES: tuple[str, ...] = (
     "scheduled_loras",
     "lora_queue",
 )
+_TEXT_FIELD_CANDIDATES: tuple[str, ...] = (
+    "lora_syntax",
+    "loaded_loras",
+    "text",
+)
 
 
 def _select_text_field(input_data):
-    """Selects the appropriate text field to parse for LoRA syntax.
+    """Select the first populated text-style field available on the node."""
 
-    This function checks for the presence of specific fields in a prioritized order
-    (`lora_syntax`, `loaded_loras`, then `text`) and returns the name of the first
-    field found that contains text.
-
-    Args:
-        input_data (dict): The input data for the node.
-
-    Returns:
-        str: The name of the field to be parsed.
-    """
-    if input_data[0].get("lora_syntax", ""):
-        return "lora_syntax"
-    if input_data[0].get("loaded_loras", ""):
-        return "loaded_loras"
+    if not input_data or not input_data[0]:
+        return "text"
+    batch = input_data[0]
+    for field in _TEXT_FIELD_CANDIDATES:
+        try:
+            if batch.get(field, ""):
+                return field
+        except AttributeError:
+            continue
     return "text"
 
 
@@ -147,6 +147,10 @@ def _parse_stack_entries_from_value(value):
             for item in value:
                 entries.extend(_parse_stack_entries_from_value(item))
             return entries
+        if len(value) == 2 and isinstance(value[0], str) and isinstance(value[1], int):
+            token = value[0].replace(":", "")
+            if token.isdigit():
+                return []
         if value:
             name = value[0]
             ms = value[1] if len(value) > 1 else None
@@ -198,6 +202,56 @@ def _extract_structured_entries(batch: dict) -> tuple[str | None, tuple[tuple[st
     return None, ()
 
 
+def _build_result_from_text(text: str | None):
+    if not text:
+        return None
+    names, hashes, model_strengths, clip_strengths = _parse_lora_syntax(text)
+    if not names:
+        return None
+    return {
+        "names": names,
+        "hashes": hashes,
+        "model_strengths": model_strengths,
+        "clip_strengths": clip_strengths,
+    }
+
+
+def _merge_lora_results(primary, extra):
+    if not primary and not extra:
+        return {
+            "names": [],
+            "hashes": [],
+            "model_strengths": [],
+            "clip_strengths": [],
+        }
+    if primary and not extra:
+        return primary
+    if extra and not primary:
+        return extra
+    names = list(primary["names"])
+    hashes = list(primary["hashes"])
+    model_strengths = list(primary["model_strengths"])
+    clip_strengths = list(primary["clip_strengths"])
+    seen = {str(name).lower() for name in names if name}
+    for idx, name in enumerate(extra["names"]):
+        if not name:
+            continue
+        key = str(name).lower()
+        if key in seen:
+            continue
+        names.append(name)
+        hashes.append(extra["hashes"][idx])
+        model_strengths.append(extra["model_strengths"][idx])
+        clip_strengths.append(extra["clip_strengths"][idx])
+        seen.add(key)
+    return {
+        "names": names,
+        "hashes": hashes,
+        "model_strengths": model_strengths,
+        "clip_strengths": clip_strengths,
+    }
+
+
 def _get_lora_data_from_node(node_id, input_data):
     """Extracts LoRA data from a node's input, utilizing a cache.
 
@@ -219,38 +273,29 @@ def _get_lora_data_from_node(node_id, input_data):
     stack_payload: tuple[tuple[str | None, float | None, float | None], ...] = ()
     if isinstance(batch, dict):
         stack_field, stack_payload = _extract_structured_entries(batch)
+    structured_result = _build_result_from_entries(list(stack_payload)) if stack_payload else None
 
-    if stack_field and stack_payload:
-        cache_mode = f"stack:{stack_field}"
-        cached = _NODE_DATA_CACHE.get(node_id)
-        if cached and cached.get("mode") == cache_mode and cached.get("payload") == stack_payload:
-            return cached["data"]
-        result = _build_result_from_entries(list(stack_payload))
-        if result:
-            _NODE_DATA_CACHE[node_id] = {
-                "mode": cache_mode,
-                "payload": stack_payload,
-                "data": result,
-            }
-            return result
+    text_field = None
+    text_to_parse = None
+    if input_data and input_data[0]:
+        field_choice = _select_text_field(input_data)
+        candidate = input_data[0].get(field_choice, "")
+        coerced = coerce_first(candidate)
+        if coerced:
+            text_field = field_choice
+            text_to_parse = coerced
+    text_result = _build_result_from_text(text_to_parse)
 
-    field_to_parse = _select_text_field(input_data)
-    raw_val = input_data[0].get(field_to_parse, "") if input_data and input_data[0] else ""
-    text_to_parse = coerce_first(raw_val)
-
-    cache_mode = f"text:{field_to_parse}"
+    cache_signature = (stack_field, stack_payload, text_field, text_to_parse)
     cached = _NODE_DATA_CACHE.get(node_id)
-    if cached and cached.get("mode") == cache_mode and cached.get("payload") == text_to_parse:
+    if cached and cached.get("signature") == cache_signature:
         return cached["data"]
 
-    names, hashes, model_strengths, clip_strengths = _parse_lora_syntax(text_to_parse)
-    result = {
-        "names": names,
-        "hashes": hashes,
-        "model_strengths": model_strengths,
-        "clip_strengths": clip_strengths,
+    result = _merge_lora_results(structured_result, text_result)
+    _NODE_DATA_CACHE[node_id] = {
+        "signature": cache_signature,
+        "data": result,
     }
-    _NODE_DATA_CACHE[node_id] = {"mode": cache_mode, "payload": text_to_parse, "data": result}
     return result
 
 

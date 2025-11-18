@@ -90,3 +90,40 @@ def test_lora_manager_selectors_parse_loaded_loras_json(monkeypatch):
     assert names == ["Gamma", "Delta"]
     assert model_strengths == [0.33, 0.9]
     assert clip_strengths == [0.5, 0.9]
+
+
+def test_lora_manager_merges_stack_and_lora_syntax(monkeypatch):
+    mod = _load_module(monkeypatch)
+    stack_entries = [
+        {"name": "StackedA", "strength": 0.3, "clipStrength": 0.2},
+        {"name": "StackedB", "strength": 0.6, "clipStrength": 0.4},
+    ]
+    input_data = (
+        {
+            "lora_stack": [stack_entries],
+            "lora_syntax": "<lora:ExtraOne:0.5:0.25> <lora:ExtraTwo:0.1>",
+        },
+    )
+    names = mod.get_lora_model_names("combo", None, None, None, None, input_data)
+    model_strengths = mod.get_lora_model_strengths("combo", None, None, None, None, input_data)
+    clip_strengths = mod.get_lora_clip_strengths("combo", None, None, None, None, input_data)
+    assert names == ["StackedA", "StackedB", "ExtraOne", "ExtraTwo"]
+    assert model_strengths == [0.3, 0.6, 0.5, 0.1]
+    assert clip_strengths == [0.2, 0.4, 0.25, 0.1]
+
+
+def test_lora_manager_ignores_placeholder_stack_reference(monkeypatch):
+    mod = _load_module(monkeypatch)
+    input_data = (
+        {
+            # Connection reference (node id + output index) should be ignored so text path is parsed.
+            "lora_stack": ["19", 0],
+            "text": "<lora:OnlyText:0.77:0.5>",
+        },
+    )
+    names = mod.get_lora_model_names("text_only", None, None, None, None, input_data)
+    model_strengths = mod.get_lora_model_strengths("text_only", None, None, None, None, input_data)
+    clip_strengths = mod.get_lora_clip_strengths("text_only", None, None, None, None, input_data)
+    assert names == ["OnlyText"]
+    assert model_strengths == [0.77]
+    assert clip_strengths == [0.5]
