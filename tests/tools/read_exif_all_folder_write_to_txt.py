@@ -54,6 +54,9 @@ def get_exif_data(image_path: str) -> str:
                             binary_content = f.read()
                         start_index = binary_content.find(b'parameters')
                         near_end_index = binary_content.find(b'Hashes: ')
+                        # PNG chunks follow [length(4)][type(4)][data][CRC(4)]. Subtracting 9 bytes here trims the
+                        # trailing tEXt chunk header (length + type + newline delimiter) so the metadata payload
+                        # mirrors the original script's parsing boundaries.
                         end_index = binary_content.find(b'tEXt', near_end_index) - 9 if near_end_index != -1 else -1
                         if start_index != -1 and end_index != -1:
                             extracted_info = binary_content[start_index + len(b'parameters') + 1:end_index + 1].decode('utf-8', 'replace').strip()

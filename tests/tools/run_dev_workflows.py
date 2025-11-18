@@ -80,6 +80,7 @@ class WorkflowRunner:
         self.extra_args = extra_args or []
         self.env_patch = env_patch or {}
         self.server_process: subprocess.Popen[bytes] | None = None
+        self.last_start_error: Exception | None = None
         self.base_url = f"http://{host}:{port}"
 
     def is_server_running(self) -> bool:
@@ -93,6 +94,7 @@ class WorkflowRunner:
 
     def start_server(self, wait_time: float = 10) -> bool:
         """Start ComfyUI server in background."""
+        self.last_start_error = None
         if self.is_server_running():
             print(f"✓ ComfyUI server already running at {self.base_url}")
             return True
@@ -100,6 +102,7 @@ class WorkflowRunner:
         main_py = self.comfyui_path / "main.py"
         if not main_py.exists():
             print(f"✗ Error: main.py not found at {main_py}")
+            self.last_start_error = FileNotFoundError(main_py)
             return False
 
         print(f"Starting ComfyUI server at {self.base_url}...")
@@ -137,10 +140,13 @@ class WorkflowRunner:
                     return True
 
             print(f"✗ Server did not start within {wait_time}s")
+            self.last_start_error = TimeoutError(f"Server did not start within {wait_time}s")
             return False
 
         except (OSError, subprocess.SubprocessError) as e:
             print(f"✗ Failed to start server: {e}")
+            self.last_start_error = e
+            self.server_process = None
             return False
 
     def stop_server(self):

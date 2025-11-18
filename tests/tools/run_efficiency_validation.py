@@ -263,6 +263,7 @@ class ServerController:
             )
         except FileNotFoundError as exc:  # pragma: no cover - depends on local CLI path
             handle.close()
+            self._log_handle = None
             raise RuntimeError(f"Unable to launch comfy-cli binary '{self._command[0]}': {exc}") from exc
         assert self._proc.stdout and self._proc.stderr
         self._threads = [
@@ -305,6 +306,7 @@ class ServerController:
             thread.join(timeout=1)
         if self._log_handle:
             self._log_handle.close()
+            self._log_handle = None
         self._proc = None
 
     def _pump_stream(self, stream, label: str) -> None:
@@ -469,9 +471,14 @@ def stop_existing_server(cli: Path, workspace: Path, env: dict[str, str], health
         f"--workspace={workspace}",
         "stop",
     ]
-    completed = subprocess.run(cmd, cwd=REPO_ROOT, env=env)
+    completed = subprocess.run(cmd, cwd=REPO_ROOT, env=env, capture_output=True, text=True)
     if completed.returncode not in (0, 1):
-        raise RuntimeError(f"Failed to stop existing ComfyUI server (exit code {completed.returncode}).")
+        raise RuntimeError(
+            "Failed to stop existing ComfyUI server "
+            f"(exit code {completed.returncode}).\n"
+            f"stdout:\n{completed.stdout}\n"
+            f"stderr:\n{completed.stderr}"
+        )
     if not wait_for_server_shutdown(health_url, timeout):
         raise RuntimeError(
             "Timed out waiting for the previous ComfyUI server to stop. "
@@ -623,5 +630,5 @@ if __name__ == "__main__":
         print("\nAborted by user")
         sys.exit(1)
     except Exception as exc:  # noqa: BLE001
-        print(f"Error: {exc}", file=sys.stderr)
+        print(f"Error ({type(exc).__name__}): {exc}", file=sys.stderr)
         sys.exit(1)
