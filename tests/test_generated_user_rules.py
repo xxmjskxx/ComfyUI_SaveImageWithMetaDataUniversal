@@ -156,7 +156,7 @@ def test_scanner_roundtrip_generates_importable_module(monkeypatch):
         result_json, _ = scanner.scan_for_rules(
             exclude_keywords="",
             include_existing=False,
-            mode="all",
+            mode="all",  # 'existing_only' skips forced nodes not in baseline definitions
             force_include_metafields="",
             force_include_node_class="UnitTestClipEncode",
         )

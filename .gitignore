@@ -180,6 +180,11 @@ run_dev_workflows.bat
 validate_metadata.bat
 read_write_all_exif_to_txt.bat
 tools/
+tests/comfyui_cli_tests/COMPLETION_SUMMARY.txt
+tests/comfyui_cli_tests/demo_output.txt
+tests/comfyui_cli_tests/demo_validation_fixes.py
+tests/comfyui_cli_tests/DEV_WORKFLOW_TESTING.md
+tests/comfyui_cli_tests/WORKFLOW_TEST_SUGGESTIONS.md
 tests/comfyui_cli_tests/Test/
 tests/comfyui_cli_tests/Test/hash_logs.txt
 tests/comfyui_cli_tests/Test/metadata_dump.txt

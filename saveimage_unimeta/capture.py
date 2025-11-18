@@ -11,7 +11,6 @@ import json
 import logging
 import os
 import re
-from collections import defaultdict
 from collections.abc import Iterable, Iterator
 from types import SimpleNamespace
 from typing import Any, NamedTuple

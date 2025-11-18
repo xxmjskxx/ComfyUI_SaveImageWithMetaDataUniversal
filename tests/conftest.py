@@ -3,26 +3,35 @@ import sys
 import types
 from pathlib import Path
 
-# Early stub for folder_paths (must precede any package imports that expect it)
-if "folder_paths" not in sys.modules:  # pragma: no cover - test bootstrap
-    fp_mod = types.ModuleType("folder_paths")
-    _DEF_OUT = os.path.abspath(os.path.join(os.path.dirname(__file__), "_test_outputs"))
-    try:
-        os.makedirs(_DEF_OUT, exist_ok=True)
-    except OSError:
-        pass
-    fp_mod.get_output_directory = lambda: _DEF_OUT  # type: ignore
-    fp_mod.get_save_image_path = lambda prefix, output_dir, *a, **k: (output_dir or _DEF_OUT, prefix, 0, "", prefix)  # type: ignore
-    fp_mod.get_folder_paths = lambda kind: []  # type: ignore
-    fp_mod.get_full_path = lambda kind, name: name  # type: ignore
-    sys.modules["folder_paths"] = fp_mod
-
-# Force test mode before any package import so saveimage_unimeta avoids heavy runtime deps
-os.environ.setdefault("METADATA_TEST_MODE", "1")
 import importlib.util
 
 import numpy as np
 import pytest
+
+TESTS_DIR = os.path.abspath(os.path.dirname(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(TESTS_DIR, ".."))
+CUSTOM_NODES_PARENT = os.path.abspath(os.path.join(PROJECT_ROOT, ".."))
+_ROOT = PROJECT_ROOT
+_TEST_OUTPUT_DIR = os.path.join(TESTS_DIR, "_test_outputs")
+
+try:
+    os.makedirs(_TEST_OUTPUT_DIR, exist_ok=True)
+except OSError:
+    pass
+
+# Early stub for folder_paths (must precede any package imports that expect it)
+if "folder_paths" not in sys.modules:  # pragma: no cover - test bootstrap
+    fp_mod = types.ModuleType("folder_paths")
+    fp_mod.get_output_directory = lambda: _TEST_OUTPUT_DIR  # type: ignore
+    fp_mod.get_save_image_path = (
+        lambda prefix, output_dir, *a, **k: (output_dir or _TEST_OUTPUT_DIR, prefix, 0, "", prefix)
+    )  # type: ignore
+    fp_mod.get_folder_paths = lambda kind: []  # type: ignore
+    fp_mod.get_full_path = lambda kind, name: name  # type: ignore
+    sys.modules["folder_paths"] = fp_mod
+
+# Force test mode before importing project modules so saveimage_unimeta avoids heavy runtime deps
+os.environ.setdefault("METADATA_TEST_MODE", "1")
 
 _PYTEST_COOKIES_AVAILABLE = importlib.util.find_spec("pytest_cookies") is not None
 
@@ -31,12 +40,8 @@ _PYTEST_COOKIES_AVAILABLE = importlib.util.find_spec("pytest_cookies") is not No
 pytest_plugins = ("pytest_cookies",) if _PYTEST_COOKIES_AVAILABLE else ()
 
 # Ensure package root is on sys.path for absolute imports when pytest alters CWD.
-_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
-
-_TEST_OUTPUT_DIR = os.path.join(_ROOT, "tests", "_test_outputs")
-os.makedirs(_TEST_OUTPUT_DIR, exist_ok=True)
 
 # Exclude raw cookiecutter sources (Jinja templates) from pytest collection.
 collect_ignore_glob = ["cookiecutter_template/*"]
@@ -190,10 +195,6 @@ def node_instance(tmp_path):
 
 # Signal package to avoid heavy ComfyUI-only imports
 os.environ.setdefault("METADATA_TEST_MODE", "1")
-
-TESTS_DIR = os.path.dirname(__file__)
-PROJECT_ROOT = os.path.abspath(os.path.join(TESTS_DIR, ".."))
-CUSTOM_NODES_PARENT = os.path.abspath(os.path.join(PROJECT_ROOT, ".."))
 
 for path in (CUSTOM_NODES_PARENT, PROJECT_ROOT):
     if path not in sys.path:
