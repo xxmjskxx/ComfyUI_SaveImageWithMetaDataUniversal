@@ -15,15 +15,9 @@ class ForcedMetaLoader:
 
 def test_forced_metafield_not_filtered_by_missing_lens(monkeypatch):
     """Even if MODEL_NAME already baseline-captured, forcing MODEL_HASH should retain it under lens."""
-    defs_mod = importlib.import_module(
-        "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs"
-    )
-    nodes_pkg = importlib.import_module(
-        "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes"
-    )
-    MetaField = importlib.import_module(
-        "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.meta"
-    ).MetaField
+    defs_mod = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs")
+    nodes_pkg = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes")
+    MetaField = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.meta").MetaField
 
     nodes_pkg.NODE_CLASS_MAPPINGS["ForcedMetaLoader"] = ForcedMetaLoader
     try:
@@ -52,9 +46,7 @@ def test_forced_metafield_not_filtered_by_missing_lens(monkeypatch):
 
 def test_baseline_cache_hit_increment(monkeypatch):
     """Second scan without modifying user rules should report a higher cache hit count."""
-    nodes_pkg = importlib.import_module(
-        "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes"
-    )
+    nodes_pkg = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes")
 
     class CacheProbeNode:
         @classmethod
@@ -92,4 +84,3 @@ def test_baseline_cache_hit_increment(monkeypatch):
         json.loads(second_json)
     finally:
         nodes_pkg.NODE_CLASS_MAPPINGS.pop("CacheProbeNode", None)
-

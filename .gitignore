@@ -101,6 +101,7 @@ celerybeat.pid
 # Environments
 .env
 .venv
+.venv/
 env/
 venv/
 ENV/
@@ -148,7 +149,7 @@ saveimage_unimeta/defs/ext/generated_user_rules.py
 saveimage_unimeta/user_rules/backups/
 saveimage_unimeta/user_rules/user_captures.json
 saveimage_unimeta/user_rules/user_samplers.json
-# user_rules/
+user_rules/
 
 # Debug files in tests directory
 tests/_test_outputs/user_rules/
@@ -159,6 +160,52 @@ _test_outputs/
 ignore/
 img/alt_logo/
 img/ignore/
+
+# Local development/testing files
+# /dev_test_workflows/
+tests/tools/__pycache__/
+tests/tools/show_all_nodes_and_fields.py
+tests/comfyui_cli_tests/run_dev_workflows.bat
+tests/comfyui_cli_tests/validate_metadata.bat
+tests/comfyui_cli_tests/read_write_all_exif_to_txt.bat
+tests/tools/validate_metadata.bat
+tests/tools/run_dev_workflows.bat
+tests/tools/read_write_all_exif_to_txt.bat
+tests/tools/compare_hash_logs.bat
+tests/test_pclazy_hashes_mjsk.py
+*/run_dev_workflows.bat
+*/validate_metadata.bat
+*/read_write_all_exif_to_txt.bat
+*.bat
+tests/comfyui_cli_tests/Test/
+run_dev_workflows.bat
+validate_metadata.bat
+read_write_all_exif_to_txt.bat
+tools/
+tests/comfyui_cli_tests/COMPLETION_SUMMARY.txt
+tests/comfyui_cli_tests/demo_output.txt
+tests/comfyui_cli_tests/demo_validation_fixes.py
+tests/comfyui_cli_tests/DEV_WORKFLOW_TESTING.md
+tests/comfyui_cli_tests/WORKFLOW_TEST_SUGGESTIONS.md
+tests/comfyui_cli_tests/Test/
+tests/comfyui_cli_tests/Test/hash_logs.txt
+tests/comfyui_cli_tests/Test/metadata_dump.txt
+tests/comfyui_cli_tests/Test/metadata_dump.txt.bak
+tests/comfyui_cli_tests/Test/metadata_hash_cmpr.md
+tests/comfyui_cli_tests/Test/metadata_hash_cmpr.txt
+tests/comfyui_cli_tests/Test/validation_log.txt
+tests/comfyui_cli_tests/Test/validation_log.txt.bak
+tests/comfyui_cli_tests/compare_hash_logs.bat
+tests/tools/Test/
+tests/tools/Test/hash_logs.txt
+tests/tools/Test/metadata_dump.txt
+tests/tools/Test/metadata_dump.txt.bak
+tests/tools/Test/metadata_hash_cmpr.md
+tests/tools/Test/metadata_hash_cmpr.txt
+tests/tools/Test/validation_log.txt
+tests/tools/Test/validation_log.txt.bak
+example_workflows/old_workflows/
+
 
 # Local settings files
 # .github/copilot-instructions.md
@@ -171,11 +218,6 @@ scripts/
 .pytest_cache/
 .ruff_cache/
 tasksync/
-
-# Local development/testing files
-# /dev_test_workflows/
-run_dev_workflows.bat
-validate_metadata.bat
 
 # Ephemeral local drafting files (root only). Keep actual published notes in docs/.
 docs/HIGH_PRIORITY_TASKS.md

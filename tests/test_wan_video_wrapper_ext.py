@@ -49,14 +49,14 @@ def test_wan_sampler_has_expected_fields_and_selectors():
     assert entry[MetaField.SHIFT]["field_name"] == "shift"
     assert entry[MetaField.DENOISE]["field_name"] == "denoise"
     # selectors callable
-    assert callable(entry[MetaField.SAMPLER_NAME]["selector"])  # type: ignore[index]
-    assert callable(entry[MetaField.SCHEDULER]["selector"])  # type: ignore[index]
+    assert callable(entry[MetaField.SAMPLER_NAME]["selector"])
+    assert callable(entry[MetaField.SCHEDULER]["selector"])
 
 
 def test_wan_sampler_selector_parsing_variants():
     entry = CAPTURE_FIELD_LIST["WanVideo Sampler"]
-    get_sampler = entry[MetaField.SAMPLER_NAME]["selector"]  # type: ignore[index]
-    get_sched = entry[MetaField.SCHEDULER]["selector"]  # type: ignore[index]
+    get_sampler = entry[MetaField.SAMPLER_NAME]["selector"]
+    get_sched = entry[MetaField.SCHEDULER]["selector"]
 
     def mk_input(val):
         return [{"scheduler": [val]}]

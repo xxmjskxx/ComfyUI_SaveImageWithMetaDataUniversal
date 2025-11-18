@@ -1,0 +1,8 @@
+include README.rst
+include HISTORY.rst
+include CONTRIBUTING.rst
+{% if cookiecutter.open_source_license != 'Not open source' %}include LICENSE
+{% endif %}
+{% if cookiecutter.create_author_file == 'y' %}include AUTHORS.rst
+{% endif %}
+recursive-include tests *

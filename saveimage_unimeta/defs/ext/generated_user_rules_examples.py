@@ -1,33 +1,29 @@
+"""Provides a comprehensive set of reference examples for user-generated metadata capture rules.
+
+This module serves as a detailed guide and a source of copy-pasteable examples for users who wish
+to customize their metadata capture by creating or editing the `generated_user_rules.py` file.
+
+**Important:** This file itself is not loaded at runtime. Its purpose is purely educational.
+Users are expected to transfer the relevant snippets to their live `generated_user_rules.py` file.
+
+The module is structured to mirror the actual user rules file, with sections for:
+- `KNOWN`: A dictionary for registering callable functions (formatters, validators, selectors)
+  that can be referenced in the capture rules.
+- `CAPTURE_FIELD_LIST_EXAMPLES`: A dictionary containing a variety of rule examples for different
+  types of nodes, demonstrating various features of the rule engine such as simple field mapping,
+  use of formatters, validators, prefix-based matching, and injection of constant values.
+- `SAMPLERS_EXAMPLES`: A dictionary illustrating how to map the conceptual roles of "positive"
+  and "negative" prompts to the actual input names of custom sampler nodes.
+
+The examples cover a range of common use cases, from basic model and VAE loaders to more complex
+scenarios involving LoRA stacks and custom samplers. Each example is commented to explain the
+purpose and mechanics of the rule.
+
+The recommended workflow for users is to first generate a baseline `generated_user_rules.py` using
+the built-in Metadata Rule Scanner, and then to use the examples in this file to refine and
+extend the generated rules to suit their specific needs and custom nodes.
 """
-Reference examples for user-generated metadata capture rules.
 
-READ ME FIRST
-- This file is NOT imported by the loader at runtime. It is provided only as a reference.
-- Copy the bits you need into your actual user rules file:
-        saveimage_unimeta/defs/ext/generated_user_rules.py
-    or manage it via the UI nodes shown in the README.
-- Keep your file small and focused on nodes you actually use.
-
-Schema overview (matches the real generated_user_rules.py)
-- KNOWN: dict[str, callable] mapping stable names to callables used by rules.
-- CAPTURE_FIELD_LIST: dict[str, dict[MetaField, RuleSpec]]
-- SAMPLERS: dict[str, dict[str, str]] mapping semantic roles (e.g., "positive"/"negative")
-    to the actual input socket names for sampler-like nodes.
-
-RuleSpec keys supported by the capture engine:
-- "field_name": single input name to read (e.g., "ckpt_name").
-- "fields": list of input names to read uniformly.
-- "prefix": dynamic expansion for inputs with numeric suffixes (e.g., "clip_name1", "clip_name2").
-- "selector": callable to derive/transform a value before formatting.
-- "validate": predicate callable; if it returns False the field is skipped.
-- "format": callable to post-process raw values (e.g., compute hashes).
-- "value": constant literal to inject when not available from inputs.
-
-Recommended approach
-1) Run the Metadata Rule Scanner to generate a baseline generated_user_rules.py.
-2) Use these examples to refine or extend capture for special nodes.
-3) Save an image and review the parameter string to validate your changes.
-"""
 from typing import Any
 from collections.abc import Mapping
 
@@ -47,6 +43,7 @@ from ..validators import (
 )
 from ..selectors import select_stack_by_prefix
 
+
 # Self-contained LoRA stack helpers to mirror the generator output.
 # These avoid importing from other extension modules.
 def get_lora_model_name_stack(node_id, obj, prompt, extra_data, outputs, input_data):
@@ -64,7 +61,7 @@ def get_lora_strength_model_stack(node_id, obj, prompt, extra_data, outputs, inp
         if input_data[0].get("input_mode", [""])[0] == "advanced":
             return select_stack_by_prefix(input_data, "model_str", counter_key="lora_count")
     except Exception:
-        pass
+        pass  # Fall back to simple mode if advanced mode check fails
     return select_stack_by_prefix(input_data, "lora_wt", counter_key="lora_count")
 
 
@@ -74,8 +71,9 @@ def get_lora_strength_clip_stack(node_id, obj, prompt, extra_data, outputs, inpu
         if input_data[0].get("input_mode", [""])[0] == "advanced":
             return select_stack_by_prefix(input_data, "clip_str", counter_key="lora_count")
     except Exception:
-        pass
+        pass  # Fall back to simple mode if advanced mode check fails
     return select_stack_by_prefix(input_data, "lora_wt", counter_key="lora_count")
+
 
 # This mirrors the indirection used by generated_user_rules.py
 KNOWN = {
@@ -100,24 +98,26 @@ CAPTURE_FIELD_LIST_EXAMPLES: dict[str, Mapping[MetaField, Mapping[str, Any]]] = 
         MetaField.MODEL_NAME: {"field_name": "ckpt_name"},
         MetaField.MODEL_HASH: {"field_name": "ckpt_name", "format": KNOWN["calc_model_hash"]},
     },
-
     # Example 2: CLIP text encoders with validation for prompt roles
     "CLIPTextEncode": {
-        MetaField.POSITIVE_PROMPT: {"field_name": "text", "validate": KNOWN["is_positive_prompt"]},
-        MetaField.NEGATIVE_PROMPT: {"field_name": "text", "validate": KNOWN["is_negative_prompt"]},
+        MetaField.POSITIVE_PROMPT: {
+            "field_name": "text",
+            "validate": KNOWN["is_positive_prompt"],
+        },
+        MetaField.NEGATIVE_PROMPT: {
+            "field_name": "text",
+            "validate": KNOWN["is_negative_prompt"],
+        },
     },
-
     # Example 3: CLIP loaders capturing multiple inputs by prefix (clip_name, clip_name1, clip_name2, ...)
     "CLIPLoader": {
         MetaField.CLIP_MODEL_NAME: {"prefix": "clip_name"},
     },
-
     # Example 4: VAE loader with hash calculation
     "VAELoader": {
         MetaField.VAE_NAME: {"field_name": "vae_name"},
         MetaField.VAE_HASH: {"field_name": "vae_name", "format": KNOWN["calc_vae_hash"]},
     },
-
     # Example 5: Sampler core fields
     "KSampler": {
         MetaField.SEED: {"field_name": "seed"},
@@ -126,7 +126,6 @@ CAPTURE_FIELD_LIST_EXAMPLES: dict[str, Mapping[MetaField, Mapping[str, Any]]] = 
         MetaField.SAMPLER_NAME: {"field_name": "sampler_name"},
         MetaField.SCHEDULER: {"field_name": "scheduler"},
     },
-
     # Example 6: LoRA loader including strengths and hash
     "LoraLoader": {
         MetaField.LORA_MODEL_NAME: {"field_name": "lora_name"},
@@ -138,12 +137,10 @@ CAPTURE_FIELD_LIST_EXAMPLES: dict[str, Mapping[MetaField, Mapping[str, Any]]] = 
         # MetaField.LORA_STRENGTH_MODEL: {"fields": ["strength_clip", "strength_model"]},
         # MetaField.LORA_STRENGTH_CLIP: {"fields": ["strength_clip", "strength_model"]},
     },
-
     # Example 7: Inline constant value (when the node doesn’t expose it)
     "SomeCustomNode": {
         MetaField.DENOISE: {"value": 1.0},
     },
-
     # Example 8: UNet loaders
     "UNETLoader": {
         MetaField.MODEL_NAME: {"field_name": "unet_name"},

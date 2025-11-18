@@ -1,8 +1,11 @@
-"""LoRA indexing and parsing utilities.
+"""Provides utilities for indexing and parsing LoRA files.
 
+This module includes functions for creating an in-memory index of available
+LoRA files for fast lookups, as well as helpers for parsing the LoRA syntax
+used in prompts (e.g., `<lora:name:strength>`). This allows for the efficient
+extraction and resolution of LoRA metadata from a ComfyUI workflow.
 Includes:
 * One-time index mapping LoRA base names to on-disk locations (for fast lookup).
-* Lightweight syntax parsing helpers for ``<lora:name:sm[:sc]>`` tags shared by ext modules.
 """
 
 import logging
@@ -10,6 +13,8 @@ import os
 import re
 
 import folder_paths
+from .pathresolve import SUPPORTED_MODEL_EXTENSIONS
+import json
 
 # --- Caches and Indexes for Performance ---
 # This index will be built once and reused to speed up all subsequent LoRA lookups.
@@ -25,10 +30,10 @@ def build_lora_index() -> None:
         * Enumerates every directory in ``folder_paths.get_folder_paths('loras')``.
         * Recursively walks subdirectories.
         * Records the FIRST occurrence of each base filename (stem) only.
-        * Supported extensions: ``.safetensors``, ``.pt``, ``.bin``, ``.ckpt``.
+        * Supported extensions: ``.safetensors``, ``.st``, ``.pt``, ``.bin``, ``.ckpt``.
 
     Idempotence:
-        Subsequent calls short‑circuit once the index has been built (``_LORA_INDEX_BUILT`` flag).
+        Subsequent calls short-circuit once the index has been built (``_LORA_INDEX_BUILT`` flag).
 
     Side Effects:
         Mutates module-level caches ``_LORA_INDEX`` and ``_LORA_INDEX_BUILT``.
@@ -40,7 +45,7 @@ def build_lora_index() -> None:
     logger.info("[Metadata Lib] Building LoRA file index for the first time...")
     _LORA_INDEX = {}
     lora_paths = folder_paths.get_folder_paths("loras")
-    extensions = [".safetensors", ".st", ".pt", ".bin", ".ckpt"]
+    extensions = list(SUPPORTED_MODEL_EXTENSIONS)
 
     for lora_dir in lora_paths:
         for root, _, files in os.walk(lora_dir):
@@ -55,17 +60,31 @@ def build_lora_index() -> None:
 
     _LORA_INDEX_BUILT = True
     logger.info("[Metadata Lib] LoRA index built with %d entries.", len(_LORA_INDEX))
+    try:
+        if dump_env := os.environ.get("METADATA_DUMP_LORA_INDEX"):
+            dump_path = dump_env.strip()
+            if dump_path.lower() == "1":
+                dump_path = os.path.join(os.getcwd(), "_lora_index_dump.json")
+            with open(dump_path, "w", encoding="utf-8") as f:
+                json.dump(_LORA_INDEX, f, indent=2, sort_keys=True)
+            logger.info("[Metadata Lib] LoRA index dumped to %s", dump_path)
+    except Exception as e:  # pragma: no cover - diagnostic optional
+        logger.debug("[Metadata Lib] Failed dumping LoRA index: %r", e)
 
 
 def find_lora_info(base_name: str) -> dict[str, str] | None:
-    """Return indexed metadata for a given LoRA base name.
+    """Find the indexed information for a LoRA by its base name.
+
+    This function looks up a LoRA in the in-memory index created by
+    `build_lora_index`.
 
     Args:
-        base_name: Stem of the LoRA file (without extension). Case sensitivity matches on-disk enumeration;
-            callers should normalize (e.g. lowercase) if performing broad matching.
+        base_name (str): The base name of the LoRA file (without the
+            extension).
 
     Returns:
-        Mapping with keys ``filename`` and ``abspath`` or ``None`` when the stem was not indexed.
+        dict[str, str] | None: A dictionary containing the `filename` and
+            `abspath` of the LoRA, or None if not found.
     """
     build_lora_index()
     if _LORA_INDEX is None:
@@ -85,17 +104,35 @@ LEGACY = re.compile(r"<lora:([^:>]+):([^>]+)>")
 
 
 def coerce_first(val) -> str:
-    """Return first element from list-like, or the string itself, else ''."""
+    """Return the first element when ``val`` is a list, otherwise the stringified value.
+
+    Args:
+        val: Object that may be a list or scalar value.
+
+    Returns:
+        str: ``val[0]`` when ``val`` is a non-empty list, an empty string for
+        empty lists, or ``val`` when it is already a string.
+    """
     if isinstance(val, list):
         return val[0] if val else ""
     return val if isinstance(val, str) else ""
 
 
 def parse_lora_syntax(text: str) -> tuple[list[str], list[float], list[float]]:
-    """Parse LoRA tags in text into (raw_names, model_strengths, clip_strengths).
+    """Parse LoRA syntax from a string.
 
-    - Uses STRICT first, then LEGACY fallback where clip=sm when missing or non-numeric.
-    - Names are not resolved to filenames here; call ``resolve_lora_display_names`` as needed.
+    This function uses regular expressions to find and parse LoRA tags in the
+    format `<lora:name:model_strength:clip_strength>` from a given text. It
+    supports both a strict format and a legacy format for backward
+    compatibility.
+
+    Args:
+        text (str): The text to be parsed.
+
+    Returns:
+        tuple[list[str], list[float], list[float]]: A tuple containing three
+            lists: the raw names of the LoRAs, their model strengths, and their
+            CLIP strengths.
     """
     names: list[str] = []
     model_strengths: list[float] = []
@@ -138,7 +175,17 @@ def parse_lora_syntax(text: str) -> tuple[list[str], list[float], list[float]]:
 
 
 def resolve_lora_display_names(raw_names: list[str]) -> list[str]:
-    """Resolve each raw base name to indexed filename for display when available."""
+    """Resolve raw LoRA names to their display filenames.
+
+    This function takes a list of raw LoRA base names and looks them up in the
+    LoRA index to find their full filenames.
+
+    Args:
+        raw_names (list[str]): A list of raw LoRA base names.
+
+    Returns:
+        list[str]: A list of resolved LoRA filenames.
+    """
     out: list[str] = []
     for n in raw_names:
         try:

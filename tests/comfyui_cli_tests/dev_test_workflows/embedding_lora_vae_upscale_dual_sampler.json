@@ -15,7 +15,7 @@
   "2": {
     "inputs": {
       "upscale_method": "nearest-exact",
-      "scale_by": 2,
+      "scale_by": 1.1,
       "samples": [
         "8",
         0
@@ -111,12 +111,12 @@
   },
   "8": {
     "inputs": {
-      "seed": 123,
+      "seed": 25668654,
       "steps": 20,
-      "cfg": 8,
-      "sampler_name": "dpmpp_2m",
-      "scheduler": "karras",
-      "denoise": 1,
+      "cfg": 6.5,
+      "sampler_name": "dpm_fast",
+      "scheduler": "beta",
+      "denoise": 0.99,
       "model": [
         "13",
         0
