@@ -196,7 +196,12 @@ tests/comfyui_cli_tests/Test/metadata_hash_cmpr.txt
 tests/comfyui_cli_tests/Test/validation_log.txt
 tests/comfyui_cli_tests/Test/validation_log.txt.bak
 tests/comfyui_cli_tests/compare_hash_logs.bat
+tests/comfyui_cli_tests/WORKFLOW_TEST_SUGGESTIONS.md
+
+#  Local development/testing tools
 tests/tools/Test/
+tests/tools/VALIDATE_METADATA_FIXES.md
+tests/tools/VALIDATION_FIXES_SUMMARY.md
 tests/tools/Test/hash_logs.txt
 tests/tools/Test/metadata_dump.txt
 tests/tools/Test/metadata_dump.txt.bak
