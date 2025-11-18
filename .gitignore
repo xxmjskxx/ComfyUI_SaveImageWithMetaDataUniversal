@@ -171,6 +171,7 @@ tests/tools/validate_metadata.bat
 tests/tools/run_dev_workflows.bat
 tests/tools/read_write_all_exif_to_txt.bat
 tests/tools/compare_hash_logs.bat
+tests/test_pclazy_hashes_mjsk.py
 */run_dev_workflows.bat
 */validate_metadata.bat
 */read_write_all_exif_to_txt.bat
