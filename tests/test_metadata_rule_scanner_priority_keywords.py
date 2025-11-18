@@ -69,7 +69,7 @@ def test_priority_keywords_rank_clip_fields(_scanner_env):
     assert fields == ["clip_strength", "clipped_value"], fields
 
 
-def test_priority_keywords_keep_fallback_when_no_clip_fields():
+def test_model_only_loader_skips_clip_strength_rule():
     nodes_pkg = importlib.import_module(
         "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes"
     )
@@ -113,9 +113,8 @@ def test_priority_keywords_keep_fallback_when_no_clip_fields():
         payload = json.loads(result_json)
         node_entries = payload.get("nodes", {}).get(class_name)
         assert node_entries, payload
-        clip_entry = node_entries.get("LORA_STRENGTH_CLIP")
-        assert clip_entry and "fields" in clip_entry, node_entries
-        assert clip_entry["fields"] == ["alpha_strength", "weight_plain"]
+        assert "LORA_STRENGTH_MODEL" in node_entries, node_entries
+        assert "LORA_STRENGTH_CLIP" not in node_entries
     finally:
         nodes_pkg.NODE_CLASS_MAPPINGS.pop(class_name, None)
         if undo_global:

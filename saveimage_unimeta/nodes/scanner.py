@@ -464,6 +464,7 @@ HEURISTIC_RULES = [
         "required_context": ["lora_name"],
         "is_multi": True,
         "required_class_keywords": ["lora", "loras", "loader", "load"],
+        "excluded_class_keywords": ("modelonly", "model only", "model_only"),
         "type": "FLOAT",
         "sort_numeric": True,
         "priority_keywords": [

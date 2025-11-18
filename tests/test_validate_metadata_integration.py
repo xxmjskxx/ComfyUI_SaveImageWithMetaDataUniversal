@@ -103,6 +103,7 @@ class TestValidateMetadataIntegration:
             assert len(expected["save_nodes"]) > 0
 
 
+
 class TestMetadataParserWithRealFormats:
     """Test the parser with real-world metadata formats."""
 
@@ -156,6 +157,38 @@ class TestMetadataParserWithRealFormats:
         assert "Sampler" in fields
         assert "CFG scale" in fields
         assert "Seed" in fields
+
+
+def test_workflow_analyzer_marks_modelonly_clip_strength_none():
+    """Synthetic workflow proves ModelOnly loaders skip clip-strength expectations."""
+
+    workflow = {
+        "sampler": {
+            "class_type": "SamplerCustomAdvanced",
+            "inputs": {
+                "model": ["lora_loader", 0],
+            },
+        },
+        "lora_loader": {
+            "class_type": "LoraLoaderModelOnly",
+            "inputs": {
+                "lora_name": "demo_lora.safetensors",
+                "strength_model": 0.42,
+                "model": ["ckpt_loader", 0],
+            },
+        },
+        "ckpt_loader": {
+            "class_type": "CheckpointLoaderSimple",
+            "inputs": {
+                "ckpt_name": "base_model.safetensors",
+            },
+        },
+    }
+
+    info = WorkflowAnalyzer.resolve_model_hierarchy(workflow, "sampler")
+    lora_stack = info.get("lora_stack")
+    assert lora_stack, "Expected synthetic workflow to expose a LoRA stack"
+    assert lora_stack[0]["clip_strength"] is None
 
 
 if __name__ == "__main__":

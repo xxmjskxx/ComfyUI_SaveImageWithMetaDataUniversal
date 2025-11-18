@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 _No changes yet._
 
-## [1.3.0] - 2025-10-31
+## [1.3.0] - 2025-11-18
 ### Added
 - **Compatibility wrapper for ComfyUI 0.3.65+**: `_OutputCacheCompat` class provides backward compatibility for API changes in get_input_data execution_list parameter.
 - Unified artifact resolution system via `pathresolve.py` module with `try_resolve_artifact()` and `load_or_calc_hash()` helpers.

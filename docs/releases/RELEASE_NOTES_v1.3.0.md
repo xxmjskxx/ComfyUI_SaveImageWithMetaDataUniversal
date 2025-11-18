@@ -1,6 +1,6 @@
 # Release Notes - v1.3.0
 
-**Release Date:** 2025-10-31
+**Release Date:** 2025-11-18
 
 ## Overview
 

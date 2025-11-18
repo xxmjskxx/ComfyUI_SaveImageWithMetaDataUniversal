@@ -629,6 +629,9 @@ class WorkflowAnalyzer:
 
             if "lora" in lower_class and inputs.get("lora_name") not in (None, "", "None"):
                 model_strength, clip_strength = WorkflowAnalyzer._resolve_strength_pair(inputs)
+                normalized_class = lower_class.replace("_", "").replace(" ", "")
+                if "modelonly" in normalized_class:
+                    clip_strength = None
                 info.setdefault("lora_stack", []).append(
                     {
                         "name": inputs.get("lora_name") or inputs.get("name"),
@@ -1836,15 +1839,17 @@ class MetadataValidator:
                             f"{model_str_key} not present in metadata",
                         )
 
-                    if clip_str_key in fields:
-                        compare_numeric_field(clip_str_key, expected_lora["clip_strength"])
-                    else:
-                        mark_fail(
-                            clip_str_key,
-                            expected_lora["clip_strength"],
-                            "N/A",
-                            f"{clip_str_key} not present in metadata",
-                        )
+                    expected_clip_strength = expected_lora.get("clip_strength")
+                    if expected_clip_strength is not None:
+                        if clip_str_key in fields:
+                            compare_numeric_field(clip_str_key, expected_clip_strength)
+                        else:
+                            mark_fail(
+                                clip_str_key,
+                                expected_clip_strength,
+                                "N/A",
+                                f"{clip_str_key} not present in metadata",
+                            )
                 else:
                     mark_fail(
                         f"LoRA {idx} name",
