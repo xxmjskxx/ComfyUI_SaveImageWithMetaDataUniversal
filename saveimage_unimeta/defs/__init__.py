@@ -233,7 +233,7 @@ def _merge_extension_capture_entry(node_name: str, rules) -> None:
         existing.update(rules)
 
 
-def _merge_user_capture_entry(node_name: str, rules) -> None:
+def _merge_user_capture_entry(node_name: str, rules, allowed: set[str] | None) -> None:
     """Merge a user-defined capture rule entry from JSON.
     Semantics (must match original inline logic):
       * Ensure a dict container exists for the node name.
@@ -242,12 +242,14 @@ def _merge_user_capture_entry(node_name: str, rules) -> None:
         node_name (str): The name of the node the rule applies to.
         rules (dict): The dictionary of rules to be merged.
     """
+    if allowed is not None and node_name not in allowed:
+        return
     container = CAPTURE_FIELD_LIST.setdefault(node_name, {})
     if isinstance(container, MutableMapping) and isinstance(rules, Mapping):
         container.update(rules)
 
 
-def _merge_user_sampler_entry(key: str, val) -> None:
+def _merge_user_sampler_entry(key: str, val, allowed: set[str] | None) -> None:
     """Merge a user-defined sampler entry from JSON.
     Rules:
       * Non-mapping values are skipped with a warning.
@@ -257,6 +259,8 @@ def _merge_user_sampler_entry(key: str, val) -> None:
         key (str): The key for the sampler entry.
         val (dict): The dictionary of sampler information to be merged.
     """
+    if allowed is not None and key not in allowed:
+        return
     if not isinstance(val, Mapping):
         logger.warning(
             "[Metadata Loader] user_samplers key '%s' is not a mapping; skipping",
@@ -294,6 +298,11 @@ def load_user_definitions(required_classes: set | None = None, suppress_missing_
 
     # Compute coverage if requested
     cover_set = set(CAPTURE_FIELD_LIST.keys()) | set(SAMPLERS.keys())
+    allowed_user_classes: set[str] | None = None
+    if required_classes is not None:
+        allowed_user_classes = set(required_classes)
+        if FORCED_INCLUDE_CLASSES:
+            allowed_user_classes.update(FORCED_INCLUDE_CLASSES)
 
     # Paths for user JSON
     NODE_PACK_DIR = os.path.dirname(  # noqa: N806
@@ -366,7 +375,7 @@ def load_user_definitions(required_classes: set | None = None, suppress_missing_
                     data = json.load(f)
                 if isinstance(data, Mapping):
                     for key, val in data.items():
-                        _merge_user_sampler_entry(key, val)
+                        _merge_user_sampler_entry(key, val, allowed_user_classes)
                 else:  # pragma: no cover - defensive
                     logger.warning("[Metadata Loader] user_samplers.json did not contain a mapping; ignoring")
             except FileNotFoundError:  # pragma: no cover - race
@@ -381,7 +390,7 @@ def load_user_definitions(required_classes: set | None = None, suppress_missing_
                 deserialized_rules = deserialize_input(USER_CAPTURES_FILE)
                 if isinstance(deserialized_rules, Mapping):
                     for node_name, rules in deserialized_rules.items():
-                        _merge_user_capture_entry(node_name, rules)
+                        _merge_user_capture_entry(node_name, rules, allowed_user_classes)
                 else:  # pragma: no cover
                     logger.warning("[Metadata Loader] user_captures did not deserialize to mapping; ignoring")
             except FileNotFoundError:  # pragma: no cover
