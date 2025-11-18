@@ -47,6 +47,7 @@
 <details open>
 <summary><strong></strong></summary>
 
+- **v1.3.0 Released (2025-11-18):** Major update with 219 commits including LoRA/embedding system overhaul, user rule redesign, enhanced scanner, comprehensive testing, and extensive documentation. See [Changelog](#changelog) for details.
 - I'm an amateur at coding, at best. I started writing this myself, but as I began increasing the scope of the project I started using a Copilot.
 - If you have any questions, think any documentation is lacking, or experience issues with certain workflows or custom node packs, create a new issue an I'll try and see if it's something I can address.
 
@@ -426,8 +427,24 @@ Stable output characteristics to aid tooling & reproducibility:
 * JPEG fallback stage tracking aligns with documented progression (full → reduced-exif → minimal → com-marker).
 
 ### Changelog
-- Refactor notice: legacy monolithic module removed; see [Changelog](#changelog) for new direct import paths.
-See `CHANGELOG.md` for a summarized list of notable changes (e.g. JPEG fallback staging, 64KB EXIF cap enforcement, dynamic rule scanner separation, logging overhaul, documentation structure).
+
+**Latest Release: v1.3.0 (2025-11-18)**
+
+Major consolidation release with 219 commits bringing:
+- **LoRA & Embedding System Overhaul**: Opt-in inline parsing, enhanced LoRA manager with structured field inspection, fixed "Schedule LoRAs" clip duplication, cached embedding hashes, per-node strength tracking
+- **User Rule System Redesign**: Selective rule merging with `required_classes` parameter, version tracking with outdated warnings, coverage-aware test runs
+- **Scanner Enhancements**: Priority keywords, improved heuristics, better LoRA/embedding detection
+- **Testing Infrastructure**: Comprehensive new test suites, enhanced CLI validation tools, Python 3.13 support
+- **Documentation**: Comprehensive docstrings on all Python files, enhanced inline documentation
+- **Code Quality**: Structured logging, better exception handling, type safety improvements
+
+See `CHANGELOG.md` for complete details or `docs/releases/RELEASE_NOTES_v1.3.0.md` for the full release notes.
+
+**Previous Notable Changes:**
+- Refactor notice: legacy monolithic module removed; see `CHANGELOG.md` for new direct import paths
+- JPEG fallback staging, 64KB EXIF cap enforcement
+- Dynamic rule scanner separation
+- Logging overhaul and documentation structure improvements
 
 ### Development & Testing
 

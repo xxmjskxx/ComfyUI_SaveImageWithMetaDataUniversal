@@ -6,34 +6,88 @@ All notable changes to this project will be documented in this file.
 _No changes yet._
 
 ## [1.3.0] - 2025-11-18
-### Added
-- **Compatibility wrapper for ComfyUI 0.3.65+**: `_OutputCacheCompat` class provides backward compatibility for API changes in get_input_data execution_list parameter.
-- Unified artifact resolution system via `pathresolve.py` module with `try_resolve_artifact()` and `load_or_calc_hash()` helpers.
-- Centralized `EXTENSION_ORDER` constant for consistent extension priority across all model types.
-- Enhanced filename sanitization with `sanitize_candidate()` to handle Windows-problematic trailing punctuation.
-- Comprehensive test suite for special character filenames including unicode, punctuation, and version numbers with dots.
-- Hash logging modes with configurable levels (none/filename/path/detailed/debug) and propagation control.
-- Hash basename logging and relative path hashing capabilities.
-- Tests for hash logging, startup message deduplication, LoRA dots fix, and OutputCache compatibility.
-- Support for sidecar `.sha256` file validation with proper format checking.
-- PEP 562 lazy attribute access for `saveimage_unimeta` subpackage import.
+### Highlights
+This is a major consolidation release bringing together 219 commits of improvements, bug fixes, and enhancements. Key focus areas include LoRA/embedding handling, user rule system improvements, scanner enhancements, comprehensive testing, and extensive documentation.
 
-### Changed
-- Consolidated duplicate resolution logic across model/VAE/LoRA/UNet hash functions into reusable helpers.
-- Improved filename resolution to handle names with multiple dots (e.g., `model.v1.2.3.safetensors`).
-- Enhanced startup logging with session-based deduplication using logging registry.
-- Moved `importlib` to module scope in `__init__.py` to avoid repeated imports.
-- Refined exception handling to narrow catches where appropriate (OSError instead of broad Exception).
-- Updated hash calculation to use centralized `load_or_calc_hash()` with sidecar support.
-- Wrapped outputs dict with `_OutputCacheCompat` for ComfyUI 0.3.65+ compatibility.
+### Added - LoRA & Embedding System
+- **Opt-in inline LoRA parsing**: Added `inline_lora_candidate` flag to prompt captures, restricting `<lora:...>` tag parsing to only nodes that explicitly opt in, preventing incidental prompt scans.
+- **Enhanced LoRA manager**: Now inspects multiple structured fields (`lora_stack`, `loras`, `loaded_loras`, etc.) before falling back to plain text parsing, properly surfacing names, hashes, and per-slot strengths from LoRA Loader/Text Loader nodes including string-fed syntax.
+- **Cached embedding hashes**: Scanner and capture now use cached embedding hashes for improved performance.
+- **Per-node strength alignment**: Revamped LoRA strength tracking to preserve strengths per node instance.
+- **Dedicated clip-strength selector**: PCLazyLoraLoader nodes now keep separate model/CLIP strength lists and expose dedicated clip-strength selectors.
 
-### Fixed
-- **Compatibility with ComfyUI 0.3.65+** which changed get_input_data to expect execution_list with get_output_cache() method.
-- Filename resolution errors for models with version numbers containing dots (e.g., `dark_gothic_fantasy_xl_3.01`).
-- Edge cases in `os.path.splitext()` handling for filenames with multiple extensions.
-- Hash logging propagation issues via environment variable control.
-- Startup message printing multiple times on module reload.
-- Invalid noqa comment in test_show_any.py.
+### Added - User Rule System
+- **Selective rule merging**: `load_user_definitions` now accepts `required_classes` parameter with `allowed_user_classes` handling. When provided, user JSON entries are only merged for explicitly requested or forced classes, allowing coverage-satisfied test runs to ignore unrelated user-only nodes while still applying targeted overrides and forced includes.
+- **Legacy behavior preserved**: Global loads (`required_classes is None`) still load every user entry, maintaining compatibility for rule scanner workflows and migration tests.
+- **Version tracking system**: Added `version.py` module with rule version tracking and outdated rule warnings.
+
+### Added - Scanner Enhancements
+- **Priority keywords**: Scanner now supports `priority_keywords` for better node prioritization during rule generation.
+- **Improved heuristics**: Adjusted sampler selection and metadata field detection heuristics.
+- **Better LoRA/embedding detection**: Fixed scanner handling of LoRAs and embeddings with proper hash resolution.
+
+### Added - Testing & Validation
+- **Comprehensive test coverage**: New tests including `test_lora_manager_selectors.py`, `test_pclazy_hashes.py`, regression tests for inline LoRA opt-in, strength preservation, and clip duplication fixes.
+- **CLI validation tools**: Enhanced workflow validation scripts with verbose mode, metadata dump capabilities, workflow tracing, and comprehensive field validation.
+- **Integration tests**: Added `test_validate_metadata_integration.py` for end-to-end validation testing.
+- **Test organization**: Moved various development tools to `tests/tools` directory for better organization.
+
+### Added - Documentation & Developer Experience
+- **Comprehensive docstrings**: Added detailed docstrings to all Python files covering purpose, inputs, outputs, and environment flag dependencies.
+- **Enhanced copilot instructions**: Updated and expanded `.github/copilot-instructions.md` and related instruction files.
+- **Inline documentation**: Added explanatory comments to empty except clauses and complex logic sections.
+- **Example workflows**: Added/updated workflows including `refresh-rules.json` and efficiency testing workflows.
+
+### Added - Infrastructure & Tooling
+- **Python 3.13 support**: Added Python 3.13 to CI matrix in `unimeta-ci.yml`.
+- **Hash validation paths**: Updated validation scripts with `--extra-workflows` option and improved hash validation paths.
+- **Workflow analysis tools**: Comprehensive workflow MetaFields analysis and tracing capabilities.
+
+### Changed - LoRA Processing
+- **Fixed "Schedule LoRAs" clip duplication**: PCLazyLoraLoader selectors now properly handle model vs CLIP strengths separately, fixing metadata duplication.
+- **LoRA stack source tracking**: Caching now tracks originating field to avoid stale data when sources change.
+- **Improved strength alignment**: Better per-node strength preservation across different LoRA loader types.
+
+### Changed - Capture System
+- **Inline LoRA gating**: `Capture.get_inputs` now remembers which prompt nodes opt into inline parsing, differentiating between prompt-only workflows (scan entire prompt graph) and workflows with prompts that didn't opt in.
+- **Selective prompt scanning**: Added `inline_filter` gate and `should_attempt_inline` check to prevent false positives.
+- **Better error handling**: `_append_loras_from_text` no longer swallows exceptions silently, now uses structured logging.
+- **Metadata value bug fixes**: Corrected metadata value generation in `selectors.py`, `__init__.py`, and `capture.py`.
+
+### Changed - Code Quality
+- **Structured logging**: Replaced silent exceptions with proper module-level logging throughout.
+- **Better exception handling**: Narrowed broad `Exception` catches to specific types (OSError, etc.) where appropriate.
+- **Improved docstrings**: Fixed incorrect docstrings (e.g., `coerce_first` in `lora.py`) with accurate contract descriptions.
+- **Type safety**: Mypy fixes across the codebase.
+- **Code organization**: Better separation of concerns and clearer function contracts.
+
+### Changed - Testing Infrastructure
+- **Efficiency validation improvements**: `run_efficiency_validation.py` now starts from `DEFAULT_COMFY_EXTRA.copy()` after parsing, properly honors `workflow_dir` parameter, and logs reasons for `/object_info` polling failures.
+- **CLI helper improvements**: Tightened helpers without Windows-only assumptions or ambiguous parsing.
+- **Cookiecutter fixes**: Updated post-generation hook to use proper Jinja boolean expressions.
+- **Piexif alias improvements**: Fallback path now consumes installed modules when available and re-exports them, eliminating unused-import warnings.
+
+### Fixed - Critical Bugs
+- **Repeating startup banner**: Fixed startup message printing multiple times on module reload with session-based deduplication.
+- **LoRA hash calculation**: Fixed hash resolution and caching bugs affecting LoRA metadata accuracy.
+- **Metadata value bugs**: Fixed incorrect metadata values being generated by selectors and capture logic.
+- **Validation script bugs**: Fixed critical bugs in validation scripts affecting workflow testing accuracy.
+
+### Fixed - Test Issues
+- **test_validate_metadata_integration.py**: Fixed errors preventing integration tests from passing.
+- **Test file cleanup**: Removed test result files from repository, updated `.gitignore` appropriately.
+- **CI cookiecutter issues**: Fixed template generation issues affecting CI builds.
+- **Linting issues**: Fixed various ruff linting violations and formatting inconsistencies.
+
+### Removed
+- **Cleaned up artifacts**: Deleted `__pycache__` directories and updated `.gitignore` to prevent future commits.
+- **Obsolete test files**: Removed outdated test documentation and completion summaries from `tests/comfyui_cli_tests/`.
+- **Stale code**: Removed unused code and commented-out defaults that no longer matched behavior.
+
+### Internal
+- **Repository cleanup**: Better `.gitignore` configuration to exclude build artifacts and test outputs.
+- **Documentation organization**: Improved structure of test documentation and workflow examples.
+- **Code archaeology**: Removed mjsk-specific references from tests for better generalization.
 
 ## [1.2.4] - 2025-11-12
 ### Changed
@@ -198,7 +252,8 @@ Note: 1.0.0 was the first public registry release; this minor release formalizes
 
 ---
 
-[Unreleased]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.2.4...HEAD
+[Unreleased]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.2.4...v1.3.0
 [1.2.4]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.2.3...v1.2.4
 [1.2.3]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.2.2...v1.2.3
 [1.2.2]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.2.1...v1.2.2
