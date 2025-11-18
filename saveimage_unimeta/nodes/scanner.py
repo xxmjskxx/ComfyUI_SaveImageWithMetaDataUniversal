@@ -70,6 +70,7 @@ Each rule in this list specifies how to identify a particular piece of metadata
 import json
 import logging
 import os
+import re
 
 import nodes
 from ..utils.color import cstr
@@ -80,6 +81,59 @@ from .. import defs as defs_mod
 
 logger = logging.getLogger(__name__)
 _DEBUG_VERBOSE = os.environ.get("METADATA_DEBUG", "0") not in ("0", "false", "False", None, "")
+
+
+_LORA_SELECTOR_TARGETS = {
+    MetaField.LORA_MODEL_NAME: "get_lora_model_name_stack",
+    MetaField.LORA_MODEL_HASH: "get_lora_model_hash_stack",
+    MetaField.LORA_STRENGTH_MODEL: "get_lora_strength_model_stack",
+    MetaField.LORA_STRENGTH_CLIP: "get_lora_strength_clip_stack",
+}
+
+_LORA_STACK_FIELD_PATTERNS = (
+    re.compile(r"^lora_name[_\d]*$", re.IGNORECASE),
+    re.compile(r"^lora_list", re.IGNORECASE),
+    re.compile(r"^lora_stack", re.IGNORECASE),
+)
+
+
+def _fields_look_like_lora_stack(entry: dict | None) -> bool:
+    if not isinstance(entry, dict):
+        return False
+    fields = entry.get("fields")
+    if not isinstance(fields, list | tuple) or not fields:
+        return False
+    indicator_hits = 0
+    for raw in fields:
+        if not isinstance(raw, str):
+            continue
+        lname = raw.lower()
+        for pattern in _LORA_STACK_FIELD_PATTERNS:
+            if pattern.search(lname):
+                return True
+        if lname.startswith("lora_name"):
+            indicator_hits += 1
+            if indicator_hits >= 2:
+                return True
+    return False
+
+
+def _promote_lora_stack_selectors(node_suggestions: dict) -> None:
+    if MetaField.LORA_MODEL_NAME not in node_suggestions:
+        return
+    name_entry = node_suggestions.get(MetaField.LORA_MODEL_NAME)
+    if not _fields_look_like_lora_stack(name_entry):
+        return
+    for metafield, selector_name in _LORA_SELECTOR_TARGETS.items():
+        entry = node_suggestions.get(metafield)
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("selector"):
+            continue
+        new_entry = {"selector": selector_name}
+        if "format" in entry:
+            new_entry["format"] = entry["format"]
+        node_suggestions[metafield] = new_entry
 
 
 HEURISTIC_RULES_DOC = """A glossary of keys used in the `HEURISTIC_RULES` dictionary.
@@ -365,7 +419,7 @@ HEURISTIC_RULES = [
         "is_multi": True,
         "format": "calc_lora_hash",
         "hash_field": MetaField.LORA_MODEL_HASH,
-        "required_class_keywords": ["lora", "loader", "load"],
+        "required_class_keywords": ["lora", "loras", "loader", "load"],
         "sort_numeric": True,
         "excluded_keywords": ("lora_syntax", "loaded_loras", "text", "wt", "clip"),
     },
@@ -390,7 +444,7 @@ HEURISTIC_RULES = [
         ),
         "required_context": ["lora_name"],
         "is_multi": True,
-        "required_class_keywords": ["lora", "loader", "load"],
+        "required_class_keywords": ["lora", "loras", "loader", "load"],
         "type": "FLOAT",
         "sort_numeric": True,
         "excluded_keywords": ("clip",),
@@ -406,15 +460,10 @@ HEURISTIC_RULES = [
             "wt",
             "clip",
         ),
-        "keywords_regex": (
-            r"^clip_str_?\d{0,2}$",
-            r"^clip_strength_?\d{0,2}$",
-            r"^strength_clip_?\d{0,2}$",
-            r"^clip_weight_?\d{0,2}$"
-        ),
+        "keywords_regex": (r"^clip_str_?\d{0,2}$", r"^clip_strength_?\d{0,2}$", r"^strength_clip_?\d{0,2}$", r"^clip_weight_?\d{0,2}$"),
         "required_context": ["lora_name"],
         "is_multi": True,
-        "required_class_keywords": ["lora", "loader", "load"],
+        "required_class_keywords": ["lora", "loras", "loader", "load"],
         "type": "FLOAT",
         "sort_numeric": True,
         "priority_keywords": [
@@ -793,6 +842,12 @@ class MetadataRuleScanner:
                         dtype = val
                     return dtype.upper() if isinstance(dtype, str) else None
 
+                def _maybe_flag_inline_candidate(meta_field, suggestion_dict):
+                    if not isinstance(meta_field, MetaField):
+                        return
+                    if meta_field in (MetaField.POSITIVE_PROMPT, MetaField.NEGATIVE_PROMPT):
+                        suggestion_dict.setdefault("inline_lora_candidate", True)
+
                 for nm in all_input_names:
                     try:
                         field_types[nm] = _declared_type_for(nm)
@@ -1019,6 +1074,7 @@ class MetadataRuleScanner:
                                 suggestion = {"field_name": matching_fields[0]}
                                 if rule.get("validate"):
                                     suggestion["validate"] = rule["validate"]
+                                _maybe_flag_inline_candidate(rule["metafield"], suggestion)
                                 node_suggestions[rule["metafield"]] = suggestion
                                 if rule.get("format") and rule.get("hash_field"):
                                     node_suggestions[rule["hash_field"]] = {
@@ -1029,6 +1085,7 @@ class MetadataRuleScanner:
                                 suggestion = {"fields": matching_fields}
                                 if rule.get("validate"):
                                     suggestion["validate"] = rule["validate"]
+                                _maybe_flag_inline_candidate(rule["metafield"], suggestion)
                                 node_suggestions[rule["metafield"]] = suggestion
                                 if rule.get("format") and rule.get("hash_field"):
                                     node_suggestions[rule["hash_field"]] = {
@@ -1093,7 +1150,7 @@ class MetadataRuleScanner:
                         suggestion = {"field_name": best_field}
                         if rule.get("validate"):
                             suggestion["validate"] = rule["validate"]
-
+                        _maybe_flag_inline_candidate(rule["metafield"], suggestion)
                         node_suggestions[rule["metafield"]] = suggestion
 
                         # Automatically add the corresponding hash field rule and attach formatter there
@@ -1106,6 +1163,8 @@ class MetadataRuleScanner:
                             node_suggestions[hash_field] = hash_suggestion
 
                     # (multi case already handled above)
+
+                _promote_lora_stack_selectors(node_suggestions)
 
                 if node_suggestions:
                     if is_existing:

@@ -100,8 +100,16 @@ CAPTURE_FIELD_LIST_EXAMPLES: dict[str, Mapping[MetaField, Mapping[str, Any]]] = 
     },
     # Example 2: CLIP text encoders with validation for prompt roles
     "CLIPTextEncode": {
-        MetaField.POSITIVE_PROMPT: {"field_name": "text", "validate": KNOWN["is_positive_prompt"]},
-        MetaField.NEGATIVE_PROMPT: {"field_name": "text", "validate": KNOWN["is_negative_prompt"]},
+        MetaField.POSITIVE_PROMPT: {
+            "field_name": "text",
+            "validate": KNOWN["is_positive_prompt"],
+            "inline_lora_candidate": True,
+        },
+        MetaField.NEGATIVE_PROMPT: {
+            "field_name": "text",
+            "validate": KNOWN["is_negative_prompt"],
+            "inline_lora_candidate": True,
+        },
     },
     # Example 3: CLIP loaders capturing multiple inputs by prefix (clip_name, clip_name1, clip_name2, ...)
     "CLIPLoader": {

@@ -1,2 +1,0 @@
-@echo off
-python tests\tools\validate_metadata.py --verbose --output-folder "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Packages\ComfyUI_windows_portable\ComfyUI\output\Test" --models-path "C:\StableDiffusion\StabilityMatrix-win-x64\Data\Models"

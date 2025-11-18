@@ -36,7 +36,13 @@ CAPTURE_FIELD_LIST = {
         MetaField.SCHEDULER: {"field_name": "scheduler"},
         MetaField.STEPS: {"field_name": "steps"},
         MetaField.SEED: {"field_name": "noise_seed"},
-        MetaField.POSITIVE_PROMPT: {"field_name": "conditioning.positive"},
-        MetaField.NEGATIVE_PROMPT: {"field_name": "conditioning.negative"},
+        MetaField.POSITIVE_PROMPT: {
+            "field_name": "conditioning.positive",
+            "inline_lora_candidate": True,
+        },
+        MetaField.NEGATIVE_PROMPT: {
+            "field_name": "conditioning.negative",
+            "inline_lora_candidate": True,
+        },
     },
 }

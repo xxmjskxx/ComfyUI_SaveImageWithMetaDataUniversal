@@ -465,7 +465,8 @@ class Capture:
                 containing the node ID, the captured value, and optionally the
                 source field name.
         """
-        inputs = {}
+        inputs: dict[MetaField, list[tuple[Any, ...]]] = {}
+        inline_prompt_nodes: set[str] = set()
         prompt = hook.current_prompt
         extra_data = hook.current_extra_data
         # In lightweight test mode or if a caller invoked capture before the runtime
@@ -523,6 +524,13 @@ class Capture:
 
                 if meta not in inputs:
                     inputs[meta] = []
+
+                allow_inline = bool(field_data.get("inline_lora_candidate")) and meta in {
+                    MetaField.POSITIVE_PROMPT,
+                    MetaField.NEGATIVE_PROMPT,
+                }
+                if allow_inline:
+                    inline_prompt_nodes.add(str(node_id))
 
                 # Handle our new "prefix" based selectors for multi-input nodes
                 if "prefix" in field_data:
@@ -786,18 +794,35 @@ class Capture:
 
         # Inline LoRA fallback extraction for test mode / prompt-only presence
         try:
-            if MetaField.LORA_MODEL_NAME not in inputs:
+            has_lora_entries = bool(inputs.get(MetaField.LORA_MODEL_NAME))
+            prompt_entries_present = bool(inputs.get(MetaField.POSITIVE_PROMPT)) or bool(inputs.get(MetaField.NEGATIVE_PROMPT))
+            inline_filter: set[str] | None = set(inline_prompt_nodes) if inline_prompt_nodes else None
+            should_attempt_inline = (not has_lora_entries) and (inline_filter is not None or not prompt_entries_present)
+            if should_attempt_inline:
                 import re
 
                 pattern = re.compile(r"<lora:([A-Za-z0-9_\-]+):([0-9]*\.?[0-9]+)(?::([0-9]*\.?[0-9]+))?>")
                 raw_candidates: list[str] = []
-                for mf_vals in inputs.values():
-                    for tup in mf_vals:
+                for prompt_meta in (MetaField.POSITIVE_PROMPT, MetaField.NEGATIVE_PROMPT):
+                    for tup in inputs.get(prompt_meta) or ():
+                        node_ref = None
+                        if isinstance(tup, list | tuple) and tup:
+                            node_ref = str(tup[0])
+                        node_id_allowed = True
+                        if inline_filter is not None:
+                            if node_ref is None:
+                                node_id_allowed = False
+                            else:
+                                node_id_allowed = node_ref in inline_filter
+                        if not node_id_allowed:
+                            continue
                         val = cls._extract_value(tup)
                         if isinstance(val, str):
                             raw_candidates.append(val)
                 if hasattr(hook, "current_prompt"):
-                    for node_data in getattr(hook, "current_prompt", {}).values():
+                    for node_id, node_data in getattr(hook, "current_prompt", {}).items():
+                        if inline_filter is not None and str(node_id) not in inline_filter:
+                            continue
                         try:
                             for v in node_data.get("inputs", {}).values():
                                 if isinstance(v, list | tuple):

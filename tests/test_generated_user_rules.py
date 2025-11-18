@@ -134,6 +134,7 @@ def test_save_custom_rules_generates_valid_ext_and_jsons():
 def test_scanner_roundtrip_generates_importable_module(monkeypatch):
     # Register a simple dummy node so the scanner always finds at least one
     nodes_pkg = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes")
+    comfy_nodes = importlib.import_module("nodes")
 
     class DummyNode:
         @classmethod
@@ -142,21 +143,27 @@ def test_scanner_roundtrip_generates_importable_module(monkeypatch):
                 "required": {
                     "positive": ("STRING", {}),
                     "negative": ("STRING", {}),
+                    "clip": ("CLIP", {}),
                     "seed": ("INT", {}),
                 }
             }
 
     # Temporarily register our dummy
-    nodes_pkg.NODE_CLASS_MAPPINGS["UnitTestScanNode"] = DummyNode
+    nodes_pkg.NODE_CLASS_MAPPINGS["UnitTestClipEncode"] = DummyNode
+    comfy_nodes.NODE_CLASS_MAPPINGS["UnitTestClipEncode"] = DummyNode
     try:
         scanner = nodes_pkg.MetadataRuleScanner()
         result_json, _ = scanner.scan_for_rules(
             exclude_keywords="",
             include_existing=False,
-            mode="existing_only",
+            mode="all",
             force_include_metafields="",
-            force_include_node_class="UnitTestScanNode",
+            force_include_node_class="UnitTestClipEncode",
         )
+        parsed = json.loads(result_json)
+        node_rules = parsed["nodes"].get("UnitTestClipEncode")
+        assert node_rules["POSITIVE_PROMPT"].get("inline_lora_candidate") is True
+        assert node_rules["NEGATIVE_PROMPT"].get("inline_lora_candidate") is True
         # Save via writer
         writer = nodes_pkg.SaveCustomMetadataRules()
         (status,) = writer.save_rules(result_json)
@@ -168,4 +175,5 @@ def test_scanner_roundtrip_generates_importable_module(monkeypatch):
         assert hasattr(gen_mod, "CAPTURE_FIELD_LIST") and isinstance(gen_mod.CAPTURE_FIELD_LIST, dict)
         assert isinstance(gen_mod.SAMPLERS, dict)
     finally:
-        nodes_pkg.NODE_CLASS_MAPPINGS.pop("UnitTestScanNode", None)
+        nodes_pkg.NODE_CLASS_MAPPINGS.pop("UnitTestClipEncode", None)
+        comfy_nodes.NODE_CLASS_MAPPINGS.pop("UnitTestClipEncode", None)

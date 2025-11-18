@@ -8,6 +8,42 @@ import importlib
 MODULE_PATH = "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.capture"
 
 
+def _setup_inline_prompt_environment(monkeypatch, inline_flag: bool):
+    cap = importlib.import_module(MODULE_PATH)
+    meta_mod = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.meta")
+    MetaField = meta_mod.MetaField
+
+    class DummyPromptExecuter:
+        class Caches:
+            outputs = {}
+
+        caches = Caches()
+
+    class DummyHook:
+        current_prompt = {
+            "1": {
+                "class_type": "InlinePromptNode",
+                "inputs": {"text": ["base prompt <lora:StackedDemo:0.75:0.5>"]},
+            }
+        }
+        current_extra_data = {}
+        prompt_executer = DummyPromptExecuter()
+
+    monkeypatch.setattr(cap, "hook", DummyHook)
+    monkeypatch.setattr(cap, "NODE_CLASS_MAPPINGS", {"InlinePromptNode": object})
+
+    def fake_get_input_data(node_inputs, obj_class, node_id, outputs, dyn_prompt, extra):
+        return (node_inputs,)
+
+    monkeypatch.setattr(cap, "get_input_data", fake_get_input_data)
+
+    rule = {"field_name": "text"}
+    if inline_flag:
+        rule["inline_lora_candidate"] = True
+    monkeypatch.setattr(cap, "CAPTURE_FIELD_LIST", {"InlinePromptNode": {MetaField.POSITIVE_PROMPT: rule}})
+    return cap, MetaField
+
+
 def test_module_imports_without_comfy_runtime(monkeypatch):
     # Ensure env flags don't break import.
     monkeypatch.delenv("METADATA_DEBUG_PROMPTS", raising=False)
@@ -72,6 +108,21 @@ def test_get_inputs_fallback_flux(monkeypatch):
     clip_vals = [v[1] for v in inputs[MetaField.CLIP_PROMPT]]
     assert "A cat" in t5_vals
     assert "A dog" in clip_vals
+
+
+def test_inline_lora_fallback_requires_opt_in(monkeypatch):
+    cap, MetaField = _setup_inline_prompt_environment(monkeypatch, inline_flag=False)
+    inputs = cap.Capture.get_inputs()
+    assert MetaField.POSITIVE_PROMPT in inputs
+    assert MetaField.LORA_MODEL_NAME not in inputs
+
+
+def test_inline_lora_fallback_runs_when_opted_in(monkeypatch):
+    cap, MetaField = _setup_inline_prompt_environment(monkeypatch, inline_flag=True)
+    inputs = cap.Capture.get_inputs()
+    assert MetaField.LORA_MODEL_NAME in inputs
+    names = [entry[1] for entry in inputs[MetaField.LORA_MODEL_NAME]]
+    assert "StackedDemo" in names
 
 
 def test_generate_pnginfo_version_stamp():

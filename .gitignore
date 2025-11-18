@@ -163,9 +163,18 @@ img/ignore/
 
 # Local development/testing files
 # /dev_test_workflows/
+tests/tools/show_all_nodes_and_fields.py
 tests/comfyui_cli_tests/run_dev_workflows.bat
 tests/comfyui_cli_tests/validate_metadata.bat
 tests/comfyui_cli_tests/read_write_all_exif_to_txt.bat
+tests/tools/validate_metadata.bat
+tests/tools/run_dev_workflows.bat
+tests/tools/read_write_all_exif_to_txt.bat
+tests/tools/compare_hash_logs.bat
+*/run_dev_workflows.bat
+*/validate_metadata.bat
+*/read_write_all_exif_to_txt.bat
+*.bat
 tests/comfyui_cli_tests/Test/
 run_dev_workflows.bat
 validate_metadata.bat
@@ -188,6 +197,8 @@ tests/tools/Test/metadata_hash_cmpr.md
 tests/tools/Test/metadata_hash_cmpr.txt
 tests/tools/Test/validation_log.txt
 tests/tools/Test/validation_log.txt.bak
+example_workflows/old_workflows/
+
 
 # Local settings files
 # .github/copilot-instructions.md

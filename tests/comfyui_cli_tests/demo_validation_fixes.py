@@ -16,8 +16,16 @@ if str(SCRIPT_DIR) not in sys.path:
 
 WORKFLOW_DIR = SCRIPT_DIR / "dev_test_workflows"
 
-# Import the validator
-from validate_metadata import MetadataValidator, WorkflowAnalyzer
+
+def _load_validator_modules():
+    """Import validator helpers after sys.path adjustments."""
+
+    from validate_metadata import MetadataValidator as _MetadataValidator, WorkflowAnalyzer as _WorkflowAnalyzer
+
+    return _MetadataValidator, _WorkflowAnalyzer
+
+
+MetadataValidator, WorkflowAnalyzer = _load_validator_modules()
 
 
 def demo_metadata_parsing():

@@ -21,6 +21,8 @@ Attributes:
 import logging
 from typing import TypedDict
 
+from saveimage_unimeta.defs.validators import is_negative_prompt, is_positive_prompt
+
 from ...utils.lora import (
     coerce_first,
     parse_lora_syntax,
@@ -233,11 +235,45 @@ CAPTURE_FIELD_LIST = {
         MetaField.LORA_MODEL_HASH: {"selector": get_rgthree_syntax_hashes},
         MetaField.LORA_STRENGTH_MODEL: {"selector": get_rgthree_syntax_model_strengths},
         MetaField.LORA_STRENGTH_CLIP: {"selector": get_rgthree_syntax_clip_strengths},
+        MetaField.POSITIVE_PROMPT: {
+            "field_name": "positive_prompt",
+            "validate": is_positive_prompt,
+            "inline_lora_candidate": True,
+        },
+        MetaField.NEGATIVE_PROMPT: {
+            "field_name": "negative_prompt",
+            "validate": is_negative_prompt,
+            "inline_lora_candidate": True,
+        },
     },
     "SDXL Power Prompt - Positive (rgthree)": {
         MetaField.LORA_MODEL_NAME: {"selector": get_rgthree_syntax_names},
         MetaField.LORA_MODEL_HASH: {"selector": get_rgthree_syntax_hashes},
         MetaField.LORA_STRENGTH_MODEL: {"selector": get_rgthree_syntax_model_strengths},
         MetaField.LORA_STRENGTH_CLIP: {"selector": get_rgthree_syntax_clip_strengths},
+    },
+    "Power Prompt - Simple (rgthree)": {
+        MetaField.POSITIVE_PROMPT: {
+            "field_name": "positive_prompt",
+            "validate": is_positive_prompt,
+            "inline_lora_candidate": True,
+        },
+        MetaField.NEGATIVE_PROMPT: {
+            "field_name": "negative_prompt",
+            "validate": is_negative_prompt,
+            "inline_lora_candidate": True,
+        },
+    },
+    "SDXL Power Prompt - Simple / Negative (rgthree)": {
+        MetaField.POSITIVE_PROMPT: {
+            "field_name": "positive_prompt",
+            "validate": is_positive_prompt,
+            "inline_lora_candidate": True,
+        },
+        MetaField.NEGATIVE_PROMPT: {
+            "field_name": "negative_prompt",
+            "validate": is_negative_prompt,
+            "inline_lora_candidate": True,
+        },
     },
 }

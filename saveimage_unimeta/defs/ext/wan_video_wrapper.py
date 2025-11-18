@@ -85,17 +85,41 @@ CAPTURE_FIELD_LIST = {
         MetaField.CLIP_MODEL_NAME: {"field_name": "clip_name"},
     },
     "WanVideoTextEncode": {
-        MetaField.POSITIVE_PROMPT: {"field_name": "positive_prompt", "validate": is_positive_prompt},
-        MetaField.NEGATIVE_PROMPT: {"field_name": "negative_prompt", "validate": is_negative_prompt},
+        MetaField.POSITIVE_PROMPT: {
+            "field_name": "positive_prompt",
+            "validate": is_positive_prompt,
+            "inline_lora_candidate": True,
+        },
+        MetaField.NEGATIVE_PROMPT: {
+            "field_name": "negative_prompt",
+            "validate": is_negative_prompt,
+            "inline_lora_candidate": True,
+        },
     },
     "WanVideoTextEncodeCached": {
-        MetaField.POSITIVE_PROMPT: {"field_name": "positive_prompt", "validate": is_positive_prompt},
-        MetaField.NEGATIVE_PROMPT: {"field_name": "negative_prompt", "validate": is_negative_prompt},
+        MetaField.POSITIVE_PROMPT: {
+            "field_name": "positive_prompt",
+            "validate": is_positive_prompt,
+            "inline_lora_candidate": True,
+        },
+        MetaField.NEGATIVE_PROMPT: {
+            "field_name": "negative_prompt",
+            "validate": is_negative_prompt,
+            "inline_lora_candidate": True,
+        },
         MetaField.CLIP_MODEL_NAME: {"field_name": "model_name"},
     },
     "WanVideoTextEncodeSingle": {
-        MetaField.POSITIVE_PROMPT: {"field_name": "prompt", "validate": is_positive_prompt},
-        MetaField.NEGATIVE_PROMPT: {"field_name": "prompt", "validate": is_negative_prompt},
+        MetaField.POSITIVE_PROMPT: {
+            "field_name": "prompt",
+            "validate": is_positive_prompt,
+            "inline_lora_candidate": True,
+        },
+        MetaField.NEGATIVE_PROMPT: {
+            "field_name": "prompt",
+            "validate": is_negative_prompt,
+            "inline_lora_candidate": True,
+        },
     },
     # Sampler: captures steps, cfg, shift, seed, denoise; splits combined scheduler field
     # which may carry both sampler and scheduler information.
