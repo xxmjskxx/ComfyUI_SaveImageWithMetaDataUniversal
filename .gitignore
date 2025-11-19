@@ -158,9 +158,15 @@ saveimage_unimeta/user_rules/backups/
 saveimage_unimeta/user_rules/user_captures.json
 saveimage_unimeta/user_rules/user_samplers.json
 scripts/
-/tasksync/
 ComfyUI_SaveImageWithMetaDataUniversal.code-workspace
 # multi_sampler_plan.md
+multi_sampler_plan.md
+tasksync/
+.vscode/
+*/_test_outputs/
+_test_outputs/*
+_test_outputs/ComfyUI_00000_.jpeg
+docs/HEURISTICS_CHANGES.md
 
 # Ephemeral local drafting files (root only). Keep actual published notes in docs/.
 /RELEASE_NOTES_*.md

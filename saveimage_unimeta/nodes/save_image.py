@@ -291,6 +291,21 @@ class SaveImageWithMetaDataUniversal:
                         ),
                     },
                 ),
+                "set_max_samplers": (
+                    "INT",
+                    {
+                        "default": 1,
+                        "min": 1,
+                        "max": 8,
+                        "step": 1,
+                        "tooltip": (
+                            "Maximum number of upstream sampler nodes to enumerate for multi-sampler metadata.\n"
+                            "Set to 1 to use legacy single-sampler metadata output. Higher values (2-8) enable "
+                            "structured 'Samplers detail' enrichment (truncated if more are found).\nKeep value at one "
+                            "for single sampler workflows."
+                        ),
+                    },
+                ),
             },
             "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO"},
         }
@@ -327,6 +342,7 @@ class SaveImageWithMetaDataUniversal:
         include_lora_summary=True,
         guidance_as_cfg=False,
         suppress_missing_class_log=False,
+        set_max_samplers=1,
     ):
         """Persist images to disk with rich, optionally extended metadata.
 
@@ -380,7 +396,20 @@ class SaveImageWithMetaDataUniversal:
                 cstr("[Metadata Loader] Using Samplers File with %d entries").msg,
                 len(SAMPLERS),
             )
-        pnginfo_dict_src = self.gen_pnginfo(sampler_selection_method, sampler_selection_node_id, civitai_sampler)
+        try:
+            pnginfo_dict_src = self.gen_pnginfo(
+                sampler_selection_method,
+                sampler_selection_node_id,
+                civitai_sampler,
+                set_max_samplers,
+            )
+        except TypeError:
+            # Backward compatibility with monkeypatched tests expecting older signature
+            pnginfo_dict_src = self.gen_pnginfo(
+                sampler_selection_method,
+                sampler_selection_node_id,
+                civitai_sampler,
+            )
         for k, v in extra_metadata.items():
             if k and v:
                 pnginfo_dict_src[k] = v.replace(",", "/")
@@ -742,7 +771,7 @@ class SaveImageWithMetaDataUniversal:
         return "\n".join(line for line in out_lines if line) + ("\n" if out_lines else "")
 
     @classmethod
-    def gen_pnginfo(cls, sampler_selection_method, sampler_selection_node_id, save_civitai_sampler):
+    def gen_pnginfo(cls, sampler_selection_method, sampler_selection_node_id, save_civitai_sampler, set_max_samplers=1):
         # get all node inputs
         inputs = Capture.get_inputs()
 
@@ -782,10 +811,14 @@ class SaveImageWithMetaDataUniversal:
         )
         # Multi-sampler enrichment (Tier A + B only). We enumerate upstream from the SaveImage node.
         try:
-            multi_candidates = Trace.enumerate_samplers(trace_tree_from_this_node)
+            multi_candidates = Trace.enumerate_samplers(
+                trace_tree_from_this_node,
+                max_multi=max(1, int(set_max_samplers) if set_max_samplers else 1),
+            )
         except Exception:
             multi_candidates = []
-        if len(multi_candidates) > 1:
+        # If user constrained to single sampler, suppress multi detail enrichment.
+        if len(multi_candidates) > 1 and (set_max_samplers or 1) > 1:
             # Populate sampler names / steps from captured inputs mapping for richer detail
             # Build index of captured values for lookup (prefer closest occurrence per node)
             name_field = MetaField.SAMPLER_NAME if hasattr(MetaField, 'SAMPLER_NAME') else None  # type: ignore
@@ -810,10 +843,25 @@ class SaveImageWithMetaDataUniversal:
                 try:
                     if name_field:
                         entry['sampler_name'] = _first_for(name_field, nid)
+                        # Sanitize object-like reprs to avoid leaking internal class objects
+                        try:
+                            s = str(entry['sampler_name']) if entry.get('sampler_name') is not None else None
+                            if s and s.startswith('<') and '>' in s:
+                                entry['sampler_name'] = None  # defer to class_type fallback
+                        except Exception:
+                            entry['sampler_name'] = None
                     if steps_field:
                         v = _first_for(steps_field, nid)
                         if isinstance(v, int):
                             entry['steps'] = v
+                    if scheduler_field:
+                        sched_val = _first_for(scheduler_field, nid)
+                        if sched_val is not None:
+                            entry['scheduler'] = sched_val
+                    if denoise_field:
+                        d_val = _first_for(denoise_field, nid)
+                        if d_val is not None:
+                            entry['denoise'] = d_val
                     if start_field and end_field:
                         sv = _first_for(start_field, nid)
                         ev = _first_for(end_field, nid)
@@ -843,6 +891,89 @@ class SaveImageWithMetaDataUniversal:
                             entry['denoise'] = v
                 except Exception:
                     continue
+            # Attempt per-sampler positive prompt resolution via graph traversal (maps sampler -> upstream prompt node)
+            try:
+                prompt_graph = getattr(hook, 'current_prompt', {}) or {}
+                pos_meta_vals = inputs.get(getattr(MetaField, 'POSITIVE_PROMPT', None), []) if inputs else []
+                # Build mapping of prompt node id -> prompt text
+                _prompt_text_by_node = {}
+                for tup in pos_meta_vals:
+                    try:
+                        if len(tup) >= 2:
+                            _prompt_text_by_node[str(tup[0])] = tup[1]
+                    except Exception:
+                        continue
+                for e in multi_candidates:
+                    ctype = e.get('class_type')
+                    sampler_inputs = (prompt_graph.get(e['node_id'], {}) or {}).get('inputs', {})
+                    pos_key = SAMPLERS.get(ctype, {}).get('positive') if isinstance(ctype, str) else None
+                    if pos_key and pos_key in sampler_inputs:
+                        try:
+                            ref = sampler_inputs[pos_key]
+                            if isinstance(ref, list) and ref:
+                                ref_id = str(ref[0])
+                                pp = _prompt_text_by_node.get(ref_id)
+                                if pp:
+                                    e['positive_prompt'] = pp
+                        except Exception:
+                            continue
+            except Exception:
+                pass
+            # --- Conditional per-sampler fields (only include when unique across samplers) ---
+            # Ordered list of optional fields to consider.
+            conditional_meta_fields: list[tuple] = [
+                # (MetaField, display label)
+                (getattr(MetaField, 'MODEL_NAME', None), 'Model'),
+                (getattr(MetaField, 'MODEL_HASH', None), 'Model hash'),
+                (getattr(MetaField, 'POSITIVE_PROMPT', None), 'Positive prompt'),
+                (getattr(MetaField, 'NEGATIVE_PROMPT', None), 'Negative prompt'),
+                (getattr(MetaField, 'CLIP_SKIP', None), 'CLIP skip'),
+                (getattr(MetaField, 'SEED', None), 'Seed'),
+                (getattr(MetaField, 'CFG', None), 'CFG'),  # short label
+                (getattr(MetaField, 'GUIDANCE', None), 'Guidance'),
+                (getattr(MetaField, 'CLIP_MODEL_NAME', None), 'CLIP model'),
+                (getattr(MetaField, 'WEIGHT_DTYPE', None), 'Weight dtype'),
+                (getattr(MetaField, 'MAX_SHIFT', None), 'Max shift'),
+                (getattr(MetaField, 'BASE_SHIFT', None), 'Base shift'),
+                (getattr(MetaField, 'T5_PROMPT', None), 'T5 prompt'),
+                (getattr(MetaField, 'CLIP_PROMPT', None), 'CLIP prompt'),
+                (getattr(MetaField, 'SHIFT', None), 'Shift'),
+                (getattr(MetaField, 'EMBEDDING_NAME', None), 'Embedding'),
+                (getattr(MetaField, 'EMBEDDING_HASH', None), 'Embedding hash'),
+                (getattr(MetaField, 'LORA_MODEL_NAME', None), 'LoRA model'),
+                (getattr(MetaField, 'LORA_MODEL_HASH', None), 'LoRA hash'),
+                (getattr(MetaField, 'LORA_STRENGTH_MODEL', None), 'LoRA strength model'),
+                (getattr(MetaField, 'LORA_STRENGTH_CLIP', None), 'LoRA strength clip'),
+            ]
+            # Build mapping meta -> {sampler_node_id: value}
+            meta_values: dict = {}
+            for meta, _label in conditional_meta_fields:
+                if not meta:
+                    continue
+                vals = inputs.get(meta) or []
+                by_node = {}
+                for tup in vals:
+                    try:
+                        if len(tup) < 2:
+                            continue
+                        node_id = str(tup[0])
+                        value = tup[1]
+                        if node_id not in {e['node_id'] for e in multi_candidates}:
+                            continue
+                        # Normalize list-y singletons
+                        from ..utils.misc import unwrap_singleton  # local import (tiny util)
+                        value = unwrap_singleton(value)
+                        by_node[node_id] = value
+                    except Exception:
+                        continue
+                if by_node:
+                    meta_values[meta] = by_node
+            # Determine which meta fields have >1 distinct values (exclude None)
+            unique_enabled: dict = {}
+            for meta, node_map in meta_values.items():
+                uniq = {repr(v) for v in node_map.values() if v is not None}
+                if len(uniq) > 1:
+                    unique_enabled[meta] = True
             # Primary (first element by enumerate_samplers contract)
             # primary retained implicitly as first element; selection already encoded in enumeration ordering
 

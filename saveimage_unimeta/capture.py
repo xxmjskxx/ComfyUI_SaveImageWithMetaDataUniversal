@@ -60,13 +60,18 @@ try:
     CAPTURE_VERSION = importlib.metadata.version("SaveImageWithMetaDataUniversal")
 except importlib.metadata.PackageNotFoundError:
     CAPTURE_VERSION = "unknown"
-    try:  # Lazy import inside fallback to avoid hard dependency on tomli for 3.10
-        try:
-            import tomllib as _toml_loader  # Python 3.11+
-        except ModuleNotFoundError:  # pragma: no cover - legacy Python
-            import tomli as _toml_loader  # type: ignore
-    except Exception:  # No TOML loader available
+    # TOML loader detection: tomllib (3.11+) or fallback to tomli for 3.10
+    _toml_loader = None  # type: ignore
+    try:
+        import tomllib as _toml_loader  # type: ignore[attr-defined]
+    except ModuleNotFoundError:  # pragma: no cover
         _toml_loader = None  # type: ignore
+    if _toml_loader is None:
+        try:
+            import tomli as _toml_loader  # type: ignore
+        except ModuleNotFoundError:  # pragma: no cover
+            _toml_loader = None  # type: ignore
+
     if _toml_loader:  # type: ignore
         try:
             import pathlib
@@ -1560,6 +1565,10 @@ class Capture:
             if k.lower() in {"t5 prompt", "clip prompt"}:
                 exclude_keys.add(k)
         data = {k: v for k, v in pnginfo_dict.items() if k not in exclude_keys}
+        # Pull out metadata generator version to force it last later
+        _mgv = None
+        if "Metadata generator version" in data:
+            _mgv = data.pop("Metadata generator version")
         multi_entries = []
         if "__multi_sampler_entries" in data:
             try:
@@ -1678,6 +1687,9 @@ class Capture:
             remaining.remove("Hash detail")
         for k in sorted(remaining):
             ordered_items.append((k, data[k]))
+        # Append metadata generator version last if present
+        if _mgv is not None:
+            ordered_items.append(("Metadata generator version", _mgv))
 
     # Safety pass: ensure critical legacy fields captured if they existed in
     # original pnginfo but were somehow missed.

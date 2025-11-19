@@ -181,13 +181,13 @@ class Trace:
             rules = CAPTURE_FIELD_LIST.get(class_type)
             if not rules or nid in seen_ids:
                 continue
-            meta_keys = set(m for m in rules.keys() if hasattr(m, "name"))
-            has_name = any(getattr(m, "name", "") == MetaField.SAMPLER_NAME.name for m in meta_keys)
-            has_steps = any(getattr(m, "name", "") == MetaField.STEPS.name for m in meta_keys)
-            has_start = any(getattr(m, "name", "") == MetaField.START_STEP.name for m in meta_keys)
-            has_end = any(getattr(m, "name", "") == MetaField.END_STEP.name for m in meta_keys)
+            meta_keys = {getattr(m, "name", "") for m in rules.keys() if hasattr(m, "name")}
+            has_name = MetaField.SAMPLER_NAME.name in meta_keys
+            has_steps = MetaField.STEPS.name in meta_keys
+            has_start = MetaField.START_STEP.name in meta_keys
+            has_end = MetaField.END_STEP.name in meta_keys
             segment_ok = has_start and has_end
-            if (has_start != has_end) and _trace_debug_enabled():  # mismatched segment definitions
+            if has_start != has_end:  # mismatched segment definitions
                 try:
                     logger.warning(
                         cstr("[Trace] Incomplete segment rule for class %s (start=%s end=%s) - ignoring segment").msg,
@@ -266,12 +266,17 @@ class Trace:
             if not group:
                 continue
             # Choose by widest range_len then steps then farthest distance then node id
+            def _nid_sort_key(nid: str):
+                s = str(nid)
+                if s.isdigit():
+                    return (0, -int(s))  # numeric ids: invert for descending when reversed
+                return (1, s)  # non-numeric ordered after numeric, lexicographically
             group.sort(
                 key=lambda e: (
                     e.get("range_len", 0) or 0,
                     e.get("steps", 0) or 0,
                     trace_tree.get(e["node_id"], (0, ""))[0],
-                    -int(e["node_id"]) if str(e["node_id"]).isdigit() else 0,
+                    _nid_sort_key(e["node_id"]),
                 ),
                 reverse=True,
             )
