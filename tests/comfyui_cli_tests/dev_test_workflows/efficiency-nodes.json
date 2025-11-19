@@ -3,7 +3,7 @@
     "inputs": {
       "seed": 123,
       "steps": 20,
-      "cfg": 7,
+      "cfg": 6.8,
       "sampler_name": "ddpm",
       "scheduler": "ddim_uniform",
       "denoise": 1,
@@ -65,7 +65,7 @@
     "inputs": {
       "noise_seed": 789,
       "steps": 20,
-      "cfg": 7,
+      "cfg": 6.9,
       "sampler_name": "heun",
       "scheduler": "AYS SDXL",
       "start_at_step": 0,
@@ -95,7 +95,7 @@
       "add_noise": "enable",
       "noise_seed": 456,
       "steps": 25,
-      "cfg": 7,
+      "cfg": 7.1,
       "sampler_name": "dpmpp_2m",
       "scheduler": "karras",
       "start_at_step": 0,
