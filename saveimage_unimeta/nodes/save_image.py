@@ -821,14 +821,14 @@ class SaveImageWithMetaDataUniversal:
         if len(multi_candidates) > 1 and (set_max_samplers or 1) > 1:
             # Populate sampler names / steps from captured inputs mapping for richer detail
             # Build index of captured values for lookup (prefer closest occurrence per node)
-            name_field = MetaField.SAMPLER_NAME if hasattr(MetaField, 'SAMPLER_NAME') else None  # type: ignore
-            steps_field = MetaField.STEPS if hasattr(MetaField, 'STEPS') else None  # type: ignore
-            start_field = MetaField.START_STEP if hasattr(MetaField, 'START_STEP') else None  # type: ignore
-            end_field = MetaField.END_STEP if hasattr(MetaField, 'END_STEP') else None  # type: ignore
-            scheduler_field = MetaField.SCHEDULER if hasattr(MetaField, 'SCHEDULER') else None  # type: ignore
-            cfg_field = MetaField.CFG if hasattr(MetaField, 'CFG') else None  # type: ignore
-            shift_field = MetaField.SHIFT if hasattr(MetaField, 'SHIFT') else None  # type: ignore
-            denoise_field = MetaField.DENOISE if hasattr(MetaField, 'DENOISE') else None  # type: ignore
+            name_field = MetaField.SAMPLER_NAME  # type: ignore
+            steps_field = MetaField.STEPS  # type: ignore
+            start_field = MetaField.START_STEP  # type: ignore
+            end_field = MetaField.END_STEP  # type: ignore
+            scheduler_field = MetaField.SCHEDULER  # type: ignore
+            cfg_field = MetaField.CFG  # type: ignore
+            shift_field = MetaField.SHIFT  # type: ignore
+            denoise_field = MetaField.DENOISE  # type: ignore
             def _first_for(meta, node_id: str):
                 vals = inputs.get(meta) or []
                 for tup in vals:
