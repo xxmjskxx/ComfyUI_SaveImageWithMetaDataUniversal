@@ -138,6 +138,8 @@ def _load_extensions() -> None:
         )
     )
 
+    package_base = __name__  # Resolve relative imports regardless of install layout
+
     for module_path in module_paths:
         module_name = os.path.splitext(os.path.basename(module_path))[0]
         # Never import example/reference files
@@ -147,15 +149,17 @@ def _load_extensions() -> None:
             or module_name == "generated_user_rules_examples"
         ):
             continue
-        package_name = f"custom_nodes.ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.ext.{module_name}"
+        rel_module = f".ext.{module_name}"
         try:
-            module = import_module(package_name)
+            module = import_module(rel_module, package_base)
         except ModuleNotFoundError as e:  # pragma: no cover - expected when optional custom node not installed
-            # Extensions are optional - only needed if the corresponding custom node is installed
-            # Log at debug level since this is expected behavior, not an error
+            # Extensions are optional - only needed if the corresponding custom node is installed.
+            # Resolve relative module names so editable installs (without custom_nodes parent package)
+            # still load bundled extensions. When an extension truly is absent, treat it as optional.
             logger.debug(
-                "[Metadata Loader] Optional extension '%s' skipped (custom node not installed): %s",
+                "[Metadata Loader] Optional extension '%s' skipped (not importable from %s): %s",
                 module_name,
+                package_base,
                 e,
             )
             continue

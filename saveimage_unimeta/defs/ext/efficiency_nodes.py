@@ -22,7 +22,8 @@ Attributes:
 """
 # https://github.com/jags111/efficiency-nodes-comfyui
 import logging
-from ..formatters import calc_lora_hash, calc_model_hash, convert_skip_clip
+
+from ..formatters import calc_lora_hash, calc_model_hash, convert_skip_clip, calc_vae_hash
 from ..meta import MetaField
 from ..selectors import collect_lora_stack, select_stack_by_prefix, _aligned_strengths_for_prefix
 
@@ -95,6 +96,153 @@ def _stack_from_outputs(node_id, outputs):
             return normalized
 
     return None
+
+
+def _normalize_connection_target(value):
+    """Return the upstream node id referenced by a connection field."""
+
+    if isinstance(value, list | tuple):  # noqa: UP038 - explicit modern union syntax
+        if not value:
+            return None
+        value = value[0]
+    if value is None:
+        return None
+    try:
+        text = str(value).strip()
+    except Exception:
+        return None
+    if not text or text.lower() == "none":
+        return None
+    return text
+
+
+def _collect_stack_from_connection(node_inputs, prompt, outputs, key="lora_stack"):
+    """Resolve a connected LoRA stack by inspecting upstream node outputs."""
+
+    if not isinstance(node_inputs, dict):
+        return []
+    target = _normalize_connection_target(node_inputs.get(key))
+    if not target:
+        return []
+    stack = _stack_from_outputs(target, outputs)
+    if stack is None:
+        upstream = prompt.get(target)
+        if upstream:
+            pseudo_input = [upstream.get("inputs", {})]
+            stack = collect_lora_stack(pseudo_input)
+    return stack or []
+
+
+def _first_input_value(input_data, field_name):
+    """Extract the first value for ``field_name`` from ``get_input_data`` output."""
+
+    if not field_name or not input_data:
+        return None
+    try:
+        value = input_data[0].get(field_name)
+    except Exception:
+        return None
+    if isinstance(value, list | tuple):  # noqa: UP038
+        return value[0] if value else None
+    return value
+
+
+def _normalize_lora_name(name):
+    if name is None:
+        return None
+    if isinstance(name, list | tuple):  # noqa: UP038
+        if not name:
+            return None
+        name = name[0]
+    try:
+        text = str(name).strip()
+    except Exception:
+        return None
+    if not text or text.lower() == "none":
+        return None
+    return text
+
+
+def _build_loader_lora_entries(
+    node_id,
+    prompt,
+    outputs,
+    input_data,
+    inline_spec=None,
+    stack_key="lora_stack",
+):
+    """Collect LoRA tuples (name, model_strength, clip_strength) for loader nodes."""
+
+    entries: list[tuple[str, float | None, float | None]] = []
+    if inline_spec:
+        inline_name = _normalize_lora_name(_first_input_value(input_data, inline_spec.get("name")))
+        if inline_name:
+            sm = _first_input_value(input_data, inline_spec.get("strength_model"))
+            sc = _first_input_value(input_data, inline_spec.get("strength_clip"))
+            if sc is None:
+                sc = sm
+            entries.append((inline_name, sm, sc))
+    node_inputs = (prompt.get(node_id) or {}).get("inputs", {})
+    entries.extend(_collect_stack_from_connection(node_inputs, prompt, outputs, key=stack_key))
+    return entries
+
+
+def _gather_eff_loader_entries(node_id, prompt, outputs, input_data, inline=True):
+    inline_spec = None
+    if inline:
+        inline_spec = {
+            "name": "lora_name",
+            "strength_model": "lora_model_strength",
+            "strength_clip": "lora_clip_strength",
+        }
+    return _build_loader_lora_entries(
+        node_id,
+        prompt,
+        outputs,
+        input_data,
+        inline_spec=inline_spec,
+        stack_key="lora_stack",
+    )
+
+
+def get_eff_loader_lora_model_names(node_id, obj, prompt, extra_data, outputs, input_data):
+    entries = _gather_eff_loader_entries(node_id, prompt, outputs, input_data, inline=True)
+    return [entry[0] for entry in entries]
+
+
+def get_eff_loader_lora_model_hashes(node_id, obj, prompt, extra_data, outputs, input_data):
+    entries = _gather_eff_loader_entries(node_id, prompt, outputs, input_data, inline=True)
+    return [calc_lora_hash(entry[0], input_data) for entry in entries]
+
+
+def get_eff_loader_lora_strength_model(node_id, obj, prompt, extra_data, outputs, input_data):
+    entries = _gather_eff_loader_entries(node_id, prompt, outputs, input_data, inline=True)
+    return [entry[1] for entry in entries]
+
+
+def get_eff_loader_lora_strength_clip(node_id, obj, prompt, extra_data, outputs, input_data):
+    entries = _gather_eff_loader_entries(node_id, prompt, outputs, input_data, inline=True)
+    return [entry[2] for entry in entries]
+
+
+def get_eff_loader_sdxl_lora_model_names(node_id, obj, prompt, extra_data, outputs, input_data):
+    entries = _gather_eff_loader_entries(node_id, prompt, outputs, input_data, inline=False)
+    return [entry[0] for entry in entries]
+
+
+def get_eff_loader_sdxl_lora_model_hashes(node_id, obj, prompt, extra_data, outputs, input_data):
+    entries = _gather_eff_loader_entries(node_id, prompt, outputs, input_data, inline=False)
+    return [calc_lora_hash(entry[0], input_data) for entry in entries]
+
+
+def get_eff_loader_sdxl_lora_strength_model(node_id, obj, prompt, extra_data, outputs, input_data):
+    entries = _gather_eff_loader_entries(node_id, prompt, outputs, input_data, inline=False)
+    return [entry[1] for entry in entries]
+
+
+def get_eff_loader_sdxl_lora_strength_clip(node_id, obj, prompt, extra_data, outputs, input_data):
+    entries = _gather_eff_loader_entries(node_id, prompt, outputs, input_data, inline=False)
+    return [entry[2] for entry in entries]
 
 
 def _is_advanced_mode(input_data) -> bool:
@@ -275,6 +423,12 @@ CAPTURE_FIELD_LIST = {
         },
         MetaField.IMAGE_WIDTH: {"field_name": "empty_latent_width"},
         MetaField.IMAGE_HEIGHT: {"field_name": "empty_latent_height"},
+        MetaField.LORA_MODEL_NAME: {"selector": get_eff_loader_lora_model_names},
+        MetaField.LORA_MODEL_HASH: {"selector": get_eff_loader_lora_model_hashes},
+        MetaField.LORA_STRENGTH_MODEL: {"selector": get_eff_loader_lora_strength_model},
+        MetaField.LORA_STRENGTH_CLIP: {"selector": get_eff_loader_lora_strength_clip},
+        MetaField.VAE_NAME: {"field_name": "vae_name"},
+        MetaField.VAE_HASH: {"field_name": "vae_name", "format": calc_vae_hash},
     },
     "Eff. Loader SDXL": {
         MetaField.MODEL_NAME: {"field_name": "base_ckpt_name"},
@@ -294,6 +448,10 @@ CAPTURE_FIELD_LIST = {
         },
         MetaField.IMAGE_WIDTH: {"field_name": "empty_latent_width"},
         MetaField.IMAGE_HEIGHT: {"field_name": "empty_latent_height"},
+        MetaField.LORA_MODEL_NAME: {"selector": get_eff_loader_sdxl_lora_model_names},
+        MetaField.LORA_MODEL_HASH: {"selector": get_eff_loader_sdxl_lora_model_hashes},
+        MetaField.LORA_STRENGTH_MODEL: {"selector": get_eff_loader_sdxl_lora_strength_model},
+        MetaField.LORA_STRENGTH_CLIP: {"selector": get_eff_loader_sdxl_lora_strength_clip},
     },
     "KSampler (Efficient)": {
         MetaField.SEED: {"field_name": "seed"},
