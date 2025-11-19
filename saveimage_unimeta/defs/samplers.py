@@ -1,3 +1,24 @@
+"""A dictionary mapping sampler names to their positive and negative conditioning text inputs.
+
+This module provides a comprehensive mapping of various sampler implementations used within the ComfyUI ecosystem
+to their corresponding positive and negative conditioning inputs. The dictionary `SAMPLERS` is the core component,
+where each key is a string representing the name of a sampler, and its value is another dictionary specifying
+the names of the positive and negative text conditioning inputs for that sampler.
+
+This mapping is crucial for dynamically identifying and accessing the correct conditioning inputs when a sampler
+is used in a ComfyUI workflow. For example, the standard "KSampler" uses "positive" and "negative" as its
+conditioning inputs, while a more specialized sampler like "SeargeSDXLSampler" might use "base_positive" and
+"base_negative". By centralizing this information, the system can abstract away these differences and handle
+various samplers in a unified manner.
+
+The dictionary is designed to be easily extensible. To add support for a new sampler, one simply needs to add
+a new entry to the `SAMPLERS` dictionary with the sampler's name and the names of its conditioning inputs.
+
+Attributes:
+    SAMPLERS (dict): A dictionary where keys are sampler names (str) and values are dictionaries
+                     mapping conditioning type (e.g., "positive", "negative") to the corresponding
+                     input name (str).
+"""
 SAMPLERS = {
     "KSampler": {
         "positive": "positive",

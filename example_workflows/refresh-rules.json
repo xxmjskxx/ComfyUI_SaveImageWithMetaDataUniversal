@@ -1,0 +1,285 @@
+{
+  "id": "ebdcadb3-4747-47af-9c97-31ad5e56090e",
+  "revision": 0,
+  "last_node_id": 39,
+  "last_link_id": 16,
+  "nodes": [
+    {
+      "id": 31,
+      "type": "ShowText|unimeta",
+      "pos": [
+        2910,
+        280
+      ],
+      "size": [
+        300,
+        270
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 11
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "shape": 6,
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "SaveImageWithMetaDataUniversal",
+        "ver": "45e2e5ea7b07268ff61806feea080ee3ea80fc1f",
+        "Node name for S&R": "ShowText|unimeta",
+        "aux_id": "xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 18,
+      "type": "SaveCustomMetadataRules",
+      "pos": [
+        2570,
+        280
+      ],
+      "size": [
+        310,
+        420
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "rules_json_string",
+          "type": "STRING",
+          "widget": {
+            "name": "rules_json_string"
+          },
+          "link": 16
+        }
+      ],
+      "outputs": [
+        {
+          "name": "status",
+          "type": "STRING",
+          "links": [
+            11
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "SaveImageWithMetaDataUniversal",
+        "ver": "c9a87453bc4257614c87d28a64a5be9c4fdccba9",
+        "Node name for S&R": "SaveCustomMetadataRules",
+        "aux_id": "xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal",
+        "ue_properties": {
+          "widget_ue_connectable": {
+            "rules_json_string": true
+          },
+          "version": "7.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "",
+        "overwrite",
+        true,
+        "none",
+        false,
+        true,
+        20
+      ]
+    },
+    {
+      "id": 38,
+      "type": "ShowText|unimeta",
+      "pos": [
+        2170,
+        290
+      ],
+      "size": [
+        370,
+        400
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 15
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "shape": 6,
+          "type": "STRING",
+          "links": [
+            16
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "SaveImageWithMetaDataUniversal",
+        "ver": "45e2e5ea7b07268ff61806feea080ee3ea80fc1f",
+        "Node name for S&R": "ShowText|unimeta",
+        "aux_id": "xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 16,
+      "type": "MetadataRuleScanner",
+      "pos": [
+        1620,
+        290
+      ],
+      "size": [
+        530,
+        234
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "suggested_rules_json",
+          "type": "STRING",
+          "links": [
+            15
+          ]
+        },
+        {
+          "name": "diff_report",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "SaveImageWithMetaDataUniversal",
+        "ver": "c9a87453bc4257614c87d28a64a5be9c4fdccba9",
+        "Node name for S&R": "MetadataRuleScanner",
+        "aux_id": "xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.1",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "mask,find,resize,rotate,detailer,bus,scale,vision,text to,crop,xy,plot,controlnet,save,trainlora,postshot,loramanager",
+        false,
+        "all",
+        "",
+        ""
+      ]
+    },
+    {
+      "id": 37,
+      "type": "MarkdownNote",
+      "pos": [
+        1190,
+        290
+      ],
+      "size": [
+        410,
+        390
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "# After Updating\n\n## Rerun this workflow every time you update this node pack\n\nThis workflow should be rerun every time you:\n- Update this node pack\n- Add new nodes to your ComfyUI installation that you want to capture metadata from.\n\nNote: this is the same workflow as scan-and-save-custom-metadata-rules-simple.json, but I wanted a workflow with a shorter name to reference in a console error log. :)\n\n"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    }
+  ],
+  "links": [
+    [
+      11,
+      18,
+      0,
+      31,
+      0,
+      "STRING"
+    ],
+    [
+      15,
+      16,
+      0,
+      38,
+      0,
+      "STRING"
+    ],
+    [
+      16,
+      38,
+      0,
+      18,
+      0,
+      "STRING"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 2,
+      "title": "Refresh Metadata Capture Rules",
+      "bounding": [
+        1180,
+        206.4,
+        2040,
+        503.6
+      ],
+      "color": "#a1309b",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "groupNodes": {},
+    "ds": {
+      "scale": 0.7627768444386283,
+      "offset": [
+        -1107.0009676430661,
+        -27.010646006285693
+      ]
+    },
+    "workspace_info": {
+      "id": "zTcrjbiuJpccAPZR1l4eS"
+    },
+    "frontendVersion": "1.28.8",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": false,
+    "VHS_KeepIntermediate": true,
+    "ue_links": []
+  },
+  "version": 0.4
+}

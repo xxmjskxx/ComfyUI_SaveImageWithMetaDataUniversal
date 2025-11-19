@@ -5,11 +5,11 @@ import sys
 
 import pytest
 
+from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.version import resolve_runtime_version
+
 
 def _paths_for_generated_files():
-    mod = importlib.import_module(
-        "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.rules_writer"
-    )
+    mod = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.rules_writer")
     base_py = os.path.dirname(os.path.dirname(os.path.abspath(mod.__file__)))
     # Respect test-mode isolated directory if present (writer prefers it only if it already exists)
     test_isolated = os.path.join(base_py, "tests/_test_outputs", "user_rules")
@@ -68,9 +68,7 @@ def _ensure_cleanup():
 
 
 def test_save_custom_rules_generates_valid_ext_and_jsons():
-    nodes_mod = importlib.import_module(
-        "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes"
-    )
+    nodes_mod = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes")
     writer = nodes_mod.SaveCustomMetadataRules()
 
     rules = {
@@ -86,7 +84,7 @@ def test_save_custom_rules_generates_valid_ext_and_jsons():
         "samplers": {"UnitTestSampler": {"positive": "positive", "negative": "negative"}},
     }
 
-    status, = writer.save_rules(json.dumps(rules))
+    (status,) = writer.save_rules(json.dumps(rules))
     # New writer returns metrics summary; assert key metrics present
     assert status.startswith("mode=overwrite"), status
 
@@ -102,6 +100,7 @@ def test_save_custom_rules_generates_valid_ext_and_jsons():
     assert hasattr(gen_mod, "SAMPLERS") and isinstance(gen_mod.SAMPLERS, dict)
     # KNOWN mapping should exist with core callables
     assert hasattr(gen_mod, "KNOWN") and isinstance(gen_mod.KNOWN, dict)
+    assert getattr(gen_mod, "RULES_VERSION") == resolve_runtime_version()
     for k in [
         "calc_model_hash",
         "convert_skip_clip",
@@ -111,9 +110,7 @@ def test_save_custom_rules_generates_valid_ext_and_jsons():
         assert k in gen_mod.KNOWN
 
     # Confirm our node appears with MetaField keys
-    meta_mod = importlib.import_module(
-        "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.meta"
-    )
+    meta_mod = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.meta")
     assert "UnitTestNode" in gen_mod.CAPTURE_FIELD_LIST
     node_rules = gen_mod.CAPTURE_FIELD_LIST["UnitTestNode"]
     assert meta_mod.MetaField.MODEL_HASH in node_rules
@@ -123,13 +120,12 @@ def test_save_custom_rules_generates_valid_ext_and_jsons():
     assert "status" not in uc["UnitTestNode"]["MODEL_NAME"]
 
     # Loader should merge this module when loading extensions only
-    defs_mod = importlib.import_module(
-        "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs"
-    )
+    defs_mod = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs")
     defs_mod.load_extensions_only()
     # In regular mode, loader should merge our generated module.
     # Under METADATA_TEST_MODE, defaults/ext loading may differ; only assert merge in regular mode.
     import os as _os
+
     if not _os.environ.get("METADATA_TEST_MODE"):
         assert "UnitTestNode" in defs_mod.CAPTURE_FIELD_LIST
         assert "UnitTestSampler" in defs_mod.SAMPLERS
@@ -137,9 +133,8 @@ def test_save_custom_rules_generates_valid_ext_and_jsons():
 
 def test_scanner_roundtrip_generates_importable_module(monkeypatch):
     # Register a simple dummy node so the scanner always finds at least one
-    nodes_pkg = importlib.import_module(
-        "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes"
-    )
+    nodes_pkg = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes")
+    comfy_nodes = importlib.import_module("nodes")
 
     class DummyNode:
         @classmethod
@@ -148,32 +143,37 @@ def test_scanner_roundtrip_generates_importable_module(monkeypatch):
                 "required": {
                     "positive": ("STRING", {}),
                     "negative": ("STRING", {}),
+                    "clip": ("CLIP", {}),
                     "seed": ("INT", {}),
                 }
             }
 
     # Temporarily register our dummy
-    nodes_pkg.NODE_CLASS_MAPPINGS["UnitTestScanNode"] = DummyNode
+    nodes_pkg.NODE_CLASS_MAPPINGS["UnitTestClipEncode"] = DummyNode
+    comfy_nodes.NODE_CLASS_MAPPINGS["UnitTestClipEncode"] = DummyNode
     try:
         scanner = nodes_pkg.MetadataRuleScanner()
         result_json, _ = scanner.scan_for_rules(
             exclude_keywords="",
             include_existing=False,
-            mode="existing_only",
+            mode="all",  # 'existing_only' skips forced nodes not in baseline definitions
             force_include_metafields="",
-            force_include_node_class="UnitTestScanNode",
+            force_include_node_class="UnitTestClipEncode",
         )
+        parsed = json.loads(result_json)
+        node_rules = parsed["nodes"].get("UnitTestClipEncode")
+        assert node_rules["POSITIVE_PROMPT"].get("inline_lora_candidate") is True
+        assert node_rules["NEGATIVE_PROMPT"].get("inline_lora_candidate") is True
         # Save via writer
         writer = nodes_pkg.SaveCustomMetadataRules()
-        status, = writer.save_rules(result_json)
+        (status,) = writer.save_rules(result_json)
         assert status.startswith("mode=overwrite"), status
 
         # Import generated module to ensure it compiles
-        pkg = (
-            "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.ext.generated_user_rules"
-        )
+        pkg = "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.ext.generated_user_rules"
         gen_mod = importlib.import_module(pkg)
         assert hasattr(gen_mod, "CAPTURE_FIELD_LIST") and isinstance(gen_mod.CAPTURE_FIELD_LIST, dict)
         assert isinstance(gen_mod.SAMPLERS, dict)
     finally:
-        nodes_pkg.NODE_CLASS_MAPPINGS.pop("UnitTestScanNode", None)
+        nodes_pkg.NODE_CLASS_MAPPINGS.pop("UnitTestClipEncode", None)
+        comfy_nodes.NODE_CLASS_MAPPINGS.pop("UnitTestClipEncode", None)

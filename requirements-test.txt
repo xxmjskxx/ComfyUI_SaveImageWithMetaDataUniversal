@@ -1,7 +1,23 @@
-#requirements for test environment
+# Testing and development dependencies
 
-pytest>=8.2
-pillow>=10.0
-numpy>=1.26
-piexif>=1.1
-ruff>=0.5
+# Core testing framework
+pytest>=8.2.0
+pytest-cov>=4.0.0
+pytest-cookies>=0.7.0
+cookiecutter>=2.3.0
+click>=8.1.0
+jinja2-time>=0.2.0
+
+# Runtime dependencies (also needed for tests)
+pillow>=10.0.0
+numpy>=1.21.0
+piexif>=1.1.0
+
+# Linting and code quality
+ruff>=0.5.0
+
+# Optional: TOML parsing for pyproject.toml version detection
+# tomli>=1.2.0  # Only needed for Python < 3.11, commented out as it's optional
+
+# Note: click is used in some tests but is not a core dependency
+# click>=8.0.0  # Commented out as it's only used in one isolated test

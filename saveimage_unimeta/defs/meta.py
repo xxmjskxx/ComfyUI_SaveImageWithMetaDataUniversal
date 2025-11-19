@@ -1,7 +1,16 @@
+"""Defines an enumeration of metadata fields for capture and processing.
+
+This module provides the `MetaField` `IntEnum`, which defines a set of
+standardized keys for the various pieces of metadata that can be captured from
+a ComfyUI workflow. Using an enum ensures consistency and avoids the use of
+"magic strings" when referring to metadata fields.
+"""
 from enum import IntEnum
 
 
 class MetaField(IntEnum):
+    """An enumeration of metadata fields."""
+
     MODEL_NAME = 0
     MODEL_HASH = 1
     VAE_NAME = 2
@@ -38,3 +47,5 @@ class MetaField(IntEnum):
     LORA_MODEL_HASH = 51
     LORA_STRENGTH_MODEL = 52
     LORA_STRENGTH_CLIP = 53
+    # Additional fields appended to preserve stable numbering
+    END_STEP = 54  # e.g., BNK_Unsampler end_at_step

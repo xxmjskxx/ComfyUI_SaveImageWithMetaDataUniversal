@@ -2,6 +2,7 @@ import types
 import numpy as np
 import importlib
 import pytest
+from .fixtures_piexif import build_piexif_stub
 
 
 def make_dummy_image():
@@ -12,9 +13,14 @@ def make_dummy_image():
 def _reset_node_module():
     # Allow re-import if we monkeypatch piexif in different ways between tests
     import sys
-    mod_name = 'ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.node'
+
+    mod_name = "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.node"
     if mod_name in sys.modules:
         importlib.reload(sys.modules[mod_name])
+    else:
+        import importlib as _il
+
+        _il.import_module(mod_name)
     return sys.modules[mod_name]
 
 
@@ -28,42 +34,29 @@ def _reset_node_module():
 )
 def test_fallback_parametrized(monkeypatch, scenario, limit_kb, expectations):
     mod = _reset_node_module()
-    node_cls = getattr(mod, 'SaveImageWithMetaDataUniversal')
+    node_cls = getattr(mod, "SaveImageWithMetaDataUniversal")
     node = node_cls()
-    real_piexif = getattr(mod, 'piexif')
 
-    long_params = 'Sampler: test, Steps: 30, CFG scale: 7,' + ', '.join([f'K{i}:{i}' for i in range(120)])
+    long_params = "Sampler: test, Steps: 30, CFG scale: 7," + ", ".join([f"K{i}:{i}" for i in range(120)])
     from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.capture import Capture as RealCapture
-    monkeypatch.setattr(RealCapture, 'gen_parameters_str', staticmethod(lambda *_, **__: long_params))
 
-    class PStub(types.SimpleNamespace):
-        ImageIFD = real_piexif.ImageIFD
-        ExifIFD = real_piexif.ExifIFD
-        helper = real_piexif.helper
+    monkeypatch.setattr(RealCapture, "gen_parameters_str", staticmethod(lambda *_, **__: long_params))
 
-        @staticmethod
-        def dump(d):
-            if scenario == 'reduced-exif':
-                if '0th' in d and d['0th']:
-                    return b'A' * (32 * 1024)
-                return b'B' * (2 * 1024)
-            if scenario == 'minimal':
-                return b'A' * (40 * 1024)
-            if scenario == 'com-marker':
-                return b'Z' * (128 * 1024)
-            return b'X' * 1024
-
-        @staticmethod
-        def insert(exif_bytes, path):
-            return None
-
-    monkeypatch.setattr(mod, 'piexif', PStub)
-    if scenario == 'com-marker':
-        monkeypatch.setattr(node, '_build_minimal_parameters', lambda p: p)
+    # Build stub per scenario leveraging shared factory semantics
+    if scenario == "reduced-exif":
+        # adaptive behaves like reduced-exif path with differential sizes
+        monkeypatch.setattr(mod, "piexif", build_piexif_stub("adaptive"))
+    elif scenario == "minimal":
+        # Force minimal by making full EXIF large but parameters-only smaller than limit progression
+        monkeypatch.setattr(mod, "piexif", build_piexif_stub("huge"))
+    elif scenario == "com-marker":
+        monkeypatch.setattr(mod, "piexif", build_piexif_stub("huge"))
+    if scenario == "com-marker":
+        monkeypatch.setattr(node, "_build_minimal_parameters", lambda p: p)
 
     images = make_dummy_image()
     # Use empty prompt to force zeroth_ifd population for reduced-exif scenario
-    prompt = {} if scenario == 'reduced-exif' else None
-    node.save_images(images=images, file_format='jpeg', max_jpeg_exif_kb=limit_kb, prompt=prompt)
-    assert node._last_fallback_stages, 'No fallback recorded'
+    prompt = {} if scenario == "reduced-exif" else None
+    node.save_images(images=images, file_format="jpeg", max_jpeg_exif_kb=limit_kb, prompt=prompt)
+    assert node._last_fallback_stages, "No fallback recorded"
     assert node._last_fallback_stages[0] in expectations

@@ -217,7 +217,7 @@
       "switch_3": "Off",
       "lora_name_3": "flux\\artstyle\\style\\aidmaAbadonedHorror-FLUX-V0.1.safetensors",
       "model_weight_3": 1,
-      "clip_weight_3": 1
+      "clip_weight_3": 0.91
     },
     "class_type": "CR LoRA Stack",
     "_meta": {

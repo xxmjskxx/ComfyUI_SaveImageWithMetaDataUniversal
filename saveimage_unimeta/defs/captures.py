@@ -1,3 +1,13 @@
+"""Defines the baseline metadata capture rules for various ComfyUI nodes.
+
+This module contains the `CAPTURE_FIELD_LIST`, a dictionary that maps node
+class types to a set of rules for capturing metadata from their inputs. Each
+rule specifies which `MetaField` to populate, which input field to read from,
+and optional formatting or validation functions to apply.
+
+These baseline rules provide out-of-the-box support for a wide range of common
+nodes, and they can be extended or overridden by user-defined rules.
+"""
 from .formatters import (
     calc_lora_hash,
     calc_model_hash,
@@ -11,6 +21,25 @@ from .formatters import (
 )
 from .meta import MetaField
 from .validators import is_negative_prompt, is_positive_prompt
+
+
+def _passthrough(value, *_):
+    """A passthrough formatter that returns the input value unchanged (helper for pre-hashed stub inputs).
+
+    This function is used as a formatter in capture rules where the input
+    value is already in the desired format and does not require any
+    transformation. It is particularly useful for test nodes that provide
+    pre-hashed or pre-formatted values.
+
+    Args:
+        value: The input value.
+        *_ A catch-all for any additional arguments.
+
+    Returns:
+        The input value, unchanged.
+    """
+    return value
+
 
 # import os
 # import json
@@ -126,7 +155,6 @@ CAPTURE_FIELD_LIST = {
             "format": calc_lora_hash,
         },
         MetaField.LORA_STRENGTH_MODEL: {"field_name": "strength_model"},
-        MetaField.LORA_STRENGTH_CLIP: {"value": 0},
     },
     # Flux - https://comfyanonymous.github.io/ComfyUI_examples/flux/
     "UNETLoader": {
@@ -183,6 +211,29 @@ CAPTURE_FIELD_LIST = {
             "field_name": "prompt",
             "validate": is_negative_prompt,
         },
+    },
+    "MetadataTestSampler": {
+        MetaField.POSITIVE_PROMPT: {
+            "field_name": "positive_prompt",
+            "inline_lora_candidate": True,
+        },
+        MetaField.NEGATIVE_PROMPT: {
+            "field_name": "negative_prompt",
+            "inline_lora_candidate": True,
+        },
+        MetaField.SEED: {"field_name": "seed"},
+        MetaField.STEPS: {"field_name": "steps"},
+        MetaField.CFG: {"field_name": "cfg"},
+        MetaField.SAMPLER_NAME: {"field_name": "sampler_name"},
+        MetaField.SCHEDULER: {"field_name": "scheduler"},
+        MetaField.GUIDANCE: {"field_name": "guidance"},
+        MetaField.MODEL_NAME: {"field_name": "model_name"},
+        MetaField.MODEL_HASH: {"field_name": "model_hash", "format": _passthrough},
+        MetaField.VAE_NAME: {"field_name": "vae_name"},
+        MetaField.VAE_HASH: {"field_name": "vae_hash", "format": _passthrough},
+        MetaField.CLIP_MODEL_NAME: {"prefix": "clip_name"},
+        MetaField.IMAGE_WIDTH: {"field_name": "width"},
+        MetaField.IMAGE_HEIGHT: {"field_name": "height"},
     },
 }
 

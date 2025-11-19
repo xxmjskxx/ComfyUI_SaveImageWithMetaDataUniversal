@@ -22,6 +22,34 @@ import sys
 from pathlib import Path
 from typing import Any
 
+TOOLS_DIR = Path(__file__).resolve().parent
+TESTS_ROOT = TOOLS_DIR.parent
+CLI_COMPAT_DIR = TESTS_ROOT / "comfyui_cli_tests"
+
+
+def _resolve_relative_path(raw_path: str | None, *, fallback: Path | None = None) -> Path | None:
+    """Resolve relative paths against tools/tests compatibility directories."""
+
+    if raw_path is None:
+        return None
+
+    candidate = Path(raw_path).expanduser()
+    if candidate.is_absolute():
+        return candidate
+
+    search_roots = []
+    if fallback is not None:
+        search_roots.append(fallback)
+    search_roots.extend([TOOLS_DIR, TESTS_ROOT, CLI_COMPAT_DIR])
+
+    for root in search_roots:
+        resolved = (root / raw_path).resolve()
+        if resolved.exists():
+            return resolved
+
+    base = fallback or TOOLS_DIR
+    return (base / raw_path).resolve()
+
 try:
     from PIL import Image
     from PIL.ExifTags import TAGS
@@ -59,11 +87,13 @@ class _Tee:
         try:
             self._stream.flush()
         except (ValueError, AttributeError):
+            # Stream might be closed during shutdown, ignore flush errors
             pass
         try:
             if self._log_fp and not self._log_fp.closed:
                 self._log_fp.flush()
         except (ValueError, AttributeError):
+            # Log file might be closed during shutdown, ignore flush errors
             pass
 
 
@@ -310,6 +340,460 @@ class WorkflowAnalyzer:
         return filename_prefix if isinstance(filename_prefix, str) else ""
 
     @staticmethod
+    def resolve_seed_value(workflow: dict, seed_input: Any) -> str | None:
+        """Resolve the expected seed value, including linked seed nodes."""
+
+        if seed_input is None:
+            return None
+
+        # Direct literal value
+        if not isinstance(seed_input, list):
+            if seed_input in (-1, "-1"):
+                return "-1"
+            return str(seed_input)
+
+        if not seed_input:
+            return None
+
+        seed_node_id = str(seed_input[0])
+        seed_node = workflow.get(seed_node_id)
+        if not seed_node:
+            return None
+
+        node_inputs = seed_node.get("inputs", {})
+
+        for key in ("seed", "noise_seed", "value"):
+            if key in node_inputs:
+                value = node_inputs[key]
+                # If the value is another link, we cannot resolve it deterministically
+                if isinstance(value, list):
+                    return None
+                if value in (-1, "-1"):
+                    return "-1"
+                return str(value)
+
+        # Some seed nodes store the value under "seed_value"
+        value = node_inputs.get("seed_value")
+        if value is not None:
+            if value in (-1, "-1"):
+                return "-1"
+            return str(value)
+
+        return None
+
+    @staticmethod
+    def resolve_guidance_value(workflow: dict, sampler_inputs: dict) -> Any:
+        """Resolve guidance (Flux guidance multiplier or CFG equivalent)."""
+
+        direct_guidance = sampler_inputs.get("guidance")
+        if direct_guidance is not None:
+            return direct_guidance
+
+        stack: list[str] = []
+        visited: set[str] = set()
+
+        positive_ref = sampler_inputs.get("positive")
+        if isinstance(positive_ref, list) and positive_ref:
+            stack.append(str(positive_ref[0]))
+
+        guider_ref = sampler_inputs.get("guider")
+        if isinstance(guider_ref, list) and guider_ref:
+            stack.append(str(guider_ref[0]))
+
+        while stack:
+            node_id = stack.pop()
+            if node_id in visited:
+                continue
+            visited.add(node_id)
+
+            node = workflow.get(node_id)
+            if not node:
+                continue
+
+            inputs = node.get("inputs", {})
+            if inputs.get("guidance") is not None:
+                return inputs.get("guidance")
+
+            for key in ("conditioning", "positive", "clip", "input", "guider"):
+                ref = inputs.get(key)
+                if isinstance(ref, list) and ref:
+                    stack.append(str(ref[0]))
+
+        return None
+
+    @staticmethod
+    def resolve_text_input(workflow: dict, value: Any, visited: set[str] | None = None) -> str | None:
+        """Resolve text-like inputs that may reference other nodes."""
+
+        if value in (None, ""):
+            return None
+
+        if isinstance(value, str):
+            return value
+
+        if not isinstance(value, list) or not value:
+            return None
+
+        node_id = str(value[0])
+        if visited is None:
+            visited = set()
+        if node_id in visited:
+            return None
+        visited.add(node_id)
+
+        node = workflow.get(node_id)
+        if not node:
+            return None
+
+        node_inputs = node.get("inputs", {})
+
+        # Direct text-bearing keys
+        for key in (
+            "value",
+            "text",
+            "string",
+            "clip_l",
+            "clip_g",
+            "prompt",
+            "t5xxl",
+            "clip_prompt",
+        ):
+            direct_value = node_inputs.get(key)
+            if isinstance(direct_value, str):
+                return direct_value
+
+        # Follow common linkage keys recursively
+        for key in ("text", "value", "input", "conditioning", "guider", "clip"):
+            linked = node_inputs.get(key)
+            if isinstance(linked, list) and linked:
+                resolved = WorkflowAnalyzer.resolve_text_input(workflow, linked, visited)
+                if resolved:
+                    return resolved
+
+        return None
+
+    @staticmethod
+    def _resolve_strength_pair(
+        inputs: dict,
+        *,
+        model_default: float = 1.0,
+        clip_default: float = 1.0,
+    ) -> tuple[float, float]:
+        """Normalize LoRA strength fields across loader variants."""
+
+        model_keys = [
+            "strength_model",
+            "model_strength",
+            "lora_model_strength",
+            "strength",
+            "lora_wt",
+        ]
+        clip_keys = [
+            "strength_clip",
+            "clip_strength",
+            "lora_clip_strength",
+            "strength",
+            "lora_wt",
+        ]
+
+        model_strength = model_default
+        for key in model_keys:
+            if key in inputs and inputs[key] not in (None, ""):
+                model_strength = inputs[key]
+                break
+
+        clip_strength = clip_default
+        for key in clip_keys:
+            if key in inputs and inputs[key] not in (None, ""):
+                clip_strength = inputs[key]
+                break
+
+        return model_strength, clip_strength
+
+    @staticmethod
+    def _resolve_noise_seed(workflow: dict, noise_ref: Any) -> str | None:
+        """Resolve seed from upstream noise nodes."""
+
+        if not (isinstance(noise_ref, list) and noise_ref):
+            return None
+
+        node_id = str(noise_ref[0])
+        node = workflow.get(node_id)
+        if not node:
+            return None
+
+        inputs = node.get("inputs", {})
+        for key in ("seed", "noise_seed", "value"):
+            if inputs.get(key) not in (None, ""):
+                value = inputs[key]
+                if isinstance(value, list):
+                    return None
+                return str(value)
+
+        return None
+
+    @staticmethod
+    def _resolve_sampler_choice(workflow: dict, sampler_ref: Any) -> str | None:
+        """Resolve sampler name from selection nodes like KSamplerSelect."""
+
+        if not (isinstance(sampler_ref, list) and sampler_ref):
+            return None
+
+        node = workflow.get(str(sampler_ref[0]))
+        if not node:
+            return None
+
+        inputs = node.get("inputs", {})
+        for key in ("sampler_name", "sampler", "name"):
+            value = inputs.get(key)
+            if isinstance(value, str) and value:
+                return value
+
+        return None
+
+    @staticmethod
+    def _resolve_scheduler_metadata(workflow: dict, scheduler_ref: Any) -> dict[str, Any]:
+        """Extract step/scheduler details from scheduler helper nodes."""
+
+        metadata: dict[str, Any] = {}
+        if not (isinstance(scheduler_ref, list) and scheduler_ref):
+            return metadata
+
+        stack = [str(scheduler_ref[0])]
+        visited: set[str] = set()
+
+        while stack:
+            node_id = stack.pop()
+            if node_id in visited:
+                continue
+            visited.add(node_id)
+
+            node = workflow.get(node_id)
+            if not node:
+                continue
+
+            inputs = node.get("inputs", {})
+            for field in ("steps", "scheduler", "denoise"):
+                if field not in metadata and inputs.get(field) not in (None, ""):
+                    metadata[field] = inputs[field]
+
+            # Some schedulers reference additional nodes via "model"; follow chain once
+            for key in ("model", "scheduler", "sigmas"):
+                ref = inputs.get(key)
+                if isinstance(ref, list) and ref:
+                    stack.append(str(ref[0]))
+
+        return metadata
+
+    @staticmethod
+    def resolve_model_hierarchy(workflow: dict, sampler_id: str) -> dict[str, Any]:
+        """Trace the sampler's model chain to find checkpoint, LoRAs, and related settings."""
+
+        info: dict[str, Any] = {
+            "model_name": None,
+            "clip_model_name": None,
+            "clip_skip": None,
+            "weight_dtype": None,
+            "lora_stack": [],
+        }
+
+        sampler_node = workflow.get(sampler_id)
+        if not sampler_node:
+            return info
+
+        queue: list[str] = []
+        visited: set[str] = set()
+
+        def enqueue(ref: Any):
+            if isinstance(ref, list) and ref:
+                node_id = str(ref[0])
+                if node_id not in visited:
+                    queue.append(node_id)
+
+        for key in ("model", "guider", "sampler", "sigmas", "input"):
+            enqueue(sampler_node.get("inputs", {}).get(key))
+
+        while queue:
+            node_id = queue.pop(0)
+            if node_id in visited:
+                continue
+            visited.add(node_id)
+
+            node = workflow.get(node_id)
+            if not node:
+                continue
+
+            class_type = node.get("class_type", "")
+            inputs = node.get("inputs", {})
+            lower_class = class_type.lower()
+
+            if "lora" in lower_class and inputs.get("lora_name") not in (None, "", "None"):
+                model_strength, clip_strength = WorkflowAnalyzer._resolve_strength_pair(inputs)
+                normalized_class = lower_class.replace("_", "").replace(" ", "")
+                if "modelonly" in normalized_class:
+                    clip_strength = None
+                info.setdefault("lora_stack", []).append(
+                    {
+                        "name": inputs.get("lora_name") or inputs.get("name"),
+                        "model_strength": model_strength,
+                        "clip_strength": clip_strength,
+                    }
+                )
+
+                enqueue(inputs.get("model"))
+                enqueue(inputs.get("unet"))
+                enqueue(inputs.get("clip"))
+                continue
+
+            checkpoint_keywords = (
+                "checkpointloader",
+                "model loader",
+                "unetloader",
+                "fluxunetloader",
+                "checkpoint",
+            )
+
+            if any(keyword in lower_class for keyword in checkpoint_keywords):
+                info["model_name"] = (
+                    inputs.get("ckpt_name")
+                    or inputs.get("checkpoint_name")
+                    or inputs.get("model_name")
+                    or inputs.get("unet_name")
+                )
+                info["clip_model_name"] = (
+                    inputs.get("clip_name")
+                    or inputs.get("clip_l_name")
+                    or inputs.get("clip_g_name")
+                )
+                info["clip_skip"] = inputs.get("clip_skip", inputs.get("base_clip_skip"))
+                info["weight_dtype"] = inputs.get("weight_dtype") or inputs.get("dtype")
+                continue
+
+            if class_type in {"ModelSamplingFlux", "ModelSamplingSD3"}:
+                info["base_shift"] = inputs.get("base_shift")
+                info["max_shift"] = inputs.get("max_shift")
+                enqueue(inputs.get("model"))
+                enqueue(inputs.get("unet"))
+                enqueue(inputs.get("input"))
+                enqueue(inputs.get("base_model"))
+                continue
+
+            if "cliploader" in lower_class or "dualclip" in lower_class:
+                info["clip_model_name"] = (
+                    inputs.get("clip_name")
+                    or inputs.get("clip_name1")
+                    or inputs.get("clip")
+                    or info.get("clip_model_name")
+                )
+
+            for key in ("model", "unet", "input", "base_model"):
+                enqueue(inputs.get(key))
+
+        return info
+
+    @staticmethod
+    def resolve_vae_name(workflow: dict, save_node_id: str) -> str | None:
+        """Trace from the save node to find the associated VAE loader name."""
+
+        save_node = workflow.get(save_node_id)
+        if not save_node:
+            return None
+
+        images_ref = save_node.get("inputs", {}).get("images")
+        if not (isinstance(images_ref, list) and images_ref):
+            return None
+
+        stack = [str(images_ref[0])]
+        visited: set[str] = set()
+
+        while stack:
+            node_id = stack.pop()
+            if node_id in visited:
+                continue
+            visited.add(node_id)
+
+            node = workflow.get(node_id)
+            if not node:
+                continue
+
+            class_type = node.get("class_type", "")
+            inputs = node.get("inputs", {})
+
+            if class_type in {"VAELoader", "VAELoaderSimple", "FluxVAELoader"}:
+                return (
+                    inputs.get("vae_name")
+                    or inputs.get("clip_vae")
+                    or inputs.get("vae_file")
+                    or inputs.get("ckpt_name")
+                )
+
+            if "vae" in class_type.lower():
+                vae_ref = inputs.get("vae")
+                if isinstance(vae_ref, list) and vae_ref:
+                    stack.append(str(vae_ref[0]))
+
+            for key in ("samples", "latent_image", "images", "input"):
+                ref = inputs.get(key)
+                if isinstance(ref, list) and ref:
+                    stack.append(str(ref[0]))
+
+        return None
+
+    @staticmethod
+    def resolve_latent_attributes(workflow: dict, sampler_inputs: dict) -> dict[str, Any]:
+        """Derive width, height, batch size by tracing latent sources feeding the sampler."""
+
+        latent_ref = sampler_inputs.get("latent_image") or sampler_inputs.get("latent")
+        if not (isinstance(latent_ref, list) and latent_ref):
+            return {}
+
+        stack = [str(latent_ref[0])]
+        visited: set[str] = set()
+
+        while stack:
+            node_id = stack.pop()
+            if node_id in visited:
+                continue
+            visited.add(node_id)
+
+            node = workflow.get(node_id)
+            if not node:
+                continue
+
+            class_type = node.get("class_type", "")
+            inputs = node.get("inputs", {})
+
+            if class_type in {
+                "EmptyLatentImage",
+                "LatentImage",
+                "EmptyLatent",
+                "SDXL Empty Latent Image (rgthree)",
+            }:
+                width = inputs.get("width", inputs.get("empty_latent_width"))
+                height = inputs.get("height", inputs.get("empty_latent_height"))
+                batch_size = inputs.get("batch_size", inputs.get("batch_count"))
+
+                dimensions = inputs.get("dimensions")
+                if (width is None or height is None) and isinstance(dimensions, str):
+                    match = re.search(r"(\d+)\s*[xX]\s*(\d+)", dimensions)
+                    if match:
+                        width = width or int(match.group(1))
+                        height = height or int(match.group(2))
+
+                return {
+                    "image_width": width,
+                    "image_height": height,
+                    "batch_size": batch_size,
+                }
+
+            for key in ("samples", "latent_image", "input"):
+                ref = inputs.get(key)
+                if isinstance(ref, list) and ref:
+                    stack.append(str(ref[0]))
+
+        return {}
+
+    @staticmethod
     def extract_filename_patterns(workflow: dict) -> list[str]:
         """Extract all filename patterns from SaveImageWithMetaDataUniversal and SaveImage nodes.
 
@@ -361,8 +845,15 @@ class WorkflowAnalyzer:
                     # For example: "%date:yyyy-MM-dd-hhmmss%-Flux-dual-clip" -> "Flux-dual-clip"
                     # Remove all %...% patterns
                     cleaned = re.sub(r"%[^%]+%", "", clean_part)
-                    # Also remove any remaining separators from token removal
-                    cleaned = cleaned.strip("-_/")
+                    # Remove dimension separators (x between width/height tokens leaves stray "x")
+                    # This handles cases like "%width%x%height%" -> "x" -> ""
+                    cleaned = re.sub(r"^[x_\-/]+", "", cleaned)  # Remove leading separators and x
+                    cleaned = re.sub(r"[x_\-/]+$", "", cleaned)  # Remove trailing separators and x
+                    # Final cleanup: collapse multiple separators but preserve their type
+                    # Don't normalize dashes to underscores - keep original structure
+                    cleaned = re.sub(r"_+", "_", cleaned)  # Collapse multiple underscores
+                    cleaned = re.sub(r"-+", "-", cleaned)  # Collapse multiple dashes
+                    cleaned = cleaned.strip("_-")  # Strip leading/trailing separators
 
                     # Only add non-generic patterns (not just "Test" or "Tests")
                     # Require minimum length of 3 to avoid overly broad matches like "a" or "xy"
@@ -383,7 +874,7 @@ class WorkflowAnalyzer:
     def trace_node_input(workflow: dict, node_id: str, input_key: str) -> tuple[str | None, dict | None]:
         """Trace back through a node input connection to find the source node.
 
-        Returns: (source_node_id, source_node) or (None, None) if not found.
+        Returns: (source_node_id, source_node) or (None, None) if not found
         """
         if node_id not in workflow:
             return None, None
@@ -407,7 +898,7 @@ class WorkflowAnalyzer:
     def extract_lora_stack_info(workflow: dict, lora_stack_id: str) -> list[dict]:
         """Extract LoRA information from a LoRA Stacker node.
 
-        Returns list of dicts with {name, model_strength, clip_strength}.
+        Returns: List of dicts with {name, model_strength, clip_strength}
         """
         if lora_stack_id not in workflow:
             return []
@@ -441,14 +932,58 @@ class WorkflowAnalyzer:
         return loras
 
     @staticmethod
-    def extract_expected_metadata_for_save_node(workflow: dict, save_node_id: str, save_node: dict) -> dict[str, Any]:
-        """Extract expected metadata for one Save Image node by tracing connections.
+    def find_selected_sampler(
+        workflow: dict,
+        selection_method: str,
+        selection_node_id: str | None,
+    ) -> tuple[str | None, dict | None]:
+        """Return the sampler node selected by the configured method."""
+        # Find all KSampler nodes
+        samplers = []
+        for node_id, node_data in workflow.items():
+            class_type = node_data.get("class_type", "")
+            if "KSampler" in class_type or "SamplerCustom" in class_type:
+                steps = node_data.get("inputs", {}).get("steps")
+                if steps is not None:
+                    samplers.append((node_id, node_data, int(steps)))
 
-        Includes: save node settings, sampler params, loader params, LoRA info.
+        if not samplers:
+            return None, None
+
+        if selection_method == "By node ID" and selection_node_id:
+            # Find specific node
+            for node_id, node_data, _ in samplers:
+                if node_id == str(selection_node_id):
+                    return node_id, node_data
+            return None, None
+
+        elif selection_method == "Farthest":
+            # Find sampler with highest steps
+            sampler_id, sampler_node, _ = max(samplers, key=lambda x: x[2])
+            return sampler_id, sampler_node
+
+        elif selection_method == "Nearest":
+            # Find sampler with lowest steps
+            sampler_id, sampler_node, _ = min(samplers, key=lambda x: x[2])
+            return sampler_id, sampler_node
+
+        # Default: return first sampler found
+        return samplers[0][0], samplers[0][1]
+
+    @staticmethod
+    def extract_expected_metadata_for_save_node(workflow: dict, save_node_id: str, save_node: dict) -> dict[str, Any]:
+        """Extract complete expected metadata for a specific Save Image node by tracing its connections.
+
+        Returns a dict with all expected metadata fields including:
+        - Basic save node settings (file_format, etc.)
+        - Sampler parameters (seed, steps, cfg, sampler_name, scheduler, denoise)
+        - Loader parameters (model, vae, clip_skip, dimensions, prompts)
+        - LoRA information (names, strengths)
         """
         expected = {
             "save_node_id": save_node_id,
             "filename_prefix": "",
+            "filename_patterns": [],
             "file_format": "png",
         }
 
@@ -457,92 +992,224 @@ class WorkflowAnalyzer:
         expected["filename_prefix"] = WorkflowAnalyzer.resolve_filename_prefix(
             workflow, save_inputs.get("filename_prefix", "")
         )
+
+        # Extract filename patterns from this specific save node's prefix
+        if expected["filename_prefix"]:
+            prefix = expected["filename_prefix"]
+            parts = prefix.replace("\\", "/").split("/")
+            for part in parts:
+                clean_part = part.strip()
+                if not clean_part or (clean_part.startswith("%") and clean_part.endswith("%")):
+                    continue
+                # Remove token patterns but keep static text
+                cleaned = re.sub(r"%[^%]+%", "", clean_part)
+                # Remove dimension separators
+                cleaned = re.sub(r"^[x_\-/]+", "", cleaned)
+                cleaned = re.sub(r"[x_\-/]+$", "", cleaned)
+                # Collapse multiple separators but preserve their type
+                cleaned = re.sub(r"_+", "_", cleaned)
+                cleaned = re.sub(r"-+", "-", cleaned)
+                cleaned = cleaned.strip("_-")
+                # Only add meaningful patterns
+                cleaned_lower = cleaned.lower()
+                if cleaned and len(cleaned) >= 3 and cleaned_lower not in {"test", "tests"}:
+                    expected["filename_patterns"].append(cleaned)
+
         expected["file_format"] = save_inputs.get("file_format", "png")
         expected["save_workflow_json"] = save_inputs.get("save_workflow_json", False)
         expected["include_lora_summary"] = save_inputs.get("include_lora_summary", False)
         expected["max_jpeg_exif_kb"] = save_inputs.get("max_jpeg_exif_kb", 60)
+        expected["guidance_as_cfg"] = save_inputs.get("guidance_as_cfg", False)
+        expected["civitai_sampler"] = save_inputs.get("civitai_sampler", False)
+        expected["sampler_selection_method"] = save_inputs.get("sampler_selection_method", "Farthest")
+        expected["sampler_selection_node_id"] = save_inputs.get("sampler_selection_node_id")
+        expected["include_lora_summary"] = save_inputs.get("include_lora_summary", False)
 
-        # Trace to sampler
+        # Trace to sampler (may need to trace through intermediate nodes like VAEDecode)
         sampler_id, sampler_node = WorkflowAnalyzer.trace_node_input(workflow, save_node_id, "images")
+
+        traced_sampler_is_valid = bool(
+            sampler_node and "Sampler" in sampler_node.get("class_type", "")
+        )
+
+        # Check if we should use sampler selection method instead
+        selection_method = expected.get("sampler_selection_method", "Farthest")
+        selection_node_id = expected.get("sampler_selection_node_id")
+
+        # Count samplers in workflow
+        sampler_count = sum(
+            1
+            for nid, nd in workflow.items()
+            if "KSampler" in nd.get("class_type", "")
+        )
+
+        # If multiple samplers exist, use selection method only when needed
+        if sampler_count > 1:
+            should_use_selection = False
+            if not sampler_node:
+                should_use_selection = True
+            elif selection_method == "By node ID" and selection_node_id:
+                should_use_selection = True
+            elif not traced_sampler_is_valid:
+                should_use_selection = True
+
+            if should_use_selection:
+                selected_sampler_id, selected_sampler_node = WorkflowAnalyzer.find_selected_sampler(
+                    workflow, selection_method, selection_node_id
+                )
+                if selected_sampler_node:
+                    sampler_id = selected_sampler_id
+                    sampler_node = selected_sampler_node
+                    expected["sampler_node_id"] = sampler_id
+                    expected["sampler_class_type"] = sampler_node.get("class_type")
         if not sampler_node:
             return expected
 
         expected["sampler_node_id"] = sampler_id
         expected["sampler_class_type"] = sampler_node.get("class_type")
 
+        # If we hit a VAEDecode or other intermediate node, trace back to find the actual sampler
+        intermediate_nodes = ["VAEDecode", "VAEEncode", "ImageScale", "LatentUpscale"]
+        if sampler_node.get("class_type") in intermediate_nodes:
+            # Trace back through the 'samples' or 'latent_image' input
+            for input_key in ["samples", "latent_image"]:
+                actual_sampler_id, actual_sampler_node = WorkflowAnalyzer.trace_node_input(
+                    workflow, sampler_id, input_key
+                )
+                if actual_sampler_node:
+                    sampler_id = actual_sampler_id
+                    sampler_node = actual_sampler_node
+                    expected["sampler_node_id"] = sampler_id
+                    expected["sampler_class_type"] = sampler_node.get("class_type")
+                    break
+
         # Extract sampler parameters
         sampler_inputs = sampler_node.get("inputs", {})
-        expected["seed"] = sampler_inputs.get("seed", sampler_inputs.get("noise_seed"))
+        seed_input = sampler_inputs.get("seed", sampler_inputs.get("noise_seed"))
+        expected["seed"] = WorkflowAnalyzer.resolve_seed_value(workflow, seed_input)
+        if expected["seed"] is None:
+            expected["seed"] = WorkflowAnalyzer._resolve_noise_seed(workflow, sampler_inputs.get("noise"))
+        if expected["seed"] is not None:
+            expected["seed"] = str(expected["seed"])
         expected["steps"] = sampler_inputs.get("steps")
         expected["cfg"] = sampler_inputs.get("cfg")
         expected["sampler_name"] = sampler_inputs.get("sampler_name")
         expected["scheduler"] = sampler_inputs.get("scheduler")
         expected["denoise"] = sampler_inputs.get("denoise")
-        expected["guidance"] = sampler_inputs.get("guidance")
+        expected["guidance"] = WorkflowAnalyzer.resolve_guidance_value(workflow, sampler_inputs)
+
+        scheduler_meta = WorkflowAnalyzer._resolve_scheduler_metadata(workflow, sampler_inputs.get("sigmas"))
+        for key in ("steps", "scheduler", "denoise"):
+            if scheduler_meta.get(key) is not None and expected.get(key) in (None, ""):
+                expected[key] = scheduler_meta[key]
+
+        if not expected.get("sampler_name"):
+            sampler_choice = WorkflowAnalyzer._resolve_sampler_choice(workflow, sampler_inputs.get("sampler"))
+            if sampler_choice:
+                expected["sampler_name"] = sampler_choice
+
+        if sampler_inputs.get("positive"):
+            expected["positive_prompt"] = WorkflowAnalyzer.resolve_text_input(
+                workflow, sampler_inputs.get("positive")
+            )
+        if expected.get("positive_prompt") is None:
+            expected["positive_prompt"] = WorkflowAnalyzer.resolve_text_input(
+                workflow,
+                sampler_inputs.get("guider"),
+            )
+
+        if sampler_inputs.get("negative"):
+            expected["negative_prompt"] = WorkflowAnalyzer.resolve_text_input(
+                workflow, sampler_inputs.get("negative")
+            )
+        if expected.get("negative_prompt") is None:
+            expected["negative_prompt"] = WorkflowAnalyzer.resolve_text_input(
+                workflow,
+                sampler_inputs.get("conditioning")
+                if sampler_inputs.get("conditioning") not in (None, "")
+                else None,
+            )
 
         # Trace to loader (could be through 'model' or 'sdxl_tuple' input)
         loader_id, loader_node = None, None
-        for input_key in ['model', 'sdxl_tuple']:
+        for input_key in ["model", "sdxl_tuple"]:
             loader_id, loader_node = WorkflowAnalyzer.trace_node_input(workflow, sampler_id, input_key)
             if loader_node:
                 break
 
-        if not loader_node:
-            return expected
+        if loader_node:
+            expected["loader_node_id"] = loader_id
+            expected["loader_class_type"] = loader_node.get("class_type")
 
-        expected["loader_node_id"] = loader_id
-        expected["loader_class_type"] = loader_node.get("class_type")
+            loader_inputs = loader_node.get("inputs", {})
 
-        # Extract loader parameters
-        loader_inputs = loader_node.get("inputs", {})
+            loader_positive = WorkflowAnalyzer.resolve_text_input(workflow, loader_inputs.get("positive"))
+            if loader_positive:
+                expected["positive_prompt"] = loader_positive
 
-        # Model name
-        expected["model_name"] = loader_inputs.get(
-            "ckpt_name",
-            loader_inputs.get(
-                "base_ckpt_name",
-                loader_inputs.get("unet_name"),
-            ),
-        )
+            loader_negative = WorkflowAnalyzer.resolve_text_input(workflow, loader_inputs.get("negative"))
+            if loader_negative:
+                expected["negative_prompt"] = loader_negative
 
-        # VAE
-        expected["vae_name"] = loader_inputs.get("vae_name")
+            # Inline LoRA (for workflows using loader-level LoRA blend)
+            inline_lora = loader_inputs.get("lora_name")
+            if inline_lora and inline_lora != "None":
+                expected["inline_lora"] = {
+                    "name": inline_lora,
+                    "model_strength": loader_inputs.get(
+                        "lora_model_strength", loader_inputs.get("lora_wt", 1.0)
+                    ),
+                    "clip_strength": loader_inputs.get(
+                        "lora_clip_strength", loader_inputs.get("lora_wt", 1.0)
+                    ),
+                }
 
-        # CLIP skip
-        expected["clip_skip"] = loader_inputs.get("clip_skip", loader_inputs.get("base_clip_skip"))
+            # T5/CLIP prompts for dual CLIP
+            expected["t5_prompt"] = WorkflowAnalyzer.resolve_text_input(
+                workflow, loader_inputs.get("t5xxl")
+            )
+            expected["clip_prompt"] = WorkflowAnalyzer.resolve_text_input(
+                workflow, loader_inputs.get("clip_l")
+            )
 
-        # Weight dtype
-        expected["weight_dtype"] = loader_inputs.get("weight_dtype")
+            # LoRA stack node reference
+            lora_stack_ref = loader_inputs.get("lora_stack")
+            if isinstance(lora_stack_ref, list) and len(lora_stack_ref) >= 1:
+                lora_stack_id = str(lora_stack_ref[0])
+                expected["lora_stack"] = WorkflowAnalyzer.extract_lora_stack_info(workflow, lora_stack_id)
 
-        # Image dimensions
-        expected["image_width"] = loader_inputs.get("empty_latent_width", loader_inputs.get("width"))
-        expected["image_height"] = loader_inputs.get("empty_latent_height", loader_inputs.get("height"))
+        model_info = WorkflowAnalyzer.resolve_model_hierarchy(workflow, sampler_id)
 
-        # Batch size
-        expected["batch_size"] = loader_inputs.get("batch_size")
+        if model_info.get("model_name"):
+            expected["model_name"] = model_info["model_name"]
+        if model_info.get("clip_model_name"):
+            expected["clip_model_name"] = model_info["clip_model_name"]
+        if model_info.get("clip_skip") is not None:
+            expected["clip_skip"] = model_info["clip_skip"]
+        if model_info.get("weight_dtype"):
+            expected["weight_dtype"] = model_info["weight_dtype"]
+        if model_info.get("lora_stack"):
+            expected["lora_stack"] = model_info["lora_stack"]
+            if not expected.get("include_lora_summary"):
+                expected["include_lora_summary"] = True
 
-        # Prompts
-        expected["positive_prompt"] = loader_inputs.get("positive")
-        expected["negative_prompt"] = loader_inputs.get("negative")
+        if model_info.get("base_shift") is not None:
+            expected["base_shift"] = model_info["base_shift"]
+        if model_info.get("max_shift") is not None:
+            expected["max_shift"] = model_info["max_shift"]
 
-        # T5/CLIP prompts for dual CLIP
-        expected["t5_prompt"] = loader_inputs.get("t5xxl")
-        expected["clip_prompt"] = loader_inputs.get("clip_l")
+        vae_name = WorkflowAnalyzer.resolve_vae_name(workflow, save_node_id)
+        if vae_name:
+            expected["vae_name"] = vae_name
 
-        # Inline LoRA from loader
-        inline_lora = loader_inputs.get("lora_name")
-        if inline_lora and inline_lora != "None":
-            expected["inline_lora"] = {
-                "name": inline_lora,
-                "model_strength": loader_inputs.get("lora_model_strength", loader_inputs.get("lora_wt", 1.0)),
-                "clip_strength": loader_inputs.get("lora_clip_strength", loader_inputs.get("lora_wt", 1.0))
-            }
-
-        # LoRA Stack
-        lora_stack_ref = loader_inputs.get("lora_stack")
-        if isinstance(lora_stack_ref, list) and len(lora_stack_ref) >= 1:
-            lora_stack_id = str(lora_stack_ref[0])
-            expected["lora_stack"] = WorkflowAnalyzer.extract_lora_stack_info(workflow, lora_stack_id)
+        latent_attrs = WorkflowAnalyzer.resolve_latent_attributes(workflow, sampler_inputs)
+        if latent_attrs:
+            if latent_attrs.get("image_width"):
+                expected["image_width"] = latent_attrs["image_width"]
+            if latent_attrs.get("image_height"):
+                expected["image_height"] = latent_attrs["image_height"]
+            if latent_attrs.get("batch_size") is not None:
+                expected["batch_size"] = latent_attrs["batch_size"]
 
         return expected
 
@@ -593,11 +1260,18 @@ class MetadataValidator:
         re.compile(r"^CLIP_\d+\s+.+$"),  # Matches "CLIP_1 Model name", etc.
     ]
 
-    def __init__(self, workflow_dir: Path, output_dir: Path, comfyui_models_path: Path | None = None):
+    def __init__(
+        self,
+        workflow_dir: Path,
+        output_dir: Path,
+        comfyui_models_path: Path | None = None,
+        verbose: bool = False,
+    ):
         self.workflow_dir = workflow_dir
         self.output_dir = output_dir
         self.comfyui_models_path = comfyui_models_path
         self.results = []
+        self.verbose = verbose
 
     def _extract_json_value(self, text: str) -> str:
         """Extract JSON object or array from the beginning of text.
@@ -739,6 +1413,34 @@ class MetadataValidator:
                     metadata_start_idx = idx
                     break
 
+        # Capture prompt headers up to metadata start
+        header_fields: dict[str, str] = {}
+        current_header_key: str | None = None
+        positive_lines: list[str] = []
+        for line in lines[:metadata_start_idx]:
+            stripped_line = line.strip()
+            match = re.match(r"^([A-Za-z0-9 _\-]+):\s*(.*)", line)
+            if match:
+                potential_key = match.group(1).strip()
+                if potential_key in prompt_header_keys:
+                    header_fields[potential_key] = match.group(2).strip()
+                    current_header_key = potential_key
+                else:
+                    current_header_key = None
+                continue
+
+            if current_header_key and stripped_line:
+                header_fields[current_header_key] = "\n".join(
+                    filter(None, [header_fields[current_header_key], stripped_line])
+                )
+            elif stripped_line:
+                positive_lines.append(stripped_line)
+
+        if positive_lines and "Positive prompt" not in header_fields:
+            header_fields["Positive prompt"] = "\n".join(positive_lines).strip()
+
+        fields.update(header_fields)
+
         # Join metadata lines (after prompts)
         if metadata_start_idx < len(lines):
             metadata_text = "\n".join(lines[metadata_start_idx:])
@@ -838,128 +1540,259 @@ class MetadataValidator:
     def _validate_expected_fields(self, fields: dict, expected_metadata: dict, result: dict):
         """Comprehensively validate that actual metadata matches all expected values."""
 
-        def compare_numeric(expected, actual, field_name):
-            """Compare numeric values, handling int/float differences."""
+        check_details = result.setdefault("check_details", [])
+        recorded_fields: set[str] = set()
+
+        def normalize_value(value: Any) -> str:
+            if value is None or value == "":
+                return "N/A"
+            return str(value)
+
+        def normalize_text(value: Any) -> str:
+            if value is None or value == "":
+                return ""
+            if isinstance(value, str):
+                return value.strip()
+            return str(value).strip()
+
+        def add_detail(
+            field_name: str,
+            status: str,
+            expected: Any = None,
+            actual: Any = None,
+            message: str | None = None,
+        ):
+            detail: dict[str, Any] = {"field": field_name, "status": status}
+            if expected is not None:
+                detail["expected"] = expected
+            if actual is not None:
+                detail["actual"] = actual
+            if message:
+                detail["message"] = message
+            check_details.append(detail)
+            if status != "info":
+                recorded_fields.add(field_name)
+
+        def mark_pass(field_name: str, expected: Any, actual: Any):
+            add_detail(field_name, "pass", expected, actual)
+
+        def mark_fail(field_name: str, expected: Any, actual: Any, message: str):
+            result["errors"].append(message)
+            add_detail(field_name, "fail", expected, actual, message)
+
+        def mark_warn(field_name: str, expected: Any, actual: Any, message: str):
+            result["warnings"].append(message)
+            add_detail(field_name, "warn", expected, actual, message)
+
+        def compare_numeric_field(field_name: str, expected: Any):
+            expected_str = str(expected)
+            actual_value = fields.get(field_name)
+            actual_str = normalize_value(actual_value)
+            if actual_value in (None, ""):
+                message = f"{field_name} missing, expected '{expected_str}'"
+                mark_fail(field_name, expected_str, actual_str, message)
+                return
             try:
-                expected_float = float(expected)
-                actual_float = float(actual)
+                expected_float = float(expected_str)
+                actual_float = float(str(actual_value))
                 if abs(expected_float - actual_float) > 0.0001:
-                    result["errors"].append(f"{field_name} mismatch: expected '{expected}', got '{actual}'")
+                    message = (
+                        f"{field_name} mismatch: expected '{expected_str}', "
+                        f"got '{actual_str}'"
+                    )
+                    mark_fail(field_name, expected_str, actual_str, message)
+                else:
+                    mark_pass(field_name, expected_str, actual_str)
             except (ValueError, TypeError):
-                # If conversion fails, do string comparison
-                if str(expected) != str(actual):
-                    result["errors"].append(f"{field_name} mismatch: expected '{expected}', got '{actual}'")
+                if str(actual_value) != expected_str:
+                    message = (
+                        f"{field_name} mismatch: expected '{expected_str}', "
+                        f"got '{actual_str}'"
+                    )
+                    mark_fail(field_name, expected_str, actual_str, message)
+                else:
+                    mark_pass(field_name, expected_str, actual_str)
+
+        def compare_string_field(field_name: str, expected: Any):
+            expected_str = normalize_text(expected)
+            actual_value = fields.get(field_name)
+            actual_str = normalize_text(actual_value)
+            if actual_value in (None, ""):
+                message = f"{field_name} missing, expected '{expected_str or 'value'}'"
+                mark_fail(field_name, expected_str or "value", normalize_value(actual_value), message)
+            elif actual_str != expected_str:
+                message = f"{field_name} mismatch: expected '{expected_str}', got '{actual_str}'"
+                mark_fail(field_name, expected_str, actual_str, message)
+            else:
+                mark_pass(field_name, expected_str, actual_str)
+
+        def ensure_presence(field_name: str, expected_value: Any | None = None, *, message: str | None = None):
+            if field_name in recorded_fields:
+                return field_name in fields and fields[field_name] not in (None, "")
+            actual_value = fields.get(field_name)
+            actual_str = normalize_value(actual_value)
+            if actual_value not in (None, ""):
+                expected_str = (
+                    normalize_value(expected_value)
+                    if expected_value not in (None, "")
+                    else "present"
+                )
+                recorded_fields.add(field_name)
+                add_detail(field_name, "pass", expected=expected_str, actual=actual_str)
+                return True
+            expected_str = (
+                normalize_value(expected_value)
+                if expected_value not in (None, "")
+                else "present"
+            )
+            msg = message or f"{field_name} missing"
+            mark_fail(field_name, expected_str, actual_str, msg)
+            return False
 
         # Validate seed
         if expected_metadata.get("seed") is not None:
             expected_seed = str(expected_metadata["seed"])
             actual_seed = fields.get("Seed", "")
-            if actual_seed:
-                compare_numeric(expected_seed, actual_seed, "Seed")
+            actual_seed_str = normalize_value(actual_seed)
+            if expected_seed == "-1":
+                if actual_seed and len(str(actual_seed)) == 15 and str(actual_seed).isdigit():
+                    mark_pass("Seed", "15-digit random", actual_seed_str)
+                else:
+                    mark_fail(
+                        "Seed",
+                        "15-digit random",
+                        actual_seed_str,
+                        f"Seed format mismatch: expected 15-digit random seed, got '{actual_seed_str}'",
+                    )
             else:
-                result["errors"].append(f"Seed missing, expected '{expected_seed}'")
+                compare_numeric_field("Seed", expected_seed)
 
         # Validate steps
         if expected_metadata.get("steps") is not None:
-            expected_steps = str(expected_metadata["steps"])
-            actual_steps = fields.get("Steps", "")
-            if actual_steps:
-                compare_numeric(expected_steps, actual_steps, "Steps")
-            else:
-                result["errors"].append(f"Steps missing, expected '{expected_steps}'")
+            compare_numeric_field("Steps", expected_metadata["steps"])
 
-        # Validate CFG
+        # Validate CFG (respect guidance_as_cfg toggle)
         if expected_metadata.get("cfg") is not None:
-            expected_cfg = str(expected_metadata["cfg"])
-            actual_cfg = fields.get("CFG scale", "")
-            if actual_cfg:
-                compare_numeric(expected_cfg, actual_cfg, "CFG scale")
-            else:
-                result["errors"].append(f"CFG scale missing, expected '{expected_cfg}'")
+            cfg_expected = expected_metadata["cfg"]
+            if expected_metadata.get("guidance_as_cfg") and expected_metadata.get("guidance") is not None:
+                cfg_expected = expected_metadata["guidance"]
+            compare_numeric_field("CFG scale", cfg_expected)
 
-        # Validate sampler name (note: may be transformed by scheduler)
+        # Validate sampler name (scheduler may transform display)
         if expected_metadata.get("sampler_name"):
-            # Just check that Sampler field exists
-            if "Sampler" not in fields:
-                result["errors"].append(
-                    f"Sampler field missing, expected sampler '{expected_metadata['sampler_name']}'"
+            expected_sampler = str(expected_metadata["sampler_name"])
+            actual_sampler = fields.get("Sampler")
+            actual_sampler_str = normalize_value(actual_sampler)
+            if actual_sampler:
+                if expected_sampler.lower() in actual_sampler_str.lower():
+                    mark_pass("Sampler", expected_sampler, actual_sampler_str)
+                else:
+                    mark_fail(
+                        "Sampler",
+                        expected_sampler,
+                        actual_sampler_str,
+                        f"Sampler mismatch: expected '{expected_sampler}', got '{actual_sampler_str}'",
+                    )
+            else:
+                mark_fail(
+                    "Sampler",
+                    expected_sampler,
+                    "N/A",
+                    f"Sampler field missing, expected sampler '{expected_sampler}'",
                 )
 
-        # Validate scheduler
         if expected_metadata.get("scheduler"):
-            # Scheduler is typically combined with sampler name in output
-            if "Sampler" not in fields:
-                result["errors"].append(f"Sampler field missing, expected scheduler '{expected_metadata['scheduler']}'")
+            expected_scheduler = str(expected_metadata["scheduler"])
+            actual_sampler = fields.get("Sampler")
+            actual_sampler_str = normalize_value(actual_sampler)
+            if actual_sampler:
+                if expected_scheduler.lower() in actual_sampler_str.lower():
+                    mark_pass("Scheduler", expected_scheduler, actual_sampler_str)
+                else:
+                    mark_fail(
+                        "Scheduler",
+                        expected_scheduler,
+                        actual_sampler_str,
+                        f"Scheduler mismatch: expected '{expected_scheduler}', got '{actual_sampler_str}'",
+                    )
+            else:
+                mark_fail(
+                    "Scheduler",
+                    expected_scheduler,
+                    "N/A",
+                    f"Sampler field missing, expected scheduler '{expected_scheduler}'",
+                )
 
-        # Validate denoise
+        # Validate denoise and guidance
         if expected_metadata.get("denoise") is not None:
-            expected_denoise = str(expected_metadata["denoise"])
-            actual_denoise = fields.get("Denoise", "")
-            if actual_denoise:
-                compare_numeric(expected_denoise, actual_denoise, "Denoise")
+            compare_numeric_field("Denoise", expected_metadata["denoise"])
 
-        # Validate guidance (for Flux models)
         if expected_metadata.get("guidance") is not None:
-            expected_guidance = str(expected_metadata["guidance"])
-            actual_guidance = fields.get("Guidance", "")
-            if actual_guidance:
-                compare_numeric(expected_guidance, actual_guidance, "Guidance")
+            compare_numeric_field("Guidance", expected_metadata["guidance"])
 
-        # Validate model name (compare just the base filename)
+        # Validate model name (basename only)
         if expected_metadata.get("model_name"):
-            actual_model = fields.get("Model", "")
-            # Extract basename, handling both forward and backward slashes
-            expected_model_path = expected_metadata["model_name"].replace("\\", "/")
+            actual_model = fields.get("Model")
+            expected_model_path = str(expected_metadata["model_name"]).replace("\\", "/")
             expected_model_basename = Path(expected_model_path).stem
             actual_model_basename = Path(actual_model).stem if actual_model else ""
-
-            # Only report error if basenames don't match (ignore path differences)
-            if actual_model_basename and actual_model_basename != expected_model_basename:
-                result["errors"].append(
-                    f"Model mismatch: expected '{expected_model_basename}', got '{actual_model_basename}'"
-                )
-            elif not actual_model:
-                result["errors"].append(f"Model missing, expected '{expected_model_basename}'")
+            if actual_model_basename:
+                if actual_model_basename == expected_model_basename:
+                    mark_pass("Model", expected_model_basename, actual_model_basename)
+                else:
+                    mark_fail(
+                        "Model",
+                        expected_model_basename,
+                        actual_model_basename,
+                        f"Model mismatch: expected '{expected_model_basename}', got '{actual_model_basename}'",
+                    )
+            else:
+                message = f"Model missing, expected '{expected_model_basename}'"
+                mark_fail("Model", expected_model_basename, "N/A", message)
 
         # Validate VAE name
         if expected_metadata.get("vae_name") and expected_metadata["vae_name"] != "Baked VAE":
-            actual_vae = fields.get("VAE", "")
-            expected_vae_basename = Path(expected_metadata["vae_name"]).stem
+            actual_vae = fields.get("VAE")
+            expected_vae_basename = Path(str(expected_metadata["vae_name"])).stem
             actual_vae_basename = Path(actual_vae).stem if actual_vae else ""
-            if actual_vae_basename != expected_vae_basename:
-                result["errors"].append(
-                    f"VAE mismatch: expected '{expected_vae_basename}', got '{actual_vae_basename}'"
-                )
+            if actual_vae_basename:
+                if actual_vae_basename == expected_vae_basename:
+                    mark_pass("VAE", expected_vae_basename, actual_vae_basename)
+                else:
+                    mark_fail(
+                        "VAE",
+                        expected_vae_basename,
+                        actual_vae_basename,
+                        f"VAE mismatch: expected '{expected_vae_basename}', got '{actual_vae_basename}'",
+                    )
+            else:
+                mark_fail("VAE", expected_vae_basename, "N/A", f"VAE missing, expected '{expected_vae_basename}'")
 
-        # Validate clip skip (note: stored as absolute value in metadata)
+        # Validate clip skip
         if expected_metadata.get("clip_skip") is not None:
-            expected_clip_skip = abs(int(expected_metadata["clip_skip"]))
-            actual_clip_skip = fields.get("Clip skip", "")
-            if actual_clip_skip:
-                try:
-                    actual_clip_skip_int = abs(int(actual_clip_skip))
-                    if expected_clip_skip != actual_clip_skip_int:
-                        result["errors"].append(
-                            f"Clip skip mismatch: expected '{expected_clip_skip}', got '{actual_clip_skip}'"
-                        )
-                except ValueError:
-                    result["errors"].append(f"Clip skip invalid value: '{actual_clip_skip}'")
+            compare_numeric_field("Clip skip", abs(int(expected_metadata["clip_skip"])))
 
         # Validate image dimensions
         if expected_metadata.get("image_width") and expected_metadata.get("image_height"):
             expected_size = f"{expected_metadata['image_width']}x{expected_metadata['image_height']}"
-            actual_size = fields.get("Size", "")
-            if actual_size and actual_size != expected_size:
-                result["warnings"].append(
-                    f"Size mismatch: expected '{expected_size}', got '{actual_size}'"
+            actual_size = fields.get("Size")
+            actual_size_str = normalize_value(actual_size)
+            if actual_size in (None, ""):
+                message = f"Size missing, expected '{expected_size}'"
+                mark_fail("Size", expected_size, actual_size_str, message)
+            elif actual_size_str != expected_size:
+                message = (
+                    f"Size mismatch: expected '{expected_size}', "
+                    f"got '{actual_size_str}'"
                 )
+                mark_warn("Size", expected_size, actual_size_str, message)
+            else:
+                mark_pass("Size", expected_size, actual_size_str)
 
         # Validate LoRA stack
-        if expected_metadata.get("lora_stack"):
-            expected_loras = expected_metadata["lora_stack"]
-            # Count actual LoRAs in metadata
-            actual_lora_count = 0
-            lora_indices = set()
+        expected_loras = expected_metadata.get("lora_stack")
+        if expected_loras:
+            lora_indices: set[int] = set()
             for key in fields.keys():
                 match = re.match(r"Lora_(\d+) Model name", key)
                 if match:
@@ -967,59 +1800,184 @@ class MetadataValidator:
 
             actual_lora_count = len(lora_indices)
             expected_lora_count = len(expected_loras)
-
-            if actual_lora_count != expected_lora_count:
-                result["errors"].append(
-                    f"LoRA count mismatch: expected {expected_lora_count} LoRAs, got {actual_lora_count}"
+            if actual_lora_count == expected_lora_count:
+                mark_pass("LoRA count", expected_lora_count, actual_lora_count)
+            else:
+                mark_fail(
+                    "LoRA count",
+                    expected_lora_count,
+                    actual_lora_count,
+                    f"LoRA count mismatch: expected {expected_lora_count} LoRAs, got {actual_lora_count}",
                 )
 
-            # Validate each LoRA
             for idx, expected_lora in enumerate(expected_loras):
-                lora_name_key = f"Lora_{idx} Model name"
-                lora_model_str_key = f"Lora_{idx} Model strength"
-                lora_clip_str_key = f"Lora_{idx} Clip strength"
+                name_key = f"Lora_{idx} Model name"
+                model_str_key = f"Lora_{idx} Strength model"
+                clip_str_key = f"Lora_{idx} Strength clip"
 
-                if lora_name_key in fields:
-                    actual_lora_name = fields[lora_name_key]
-                    expected_lora_basename = Path(expected_lora["name"]).stem
-                    actual_lora_basename = Path(actual_lora_name).stem if actual_lora_name else ""
-
-                    if actual_lora_basename != expected_lora_basename:
-                        msg = (
-                            f"LoRA {idx} name mismatch: expected '{expected_lora_basename}', "
-                            f"got '{actual_lora_basename}'"
+                if name_key in fields:
+                    actual_name = fields[name_key]
+                    actual_basename = Path(actual_name).stem if actual_name else ""
+                    expected_basename = Path(expected_lora["name"]).stem
+                    if actual_basename == expected_basename:
+                        mark_pass(f"LoRA {idx} name", expected_basename, actual_basename)
+                    else:
+                        mark_fail(
+                            f"LoRA {idx} name",
+                            expected_basename,
+                            actual_basename,
+                            f"LoRA {idx} name mismatch: expected '{expected_basename}', got '{actual_basename}'",
                         )
-                        result["errors"].append(msg)
 
-                    # Validate strengths (use numeric comparison)
-                    if lora_model_str_key in fields:
-                        actual_model_str = fields[lora_model_str_key]
-                        expected_model_str = str(expected_lora["model_strength"])
-                        compare_numeric(expected_model_str, actual_model_str, f"LoRA {idx} model strength")
+                    if model_str_key in fields:
+                        compare_numeric_field(model_str_key, expected_lora["model_strength"])
+                    else:
+                        mark_fail(
+                            model_str_key,
+                            expected_lora["model_strength"],
+                            "N/A",
+                            f"{model_str_key} not present in metadata",
+                        )
 
-                    if lora_clip_str_key in fields:
-                        actual_clip_str = fields[lora_clip_str_key]
-                        expected_clip_str = str(expected_lora["clip_strength"])
-                        compare_numeric(expected_clip_str, actual_clip_str, f"LoRA {idx} clip strength")
+                    expected_clip_strength = expected_lora.get("clip_strength")
+                    if expected_clip_strength is not None:
+                        if clip_str_key in fields:
+                            compare_numeric_field(clip_str_key, expected_clip_strength)
+                        else:
+                            mark_fail(
+                                clip_str_key,
+                                expected_clip_strength,
+                                "N/A",
+                                f"{clip_str_key} not present in metadata",
+                            )
                 else:
-                    result["errors"].append(
-                        f"Expected LoRA {idx} ('{expected_lora['name']}') not found in metadata"
+                    mark_fail(
+                        f"LoRA {idx} name",
+                        Path(expected_lora["name"]).stem,
+                        "N/A",
+                        f"Expected LoRA {idx} ('{expected_lora['name']}') not found in metadata",
                     )
 
+                hash_key = f"Lora_{idx} Model hash"
+                if hash_key in fields:
+                    hash_value = normalize_value(fields[hash_key])
+                    if hash_value in ("", "N/A"):
+                        mark_fail(
+                            hash_key,
+                            "computed hash",
+                            hash_value,
+                            f"{hash_key} missing hash value",
+                        )
+                    else:
+                        mark_pass(hash_key, "computed hash", hash_value)
+                else:
+                    mark_fail(
+                        hash_key,
+                        "computed hash",
+                        "N/A",
+                        f"{hash_key} not present in metadata",
+                    )
+
+        # Prompts
+        if expected_metadata.get("positive_prompt"):
+            compare_string_field("Positive prompt", expected_metadata.get("positive_prompt"))
+
+        if expected_metadata.get("negative_prompt"):
+            compare_string_field("Negative prompt", expected_metadata.get("negative_prompt"))
+
+        # Hash fields
+        if expected_metadata.get("model_name"):
+            actual_model_hash = fields.get("Model hash")
+            actual_model_hash_str = normalize_value(actual_model_hash)
+            if actual_model_hash in (None, ""):
+                mark_fail("Model hash", "computed hash", actual_model_hash_str, "Model hash missing")
+            elif actual_model_hash_str == "N/A":
+                message = "Model hash is 'N/A' - should be computed"
+                mark_fail("Model hash", "computed hash", actual_model_hash_str, message)
+            else:
+                mark_pass("Model hash", "computed hash", actual_model_hash_str)
+
+        if expected_metadata.get("vae_name") and expected_metadata["vae_name"] != "Baked VAE":
+            actual_vae_hash = fields.get("VAE hash")
+            actual_vae_hash_str = normalize_value(actual_vae_hash)
+            if actual_vae_hash in (None, ""):
+                mark_fail("VAE hash", "computed hash", actual_vae_hash_str, "VAE hash missing")
+            elif actual_vae_hash_str == "N/A":
+                mark_fail("VAE hash", "computed hash", actual_vae_hash_str, "VAE hash is 'N/A' - should be computed")
+            else:
+                mark_pass("VAE hash", "computed hash", actual_vae_hash_str)
+
+        if expected_metadata.get("embedding_hash"):
+            actual_embedding_hash = fields.get("Embedding hash")
+            actual_embedding_hash_str = normalize_value(actual_embedding_hash)
+            if actual_embedding_hash in (None, ""):
+                mark_fail("Embedding hash", "computed hash", actual_embedding_hash_str, "Embedding hash missing")
+            elif actual_embedding_hash_str == "N/A":
+                message = "Embedding hash is 'N/A' - should be computed"
+                mark_fail("Embedding hash", "computed hash", actual_embedding_hash_str, message)
+            else:
+                mark_pass("Embedding hash", "computed hash", actual_embedding_hash_str)
+
+        # Batch details
+        batch_size_expected = expected_metadata.get("batch_size")
+        if batch_size_expected not in (None, 1, "1"):
+            compare_numeric_field("Batch size", batch_size_expected)
+
+        if expected_metadata.get("batch_number") is not None:
+            compare_numeric_field("Batch number", expected_metadata["batch_number"])
+
+        # Additional Flux parameters
+        if expected_metadata.get("base_shift") is not None:
+            compare_numeric_field("Base shift", expected_metadata["base_shift"])
+
+        if expected_metadata.get("max_shift") is not None:
+            compare_numeric_field("Max shift", expected_metadata["max_shift"])
+
+        if expected_metadata.get("shift") is not None:
+            compare_numeric_field("Shift", expected_metadata["shift"])
+
+        if expected_metadata.get("weight_dtype"):
+            expected_dtype = str(expected_metadata["weight_dtype"])
+            actual_dtype = fields.get("Weight dtype")
+            actual_dtype_str = normalize_value(actual_dtype)
+            if actual_dtype:
+                if actual_dtype_str == expected_dtype:
+                    mark_pass("Weight dtype", expected_dtype, actual_dtype_str)
+                else:
+                    mark_fail(
+                        "Weight dtype",
+                        expected_dtype,
+                        actual_dtype_str,
+                        f"Weight dtype mismatch: expected '{expected_dtype}', got '{actual_dtype_str}'",
+                    )
+            else:
+                mark_fail("Weight dtype", expected_dtype, actual_dtype_str, "Weight dtype missing")
+
+        if expected_metadata.get("clip_prompt"):
+            compare_string_field("CLIP prompt", expected_metadata.get("clip_prompt"))
+
+        if expected_metadata.get("t5_prompt"):
+            compare_string_field("T5 prompt", expected_metadata.get("t5_prompt"))
+
+        if expected_metadata.get("clip_model_name"):
+            compare_string_field("CLIP model name", expected_metadata.get("clip_model_name"))
+
+        if expected_metadata.get("embedding_name"):
+            compare_string_field("Embedding name", expected_metadata.get("embedding_name"))
+
+        # Store check count (exclude purely informational entries)
+        result["checks_performed"] = sum(1 for detail in check_details if detail["status"] in {"pass", "fail", "warn"})
+
     def validate_image(
-        self,
-        image_path: Path,
-        workflow_name: str,
-        expected: dict,
-        expected_save_node: dict | None = None,
+        self, image_path: Path, workflow_name: str, expected: dict, expected_save_node: dict | None = None
     ) -> dict:
         """Validate a single image's metadata.
 
         Args:
-            image_path: Path to the image file.
-            workflow_name: Workflow name.
-            expected: Overall expected metadata.
-            expected_save_node: Specific expected metadata for the save node.
+            image_path: Path to the image file
+            workflow_name: Name of the workflow
+            expected: Overall expected metadata from workflow
+            expected_save_node: Specific expected metadata for this save node (if known)
         """
         result = {
             "image_path": str(image_path),
@@ -1027,8 +1985,10 @@ class MetadataValidator:
             "passed": False,
             "errors": [],
             "warnings": [],
+            "notes": [],
             "metadata_found": False,
             "fields": {},
+            "check_details": [],
         }
 
         # Check if this is a control image (without metadata)
@@ -1045,6 +2005,7 @@ class MetadataValidator:
                 # Expected behavior for control images
                 result["passed"] = True
                 result["warnings"].append("Control image (without-meta) - no metadata expected")
+                result["checks_performed"] = 0
                 return result
             # Control image unexpectedly has metadata - continue with normal validation
             # but add a warning
@@ -1087,9 +2048,33 @@ class MetadataValidator:
                     required_fields.append("Seed")
 
             # Validate required fields
+            check_details = result.setdefault("check_details", [])
             for field in required_fields:
-                if field not in fields:
+                actual_value = fields.get(field)
+                if actual_value is None:
                     result["errors"].append(f"Required field '{field}' not found in metadata")
+                    check_details.append(
+                        {
+                            "field": field,
+                            "status": "fail",
+                            "expected": "present",
+                            "actual": "N/A",
+                        }
+                    )
+                else:
+                    check_details.append(
+                        {
+                            "field": field,
+                            "status": "pass",
+                            "expected": "present",
+                            "actual": actual_value,
+                        }
+                    )
+
+            if required_fields and "checks_performed" not in result:
+                result["checks_performed"] = sum(
+                    1 for detail in check_details if detail.get("status") in {"pass", "fail", "warn"}
+                )
 
         # Check for fallback indicator
         if "Metadata Fallback:" in params_str:
@@ -1119,10 +2104,17 @@ class MetadataValidator:
         self._validate_embedding_fields(fields, result)
 
         # Validate file format matches expectation
-        expected_format = expected.get("file_format", "png")
-        actual_format = image_path.suffix.lower().lstrip(".")
-        if actual_format == "jpg":
-            actual_format = "jpeg"
+        def normalize_format(fmt: Any) -> str | None:
+            if fmt is None or fmt == "":
+                return None
+            fmt_str = str(fmt).lower()
+            return "jpeg" if fmt_str == "jpg" else fmt_str
+
+        expected_format = normalize_format((expected_save_node or {}).get("file_format"))
+        if expected_format is None:
+            expected_format = normalize_format(expected.get("file_format", "png")) or "png"
+
+        actual_format = normalize_format(image_path.suffix.lower().lstrip(".")) or ""
 
         if expected_format != actual_format:
             result["warnings"].append(f"File format mismatch: expected {expected_format}, got {actual_format}")
@@ -1276,11 +2268,17 @@ class MetadataValidator:
 
         # Try to find the artifact file
         # Common subdirectories for different artifact types
+        # Based on user's ComfyUI setup:
+        # unet/diffusion models: "diffusion_models", "DiffusionModels", "unet", "StableDiffusion"
+        # embeddings: "Embeddings"
+        # loras: "Lora"
+        # ckpt: "StableDiffusion"
+        # vae: "VAE"
         search_dirs = {
-            "model": ["checkpoints", "unet", "diffusion_models"],
-            "lora": ["loras"],
-            "vae": ["vae"],
-            "embedding": ["embeddings"],
+            "model": ["diffusion_models", "DiffusionModels", "unet", "StableDiffusion", "checkpoints"],
+            "lora": ["Lora", "loras"],
+            "vae": ["VAE", "vae"],
+            "embedding": ["Embeddings", "embeddings"],
         }
 
         artifact_path = None
@@ -1296,13 +2294,35 @@ class MetadataValidator:
                     break
 
         if not artifact_path:
-            # Artifact not found - this is OK, might be in a different location
+            # Artifact not found - log detailed search info for troubleshooting
+            if self.verbose:
+                searched_dirs = [str(comfyui_models_path / subdir) for subdir in search_dirs.get(artifact_type, [])]
+                message = (
+                    f"Hash validation: {artifact_type.title()} '{artifact_name}' not found. "
+                    f"Searched in: {', '.join(searched_dirs)}"
+                )
+                result["warnings"].append(message)
             return
 
-        # Check for sidecar file
-        sidecar_path = artifact_path.with_suffix(artifact_path.suffix + ".sha256")
-        if not sidecar_path.exists():
-            result["warnings"].append(f"{artifact_type.title()} '{artifact_name}' has no .sha256 sidecar file")
+        # Check for sidecar file (prefer extension-less sidecar)
+        sidecar_candidates = [
+            artifact_path.with_suffix(".sha256"),
+            artifact_path.with_suffix(artifact_path.suffix + ".sha256"),
+        ]
+
+        sidecar_path = None
+        for candidate in sidecar_candidates:
+            if candidate.exists():
+                sidecar_path = candidate
+                break
+
+        if not sidecar_path:
+            attempted = ", ".join(str(candidate) for candidate in sidecar_candidates)
+            message = (
+                f"Hash validation: {artifact_type.title()} '{artifact_name}' "
+                f"has no .sha256 sidecar file (checked: {attempted})"
+            )
+            result["warnings"].append(message)
             return
 
         # Read sidecar file
@@ -1312,27 +2332,41 @@ class MetadataValidator:
 
             # Validate sidecar hash is 64 characters
             if len(sidecar_hash) != 64:
-                result["errors"].append(
-                    f"{artifact_type.title()} '{artifact_name}' sidecar hash is not 64 characters: '{sidecar_hash}'"
+                message = (
+                    f"Hash validation FAILED: {artifact_type.title()} '{artifact_name}' "
+                    f"sidecar hash is not 64 characters: '{sidecar_hash}'"
                 )
+                result["errors"].append(message)
                 return
 
             # Validate sidecar hash is hex
             if not all(c in "0123456789abcdefABCDEF" for c in sidecar_hash):
-                result["errors"].append(
-                    f"{artifact_type.title()} '{artifact_name}' sidecar hash is not valid hex: '{sidecar_hash}'"
+                message = (
+                    f"Hash validation FAILED: {artifact_type.title()} '{artifact_name}' "
+                    f"sidecar hash is not valid hex: '{sidecar_hash}'"
                 )
+                result["errors"].append(message)
                 return
 
             # Validate metadata hash matches first 10 characters of sidecar hash
             if metadata_hash.lower() != sidecar_hash[:10].lower():
-                result["errors"].append(
-                    f"{artifact_type.title()} '{artifact_name}' hash mismatch: "
+                message = (
+                    f"Hash validation FAILED: {artifact_type.title()} '{artifact_name}' hash mismatch: "
                     f"metadata has '{metadata_hash}' but sidecar first 10 chars are '{sidecar_hash[:10]}'"
                 )
+                result["errors"].append(message)
+            else:
+                # Hash validation passed - log in verbose mode
+                if self.verbose:
+                    message = (
+                        f"Hash validation PASSED: {artifact_type.title()} '{artifact_name}' "
+                        f"(metadata: {metadata_hash}, sidecar: {sidecar_hash[:10]}... [64 chars total])"
+                    )
+                    result.setdefault("notes", []).append(message)
 
         except Exception as e:
-            result["warnings"].append(f"Failed to read sidecar file for '{artifact_name}': {e}")
+            message = f"Hash validation ERROR: Failed to read sidecar file for '{artifact_name}': {e}"
+            result["warnings"].append(message)
 
     def _validate_hashes_against_sidecars(
         self, fields: dict, comfyui_models_path: Path | None, result: dict
@@ -1434,6 +2468,7 @@ class MetadataValidator:
                         if len(rel_path.parts) > 1:
                             return True
                     except ValueError:
+                        # Image path is not relative to output_dir, continue with other matching strategies
                         pass
 
                 # Try to match based on seed if available
@@ -1459,6 +2494,53 @@ class MetadataValidator:
                 return True
 
         return False
+
+    def _print_validation_result(self, result: dict, save_node_metadata: dict | None = None):
+        """Print validation result with optional verbose output."""
+        status = "✓" if result["passed"] else "✗"
+        checks = result.get("checks_performed", 0)
+        image_path = Path(result["image_path"])
+        print(f"    {status} {image_path.name} ({checks} checks)")
+
+        # Print errors
+        for error in result["errors"]:
+            print(f"        Error: {error}")
+
+        # Print warnings
+        for warning in result["warnings"]:
+            print(f"        Warning: {warning}")
+
+        # Print informational notes (e.g., hash validation successes)
+        if self.verbose:
+            for note in result.get("notes", []):
+                print(f"        Info: {note}")
+
+        # In non-verbose mode, show key fields for passed validations
+        if not self.verbose and result["passed"] and result.get("fields"):
+            fields = result["fields"]
+            if "Steps" in fields:
+                print(f"        Steps: {fields['Steps']}")
+            if "Sampler" in fields:
+                print(f"        Sampler: {fields['Sampler']}")
+            if "Seed" in fields:
+                print(f"        Seed: {fields['Seed']}")
+
+        # In verbose mode, show captured check details
+        if self.verbose and result.get("metadata_found"):
+            check_details = result.get("check_details", [])
+            if check_details:
+                print("        Validation Details:")
+                for detail in check_details:
+                    status = detail.get("status", "info")
+                    symbol_map = {"pass": "✓", "fail": "✗", "warn": "⚠", "info": "ℹ"}
+                    symbol = symbol_map.get(status, "ℹ")
+                    field_name = detail.get("field", "Field")
+                    expected = detail.get("expected")
+                    actual = detail.get("actual", "N/A")
+                    if expected is not None and status != "info":
+                        print(f"          {symbol} {field_name}: expected={expected}, actual={actual}")
+                    else:
+                        print(f"          {symbol} {field_name}: {actual}")
 
     def validate_workflow_outputs(self, workflow_file: Path, all_images: list[Path]) -> list[dict]:
         """Validate images generated by a specific workflow."""
@@ -1509,23 +2591,19 @@ class MetadataValidator:
         # Validate each matching image
         results = []
         for image_path in matching_images:
-            # Try to match image to specific save node based on filename prefix
+            # Try to match image to specific save node based on filename patterns
             best_save_node_match = None
             if expected.get("save_nodes"):
+                image_name_lower = image_path.stem.lower()
                 for save_node_metadata in expected["save_nodes"]:
-                    prefix = save_node_metadata.get("filename_prefix", "")
-                    if prefix:
-                        # Extract static part from prefix for matching
-                        static_parts = []
-                        for part in prefix.replace("\\", "/").split("/"):
-                            cleaned = re.sub(r"%[^%]+%", "", part).strip("-_/")
-                            if cleaned and len(cleaned) >= 3:
-                                static_parts.append(cleaned.lower())
-
-                        # Check if image name contains any static part
-                        image_name_lower = image_path.stem.lower()
-                        for static_part in static_parts:
-                            if static_part in image_name_lower:
+                    # Use the filename_patterns extracted for this save node
+                    patterns = save_node_metadata.get("filename_patterns", [])
+                    if patterns:
+                        for pattern in patterns:
+                            pattern_lower = pattern.lower()
+                            # Match pattern as whole word or separated by delimiters
+                            regex = r"(^|[_\-.])" + re.escape(pattern_lower) + r"($|[_\-.])"
+                            if re.search(regex, image_name_lower):
                                 best_save_node_match = save_node_metadata
                                 break
                         if best_save_node_match:
@@ -1539,34 +2617,23 @@ class MetadataValidator:
             result = self.validate_image(image_path, workflow_file.stem, expected, best_save_node_match)
             results.append(result)
 
-            # Print result
-            status = "✓" if result["passed"] else "✗"
-            print(f"    {status} {image_path.name}")
-
-            for error in result["errors"]:
-                print(f"        Error: {error}")
-
-            for warning in result["warnings"]:
-                print(f"        Warning: {warning}")
-
-            if result["passed"] and result.get("fields"):
-                # Show some key fields
-                fields = result["fields"]
-                if "Steps" in fields:
-                    print(f"        Steps: {fields['Steps']}")
-                if "Sampler" in fields:
-                    print(f"        Sampler: {fields['Sampler']}")
-                if "Seed" in fields:
-                    print(f"        Seed: {fields['Seed']}")
+            # Print result (with verbose option support)
+            self._print_validation_result(result, best_save_node_match)
 
         return results
 
-    def run_validation(self) -> tuple[int, int, int]:
-        """Run validation on all workflows and return (total, passed, failed)."""
+    def run_validation(self, extra_workflows_dir: Path | None = None) -> tuple[int, int, int]:
+        """Run validation on all workflows and return (total, passed, failed).
+
+        Args:
+            extra_workflows_dir: Optional additional directory containing workflow JSON files
+        """
         print("=" * 70)
         print("ComfyUI Metadata Validation")
         print("=" * 70)
         print(f"Workflow Dir: {self.workflow_dir}")
+        if extra_workflows_dir:
+            print(f"Extra Workflows: {extra_workflows_dir}")
         print(f"Output Dir:   {self.output_dir}")
         print("=" * 70)
 
@@ -1578,8 +2645,19 @@ class MetadataValidator:
             print(f"✗ Error: Output directory not found: {self.output_dir}")
             return 0, 0, 0
 
-        # Find all workflow files
+        if not self.comfyui_models_path:
+            print("⚠ Hash validation disabled: pass --models-path to enable sidecar checks")
+
+        # Find all workflow files from both directories
         workflow_files = sorted(self.workflow_dir.glob("*.json"))
+
+        if extra_workflows_dir:
+            if extra_workflows_dir.exists():
+                extra_workflow_files = sorted(extra_workflows_dir.glob("*.json"))
+                workflow_files.extend(extra_workflow_files)
+                print(f"Added {len(extra_workflow_files)} workflow(s) from extra directory")
+            else:
+                print(f"⚠ Warning: Extra workflows directory not found: {extra_workflows_dir}")
 
         if not workflow_files:
             print(f"⚠ No workflow files found in {self.workflow_dir}")
@@ -1676,7 +2754,7 @@ def main():
 Examples:
   # Windows
   python validate_metadata.py ^
-    --output-folder "C:\\StableDiffusion\\StabilityMatrix-win-x64\\Data\\Packages\\ComfyUI\\output\\Test"
+    --output-folder "C:\\StableDiffusion\\StabilityMatrix-win-x64\\Data\\Packages\\ComfyUI_windows_portable\\ComfyUI\\output\\Test"
 
   # Linux/Mac
   python validate_metadata.py --output-folder "/path/to/ComfyUI/output/Test"
@@ -1696,9 +2774,11 @@ Examples:
     parser.add_argument(
         "--workflow-dir",
         type=str,
-        # old default path default="tests/comfyui_cli_tests/dev_test_workflows"
         default="dev_test_workflows",
-        help="Directory containing workflow JSON files (default: tests/comfyui_cli_tests/dev_test_workflows)",
+        help=(
+            "Directory containing workflow JSON files (default resolves to "
+            "tests/comfyui_cli_tests/dev_test_workflows)"
+        ),
     )
 
     parser.add_argument(
@@ -1715,13 +2795,29 @@ Examples:
         help="Path to ComfyUI models directory for validating hashes against .sha256 sidecar files (optional)",
     )
 
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Show detailed validation results for every check performed"
+    )
+
+    parser.add_argument(
+        "--extra-workflows",
+        type=str,
+        default=None,
+        help="Additional directory containing workflow JSON files to validate (optional)",
+    )
+
     args = parser.parse_args()
 
     # Convert to absolute paths
-    script_dir = Path(__file__).parent
-    workflow_dir = script_dir / args.workflow_dir
+    workflow_dir = _resolve_relative_path(args.workflow_dir, fallback=CLI_COMPAT_DIR)
+    if workflow_dir is None:
+        print("✗ Error: Unable to resolve workflow directory path.")
+        return 1
     output_dir = Path(args.output_folder)
     models_path = Path(args.models_path) if args.models_path else None
+    extra_workflows_dir = _resolve_relative_path(args.extra_workflows, fallback=CLI_COMPAT_DIR)
 
     # Setup logging
     # Determine log file path
@@ -1730,7 +2826,8 @@ Examples:
 
     # Create validator and run
     validator = MetadataValidator(workflow_dir, output_dir, models_path)
-    total, passed, failed = validator.run_validation()
+    validator.verbose = args.verbose  # Pass verbose flag to validator
+    total, passed, failed = validator.run_validation(extra_workflows_dir)
 
     # Exit with appropriate code
     return 0 if failed == 0 and total > 0 else 1

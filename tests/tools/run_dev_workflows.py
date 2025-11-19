@@ -16,6 +16,7 @@ Requirements:
 
 import argparse
 import json
+import math
 import os
 import subprocess
 import sys
@@ -26,10 +27,36 @@ from pathlib import Path
 
 try:
     from send2trash import send2trash
-
-    SEND2TRASH_AVAILABLE = True
 except ImportError:
-    SEND2TRASH_AVAILABLE = False
+    send2trash = None
+
+
+TOOLS_DIR = Path(__file__).resolve().parent
+TESTS_ROOT = TOOLS_DIR.parent
+CLI_COMPAT_DIR = TESTS_ROOT / "comfyui_cli_tests"
+
+
+def _resolve_path(raw_path: str | None, *, fallback: Path | None = None) -> Path | None:
+    """Resolve user-supplied paths relative to tools/tests compat directories."""
+
+    if raw_path is None:
+        return None
+
+    candidate = Path(raw_path).expanduser()
+    if candidate.is_absolute():
+        return candidate
+
+    search_roots = [TOOLS_DIR, TESTS_ROOT, CLI_COMPAT_DIR]
+    if fallback is not None:
+        search_roots.insert(0, fallback)
+
+    for root in search_roots:
+        resolved = (root / raw_path).resolve()
+        if resolved.exists():
+            return resolved
+
+    base = fallback or TOOLS_DIR
+    return (base / raw_path).resolve()
 
 
 class WorkflowRunner:
@@ -52,7 +79,8 @@ class WorkflowRunner:
         self.temp_dir = temp_dir
         self.extra_args = extra_args or []
         self.env_patch = env_patch or {}
-        self.server_process = None
+        self.server_process: subprocess.Popen[bytes] | None = None
+        self.last_start_error: Exception | None = None
         self.base_url = f"http://{host}:{port}"
 
     def is_server_running(self) -> bool:
@@ -64,8 +92,9 @@ class WorkflowRunner:
         except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError):
             return False
 
-    def start_server(self, wait_time: int = 10) -> bool:
+    def start_server(self, wait_time: float = 10) -> bool:
         """Start ComfyUI server in background."""
+        self.last_start_error = None
         if self.is_server_running():
             print(f"✓ ComfyUI server already running at {self.base_url}")
             return True
@@ -73,6 +102,7 @@ class WorkflowRunner:
         main_py = self.comfyui_path / "main.py"
         if not main_py.exists():
             print(f"✗ Error: main.py not found at {main_py}")
+            self.last_start_error = FileNotFoundError(main_py)
             return False
 
         print(f"Starting ComfyUI server at {self.base_url}...")
@@ -102,17 +132,21 @@ class WorkflowRunner:
 
             # Wait for server to start
             print(f"Waiting {wait_time}s for server to start...")
-            for i in range(wait_time * 2):  # Check every 0.5s
+            checks = max(math.ceil(wait_time / 0.5), 1)
+            for _ in range(checks):
                 time.sleep(0.5)
                 if self.is_server_running():
                     print("✓ Server started successfully")
                     return True
 
             print(f"✗ Server did not start within {wait_time}s")
+            self.last_start_error = TimeoutError(f"Server did not start within {wait_time}s")
             return False
 
-        except Exception as e:
+        except (OSError, subprocess.SubprocessError) as e:
             print(f"✗ Failed to start server: {e}")
+            self.last_start_error = e
+            self.server_process = None
             return False
 
     def stop_server(self):
@@ -140,8 +174,10 @@ class WorkflowRunner:
                 prompt_id = result.get("prompt_id", "unknown")
                 return True, prompt_id
 
-        except Exception as e:
-            return False, str(e)
+        except urllib.error.URLError as e:
+            return False, f"URLError: {e}"
+        except json.JSONDecodeError as e:
+            return False, f"JSONDecodeError: {e}"
 
     def load_workflow(self, workflow_path: Path) -> dict | None:
         """Load and validate a workflow JSON file."""
@@ -158,7 +194,7 @@ class WorkflowRunner:
         except json.JSONDecodeError as e:
             print(f"  ✗ Error: Invalid JSON in {workflow_path.name}: {e}")
             return None
-        except Exception as e:
+        except (OSError, UnicodeDecodeError) as e:
             print(f"  ✗ Error loading {workflow_path.name}: {e}")
             return None
 
@@ -169,7 +205,7 @@ class WorkflowRunner:
             print("  (It will be created when workflows run)")
             return True
 
-        if not SEND2TRASH_AVAILABLE:
+        if send2trash is None:
             print("⚠ Warning: send2trash not installed. Cannot clean output folder.")
             print("  Install with: pip install send2trash")
             return False
@@ -252,7 +288,7 @@ Examples:
   python run_dev_workflows.py --comfyui-path "C:\\StableDiffusion\\ComfyUI" ^
     --python-exe "C:\\StableDiffusion\\python_embeded\\python.exe" ^
     --temp-dir "F:\\StableDiffusion\\ComfyUI" --extra-args "--windows-standalone-build" ^
-    --output-folder "C:\\StableDiffusion\\StabilityMatrix-win-x64\\Data\\Packages\\ComfyUI\\output\\Test"
+    --output-folder "C:\\StableDiffusion\\StabilityMatrix-win-x64\\Data\\Packages\\ComfyUI_windows_portable\\ComfyUI\\output\\Test"
 
   # Linux/Mac (simpler)
   python run_dev_workflows.py --comfyui-path "/path/to/ComfyUI"
@@ -278,9 +314,11 @@ Examples:
     parser.add_argument(
         "--workflow-dir",
         type=str,
-        # old default path default="tests/comfyui_cli_tests/dev_test_workflows",
         default="dev_test_workflows",
-        help="Directory containing workflow JSON files (default: tests/comfyui_cli_tests/dev_test_workflows)",
+        help=(
+            "Directory containing workflow JSON files (default resolves to "
+            "tests/comfyui_cli_tests/dev_test_workflows)"
+        ),
     )
 
     parser.add_argument(
@@ -301,6 +339,13 @@ Examples:
         "--temp-dir",
         type=str,
         help="Temporary directory for ComfyUI (passed as --temp-directory)",
+    )
+
+    parser.add_argument(
+        "--server-wait",
+        type=float,
+        default=10,
+        help="Seconds to wait for ComfyUI to finish booting before giving up (default: 10)",
     )
 
     parser.add_argument(
@@ -352,8 +397,8 @@ Examples:
     args = parser.parse_args()
 
     # Convert workflow_dir to absolute path relative to script location
-    script_dir = Path(__file__).parent
-    workflow_dir = script_dir / args.workflow_dir
+    script_dir = TOOLS_DIR
+    workflow_dir = _resolve_path(args.workflow_dir, fallback=CLI_COMPAT_DIR)
 
     # Parse extra args
     extra_args = args.extra_args.split() if args.extra_args else []
@@ -393,7 +438,7 @@ Examples:
 
         # Start server if needed
         if not args.no_start_server:
-            if not runner.start_server():
+            if not runner.start_server(wait_time=args.server_wait):
                 print("\n✗ Failed to start server, exiting")
                 return 1
         else:

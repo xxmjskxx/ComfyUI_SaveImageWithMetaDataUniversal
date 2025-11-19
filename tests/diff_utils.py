@@ -5,6 +5,7 @@ The scanner emits a semicolon-separated summary string, e.g.:
 
 This helper normalizes that into a dictionary for easier assertions.
 """
+
 from __future__ import annotations
 
 from typing import Any

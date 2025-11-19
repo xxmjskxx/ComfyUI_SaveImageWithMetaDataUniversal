@@ -79,7 +79,7 @@
     "inputs": {
       "shift": 3,
       "model": [
-        "117",
+        "118",
         0
       ]
     },
@@ -143,7 +143,7 @@
   "93": {
     "inputs": {
       "upscale_method": "lanczos",
-      "megapixels": 1,
+      "megapixels": 0.5,
       "image": [
         "78",
         0
@@ -226,7 +226,18 @@
   "116": {
     "inputs": {
       "rgthree_comparer": {
-        "images": []
+        "images": [
+          {
+            "name": "A",
+            "selected": true,
+            "url": "/api/view?filename=rgthree.compare._temp_pjafl_00001_.png&type=temp&subfolder=&rand=0.5367463598812431"
+          },
+          {
+            "name": "B",
+            "selected": true,
+            "url": "/api/view?filename=rgthree.compare._temp_pjafl_00002_.png&type=temp&subfolder=&rand=0.16985711738461784"
+          }
+        ]
       },
       "image_a": [
         "115",
@@ -254,6 +265,24 @@
     "class_type": "PathchSageAttentionKJ",
     "_meta": {
       "title": "Patch Sage Attention KJ"
+    }
+  },
+  "118": {
+    "inputs": {
+      "backend": "inductor",
+      "fullgraph": false,
+      "mode": "default",
+      "dynamic": false,
+      "compile_transformer_blocks_only": true,
+      "dynamo_cache_size_limit": 64,
+      "model": [
+        "117",
+        0
+      ]
+    },
+    "class_type": "TorchCompileModelQwenImage",
+    "_meta": {
+      "title": "TorchCompileModelQwenImage"
     }
   }
 }

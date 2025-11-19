@@ -4,7 +4,7 @@ from collections import deque
 
 from .samplers import SAMPLERS
 
-_CONNECTION_CACHE = {}  # Cache for is_node_connected results
+_CONNECTION_CACHE: dict[str, bool] = {}  # Cache for is_node_connected results
 
 
 def _is_text_encoder(class_type: str) -> bool:
