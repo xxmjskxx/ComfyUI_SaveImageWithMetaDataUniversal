@@ -158,6 +158,8 @@ saveimage_unimeta/user_rules/backups/
 saveimage_unimeta/user_rules/user_captures.json
 saveimage_unimeta/user_rules/user_samplers.json
 scripts/
+ComfyUI_SaveImageWithMetaDataUniversal.code-workspace
+# multi_sampler_plan.md
 multi_sampler_plan.md
 tasksync/
 .vscode/

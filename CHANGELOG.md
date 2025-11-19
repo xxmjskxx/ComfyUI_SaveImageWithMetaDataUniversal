@@ -3,7 +3,20 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
-_No changes yet._
+### Added
+- **Multi-Sampler Metadata**: Complete implementation supporting Tier A (explicit) + Tier B (rule-backed) detection for workflows with multiple samplers
+- **Wan2.2 MoE Support**: START_STEP and END_STEP field capture in WanVideo Sampler for segment-aware rendering
+- **Structured Sampler Detail**: `Samplers detail` metadata field with JSON-like array format when >1 sampler detected
+- **Parameter String Augmentation**: `Samplers:` tail with name(range) notation for multi-sampler workflows
+- **Segment Range Calculation**: Proper range_len computation for primary sampler selection with segments
+- **Enhanced Primary Selection**: Tier precedence (A>B), range/steps comparison, distance-based tie-breaking
+- **JPEG Fallback Integration**: Multi-sampler metadata respects existing fallback stages (full → reduced-exif → minimal)
+- **Overlap Detection**: Warning logs for intersecting segment ranges in MoE workflows
+- **Comprehensive Tests**: Segment detection, range calculation, JPEG fallback, and MoE workflow integration scenarios
+
+### Changed
+- **WanVideo Sampler Rules**: Enhanced to capture START_STEP and END_STEP fields for Wan2.2 segment support
+- **Documentation**: Added "Multi-Sampler Metadata" section to README with detection strategy, output format, and usage guidance
 
 ## [1.2.0] - 2025-09-26
 ### Added

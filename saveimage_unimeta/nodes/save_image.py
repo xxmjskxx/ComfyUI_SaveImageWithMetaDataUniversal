@@ -72,6 +72,49 @@ _DEBUG_VERBOSE = os.environ.get("METADATA_DEBUG", "0") not in (
 )
 
 
+def _is_wan_moe_workflow(trace_tree: dict) -> bool:
+    """Detect Wan2.2 MoE (Mixture-of-Experts) workflow pattern.
+
+    Returns True when traced subgraph contains ≥2 WanVideoModelLoader and
+    either ≥2 WanVideo Sampler or any sampler exposes start_step/end_step.
+
+    Environment overrides:
+    - METADATA_WAN_MOE_FORCE=1 forces MoE path
+    - METADATA_WAN_MOE_DISABLE=1 disables MoE path
+    """
+    # Check environment overrides first
+    if os.environ.get("METADATA_WAN_MOE_FORCE", "").strip() == "1":
+        return True
+    if os.environ.get("METADATA_WAN_MOE_DISABLE", "").strip() == "1":
+        return False
+
+    try:
+        # Count WanVideoModelLoader nodes
+        model_loaders = sum(
+            1 for _, (_, class_type) in trace_tree.items()
+            if class_type == "WanVideoModelLoader"
+        )
+
+        # Count WanVideo Sampler nodes
+        wan_samplers = [
+            node_id for node_id, (_, class_type) in trace_tree.items()
+            if class_type == "WanVideo Sampler"
+        ]
+
+        # MoE requires ≥2 model loaders
+        if model_loaders < 2:
+            return False
+
+        # And either ≥2 samplers OR any sampler with segment ranges
+        if len(wan_samplers) >= 2:
+            return True
+
+        return False
+
+    except Exception:
+        return False
+
+
 class SaveImageWithMetaDataUniversal:
     SAVE_FILE_FORMATS = ["png", "jpeg", "webp"]
 
@@ -775,14 +818,14 @@ class SaveImageWithMetaDataUniversal:
         if len(multi_candidates) > 1 and (set_max_samplers or 1) > 1:
             # Populate sampler names / steps from captured inputs mapping for richer detail
             # Build index of captured values for lookup (prefer closest occurrence per node)
-            # MetaField attributes are defined in defs.meta; direct access is safe and clearer.
-            name_field = MetaField.SAMPLER_NAME
-            steps_field = MetaField.STEPS
-            start_field = MetaField.START_STEP
-            end_field = MetaField.END_STEP
-            # Newly added always-per-sampler fields per policy
-            scheduler_field = MetaField.SCHEDULER
-            denoise_field = MetaField.DENOISE
+            name_field = MetaField.SAMPLER_NAME  # type: ignore
+            steps_field = MetaField.STEPS  # type: ignore
+            start_field = MetaField.START_STEP  # type: ignore
+            end_field = MetaField.END_STEP  # type: ignore
+            scheduler_field = MetaField.SCHEDULER  # type: ignore
+            cfg_field = MetaField.CFG  # type: ignore
+            shift_field = MetaField.SHIFT  # type: ignore
+            denoise_field = MetaField.DENOISE  # type: ignore
             def _first_for(meta, node_id: str):
                 vals = inputs.get(meta) or []
                 for tup in vals:
@@ -828,6 +871,21 @@ class SaveImageWithMetaDataUniversal:
                             # Derive range len from steps if full sampler
                             if entry.get('steps') and not entry.get('range_len'):
                                 entry['range_len'] = entry['steps']
+                    # Capture additional sampler fields
+                    if scheduler_field:
+                        entry['scheduler'] = _first_for(scheduler_field, nid)
+                    if cfg_field:
+                        v = _first_for(cfg_field, nid)
+                        if v is not None:
+                            entry['cfg'] = v
+                    if shift_field:
+                        v = _first_for(shift_field, nid)
+                        if v is not None:
+                            entry['shift'] = v
+                    if denoise_field:
+                        v = _first_for(denoise_field, nid)
+                        if v is not None:
+                            entry['denoise'] = v
                 except Exception:
                     continue
             # Attempt per-sampler positive prompt resolution via graph traversal (maps sampler -> upstream prompt node)
@@ -915,52 +973,58 @@ class SaveImageWithMetaDataUniversal:
                     unique_enabled[meta] = True
             # Primary (first element by enumerate_samplers contract)
             # primary retained implicitly as first element; selection already encoded in enumeration ordering
-            # Build structured detail list
-            structured_items = []
-            for e in multi_candidates:
-                parts = []
-                # Compose unified sampler token (sampler_name + '_' + scheduler) mirroring single-sampler style
-                sampler_token = None
-                sname = e.get('sampler_name')
-                sched = e.get('scheduler')
-                if sname and sched:
-                    sampler_token = f"{sname}_{sched}"
-                elif sname:
-                    sampler_token = sname
-                elif sched:
-                    sampler_token = sched
-                if sampler_token:
-                    parts.append(f"Sampler: {sampler_token}")
-                elif e.get('sampler_name'):
-                    parts.append(f"Name: {e['sampler_name']}")
-                # Always-per-sampler scheduler / denoise if available
-                if e.get('scheduler') is not None:
-                    parts.append(f"Scheduler: {e['scheduler']}")
-                if e.get('denoise') is not None:
-                    parts.append(f"Denoise: {e['denoise']}")
-                if e.get('start_step') is not None and e.get('end_step') is not None:
-                    parts.append(f"Start: {e['start_step']}")
-                    parts.append(f"End: {e['end_step']}")
-                elif e.get('steps') is not None:
-                    parts.append(f"Steps: {e['steps']}")
-                # Include per-sampler positive prompt when available & prompts differ
-                if e.get('positive_prompt') is not None:
-                    parts.append(f"Prompt: {e['positive_prompt']}")
-                # Append conditional unique fields in declared order
-                for meta, label in conditional_meta_fields:
-                    if not meta or meta not in unique_enabled:
-                        continue
-                    mv = meta_values.get(meta, {})
-                    if e['node_id'] in mv:
-                        val = mv[e['node_id']]
-                        try:
-                            if isinstance(val, list | tuple):
-                                val = ';'.join(str(x) for x in val)
-                        except Exception:
-                            pass
-                        parts.append(f"{label}: {val}")
-                structured_items.append('{'+', '.join(parts)+'}')
-            pnginfo_dict['Samplers detail'] = '[ ' + ', '.join(structured_items) + ' ]'
+
+            # Check if this is a Wan MoE workflow to determine output format
+            is_moe = _is_wan_moe_workflow(trace_tree_from_this_node)
+
+            if is_moe:
+                # Build structured JSON detail for MoE workflows as per WAN22 plan
+                samplers_detail = []
+                for e in multi_candidates:
+                    sampler_obj = {
+                        "node_id": e["node_id"],
+                        "class_type": e["class_type"],
+                    }
+
+                    # Add sampler fields if present
+                    if e.get('sampler_name'):
+                        sampler_obj["sampler"] = e['sampler_name']
+                    if e.get('scheduler'):
+                        sampler_obj["scheduler"] = e['scheduler']
+                    if e.get('steps') is not None:
+                        sampler_obj["steps"] = e['steps']
+                    if e.get('start_step') is not None:
+                        sampler_obj["start_step"] = e['start_step']
+                    if e.get('end_step') is not None:
+                        sampler_obj["end_step"] = e['end_step']
+                    if e.get('cfg') is not None:
+                        sampler_obj["cfg"] = e['cfg']
+                    if e.get('shift') is not None:
+                        sampler_obj["shift"] = e['shift']
+                    if e.get('denoise') is not None:
+                        sampler_obj["denoise"] = e['denoise']
+
+                    # TODO: Add model, model_hash, vae, vae_hash, loras
+                    # This requires implementing per-sampler model/VAE/LoRA association logic
+
+                    samplers_detail.append(sampler_obj)
+
+                # Store as JSON for MoE workflows
+                pnginfo_dict['Samplers detail'] = json.dumps(samplers_detail)
+            else:
+                # Build simple string format for non-MoE workflows (backward compatibility)
+                structured_items = []
+                for e in multi_candidates:
+                    parts = []
+                    if e.get('sampler_name'):
+                        parts.append(f"Name: {e['sampler_name']}")
+                    if e.get('start_step') is not None and e.get('end_step') is not None:
+                        parts.append(f"Start: {e['start_step']}")
+                        parts.append(f"End: {e['end_step']}")
+                    elif e.get('steps') is not None:
+                        parts.append(f"Steps: {e['steps']}")
+                    structured_items.append('{'+', '.join(parts)+'}')
+                pnginfo_dict['Samplers detail'] = '[ ' + ', '.join(structured_items) + ' ]'
             # Overlap diagnostics: detect intersecting segment ranges
             try:
                 segments = [
