@@ -161,6 +161,8 @@ def test_wan_moe_structured_json_output(monkeypatch):
 
     # Simulate the MoE branch of the code
     samplers_detail = []
+    # object construction logic duplicated between lines 166-179 and 242-263.
+    # Move to helper function before release. 
     for e in multi_candidates:
         sampler_obj = {
             "node_id": e["node_id"],
