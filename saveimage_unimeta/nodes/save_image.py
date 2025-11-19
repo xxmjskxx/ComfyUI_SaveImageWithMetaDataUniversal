@@ -109,9 +109,6 @@ def _is_wan_moe_workflow(trace_tree: dict) -> bool:
         if len(wan_samplers) >= 2:
             return True
 
-        # Segment sampler detection (start_step/end_step) is not implemented.
-        # This is a known limitation; currently, only the conservative heuristic
-        # of ≥2 samplers OR ≥2 models is used. Future enhancement may add this check.
         return False
 
     except Exception:
