@@ -62,10 +62,11 @@ Version 1.3.0 is a major consolidation release representing months of developmen
 **Developer Experience:** Comprehensive documentation across the codebase:
 
 - **Universal docstrings**: Every Python file now has detailed docstrings covering purpose, inputs, outputs, and environment dependencies.
-
 - **Enhanced instructions**: Expanded `.github/copilot-instructions.md` and related guidance files.
-
 - **Inline explanations**: Complex logic sections and exception handlers now include clear explanatory comments.
+- **Generated rules clarity**: `saveimage_unimeta/defs/ext/generated_user_rules.py` now starts with a descriptive docstring
+   reminding contributors that it is rebuilt by the Metadata Rule Scanner / Save Custom Metadata Rules nodes and that
+   edits belong in the JSON sources instead.
 
 ## Breaking Changes
 

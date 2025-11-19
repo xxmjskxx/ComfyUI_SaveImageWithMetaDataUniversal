@@ -8,10 +8,12 @@ files and can generate a Python extension module from the rules.
 
 from __future__ import annotations
 
+import importlib
 import json
 import logging
 import os
 import shutil
+import sys
 import time
 from typing import Any
 
@@ -585,6 +587,21 @@ class SaveCustomMetadataRules:
         """
         # Build deterministic Python module similar to legacy builder but sorted
         lines: list[str] = []
+        lines.extend(
+            [
+                '"""Auto-generated metadata rule extension for SaveImageWithMetaDataUniversal.',
+                "",
+                'This module is written by the Metadata Rule Scanner / Save Custom Metadata Rules nodes when you click',
+                '"Save Generated User Rules" or restore a scanner backup.',
+                'It mirrors the merged contents of `user_captures.json` and `user_samplers.json`.',
+                'This lets metadata loading import a fast Python module instead of reparsing JSON on every run.',
+                'Manual edits will be overwritten whenever the generator runs, so adjust the JSON files',
+                'or rerun the scanner instead of editing this file directly.',
+                'Treat this as a build artifact you can always regenerate.',
+                '"""',
+                "",
+            ]
+        )
         lines.append("from ..meta import MetaField")
         lines.append(
             "from ..formatters import (\n"
@@ -706,6 +723,7 @@ class SaveCustomMetadataRules:
         lines.append("}")
         with open(path, "w", encoding="utf-8") as f:
             f.write("\n".join(lines) + "\n")
+        SaveCustomMetadataRules._invalidate_generated_module_cache()
 
     @staticmethod
     def _warn_uninstalled_nodes(node_names):  # best-effort detection
@@ -728,6 +746,26 @@ class SaveCustomMetadataRules:
                 )
         except Exception:  # pragma: no cover - environment dependent
             pass
+
+    @staticmethod
+    def _invalidate_generated_module_cache() -> None:
+        """Ensure subsequent imports observe the freshly written module.
+
+        Removes the known module aliases from ``sys.modules`` and invalidates
+        importlib caches so the next ``importlib.import_module`` call reloads
+        ``generated_user_rules`` from disk. Handles both editable installs
+        (``saveimage_unimeta``) and packaged namespaced installs
+        (``ComfyUI_SaveImageWithMetaDataUniversal``).
+        """
+
+        importlib.invalidate_caches()
+        module_names = (
+            "saveimage_unimeta.defs.ext.generated_user_rules",
+            "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.ext.generated_user_rules",
+        )
+        for module_name in module_names:
+            if module_name in sys.modules:
+                sys.modules.pop(module_name)
 
 
 def _timestamp() -> str:

@@ -158,11 +158,11 @@ def fixture_workflow_sdxl_with_lora_stack():
 
 def test_efficient_loader_with_lora_stack_captures_upstream_loras(workflow_with_lora_stack, monkeypatch):
     """Test that LoRAs from lora_stack input to Efficient Loader are captured.
-    
+
     This is the failing test - it should capture 3 LoRAs total:
     - 2 from node 8 (LoRA Stacker)
     - 1 from node 17 (CR LoRA Stack)
-    
+
     But currently it captures 0 LoRAs because lora_stack inputs are not being processed.
     """
     # The lora_stack output from nodes needs to be simulated
@@ -182,21 +182,21 @@ def test_efficient_loader_with_lora_stack_captures_upstream_loras(workflow_with_
             ],)
         },
     }
-    
+
     # Mock the hook module
     _install_hook(monkeypatch, workflow_with_lora_stack, outputs)
-    
+
     # Get inputs
     inputs = Capture.get_inputs()
-    
+
     # Check that LoRAs were captured
     lora_names = inputs.get(MetaField.LORA_MODEL_NAME, [])
     print(f"\nCaptured LoRA names: {lora_names}")
-    
+
     # Extract just the name values
     names = [Capture._extract_value(entry) for entry in lora_names]
     print(f"Extracted names: {names}")
-    
+
     # Should have 3 LoRAs: lora1, lora2 from node 8, and lora3 from node 17
     # Note: lora3 might appear twice (once from node 17, once from node 8's aggregated stack)
     # but the test should verify that at minimum all 3 are present
@@ -204,7 +204,7 @@ def test_efficient_loader_with_lora_stack_captures_upstream_loras(workflow_with_
     assert "lora1.safetensors" in names
     assert "lora2.safetensors" in names
     assert "lora3.safetensors" in names
-    
+
     # Make sure "None" is not captured
     assert "None" not in names
 
@@ -219,15 +219,15 @@ def test_eff_loader_sdxl_with_lora_stack_works(workflow_sdxl_with_lora_stack, mo
             ],)
         },
     }
-    
+
     _install_hook(monkeypatch, workflow_sdxl_with_lora_stack, outputs)
-    
+
     inputs = Capture.get_inputs()
     lora_names = inputs.get(MetaField.LORA_MODEL_NAME, [])
     names = [Capture._extract_value(entry) for entry in lora_names]
-    
+
     print(f"\nEff. Loader SDXL captured LoRAs: {names}")
-    
+
     # Should capture the upstream LoRA; duplicates are acceptable when both the
     # loader and stacker report the same entry.
     assert len(names) >= 1, f"Expected at least 1 LoRA but got {len(names)}: {names}"
@@ -257,15 +257,15 @@ def test_efficient_loader_inline_lora_only(monkeypatch):
             },
         },
     }
-    
+
     _install_hook(monkeypatch, workflow, outputs={})
-    
+
     inputs = Capture.get_inputs()
     lora_names = inputs.get(MetaField.LORA_MODEL_NAME, [])
     names = [Capture._extract_value(entry) for entry in lora_names]
-    
+
     print(f"\nInline LoRA captured: {names}")
-    
+
     # Should capture the inline LoRA
     assert len(names) == 1
     assert "Hyper-SD15-8steps-CFG-lora.safetensors" in names
@@ -293,15 +293,15 @@ def test_efficient_loader_none_inline_not_captured(monkeypatch):
             },
         },
     }
-    
+
     _install_hook(monkeypatch, workflow, outputs={})
-    
+
     inputs = Capture.get_inputs()
     lora_names = inputs.get(MetaField.LORA_MODEL_NAME, [])
     names = [Capture._extract_value(entry) for entry in lora_names]
-    
+
     print(f"\nCaptured when lora_name='None': {names}")
-    
+
     # Should NOT capture "None" as a LoRA
     assert len(names) == 0, f"Expected 0 LoRAs but got {len(names)}: {names}"
     assert "None" not in names

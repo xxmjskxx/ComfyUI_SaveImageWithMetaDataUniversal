@@ -25,7 +25,7 @@
   * [Feature Overview](#feature-overview)
   * [Node UI Parameters](#node-ui-parameters-key-additions)
   * [Sampler Selection Method](#sampler-selection-method)
-  * [Metadata to be given](#metadata-to-be-given)
+  * [Metadata to be captured](#metadata-to-be-captured)
 * Metadata & Encoding
   * [JPEG Metadata Size & Fallback Behavior](#jpeg-metadata-size--fallback-behavior)
   * [Metadata Rule Tools](#metadata-rule-tools)
@@ -47,7 +47,6 @@
 <details open>
 <summary><strong></strong></summary>
 
-- **v1.3.0 Released (2025-11-18):** Major update with 219 commits including LoRA/embedding system overhaul, user rule redesign, enhanced scanner, comprehensive testing, and extensive documentation. See [Changelog](#changelog) for details.
 - I'm an amateur at coding, at best. I started writing this myself, but as I began increasing the scope of the project I started using a Copilot.
 - If you have any questions, think any documentation is lacking, or experience issues with certain workflows or custom node packs, create a new issue an I'll try and see if it's something I can address.
 
@@ -73,11 +72,11 @@
 1. Use the `Metadata Rule Scanner` + `Save Custom Metadata Rules` nodes to create and save capture rules. 
     - Use the [simple workflow](example_workflows/scan-and-save-custom-metadata-rules-simple.png) if you want quick and easy.
     - If you want to manually edit the generated rules JSON before saving it, use the [advanced workflow](example_workflows/scan-and-save-custom-metadata-rules.png).
-    - NOTE: These two nodes should be rerun every time you update this node pack, using either of the above workflows.
+    - NOTE: These two nodes should be rerun every time you update this node pack or add new nodes to ComfyUI that you want to capture from, using either of the above workflows.
 2. Add `Save Image w/ Metadata Universal` to your workflow and connect to the image input to save images using your custom capture ruleset.
 3. (Optional) Use `Create Extra MetaData` node(s) to manually record additional info.
 4. (Optional) For full Civitai style parity enable the `civitai_sampler` and `guidance_as_cfg` toggles in the save node.
-5. Prefer PNG (or lossless WebP) when you need guaranteed full workflow embedding (JPEG has strict size limits—[see tips below](#format-&-fallback-quick-tips)).
+5. Prefer PNG (or lossless WebP) when you need guaranteed full workflow embedding (JPEG has strict size limits—[see tips below](#format--fallback-quick-tips)).
 6. Hover any parameters on the nodes in this pack for concise tooltips (fallback stages, `max_jpeg_exif_kb`, LoRA summary toggle, guidance→CFG mapping, sampler naming, filename tokens). For further detail see: [Node UI Parameters](#node-ui-parameters-key-additions), [JPEG Metadata Size & Fallback Behavior](#jpeg-metadata-size--fallback-behavior); advanced env tuning: [Environment Flags](#environment-flags).
 
 </details>
