@@ -308,8 +308,8 @@ def try_resolve_artifact(
         if hasattr(candidate, '__fspath__') or isinstance(candidate, os.PathLike):
             try:
                 fspath = os.fspath(candidate)
-                if os.path.exists(fspath):
-                    return fspath, fspath
+                path = _probe_folder(kind, fspath)
+                return fspath, path
             except (OSError, TypeError):  # pragma: no cover
                 pass
         return display_value, None
