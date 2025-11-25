@@ -64,8 +64,8 @@ class SaveGeneratedUserRules:
         Returns:
             str: The absolute path to the `generated_user_rules.py` file.
         """
-        base_py = os.path.dirname(os.path.dirname(__file__))  # .../py
-        return os.path.join(base_py, "defs", "ext", "generated_user_rules.py")
+        package_root = os.path.dirname(os.path.dirname(__file__))
+        return os.path.join(package_root, "defs", "ext", "generated_user_rules.py")
 
     def _validate_python(self, text: str) -> tuple[bool, str | None]:
         """Validate that the given text is a valid Python source code.
@@ -91,129 +91,119 @@ class SaveGeneratedUserRules:
             return False, f"Error: {e}"
 
     def _find_dict_span(self, text: str, name: str) -> tuple[int, int] | None:
-        """Find the start and end indices of a dictionary in a string.
-
-        This method searches for a dictionary with a given name in the provided
-        text and returns the start and end indices of its content, including
-        the curly braces.
+        """Locate the substring that contains a named dictionary literal.
 
         Args:
-            text (str): The text to search within.
-            name (str): The name of the dictionary to find.
+            text (str): The Python source to scan.
+            name (str): The dictionary variable name (e.g. ``"SAMPLERS"``).
 
         Returns:
-            tuple[int | None, int | None]: A tuple containing the start and end
-                indices of the dictionary, or (None, None) if not found.
+            tuple[int, int] | None: The ``(start, end)`` indices in ``text``
+                that wrap the dictionary braces, or ``None`` when the
+                dictionary is absent.
         """
         import re
 
-        m = re.search(rf"\b{name}\s*=\s*\{{", text)
-        if not m:
+        match = re.search(rf"\b{name}\s*=\s*\{{", text)
+        if not match:
             return None
-        start = m.end() - 1  # position of '{'
+
+        open_brace_index = match.end() - 1
         depth = 0
-        i = start
-        in_str = False
-        esc = False
-        quote = ""
-        while i < len(text):
-            ch = text[i]
-            if in_str:
-                if esc:
-                    esc = False
-                elif ch == "\\":
-                    esc = True
-                elif ch == quote:
-                    in_str = False
+        cursor = open_brace_index
+        in_string = False
+        escaping = False
+        active_quote = ""
+        while cursor < len(text):
+            char = text[cursor]
+            if in_string:
+                if escaping:
+                    escaping = False
+                elif char == "\\":
+                    escaping = True
+                elif char == active_quote:
+                    in_string = False
             else:
-                if ch in ('"', "'"):
-                    in_str = True
-                    quote = ch
-                elif ch == "{":
+                if char in ('"', "'"):
+                    in_string = True
+                    active_quote = char
+                elif char == "{":
                     depth += 1
-                elif ch == "}":
+                elif char == "}":
                     depth -= 1
                     if depth == 0:
-                        return start, i
-            i += 1
+                        return open_brace_index, cursor
+            cursor += 1
         return None
 
     def _parse_top_level_entries(self, body: str) -> list[tuple[str, str]]:
-        """Parse the key-value pairs from a dictionary's body.
+        """Extract ``("key", "value_text")`` tuples from a dict literal body."""
 
-        This method extracts the top-level key-value pairs from the string
-        representation of a dictionary's content.
-
-        Args:
-            body (str): The string content of the dictionary (without braces).
-
-        Returns:
-            list[tuple[str, str]]: A list of (key, value_text) tuples.
-        """
-        entries = []
-        i = 0
-        n = len(body)
-        while i < n:
-            while i < n and body[i] in " \t\r\n,":
-                i += 1
-            if i >= n:
+        parsed_entries: list[tuple[str, str]] = []
+        cursor = 0
+        body_length = len(body)
+        quote_chars = ('"', "'")
+        while cursor < body_length:
+            while cursor < body_length and body[cursor] in " \t\r\n,":
+                cursor += 1
+            if cursor >= body_length:
                 break
-            if body[i] not in ('"', "'"):
-                i += 1
+            if body[cursor] not in quote_chars:
+                cursor += 1
                 continue
-            quote = body[i]
-            i += 1
-            key_start = i
-            esc = False
-            while i < n:
-                ch = body[i]
-                if esc:
-                    esc = False
+            quote = body[cursor]
+            cursor += 1
+            key_start = cursor
+            escaping = False
+            while cursor < body_length:
+                ch = body[cursor]
+                if escaping:
+                    escaping = False
                 elif ch == "\\":
-                    esc = True
+                    escaping = True
                 elif ch == quote:
                     break
-                i += 1
-            key = body[key_start:i]
-            i += 1
-            while i < n and body[i] in " \t\r\n":
-                i += 1
-            if i >= n or body[i] != ":":
+                cursor += 1
+            key = body[key_start:cursor]
+            cursor += 1
+            while cursor < body_length and body[cursor] in " \t\r\n":
+                cursor += 1
+            if cursor >= body_length or body[cursor] != ":":
                 continue
-            i += 1
-            while i < n and body[i] in " \t\r\n":
-                i += 1
-            val_start = i
+            cursor += 1
+            while cursor < body_length and body[cursor] in " \t\r\n":
+                cursor += 1
+            value_start = cursor
             depth = 0
-            in_str = False
-            esc = False
-            str_q = ""
-            while i < n:
-                ch = body[i]
-                if in_str:
-                    if esc:
-                        esc = False
+            in_string = False
+            escaping = False
+            string_quote = ""
+            while cursor < body_length:
+                ch = body[cursor]
+                if in_string:
+                    if escaping:
+                        escaping = False
                     elif ch == "\\":
-                        esc = True
-                    elif ch == str_q:
-                        in_str = False
+                        escaping = True
+                    elif ch == string_quote:
+                        in_string = False
                 else:
-                    if ch in ('"', "'"):
-                        in_str = True
-                        str_q = ch
+                    if ch in quote_chars:
+                        in_string = True
+                        string_quote = ch
                     elif ch in "{[(":
                         depth += 1
                     elif ch in ")]}":
                         depth -= 1
                     elif ch == "," and depth == 0:
                         break
-                i += 1
-            val_end = i
-            value_text = body[val_start:val_end].rstrip()
-            entries.append((key, value_text))
-            if i < n and body[i] == ",":
-                i += 1
-        return entries
+                cursor += 1
+            value_end = cursor
+            value_text = body[value_start:value_end].rstrip()
+            parsed_entries.append((key, value_text))
+            if cursor < body_length and body[cursor] == ",":
+                cursor += 1
+        return parsed_entries
 
     def _rebuild_dict(self, name: str, existing_text: str, new_text: str) -> str:
         """Merge entries from a new dictionary into an existing one.
@@ -230,53 +220,59 @@ class SaveGeneratedUserRules:
         Returns:
             str: The merged content of the Python file.
         """
-        existing_span = self._find_dict_span(existing_text, name)
-        if existing_span is None:
-            new_span = self._find_dict_span(new_text, name)
-            if new_span is None:
+        existing_dict_span = self._find_dict_span(existing_text, name)
+        if existing_dict_span is None:
+            new_dict_span = self._find_dict_span(new_text, name)
+            if new_dict_span is None:
                 return existing_text
-            ns, ne = new_span
-            block = new_text[ns : ne + 1]
+            new_start, new_end = new_dict_span
+            block = new_text[new_start : new_end + 1]
             return existing_text + f"\n\n{name} = {block}\n"
 
-        es, ee = existing_span
-        e_body = existing_text[es + 1 : ee]
-        nms = self._find_dict_span(new_text, name)
-        if nms is None:
+        existing_start, existing_end = existing_dict_span
+        existing_body = existing_text[existing_start + 1 : existing_end]
+        new_dict_span = self._find_dict_span(new_text, name)
+        if new_dict_span is None:
             return existing_text
-        ns, ne = nms
-        n_body = new_text[ns + 1 : ne]
+        new_start, new_end = new_dict_span
+        new_body = new_text[new_start + 1 : new_end]
 
-        e_entries = self._parse_top_level_entries(e_body)
-        n_entries = self._parse_top_level_entries(n_body)
+        existing_entries = self._parse_top_level_entries(existing_body)
+        new_entries = self._parse_top_level_entries(new_body)
 
-        e_map = {k: v for k, v in e_entries}
-        order = [k for k, _ in e_entries]
-        for k, v in n_entries:
-            nv_norm = v.strip()
-            ev_norm = e_map.get(k, "").strip()
-            if k in e_map:
-                if nv_norm != ev_norm:
-                    e_map[k] = v
+        merged_entries = {key: value for key, value in existing_entries}
+        key_order = [key for key, _ in existing_entries]
+        for key, value in new_entries:
+            new_value_normalized = value.strip()
+            existing_value_normalized = merged_entries.get(key, "").strip()
+            if key in merged_entries:
+                if new_value_normalized != existing_value_normalized:
+                    merged_entries[key] = value
             else:
-                e_map[k] = v
-                order.append(k)
+                merged_entries[key] = value
+                key_order.append(key)
 
-        def indent_value(val):
+        def _indent_multiline_value(val: str) -> str:
             val = val.rstrip()
             lines = val.splitlines()
             if not lines:
                 return val
-            return "\n".join([lines[0]] + [("    " + ln) for ln in lines[1:]])
+            return "\n".join([lines[0]] + ["    " + line for line in lines[1:]])
 
-        new_body_lines = []
-        for k in order:
-            v = e_map[k]
-            entry_text = f'    "{k}": {indent_value(v)},'
-            new_body_lines.append(entry_text)
-        new_body = "\n" + "\n".join(new_body_lines) + "\n"
+        rebuilt_body_lines = []
+        for key in key_order:
+            value = merged_entries[key]
+            entry_text = f'    "{key}": {_indent_multiline_value(value)},'
+            rebuilt_body_lines.append(entry_text)
+        rebuilt_body = "\n" + "\n".join(rebuilt_body_lines) + "\n"
 
-        return existing_text[:es] + "{" + new_body + "}" + existing_text[ee + 1 :]
+        return (
+            existing_text[:existing_start]
+            + "{"
+            + rebuilt_body
+            + "}"
+            + existing_text[existing_end + 1 :]
+        )
 
     def save_rules(self, rules_text: str = "", append: bool = True) -> tuple[str]:
         """Save the provided rules text to a file.
