@@ -15,6 +15,9 @@ import os
 
 logger = logging.getLogger(__name__)
 
+# Characters that denote the start/end of a string literal in Python source.
+_QUOTE_CHARS = ('"', "'")
+
 
 class SaveGeneratedUserRules:
     """A node to persist scanner output to `defs/ext/generated_user_rules.py`.
@@ -124,7 +127,7 @@ class SaveGeneratedUserRules:
                 elif char == active_quote:
                     in_string = False
             else:
-                if char in ('"', "'"):
+                if char in _QUOTE_CHARS:
                     in_string = True
                     active_quote = char
                 elif char == "{":
@@ -142,13 +145,12 @@ class SaveGeneratedUserRules:
         parsed_entries: list[tuple[str, str]] = []
         cursor = 0
         body_length = len(body)
-        quote_chars = ('"', "'")
         while cursor < body_length:
             while cursor < body_length and body[cursor] in " \t\r\n,":
                 cursor += 1
             if cursor >= body_length:
                 break
-            if body[cursor] not in quote_chars:
+            if body[cursor] not in _QUOTE_CHARS:
                 cursor += 1
                 continue
             quote = body[cursor]
@@ -188,7 +190,7 @@ class SaveGeneratedUserRules:
                     elif ch == string_quote:
                         in_string = False
                 else:
-                    if ch in quote_chars:
+                    if ch in _QUOTE_CHARS:
                         in_string = True
                         string_quote = ch
                     elif ch in "{[(":
