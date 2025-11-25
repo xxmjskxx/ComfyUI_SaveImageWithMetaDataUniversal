@@ -206,6 +206,7 @@ class TestExtraMetadataOrdering:
             "Hashes": '{"model": "abc123"}',
             "CustomField1": "CustomValue1",  # Extra metadata
             "AnotherCustom": "AnotherValue",  # Extra metadata (sorts before "C")
+            "__extra_metadata_keys": ["CustomField1", "AnotherCustom"],
         }
 
         # Generate parameter string
@@ -232,6 +233,7 @@ class TestExtraMetadataOrdering:
             "Negative prompt": "",
             "CustomField": "CustomValue",
             "Metadata generator version": "1.0.0",
+            "__extra_metadata_keys": ["CustomField"],
         }
 
         param_str = Capture.gen_parameters_str(pnginfo_dict)
@@ -242,6 +244,34 @@ class TestExtraMetadataOrdering:
         assert custom_pos != -1
         assert version_pos != -1
         assert custom_pos < version_pos, "Extra metadata should come before version"
+
+    def test_clip_fields_stay_before_hashes_and_extra_metadata(self):
+        """Ensure CLIP fields remain in the core block before the Hashes + extra metadata tail."""
+        from saveimage_unimeta.capture import Capture
+
+        pnginfo_dict = {
+            "Positive prompt": "flux",
+            "Negative prompt": "",
+            "Steps": 4,
+            "Sampler": "dpmpp_2m Karras",
+            "Model": "flux.safetensors",
+            "CLIP_1 Model name": "umt5_xxl_fp8",
+            "Hashes": '{"model": "cafebabe"}',
+            "CustomField": "CustomValue",
+            "Metadata generator version": "1.2.3",
+            "__extra_metadata_keys": ["CustomField"],
+        }
+
+        param_str = Capture.gen_parameters_str(pnginfo_dict)
+
+        clip_pos = param_str.find("CLIP_1 Model name:")
+        hashes_pos = param_str.find("Hashes:")
+        custom_pos = param_str.find("CustomField:")
+
+        assert clip_pos != -1, "CLIP field missing"
+        assert hashes_pos != -1, "Hashes missing"
+        assert custom_pos != -1, "Extra metadata missing"
+        assert clip_pos < hashes_pos < custom_pos, "Ordering should be CLIP -> Hashes -> extras"
 
 
 class TestExtraMetadataIntegration:

@@ -466,9 +466,18 @@ class SaveImageWithMetaDataUniversal:
                 len(SAMPLERS),
             )
         pnginfo_dict_src = self.gen_pnginfo(sampler_selection_method, sampler_selection_node_id, civitai_sampler)
+
+        # Track extra metadata keys so ordering logic can keep them grouped near the tail.
+        pnginfo_dict_src.pop("__extra_metadata_keys", None)
+        extra_metadata_keys: list[str] = []
         for k, v in extra_metadata.items():
-            if k and v:
-                pnginfo_dict_src[k] = v.replace(",", "/")
+            if not k or not v:
+                continue
+            key = str(k)
+            pnginfo_dict_src[key] = v.replace(",", "/")
+            extra_metadata_keys.append(key)
+        if extra_metadata_keys:
+            pnginfo_dict_src["__extra_metadata_keys"] = extra_metadata_keys
 
         ui_entries: list[dict[str, str]] = []
         self._last_fallback_stages.clear()

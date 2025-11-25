@@ -1814,6 +1814,27 @@ class Capture:
         metadata_fields = {k: v for k, v in pnginfo_dict.items() if k not in exclude_keys}
         # Pull out metadata generator version to force it last later
         metadata_version = metadata_fields.pop("Metadata generator version", None)
+        extra_metadata_keys_raw = metadata_fields.pop("__extra_metadata_keys", None)
+        extra_metadata_keys: list[str] = []
+        if extra_metadata_keys_raw:
+            if isinstance(extra_metadata_keys_raw, str):
+                candidates = [extra_metadata_keys_raw]
+            elif isinstance(extra_metadata_keys_raw, Iterable):
+                candidates = list(extra_metadata_keys_raw)
+            else:
+                candidates = [extra_metadata_keys_raw]
+            seen_extra_keys: set[str] = set()
+            for candidate in candidates:
+                if candidate is None:
+                    continue
+                key_name = str(candidate)
+                if not key_name or key_name in seen_extra_keys:
+                    continue
+                if key_name not in metadata_fields:
+                    continue
+                seen_extra_keys.add(key_name)
+                extra_metadata_keys.append(key_name)
+        extra_metadata_key_set = set(extra_metadata_keys)
         multi_sampler_entries: list[dict[str, Any]] = []
         if "__multi_sampler_entries" in metadata_fields:
             try:
@@ -1925,6 +1946,29 @@ class Capture:
                     ordered_fields.append((key, metadata_fields[key]))
                     ordered_labels.add(key)
 
+        # CLIP grouped fields
+        clip_pattern = re.compile(r"^CLIP_(\d+) ")
+        clip_groups: dict[int, list[str]] = {}
+        for key in metadata_fields.keys():
+            match = clip_pattern.match(key)
+            if match:
+                idx = int(match.group(1))
+                clip_groups.setdefault(idx, []).append(key)
+        for idx in sorted(clip_groups.keys()):
+            sub_order = ["Model name", "Model hash"]
+            keys = clip_groups[idx]
+
+            def sort_key_clip(name: str) -> int:
+                for sub_index, suffix in enumerate(sub_order):
+                    if name.endswith(suffix):
+                        return sub_index
+                return len(sub_order)
+
+            for key in sorted(keys, key=sort_key_clip):
+                if key not in ordered_labels:
+                    ordered_fields.append((key, metadata_fields[key]))
+                    ordered_labels.add(key)
+
         # Remaining keys
         remaining = [key for key in metadata_fields.keys() if key not in ordered_labels]
         # Optionally suppress Hash detail from flat parameter string (too verbose for human reading)
@@ -1932,13 +1976,22 @@ class Capture:
             remaining.remove("Hash detail")
         # Ensure "Hashes" appears before any user-provided extra metadata keys
         # by processing it first if present
+        extra_remaining = [key for key in remaining if key in extra_metadata_key_set]
+        remaining = [key for key in remaining if key not in extra_metadata_key_set]
         if "Hashes" in remaining:
             remaining.remove("Hashes")
+        if "Hashes" in extra_remaining:
+            extra_remaining.remove("Hashes")
+        for key in sorted(remaining):
+            ordered_fields.append((key, metadata_fields[key]))
+            ordered_labels.add(key)
+        if "Hashes" in metadata_fields and "Hashes" not in ordered_labels:
             ordered_fields.append(("Hashes", metadata_fields["Hashes"]))
             ordered_labels.add("Hashes")
         # Now add remaining keys (extra metadata) alphabetically after Hashes
-        for key in sorted(remaining):
+        for key in sorted(extra_remaining):
             ordered_fields.append((key, metadata_fields[key]))
+            ordered_labels.add(key)
         # Append metadata generator version last if present
         if metadata_version is not None:
             ordered_fields.append(("Metadata generator version", metadata_version))
