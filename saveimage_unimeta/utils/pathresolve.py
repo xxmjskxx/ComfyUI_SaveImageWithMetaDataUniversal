@@ -304,12 +304,14 @@ def try_resolve_artifact(
                     return nested_display, nested_path
             return display_value, None
 
-        # Path-like direct file
-        try:
-            if isinstance(candidate, str) and os.path.exists(candidate):
-                return candidate, candidate
-        except OSError:  # pragma: no cover
-            pass
+        # Path-like object (e.g., pathlib.Path) – strings already handled above
+        if isinstance(candidate, os.PathLike):
+            try:
+                fspath = os.fspath(candidate)
+                path = _probe_folder(kind, fspath)
+                return fspath, path
+            except (OSError, TypeError):  # pragma: no cover
+                pass
         return display_value, None
 
     display_name, path = _recurse(name_like, 0)
