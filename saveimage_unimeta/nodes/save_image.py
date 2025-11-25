@@ -470,7 +470,7 @@ class SaveImageWithMetaDataUniversal:
             if k and v:
                 pnginfo_dict_src[k] = v.replace(",", "/")
 
-        results = list()
+        ui_entries: list[dict[str, str]] = []
         self._last_fallback_stages.clear()
         for index, image in enumerate(images):
             # Support both torch tensors (with .cpu()) and raw numpy arrays in test mode.
@@ -481,8 +481,8 @@ class SaveImageWithMetaDataUniversal:
                     arr = getattr(image, "numpy", lambda: image)()
             except (AttributeError, TypeError, ValueError):  # fallback last resort
                 arr = image
-            i = 255.0 * arr
-            img = Image.fromarray(np.clip(i, 0, 255).astype(np.uint8))
+            scaled_pixels = 255.0 * arr
+            img = Image.fromarray(np.clip(scaled_pixels, 0, 255).astype(np.uint8))
 
             pnginfo_dict = pnginfo_dict_src.copy()
             if len(images) >= 2:
@@ -529,8 +529,8 @@ class SaveImageWithMetaDataUniversal:
             base_filename = filename
             if add_counter_to_filename:
                 base_filename += f"_{counter:05}_"
-            file = base_filename + "." + file_format
-            file_path = os.path.join(full_output_folder, file)
+            output_filename = base_filename + "." + file_format
+            file_path = os.path.join(full_output_folder, output_filename)
 
             if file_format == "png":
                 # PNG: embed via PNGInfo
@@ -552,8 +552,9 @@ class SaveImageWithMetaDataUniversal:
                                 f"prompt:{json.dumps(prompt, separators=(',', ':'))}".encode()
                             )
                         if extra_pnginfo is not None:
-                            for i, (k, v) in enumerate(extra_pnginfo.items()):
-                                zeroth_ifd[piexif.ImageIFD.Make - i] = (
+                            # Walk backwards from the Make tag so successive extra_pnginfo keys land in unused slots.
+                            for tag_offset, (k, v) in enumerate(extra_pnginfo.items()):
+                                zeroth_ifd[piexif.ImageIFD.Make - tag_offset] = (
                                     f"{k}:{json.dumps(v, separators=(',', ':'))}".encode()
                                 )
                     if parameters:
@@ -756,14 +757,14 @@ class SaveImageWithMetaDataUniversal:
                 with open(file_path_workflow, "w", encoding="utf-8") as f:
                     json.dump(extra_pnginfo["workflow"], f)
 
-            results.append({"filename": file, "subfolder": subfolder, "type": self.type})
+            ui_entries.append({"filename": output_filename, "subfolder": subfolder, "type": self.type})
             try:
                 counter = int(counter) + 1
             except (TypeError, ValueError):
                 counter = 1
 
         # Pass through original tensor batch as output so downstream nodes can reuse the images
-        return {"ui": {"images": results}, "result": (images,)}
+        return {"ui": {"images": ui_entries}, "result": (images,)}
 
     @staticmethod
     def _build_minimal_parameters(full_parameters: str) -> str:

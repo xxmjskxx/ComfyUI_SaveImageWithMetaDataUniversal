@@ -280,36 +280,37 @@ def try_resolve_artifact(
         ResolutionResult: A `ResolutionResult` object containing the display
             name and the full path of the artifact.
     """
-    visited: set[int] = set()
+    visited_ids: set[int] = set()
 
-    def _recurse(obj: Any, depth: int = 0) -> tuple[str, str | None]:
+    def _recurse(candidate: Any, depth: int = 0) -> tuple[str, str | None]:
+        display_value = str(candidate)
         if depth > max_depth:
-            return str(obj), None
-        oid = id(obj)
-        if oid in visited:
-            return str(obj), None
-        visited.add(oid)
+            return display_value, None
+        candidate_id = id(candidate)
+        if candidate_id in visited_ids:
+            return display_value, None
+        visited_ids.add(candidate_id)
 
         # Direct string case
-        if isinstance(obj, str):
-            path = _probe_folder(kind, obj)
-            return obj, path
+        if isinstance(candidate, str):
+            path = _probe_folder(kind, candidate)
+            return candidate, path
 
         # Container cases
-        if isinstance(obj, list | tuple | dict) or any(hasattr(obj, a) for a in RESOLUTION_ATTR_KEYS):
-            for cand in _iter_container_candidates(obj):
-                dn, fp = _recurse(cand, depth + 1)
-                if fp:
-                    return dn, fp
-            return str(obj), None
+        if isinstance(candidate, list | tuple | dict) or any(hasattr(candidate, attr) for attr in RESOLUTION_ATTR_KEYS):
+            for nested_candidate in _iter_container_candidates(candidate):
+                nested_display, nested_path = _recurse(nested_candidate, depth + 1)
+                if nested_path:
+                    return nested_display, nested_path
+            return display_value, None
 
         # Path-like direct file
         try:
-            if isinstance(obj, str) and os.path.exists(obj):
-                return obj, obj
+            if isinstance(candidate, str) and os.path.exists(candidate):
+                return candidate, candidate
         except OSError:  # pragma: no cover
             pass
-        return str(obj), None
+        return display_value, None
 
     display_name, path = _recurse(name_like, 0)
 

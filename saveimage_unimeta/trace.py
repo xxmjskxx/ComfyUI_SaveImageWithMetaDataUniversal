@@ -9,6 +9,7 @@ source of various metadata attributes in the workflow.
 import logging
 import os
 from collections import deque
+from typing import NamedTuple
 
 from .defs import CAPTURE_FIELD_LIST
 
@@ -20,6 +21,13 @@ from .defs.samplers import SAMPLERS
 from .utils.color import cstr
 
 logger = logging.getLogger(__name__)
+
+
+class TraceEntry(NamedTuple):
+    """Distance/class pair describing how far a node sits upstream."""
+
+    distance: int
+    class_type: str
 
 
 def _trace_debug_enabled() -> bool:
@@ -66,21 +74,20 @@ class Trace:
         class_type = prompt[start_node_id]["class_type"]
         if _trace_debug_enabled():
             logger.debug(cstr("[Trace] Found class_type: %s").msg, class_type)
-        Q = deque()  # noqa: N806 (algorithm queue conventional uppercase)
-        Q.append((start_node_id, 0))
-        visited = set()  # Keep track of visited nodes
-        visited.add(start_node_id)
-        trace_tree = {start_node_id: (0, class_type)}
-        while len(Q) > 0:
-            current_node_id, distance = Q.popleft()
+        node_queue: deque[tuple[str, int]] = deque()
+        node_queue.append((start_node_id, 0))
+        visited = {start_node_id}
+        trace_tree: dict[str, TraceEntry] = {start_node_id: TraceEntry(0, class_type)}
+        while node_queue:
+            current_node_id, distance = node_queue.popleft()
             input_fields = prompt[current_node_id]["inputs"]
             for value in input_fields.values():
                 if isinstance(value, list):
                     nid = value[0]
                     if nid not in visited and nid in prompt:  # Ensure the node is not visited and exists
                         class_type = prompt[nid]["class_type"]
-                        trace_tree[nid] = (distance + 1, class_type)
-                        Q.append((nid, distance + 1))
+                        trace_tree[nid] = TraceEntry(distance + 1, class_type)
+                        node_queue.append((nid, distance + 1))
                         visited.add(nid)  # Mark the node as visited
         if _trace_debug_enabled():
             try:
@@ -151,16 +158,16 @@ class Trace:
 
         if sampler_selection_method == SAMPLER_SELECTION_METHOD[2]:
             node_id = str(node_id)
-            _, class_type = trace_tree.get(node_id, (-1, None))
-            if class_type is None:
+            entry = trace_tree.get(node_id)
+            if entry is None:
                 return -1
             # Accept either explicit sampler mapping or heuristic sampler-like nodes
-            if is_sampler_like(class_type):
+            if is_sampler_like(entry.class_type):
                 return node_id
             return -1
 
         sorted_by_distance_trace_tree = sorted(
-            [(k, v[0], v[1]) for k, v in trace_tree.items()],
+            [(node_id, entry.distance, entry.class_type) for node_id, entry in trace_tree.items()],
             key=lambda x: x[1],
             reverse=(sampler_selection_method == SAMPLER_SELECTION_METHOD[0]),
         )
@@ -225,8 +232,7 @@ class Trace:
                 trace = trace_tree.get(node_id)
                 if trace is None:
                     continue
-                distance = trace[0]
-                filtered_inputs.setdefault(meta, []).append((node_id, input_value, distance))
+                filtered_inputs.setdefault(meta, []).append((node_id, input_value, trace.distance))
 
         # sort by distance
         for k, v in filtered_inputs.items():
