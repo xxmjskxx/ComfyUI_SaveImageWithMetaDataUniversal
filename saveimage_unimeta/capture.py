@@ -1936,7 +1936,8 @@ class Capture:
         # by processing it first if present
         if "Hashes" in remaining:
             remaining.remove("Hashes")
-            ordered_items.append(("Hashes", data["Hashes"]))
+            if "Hashes" not in seen:
+                ordered_items.append(("Hashes", data["Hashes"]))
         # Now add remaining keys (extra metadata) alphabetically after Hashes
         for k in sorted(remaining):
             ordered_items.append((k, data[k]))
