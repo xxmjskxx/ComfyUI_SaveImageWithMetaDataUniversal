@@ -1932,6 +1932,12 @@ class Capture:
         # Optionally suppress Hash detail from flat parameter string (too verbose for human reading)
         if "Hash detail" in remaining:
             remaining.remove("Hash detail")
+        # Ensure "Hashes" appears before any user-provided extra metadata keys
+        # by processing it first if present
+        if "Hashes" in remaining:
+            remaining.remove("Hashes")
+            ordered_items.append(("Hashes", data["Hashes"]))
+        # Now add remaining keys (extra metadata) alphabetically after Hashes
         for k in sorted(remaining):
             ordered_items.append((k, data[k]))
         # Append metadata generator version last if present
