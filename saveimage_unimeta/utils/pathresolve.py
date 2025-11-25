@@ -305,12 +305,12 @@ def try_resolve_artifact(
             return display_value, None
 
         # Path-like object (e.g., pathlib.Path) – strings already handled above
-        try:
-            candidate_path = str(candidate)
-            if os.path.exists(candidate_path):
-                return candidate_path, candidate_path
-        except (OSError, TypeError):  # pragma: no cover
-            pass
+        if hasattr(candidate, '__fspath__') or isinstance(candidate, os.PathLike):
+            try:
+                if os.path.exists(display_value):
+                    return display_value, display_value
+            except OSError:  # pragma: no cover
+                pass
         return display_value, None
 
     display_name, path = _recurse(name_like, 0)
