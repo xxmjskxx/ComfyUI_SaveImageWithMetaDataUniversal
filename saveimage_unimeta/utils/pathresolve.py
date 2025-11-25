@@ -305,7 +305,7 @@ def try_resolve_artifact(
             return display_value, None
 
         # Path-like object (e.g., pathlib.Path) – strings already handled above
-        if hasattr(candidate, '__fspath__') or isinstance(candidate, os.PathLike):
+        if isinstance(candidate, os.PathLike):
             try:
                 fspath = os.fspath(candidate)
                 path = _probe_folder(kind, fspath)
