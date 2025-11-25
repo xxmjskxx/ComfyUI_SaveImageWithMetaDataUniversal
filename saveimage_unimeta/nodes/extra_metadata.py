@@ -45,13 +45,14 @@ class CreateExtraMetaDataUniversal:
     FUNCTION = "create_extra_metadata"
     CATEGORY = "SaveImageWithMetaDataUniversal"
     DESCRIPTION = (
-        "Manually create extra metadata key-value pairs to include in saved images. "
-        "Keys and values should be strings. Commas in values will be replaced with slashes."
+        "Manually create extra metadata key-value pairs to include in saved images.\n"
+        "Keys and values should be strings.\nKeys without values will be ignored and vice versa.\n"
+        "Commas in values will be replaced with slashes."
     )
 
     def create_extra_metadata(
         self,
-        extra_metadata={},
+        extra_metadata=None,
         key1="",
         value1="",
         key2="",
@@ -82,14 +83,14 @@ class CreateExtraMetaDataUniversal:
         Returns:
             tuple: A tuple containing the updated metadata dictionary.
         """
-        if extra_metadata is None:
-            extra_metadata = {}
-        extra_metadata.update(
-            {
-                key1: value1,
-                key2: value2,
-                key3: value3,
-                key4: value4,
-            }
-        )
-        return (extra_metadata,)
+        # Create a new dictionary to avoid mutating the input and to prevent
+        # stale cache issues from mutable default arguments
+        result = {}
+        # Copy existing metadata if provided
+        if extra_metadata is not None:
+            result.update(extra_metadata)
+        # Add the new key-value pairs, only if the key is non-empty
+        for key, value in [(key1, value1), (key2, value2), (key3, value3), (key4, value4)]:
+            if key:
+                result[key] = value
+        return (result,)
