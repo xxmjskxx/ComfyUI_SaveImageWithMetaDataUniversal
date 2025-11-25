@@ -1337,6 +1337,651 @@ class WorkflowAnalyzer:
 
         return expected
 
+
+class MetadataValidator:
+    """Validates image metadata against expected values."""
+
+    # Compiled regex patterns for known metadata key patterns (compiled once for efficiency)
+    KNOWN_KEY_PATTERNS = [
+        re.compile(r"^Lora_\d+$"),
+        re.compile(r"^Lora_\d+\s+.+$"),  # Matches "Lora_0 Model name", "Lora_0 Model hash", etc.
+        re.compile(r"^Embedding_\d+$"),
+        re.compile(r"^Embedding_\d+\s+.+$"),  # Matches "Embedding_0 name", "Embedding_0 hash", etc.
+        re.compile(r"^CLIP_\d+\s+.+$"),  # Matches "CLIP_1 Model name", etc.
+    ]
+
+    def __init__(
+        self,
+        workflow_dir: Path,
+        output_dir: Path,
+        comfyui_models_path: Path | None = None,
+        verbose: bool = False,
+    ):
+        self.workflow_dir = workflow_dir
+        self.output_dir = output_dir
+        self.comfyui_models_path = comfyui_models_path
+        self.results = []
+        self.verbose = verbose
+
+    def _extract_json_value(self, text: str) -> str:
+        """Extract JSON object or array from the beginning of text."""
+        text = text.strip()
+        if not text:
+            return text
+
+        # Track brace/bracket depth to find where JSON ends
+        if text[0] == "{":
+            depth = 0
+            in_string = False
+            escape_next = False
+
+            for i, char in enumerate(text):
+                if escape_next:
+                    escape_next = False
+                    continue
+
+                if char == "\\":
+                    escape_next = True
+                    continue
+
+                if char == '"' and not escape_next:
+                    in_string = not in_string
+                    continue
+
+                if not in_string:
+                    if char == "{":
+                        depth += 1
+                    elif char == "}":
+                        depth -= 1
+                        if depth == 0:
+                            return text[: i + 1]
+
+        elif text[0] == "[":
+            depth = 0
+            in_string = False
+            escape_next = False
+
+            for i, char in enumerate(text):
+                if escape_next:
+                    escape_next = False
+                    continue
+
+                if char == "\\":
+                    escape_next = True
+                    continue
+
+                if char == '"' and not escape_next:
+                    in_string = not in_string
+                    continue
+
+                if not in_string:
+                    if char == "[":
+                        depth += 1
+                    elif char == "]":
+                        depth -= 1
+                        if depth == 0:
+                            return text[: i + 1]
+
+        return text
+
+    def parse_parameters_string(self, params_str: str) -> dict[str, str]:
+        """Parse the parameters string into a dictionary of fields."""
+        if not params_str:
+            return {}
+
+        # Define known metadata keys
+        known_keys = {
+            "Steps",
+            "Sampler",
+            "CFG scale",
+            "Seed",
+            "Size",
+            "Model",
+            "Model hash",
+            "VAE",
+            "VAE hash",
+            "Clip skip",
+            "Denoise",
+            "Shift",
+            "Max shift",
+            "Base shift",
+            "Guidance",
+            "Scheduler",
+            "Hashes",
+            "Metadata generator version",
+            "Batch index",
+            "Batch size",
+            "Metadata Fallback",
+            "LoRAs",
+            "Weight dtype",
+            "Samplers",
+            "T5 Prompt",
+            "CLIP Prompt",
+            "CLIP_1 Model name",
+            "CLIP_2 Model name",
+        }
+
+        prompt_header_keys = {"T5 Prompt", "CLIP Prompt", "Positive prompt", "Negative prompt"}
+        metadata_start_keys = known_keys - prompt_header_keys
+
+        fields = {}
+        lines = params_str.strip().split("\n")
+        metadata_start_idx = 0
+
+        # Look for where actual metadata starts
+        for idx, line in enumerate(lines):
+            match = re.match(r"^([A-Za-z0-9 _\-]+):\s*(.*)", line)
+            if match:
+                potential_key = match.group(1).strip()
+                is_metadata_key = potential_key in metadata_start_keys or any(
+                    pattern.match(potential_key) for pattern in self.KNOWN_KEY_PATTERNS
+                )
+                if is_metadata_key:
+                    metadata_start_idx = idx
+                    break
+
+        # Capture prompt headers
+        header_fields: dict[str, str] = {}
+        current_header_key: str | None = None
+        positive_lines: list[str] = []
+        for line in lines[:metadata_start_idx]:
+            stripped_line = line.strip()
+            match = re.match(r"^([A-Za-z0-9 _\-]+):\s*(.*)", line)
+            if match:
+                potential_key = match.group(1).strip()
+                if potential_key in prompt_header_keys:
+                    header_fields[potential_key] = match.group(2).strip()
+                    current_header_key = potential_key
+                else:
+                    current_header_key = None
+                continue
+
+            if current_header_key and stripped_line:
+                header_fields[current_header_key] = "\n".join(filter(None, [header_fields[current_header_key], stripped_line]))
+            elif stripped_line:
+                positive_lines.append(stripped_line)
+
+        if positive_lines and "Positive prompt" not in header_fields:
+            header_fields["Positive prompt"] = "\n".join(positive_lines).strip()
+
+        fields.update(header_fields)
+
+        # Join metadata lines
+        if metadata_start_idx < len(lines):
+            metadata_text = "\n".join(lines[metadata_start_idx:])
+        else:
+            metadata_text = params_str
+
+        # Detect format
+        escaped_keys = [re.escape(k) for k in known_keys]
+        comma_pattern = re.compile(r",\s*(?:" + "|".join(escaped_keys) + r"):")
+        newline_pattern = re.compile(r"\n\s*(?:" + "|".join(escaped_keys) + r"):")
+
+        comma_key_count = len(comma_pattern.findall(metadata_text))
+        newline_key_count = len(newline_pattern.findall(metadata_text))
+
+        use_comma_format = comma_key_count > newline_key_count
+
+        if use_comma_format:
+            all_patterns = list(known_keys)
+            escaped_keys = [re.escape(k) + r":" for k in all_patterns]
+            split_pattern = r",\s*(?=" + "|".join(escaped_keys) + r"|(?:Lora_|Embedding_|CLIP_)\d+\s+[^:]+:)"
+            parts = re.split(split_pattern, metadata_text)
+
+            for part in parts:
+                part = part.strip()
+                if not part:
+                    continue
+
+                match = re.match(r"^([A-Za-z0-9 _\-]+):\s*(.*)", part, re.DOTALL)
+                if match:
+                    key = match.group(1).strip()
+                    value = match.group(2).strip()
+
+                    if key == "Hashes":
+                        value = self._extract_json_value(value)
+
+                    is_known = key in known_keys or any(pattern.match(key) for pattern in self.KNOWN_KEY_PATTERNS)
+                    if is_known:
+                        fields[key] = value
+        else:
+            # Parse newline-separated format
+            current_key = None
+            current_value = []
+
+            for line in lines[metadata_start_idx:]:
+                match = re.match(r"^([A-Za-z0-9 _\-]+):\s*(.*)", line)
+                if match:
+                    potential_key = match.group(1).strip()
+                    value = match.group(2)
+
+                    is_known_key = potential_key in known_keys
+                    if not is_known_key:
+                        for pattern in self.KNOWN_KEY_PATTERNS:
+                            if pattern.match(potential_key):
+                                is_known_key = True
+                                break
+
+                    if is_known_key:
+                        if current_key:
+                            fields[current_key] = "\n".join(current_value).strip()
+
+                        current_key = potential_key
+                        current_value = []
+                        if value:
+                            current_value.append(value)
+                        continue
+
+                if current_key:
+                    if line.strip():
+                        current_value.append(line.strip())
+
+            if current_key:
+                fields[current_key] = "\n".join(current_value).strip()
+
+        return fields
+
+    def _validate_expected_fields(self, fields: dict, expected_metadata: dict, result: dict):
+        """Comprehensively validate that actual metadata matches all expected values."""
+
+        check_details = result.setdefault("check_details", [])
+        recorded_fields: set[str] = set()
+
+        def normalize_value(value: Any) -> str:
+            if value is None or value == "":
+                return "N/A"
+            return str(value)
+
+        def normalize_text(value: Any) -> str:
+            if value is None or value == "":
+                return ""
+            if isinstance(value, str):
+                return value.strip()
+            return str(value).strip()
+
+        def add_detail(
+            field_name: str,
+            status: str,
+            expected: Any = None,
+            actual: Any = None,
+            message: str | None = None,
+        ):
+            detail: dict[str, Any] = {"field": field_name, "status": status}
+            if expected is not None:
+                detail["expected"] = expected
+            if actual is not None:
+                detail["actual"] = actual
+            if message:
+                detail["message"] = message
+            check_details.append(detail)
+            if status != "info":
+                recorded_fields.add(field_name)
+
+        def mark_pass(field_name: str, expected: Any, actual: Any):
+            add_detail(field_name, "pass", expected, actual)
+
+        def mark_fail(field_name: str, expected: Any, actual: Any, message: str):
+            result["errors"].append(message)
+            add_detail(field_name, "fail", expected, actual, message)
+
+        def mark_warn(field_name: str, expected: Any, actual: Any, message: str):
+            result["warnings"].append(message)
+            add_detail(field_name, "warn", expected, actual, message)
+
+        def compare_numeric_field(field_name: str, expected: Any):
+            expected_str = str(expected)
+            actual_value = fields.get(field_name)
+            actual_str = normalize_value(actual_value)
+            if actual_value in (None, ""):
+                message = f"{field_name} missing, expected '{expected_str}'"
+                mark_fail(field_name, expected_str, actual_str, message)
+                return
+            try:
+                expected_float = float(expected_str)
+                actual_float = float(str(actual_value))
+                if abs(expected_float - actual_float) > 0.0001:
+                    message = f"{field_name} mismatch: expected '{expected_str}', got '{actual_str}'"
+                    mark_fail(field_name, expected_str, actual_str, message)
+                else:
+                    mark_pass(field_name, expected_str, actual_str)
+            except (ValueError, TypeError):
+                if str(actual_value) != expected_str:
+                    message = f"{field_name} mismatch: expected '{expected_str}', got '{actual_str}'"
+                    mark_fail(field_name, expected_str, actual_str, message)
+                else:
+                    mark_pass(field_name, expected_str, actual_str)
+
+        def compare_string_field(field_name: str, expected: Any):
+            expected_str = normalize_text(expected)
+            actual_value = fields.get(field_name)
+            actual_str = normalize_text(actual_value)
+            if actual_value in (None, ""):
+                message = f"{field_name} missing, expected '{expected_str or 'value'}'"
+                mark_fail(field_name, expected_str or "value", normalize_value(actual_value), message)
+            elif actual_str != expected_str:
+                message = f"{field_name} mismatch: expected '{expected_str}', got '{actual_str}'"
+                mark_fail(field_name, expected_str, actual_str, message)
+            else:
+                mark_pass(field_name, expected_str, actual_str)
+
+        # Validate seed
+        if expected_metadata.get("seed") is not None:
+            expected_seed = str(expected_metadata["seed"])
+            actual_seed = fields.get("Seed", "")
+            actual_seed_str = normalize_value(actual_seed)
+            if expected_seed == "-1":
+                # Accept 13 to 18 digits for random seed
+                if actual_seed and 13 <= len(str(actual_seed)) <= 18 and str(actual_seed).isdigit():
+                    mark_pass("Seed", "13-18 digit random", actual_seed_str)
+                else:
+                    mark_fail(
+                        "Seed",
+                        "13-18 digit random",
+                        actual_seed_str,
+                        f"Seed format mismatch: expected 13-18 digit random seed, got '{actual_seed_str}'",
+                    )
+            else:
+                compare_numeric_field("Seed", expected_seed)
+
+        # Validate steps
+        if expected_metadata.get("steps") is not None:
+            compare_numeric_field("Steps", expected_metadata["steps"])
+
+        # Validate CFG (respect guidance_as_cfg toggle)
+        if expected_metadata.get("cfg") is not None:
+            cfg_expected = expected_metadata["cfg"]
+            if expected_metadata.get("guidance_as_cfg") and expected_metadata.get("guidance") is not None:
+                cfg_expected = expected_metadata["guidance"]
+            compare_numeric_field("CFG scale", cfg_expected)
+
+        # Validate Sampler & Scheduler with Civitai strict matching
+        civitai_sampler_enabled = expected_metadata.get("civitai_sampler", False)
+
+        if expected_metadata.get("sampler"):
+            expected_sampler = expected_metadata["sampler"]
+            if "Sampler" in fields:
+                actual_sampler = fields["Sampler"]
+
+                if civitai_sampler_enabled:
+                    # Strict matching for Civitai
+                    if actual_sampler.lower() != expected_sampler.lower():
+                        mark_fail(
+                            "Sampler",
+                            expected_sampler,
+                            actual_sampler,
+                            f"Sampler mismatch (Civitai strict): expected '{expected_sampler}', got '{actual_sampler}'",
+                        )
+                    else:
+                        mark_pass("Sampler", expected_sampler, actual_sampler)
+                else:
+                    # Loose matching (substring)
+                    if expected_sampler.lower() in actual_sampler.lower():
+                        mark_pass("Sampler", expected_sampler, actual_sampler)
+                    else:
+                        mark_fail(
+                            "Sampler",
+                            expected_sampler,
+                            actual_sampler,
+                            f"Sampler mismatch: expected '{expected_sampler}' in '{actual_sampler}'",
+                        )
+            else:
+                mark_fail("Sampler", expected_sampler, "N/A", "Sampler field missing")
+
+        if expected_metadata.get("scheduler"):
+            expected_scheduler = expected_metadata["scheduler"]
+            if "Scheduler" in fields:
+                compare_string_field("Scheduler", expected_scheduler)
+            elif civitai_sampler_enabled:
+                # Civitai sampler often merges scheduler into sampler name, so missing scheduler is acceptable
+                pass
+            else:
+                mark_fail("Scheduler", expected_scheduler, "N/A", "Scheduler field missing")
+
+        # Validate denoise and guidance
+        if expected_metadata.get("denoise") is not None:
+            compare_numeric_field("Denoise", expected_metadata["denoise"])
+
+        # Only validate Guidance if NOT using guidance_as_cfg
+        if expected_metadata.get("guidance") is not None and not expected_metadata.get("guidance_as_cfg"):
+            compare_numeric_field("Guidance", expected_metadata["guidance"])
+
+        # Validate model name (basename only)
+        if expected_metadata.get("model_name"):
+            actual_model = fields.get("Model")
+            expected_model_path = str(expected_metadata["model_name"]).replace("\\", "/")
+            expected_model_basename = Path(expected_model_path).stem
+            actual_model_basename = Path(actual_model).stem if actual_model else ""
+            if actual_model_basename:
+                if actual_model_basename == expected_model_basename:
+                    mark_pass("Model", expected_model_basename, actual_model_basename)
+                else:
+                    mark_fail(
+                        "Model",
+                        expected_model_basename,
+                        actual_model_basename,
+                        f"Model mismatch: expected '{expected_model_basename}', got '{actual_model_basename}'",
+                    )
+            else:
+                message = f"Model missing, expected '{expected_model_basename}'"
+                mark_fail("Model", expected_model_basename, "N/A", message)
+
+        # Validate VAE name
+        if expected_metadata.get("vae_name") and expected_metadata["vae_name"] != "Baked VAE":
+            actual_vae = fields.get("VAE")
+            expected_vae_basename = Path(str(expected_metadata["vae_name"])).stem
+            actual_vae_basename = Path(actual_vae).stem if actual_vae else ""
+            if actual_vae_basename:
+                if actual_vae_basename == expected_vae_basename:
+                    mark_pass("VAE", expected_vae_basename, actual_vae_basename)
+                else:
+                    mark_fail(
+                        "VAE",
+                        expected_vae_basename,
+                        actual_vae_basename,
+                        f"VAE mismatch: expected '{expected_vae_basename}', got '{actual_vae_basename}'",
+                    )
+            else:
+                mark_fail("VAE", expected_vae_basename, "N/A", f"VAE missing, expected '{expected_vae_basename}'")
+
+        # Validate clip skip
+        if expected_metadata.get("clip_skip") is not None:
+            compare_numeric_field("Clip skip", abs(int(expected_metadata["clip_skip"])))
+
+        # Validate image dimensions
+        if expected_metadata.get("image_width") and expected_metadata.get("image_height"):
+            expected_size = f"{expected_metadata['image_width']}x{expected_metadata['image_height']}"
+            actual_size = fields.get("Size")
+            actual_size_str = normalize_value(actual_size)
+            if actual_size in (None, ""):
+                message = f"Size missing, expected '{expected_size}'"
+                mark_fail("Size", expected_size, actual_size_str, message)
+            elif actual_size_str != expected_size:
+                message = f"Size mismatch: expected '{expected_size}', got '{actual_size_str}'"
+                mark_warn("Size", expected_size, actual_size_str, message)
+            else:
+                mark_pass("Size", expected_size, actual_size_str)
+
+        # Validate LoRA stack (continues in next message due to length)
+        expected_loras = expected_metadata.get("lora_stack")
+        if expected_loras:
+            lora_indices: set[int] = set()
+            for key in fields.keys():
+                match = re.match(r"Lora_(\d+) Model name", key)
+                if match:
+                    lora_indices.add(int(match.group(1)))
+
+            actual_lora_count = len(lora_indices)
+            expected_lora_count = len(expected_loras)
+            if actual_lora_count == expected_lora_count:
+                mark_pass("LoRA count", expected_lora_count, actual_lora_count)
+            else:
+                mark_fail(
+                    "LoRA count",
+                    expected_lora_count,
+                    actual_lora_count,
+                    f"LoRA count mismatch: expected {expected_lora_count} LoRAs, got {actual_lora_count}",
+                )
+
+            for idx, expected_lora in enumerate(expected_loras):
+                name_key = f"Lora_{idx} Model name"
+                model_str_key = f"Lora_{idx} Strength model"
+                clip_str_key = f"Lora_{idx} Strength clip"
+
+                if name_key in fields:
+                    actual_name = fields[name_key]
+                    actual_basename = Path(actual_name).stem if actual_name else ""
+                    expected_basename = Path(expected_lora["name"]).stem
+                    if actual_basename == expected_basename:
+                        mark_pass(f"LoRA {idx} name", expected_basename, actual_basename)
+                    else:
+                        mark_fail(
+                            f"LoRA {idx} name",
+                            expected_basename,
+                            actual_basename,
+                            f"LoRA {idx} name mismatch: expected '{expected_basename}', got '{actual_basename}'",
+                        )
+
+                    # Validate strengths only if name is present
+                    if expected_lora.get("model_strength") is not None:
+                        if model_str_key in fields:
+                            compare_numeric_field(model_str_key, expected_lora["model_strength"])
+                        else:
+                            mark_fail(
+                                model_str_key,
+                                expected_lora["model_strength"],
+                                "N/A",
+                                f"{model_str_key} not present in metadata",
+                            )
+
+                    expected_clip_strength = expected_lora.get("clip_strength")
+                    if expected_clip_strength is not None:
+                        if clip_str_key in fields:
+                            compare_numeric_field(clip_str_key, expected_clip_strength)
+                        else:
+                            mark_fail(
+                                clip_str_key,
+                                expected_clip_strength,
+                                "N/A",
+                                f"{clip_str_key} not present in metadata",
+                            )
+                else:
+                    mark_fail(
+                        f"LoRA {idx} name",
+                        Path(expected_lora["name"]).stem,
+                        "N/A",
+                        f"Expected LoRA {idx} ('{expected_lora['name']}') not found in metadata",
+                    )
+
+                hash_key = f"Lora_{idx} Model hash"
+                if hash_key in fields:
+                    hash_value = normalize_value(fields[hash_key])
+                    if hash_value in ("", "N/A"):
+                        mark_fail(
+                            hash_key,
+                            "computed hash",
+                            hash_value,
+                            f"{hash_key} missing hash value",
+                        )
+                    else:
+                        mark_pass(hash_key, "computed hash", hash_value)
+                else:
+                    mark_fail(
+                        hash_key,
+                        "computed hash",
+                        "N/A",
+                        f"{hash_key} not present in metadata",
+                    )
+
+        # Validate Extra Metadata
+        if expected_metadata.get("extra_metadata"):
+            for key, expected_val in expected_metadata["extra_metadata"].items():
+                if key in fields:
+                    actual_val = fields[key]
+                    if str(actual_val) == str(expected_val):
+                        mark_pass(f"Extra: {key}", expected_val, actual_val)
+                    else:
+                        mark_fail(
+                            f"Extra: {key}",
+                            expected_val,
+                            actual_val,
+                            f"Extra metadata '{key}' mismatch: expected '{expected_val}', got '{actual_val}'",
+                        )
+                else:
+                    mark_fail(f"Extra: {key}", expected_val, "N/A", f"Extra metadata field '{key}' missing")
+
+        # Prompts
+        if expected_metadata.get("positive_prompt"):
+            compare_string_field("Positive prompt", expected_metadata.get("positive_prompt"))
+
+        if expected_metadata.get("negative_prompt"):
+            compare_string_field("Negative prompt", expected_metadata.get("negative_prompt"))
+
+        # Hash fields
+        if expected_metadata.get("model_name"):
+            actual_model_hash = fields.get("Model hash")
+            actual_model_hash_str = normalize_value(actual_model_hash)
+            if actual_model_hash in (None, ""):
+                mark_fail("Model hash", "computed hash", actual_model_hash_str, "Model hash missing")
+            elif actual_model_hash_str == "N/A":
+                message = "Model hash is 'N/A' - should be computed"
+                mark_fail("Model hash", "computed hash", actual_model_hash_str, message)
+            else:
+                mark_pass("Model hash", "computed hash", actual_model_hash_str)
+
+        if expected_metadata.get("vae_name"):
+            is_baked = expected_metadata["vae_name"] == "Baked VAE"
+            if not is_baked:
+                actual_vae_hash = fields.get("VAE hash")
+                actual_vae_hash_str = normalize_value(actual_vae_hash)
+                if actual_vae_hash in (None, ""):
+                    mark_fail("VAE hash", "computed hash", actual_vae_hash_str, "VAE hash missing")
+                elif actual_vae_hash_str == "N/A":
+                    mark_fail("VAE hash", "computed hash", actual_vae_hash_str, "VAE hash is 'N/A' - should be computed")
+                else:
+                    mark_pass("VAE hash", "computed hash", actual_vae_hash_str)
+            else:
+                # For Baked VAE, hash should be N/A or missing
+                actual_vae_hash = fields.get("VAE hash")
+                if actual_vae_hash and normalize_value(actual_vae_hash) != "N/A":
+                    mark_warn("VAE hash", "N/A", normalize_value(actual_vae_hash), "Baked VAE has unexpected hash value")
+                else:
+                    mark_pass("VAE hash", "N/A", "N/A")
+
+        # Batch details, Flux parameters, CLIP/T5 prompts, etc.
+        batch_size_expected = expected_metadata.get("batch_size")
+        if batch_size_expected not in (None, 1, "1"):
+            compare_numeric_field("Batch size", batch_size_expected)
+
+        if expected_metadata.get("batch_number") is not None:
+            compare_numeric_field("Batch number", expected_metadata["batch_number"])
+
+        if expected_metadata.get("base_shift") is not None:
+            compare_numeric_field("Base shift", expected_metadata["base_shift"])
+
+        if expected_metadata.get("max_shift") is not None:
+            compare_numeric_field("Max shift", expected_metadata["max_shift"])
+
+        if expected_metadata.get("shift") is not None:
+            compare_numeric_field("Shift", expected_metadata["shift"])
+
+        if expected_metadata.get("weight_dtype"):
+            compare_string_field("Weight dtype", expected_metadata["weight_dtype"])
+
+        if expected_metadata.get("clip_prompt"):
+            compare_string_field("CLIP Prompt", expected_metadata.get("clip_prompt"))
+
+        if expected_metadata.get("t5_prompt"):
+            compare_string_field("T5 Prompt", expected_metadata.get("t5_prompt"))
+
+        if expected_metadata.get("clip_model_name"):
+            compare_string_field("CLIP Model name", expected_metadata.get("clip_model_name"))
+
+        if expected_metadata.get("embedding_name"):
+            compare_string_field("Embedding name", expected_metadata.get("embedding_name"))
+
+        # Store check count
+        result["checks_performed"] = sum(1 for detail in check_details if detail["status"] in {"pass", "fail", "warn"})
+
     def validate_image(self, image_path: Path, workflow_name: str, expected: dict, expected_save_node: dict | None = None) -> dict:
         """Validate a single image's metadata.
 
