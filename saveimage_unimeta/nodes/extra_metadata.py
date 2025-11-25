@@ -45,8 +45,9 @@ class CreateExtraMetaDataUniversal:
     FUNCTION = "create_extra_metadata"
     CATEGORY = "SaveImageWithMetaDataUniversal"
     DESCRIPTION = (
-        "Manually create extra metadata key-value pairs to include in saved images. "
-        "Keys and values should be strings. Commas in values will be replaced with slashes."
+        "Manually create extra metadata key-value pairs to include in saved images.\n"
+        "Keys and values should be strings.\nKeys without values will be ignored and vice versa.\n"
+        "Commas in values will be replaced with slashes."
     )
 
     def create_extra_metadata(
