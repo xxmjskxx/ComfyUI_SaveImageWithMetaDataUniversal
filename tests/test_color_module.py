@@ -135,8 +135,12 @@ class TestAddCode:
     def test_adds_new_code(self):
         """Should add a new color code."""
         cstr.color.add_code("test_custom", "\33[99m")
-        assert hasattr(cstr.color, "TEST_CUSTOM")
-        assert cstr.color.TEST_CUSTOM == "\33[99m"
+        try:
+            assert hasattr(cstr.color, "TEST_CUSTOM")
+            assert cstr.color.TEST_CUSTOM == "\33[99m"
+        finally:
+            # Clean up to prevent test pollution
+            delattr(cstr.color, "TEST_CUSTOM")
 
     def test_raises_on_duplicate(self):
         """Should raise ValueError for duplicate code name."""
@@ -147,7 +151,11 @@ class TestAddCode:
     def test_uppercase_name(self):
         """Should store code with uppercase name."""
         cstr.color.add_code("test_lower", "\33[98m")
-        assert hasattr(cstr.color, "TEST_LOWER")
+        try:
+            assert hasattr(cstr.color, "TEST_LOWER")
+        finally:
+            # Clean up to prevent test pollution
+            delattr(cstr.color, "TEST_LOWER")
 
 
 class TestCstrGetattr:
