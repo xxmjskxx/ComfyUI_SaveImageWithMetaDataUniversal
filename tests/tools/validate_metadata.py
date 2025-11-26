@@ -1228,9 +1228,14 @@ class WorkflowAnalyzer:
 
         if sampler_inputs.get("negative"):
             neg_val = WorkflowAnalyzer.resolve_text_input(workflow, sampler_inputs.get("negative"))
-            # Ensure negative prompt is not identical to positive prompt (unless empty)
-            if neg_val and neg_val != expected.get("positive_prompt"):
-                expected["negative_prompt"] = neg_val
+            # Skip if negative prompt is identical to positive prompt.
+            # This can occur when workflows share text nodes or when certain sampler configurations
+            # reuse the positive prompt reference. Logging this case helps debug unexpected behavior.
+            if neg_val:
+                if neg_val == expected.get("positive_prompt"):
+                    print(f"Warning: negative prompt is identical to positive prompt for sampler node {sampler_id}")
+                else:
+                    expected["negative_prompt"] = neg_val
 
         # Trace to loader (could be through 'model' or 'sdxl_tuple' input)
         loader_id, loader_node = None, None
@@ -1665,6 +1670,11 @@ class MetadataValidator:
                 mark_pass(field_name, expected_str, actual_str)
 
         # Validate seed
+        # ComfyUI's random seed generation produces seeds of varying lengths (typically 13-18 digits)
+        # depending on the seed source and workflow configuration. This range accommodates:
+        # - Standard 15-digit seeds from most samplers
+        # - Shorter seeds from some legacy/custom nodes
+        # - Longer seeds from certain seed randomization implementations
         if expected_metadata.get("seed") is not None:
             expected_seed = str(expected_metadata["seed"])
             actual_seed = fields.get("Seed", "")
@@ -1695,6 +1705,13 @@ class MetadataValidator:
             compare_numeric_field("CFG scale", cfg_expected)
 
         # Validate Sampler & Scheduler with Civitai strict matching
+        # When civitai_sampler is enabled, the sampler name in metadata uses Civitai's naming convention
+        # which combines sampler and scheduler into a single standardized string (e.g., "Euler a" instead
+        # of "euler" + "ancestral"). In this mode:
+        # - Sampler validation uses strict case-insensitive equality matching
+        # - Scheduler validation is relaxed since it's often embedded in the sampler name
+        # When civitai_sampler is disabled, loose substring matching is used to accommodate
+        # variations in sampler naming across different node implementations.
         civitai_sampler_enabled = expected_metadata.get("civitai_sampler", False)
 
         if expected_metadata.get("sampler"):

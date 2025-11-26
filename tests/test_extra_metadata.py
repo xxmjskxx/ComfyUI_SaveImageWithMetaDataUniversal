@@ -245,7 +245,7 @@ class TestExtraMetadataOrdering:
         assert version_pos != -1
         assert custom_pos < version_pos, "Extra metadata should come before version"
 
-    def test_clip_fields_stay_before_hashes_and_extra_metadata(self):
+    def test_clip_fields_ordering(self):
         """Ensure CLIP fields remain in the core block before the Hashes + extra metadata tail."""
         from saveimage_unimeta.capture import Capture
 
