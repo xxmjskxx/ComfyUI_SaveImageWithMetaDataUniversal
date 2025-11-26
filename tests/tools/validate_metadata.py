@@ -484,9 +484,10 @@ class WorkflowAnalyzer:
             for key in ("conditioning_1", "conditioning_2"):
                 linked = node_inputs.get(key)
                 if isinstance(linked, list) and linked:
-                    # Create a new visited set for each branch to allow shared sub-nodes (though unlikely for text)
-                    # but prevent cycles within the branch
-                    branch_text = WorkflowAnalyzer.resolve_text_input(workflow, linked, visited.copy())
+                    # Pass the original visited set to both branches to ensure that:
+                    # 1. Shared ancestor nodes are tracked globally and not traversed twice
+                    # 2. Cycles through ConditioningCombine nodes are properly detected
+                    branch_text = WorkflowAnalyzer.resolve_text_input(workflow, linked, visited)
                     if branch_text:
                         texts.append(branch_text)
 
@@ -1047,15 +1048,16 @@ class WorkflowAnalyzer:
             if "ExtraMetaData" in class_type:
                 # Try to find key/value pairs
                 # Some nodes use "key" and "value" inputs
+                # Use `is not None` to preserve legitimate falsy metadata values like 0, False, or []
                 key = inputs.get("key")
                 value = inputs.get("value")
-                if key and value:
+                if key is not None and value is not None:
                     extra_data[str(key)] = str(value)
 
                 # Some might use "label" and "text"
                 label = inputs.get("label")
                 text = inputs.get("text")
-                if label and text:
+                if label is not None and text is not None:
                     extra_data[str(label)] = str(text)
 
             # Check for "extra_metadata" input to follow the chain
@@ -1207,6 +1209,8 @@ class WorkflowAnalyzer:
             # Skip if negative prompt is identical to positive prompt.
             # This can occur when workflows share text nodes or when certain sampler configurations
             # reuse the positive prompt reference. Logging this case helps debug unexpected behavior.
+            # Note: We only perform the duplicate check for non-empty negative prompts; empty/falsy
+            # negative prompts are silently skipped since they carry no semantic content to validate.
             if neg_val:
                 if neg_val == expected.get("positive_prompt"):
                     logger.warning("negative prompt is identical to positive prompt for sampler node %s", sampler_id)
