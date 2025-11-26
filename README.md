@@ -252,8 +252,8 @@ Recommendations:
 Limitations:
 * Social platforms often strip both EXIF and COM markers; consider sidecar archival if critical.
 * COM marker text has no structure; downstream tooling must parse the plain parameter string.
-* Multi-segment APPn fragmentation (splitting across several EXIF/APP markers) is not implemented (deferred; see `docs/WORKFLOW_COMPRESSION_DESIGN.md`).
- * For more nuance on staged trimming: [docs/JPEG_METADATA_FALLBACK.md](docs/JPEG_METADATA_FALLBACK.md)
+* Multi-segment APPn fragmentation (splitting across several EXIF/APP markers) is not implemented (deferred; see [WORKFLOW_COMPRESSION_DESIGN.md](docs/WORKFLOW_COMPRESSION_DESIGN.md)).
+ * For more nuance on staged trimming: [JPEG_METADATA_FALLBACK.md](docs/JPEG_METADATA_FALLBACK.md)
 
 ### Fallback Stages & Indicator
 JPEG saves record a `Metadata Fallback:` stage when size constraints trigger progressive trimming:
@@ -393,8 +393,8 @@ Notes:
 
 ### Design / Future Ideas
 Deferred and exploratory concepts are documented in:
-* `docs/WORKFLOW_COMPRESSION_DESIGN.md` (workflow compression placeholder)
-* `docs/FUTURE_AND_PROTOTYPES.md` (archived prototype UI + additional speculative enhancements; Wan2.2 and multi-model workflow support)
+* [WORKFLOW_COMPRESSION_DESIGN.md](docs/WORKFLOW_COMPRESSION_DESIGN.md) (workflow compression placeholder)
+* [FUTURE_AND_PROTOTYPES.md](docs/FUTURE_AND_PROTOTYPES.md) (archived prototype UI + additional speculative enhancements; Wan2.2 and multi-model workflow support)
 
 ### Environment Flags
 | Flag | Effect |
@@ -437,23 +437,23 @@ Major consolidation release with 219 commits bringing:
 - **Documentation**: Comprehensive docstrings on all Python files, enhanced inline documentation
 - **Code Quality**: Structured logging, better exception handling, type safety improvements
 
-See `CHANGELOG.md` for complete details or `docs/releases/RELEASE_NOTES_v1.3.0.md` for the full release notes.
+See [CHANGELOG.md](CHANGELOG.md) for complete details or [RELEASE_NOTES_v1.3.0.md](docs/releases/RELEASE_NOTES_v1.3.0.md) for the full release notes.
 
 **Previous Notable Changes:**
-- Refactor notice: legacy monolithic module removed; see `CHANGELOG.md` for new direct import paths
+- Refactor notice: legacy monolithic module removed; see [CHANGELOG.md](CHANGELOG.md) for new direct import paths
 - JPEG fallback staging, 64KB EXIF cap enforcement
 - Dynamic rule scanner separation
 - Logging overhaul and documentation structure improvements
 
 ### Development & Testing
 
-For testing workflows locally, see `tests/comfyui_cli_tests/DEV_WORKFLOW_TESTING.md` for:
+For testing workflows locally, see [DEV_WORKFLOW_TESTING.md](tests/comfyui_cli_tests/DEV_WORKFLOW_TESTING.md) for:
 - Running workflows from the command line with `tests/tools/run_dev_workflows.py`
 - Automatically cleaning test output folders
 - Validating generated image metadata with `tests/tools/validate_metadata.py`
 - Complete testing workflow examples
 
-For workflow test coverage suggestions, see `tests/comfyui_cli_tests/WORKFLOW_TEST_SUGGESTIONS.md` which includes:
+For workflow test coverage suggestions, see [WORKFLOW_TEST_SUGGESTIONS.md](tests/comfyui_cli_tests/WORKFLOW_TEST_SUGGESTIONS.md) which includes:
 - Analysis of current test coverage
 - 18 specific workflow test recommendations
 - Priority guidelines for comprehensive testing
@@ -464,9 +464,9 @@ Run lint & tests before submitting PRs:
 ruff check .
 pytest -q
 ```
-See `CONTRIBUTING.md` for full guidelines.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for full guidelines.
 
-AI assistants / contributors: see `.github/copilot-instructions.md` for architecture map, safe-edit rules, JPEG fallback constraints, and metadata field extension guidance before making automated changes.
+AI assistants / contributors: see [copilot-instructions.md](.github/copilot-instructions.md) for architecture map, safe-edit rules, JPEG fallback constraints, and metadata field extension guidance before making automated changes.
 
 ---
 For extended sampler selection details and advanced capture behavior, refer to the in-code docstrings (`Trace`, `Capture`) or open an issue if external docs would help.
