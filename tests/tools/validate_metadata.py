@@ -470,13 +470,18 @@ class WorkflowAnalyzer:
 
         # Handle CLIPTextEncodeFlux list values specifically
         # The direct key loop above handles string values for t5xxl/clip_l.
-        # This block handles list values (e.g., ["prompt text", ...]) that the direct loop skips.
+        # This block handles list values (e.g., [node_ref, ...]) that the direct loop skips.
         if class_type == "CLIPTextEncodeFlux":
             for flux_key in ("t5xxl", "clip_l"):
-                if flux_key in node_inputs:
-                    val = node_inputs[flux_key]
-                    if isinstance(val, list) and val and isinstance(val[0], str):
-                        return val[0]
+                if flux_key not in node_inputs:
+                    continue
+                val = node_inputs[flux_key]
+                if isinstance(val, list) and val:
+                    flux_text = WorkflowAnalyzer.resolve_text_input(workflow, val, visited)
+                    if flux_text:
+                        return flux_text
+                elif isinstance(val, str):
+                    return val
 
         # Handle ConditioningCombine specifically to join multiple prompts
         if class_type == "ConditioningCombine":
@@ -985,18 +990,19 @@ class WorkflowAnalyzer:
         return samplers[0][0], samplers[0][1]
 
     @staticmethod
-    def get_connected_sampler_chain(workflow: dict, start_node_id: str) -> list[tuple[str, dict]]:
+    def get_connected_sampler_chain(workflow: dict, start_node_id: str) -> list[tuple[str, dict, int]]:
         """Trace back from a node to find all connected KSampler nodes in the lineage.
 
-        Returns a list of (node_id, node_data) tuples for all samplers found in the connected chain.
-        This ensures we only consider samplers actually driving this save node.
+        Returns a list of (node_id, node_data, distance) tuples for all samplers found in the connected chain.
+        The distance reflects how many hops the sampler sits upstream from the save node input, matching the
+        "farthest/nearest" semantics used by the runtime node.
         """
-        connected_samplers = []
-        visited = set()
-        queue = [start_node_id]
+        connected_samplers: list[tuple[str, dict, int]] = []
+        visited: set[str] = set()
+        queue: list[tuple[str, int]] = [(start_node_id, 0)]
 
         while queue:
-            node_id = queue.pop(0)
+            node_id, distance = queue.pop(0)
             if node_id in visited:
                 continue
             visited.add(node_id)
@@ -1008,7 +1014,7 @@ class WorkflowAnalyzer:
             class_type = node.get("class_type", "")
             if "KSampler" in class_type or "SamplerCustom" in class_type:
                 # Found a sampler in the chain
-                connected_samplers.append((node_id, node))
+                connected_samplers.append((node_id, node, distance))
 
             # Trace inputs upstream
             inputs = node.get("inputs", {})
@@ -1016,56 +1022,95 @@ class WorkflowAnalyzer:
                 if isinstance(value, list) and len(value) >= 1:
                     source_id = str(value[0])
                     if source_id not in visited:
-                        queue.append(source_id)
+                        queue.append((source_id, distance + 1))
 
         return connected_samplers
 
     @staticmethod
     def resolve_extra_metadata(workflow: dict, extra_metadata_ref: Any) -> dict[str, str]:
         """Resolve extra metadata from CreateExtraMetaData nodes."""
-        extra_data = {}
-
         if not (isinstance(extra_metadata_ref, list) and extra_metadata_ref):
-            return extra_data
+            return {}
 
-        # Trace back to find CreateExtraMetaData nodes
-        stack = [str(extra_metadata_ref[0])]
-        visited = set()
+        def _normalize_key(raw_key: Any) -> str:
+            if raw_key in (None, ""):
+                return ""
+            value = raw_key
+            if isinstance(value, list) and value:
+                resolved = WorkflowAnalyzer.resolve_text_input(workflow, value)
+                if resolved is not None:
+                    value = resolved
+                else:
+                    value = value[0]
+            try:
+                return str(value)
+            except Exception:
+                return ""
 
-        while stack:
-            node_id = stack.pop()
-            if node_id in visited:
-                continue
+        def _normalize_value(raw_value: Any) -> str | None:
+            if raw_value in (None, ""):
+                return None
+            value = raw_value
+            if isinstance(value, list) and value:
+                resolved = WorkflowAnalyzer.resolve_text_input(workflow, value)
+                if resolved is not None:
+                    value = resolved
+                else:
+                    value = value[0]
+            try:
+                text = str(value)
+            except Exception:
+                text = None
+            if text in (None, ""):
+                return None
+            return text.replace(",", "/")
+
+        def _collect_pairs(inputs: dict[str, Any]) -> dict[str, str]:
+            collected: dict[str, str] = {}
+
+            def _maybe_add(raw_key: Any, raw_value: Any) -> None:
+                key = _normalize_key(raw_key)
+                if not key:
+                    return
+                value = _normalize_value(raw_value)
+                if value is None:
+                    return
+                collected[key] = value
+
+            # Legacy single key/value pairs some nodes may expose
+            _maybe_add(inputs.get("key"), inputs.get("value"))
+            _maybe_add(inputs.get("label"), inputs.get("text"))
+
+            # Primary CreateExtraMetaDataUniversal fields
+            for idx in range(1, 5):
+                _maybe_add(inputs.get(f"key{idx}"), inputs.get(f"value{idx}"))
+
+            return collected
+
+        def _resolve_chain(node_id: str, visited: set[str]) -> dict[str, str]:
+            if not node_id or node_id in visited:
+                return {}
             visited.add(node_id)
 
             node = workflow.get(node_id)
             if not node:
-                continue
+                return {}
 
-            class_type = node.get("class_type", "")
             inputs = node.get("inputs", {})
+            class_type = node.get("class_type", "")
 
-            if "ExtraMetaData" in class_type:
-                # Try to find key/value pairs
-                # Some nodes use "key" and "value" inputs
-                # Use `is not None` to preserve legitimate falsy metadata values like 0, False, or []
-                key = inputs.get("key")
-                value = inputs.get("value")
-                if key is not None and value is not None:
-                    extra_data[str(key)] = str(value)
-
-                # Some might use "label" and "text"
-                label = inputs.get("label")
-                text = inputs.get("text")
-                if label is not None and text is not None:
-                    extra_data[str(label)] = str(text)
-
-            # Check for "extra_metadata" input to follow the chain
+            merged: dict[str, str] = {}
             chained_ref = inputs.get("extra_metadata")
             if isinstance(chained_ref, list) and chained_ref:
-                stack.append(str(chained_ref[0]))
+                merged.update(_resolve_chain(str(chained_ref[0]), visited))
 
-        return extra_data
+            if "ExtraMetaData" in class_type:
+                merged.update(_collect_pairs(inputs))
+
+            return merged
+
+        root_id = str(extra_metadata_ref[0])
+        return _resolve_chain(root_id, set())
 
     @staticmethod
     def extract_expected_metadata_for_save_node(workflow: dict, save_node_id: str, save_node: dict) -> dict[str, Any]:
@@ -1120,50 +1165,47 @@ class WorkflowAnalyzer:
         sampler_id = None
         sampler_node = None
 
-        # Check if we should use sampler selection method
+        def _normalize_selection_node_id(raw_value: Any) -> str | None:
+            if raw_value in (None, "", 0, -1):
+                return None
+            if isinstance(raw_value, list | tuple):
+                if not raw_value:
+                    return None
+                return str(raw_value[0])
+            try:
+                return str(raw_value)
+            except Exception:
+                return None
+
         selection_method = expected.get("sampler_selection_method", "Farthest")
-        selection_node_id = expected.get("sampler_selection_node_id")
+        selection_node_id = _normalize_selection_node_id(expected.get("sampler_selection_node_id"))
 
         if not connected_samplers:
             # No samplers found in chain
             pass
         elif len(connected_samplers) == 1:
             # Only one sampler, use it
-            sampler_id, sampler_node = connected_samplers[0]
+            sampler_id, sampler_node, _ = connected_samplers[0]
         else:
             # Multiple samplers in chain, use selection method
             if selection_method == "By node ID" and selection_node_id:
                 # Find specific node in the connected chain
-                for nid, node in connected_samplers:
-                    if nid == str(selection_node_id):
+                target_id = str(selection_node_id)
+                for nid, node, distance in connected_samplers:
+                    if nid == target_id:
                         sampler_id = nid
                         sampler_node = node
                         break
-            elif selection_method == "Farthest":
-                # Find sampler with highest steps
-                # Extract steps from each sampler
-                sampler_steps = []
-                for nid, node in connected_samplers:
-                    steps = node.get("inputs", {}).get("steps")
-                    if steps is not None:
-                        sampler_steps.append((nid, node, int(steps)))
-
-                if sampler_steps:
-                    sampler_id, sampler_node, _ = max(sampler_steps, key=lambda x: x[2])
-            elif selection_method == "Nearest":
-                # Find sampler with lowest steps
-                sampler_steps = []
-                for nid, node in connected_samplers:
-                    steps = node.get("inputs", {}).get("steps")
-                    if steps is not None:
-                        sampler_steps.append((nid, node, int(steps)))
-
-                if sampler_steps:
-                    sampler_id, sampler_node, _ = min(sampler_steps, key=lambda x: x[2])
+            if not sampler_node:
+                reverse = selection_method == "Farthest"
+                if selection_method not in {"Farthest", "Nearest"}:
+                    reverse = False
+                sorted_candidates = sorted(connected_samplers, key=lambda entry: entry[2], reverse=reverse)
+                sampler_id, sampler_node, _ = sorted_candidates[0]
 
             # Fallback if selection failed but we have samplers
             if not sampler_node and connected_samplers:
-                sampler_id, sampler_node = connected_samplers[0]
+                sampler_id, sampler_node, _ = connected_samplers[0]
 
         if not sampler_node:
             return expected
@@ -1349,6 +1391,14 @@ class MetadataValidator:
         self.comfyui_models_path = comfyui_models_path
         self.results = []
         self.verbose = verbose
+
+    @staticmethod
+    def _is_baked_vae(fields: dict[str, Any]) -> bool:
+        """Return True when metadata represents an inline/baked VAE."""
+        vae_value = fields.get("VAE")
+        if isinstance(vae_value, str):
+            return vae_value.strip().lower() == "baked vae"
+        return False
 
     def _extract_json_value(self, text: str) -> str:
         """Extract JSON object or array from the beginning of text."""
@@ -1651,6 +1701,100 @@ class MetadataValidator:
             else:
                 mark_pass(field_name, expected_str, actual_str)
 
+        def _normalize_sampler_token(value: Any) -> str | None:
+            if value is None:
+                return None
+            if isinstance(value, list | tuple):
+                return None
+            try:
+                token = str(value).strip()
+            except Exception:
+                return None
+            if not token or token.lower() == "none":
+                return None
+            return token
+
+        def _normalize_scheduler_value(value: Any) -> str | None:
+            token = _normalize_sampler_token(value)
+            if token:
+                return token.lower()
+            return None
+
+        def _clean_sampler_identifier(value: str | None) -> str | None:
+            if not value:
+                return None
+            value = value.strip()
+            if value.startswith("<") and " object at 0x" in value:
+                return None
+            return value
+
+        def _compose_non_civitai_sampler(sampler_name: str | None, scheduler_token: str | None) -> str | None:
+            if sampler_name and scheduler_token:
+                return f"{sampler_name}_{scheduler_token}"
+            if sampler_name:
+                return sampler_name
+            if scheduler_token:
+                return scheduler_token
+            return None
+
+        def _sampler_with_karras(base: str, scheduler_token: str | None) -> str:
+            if scheduler_token == "karras":
+                return f"{base} Karras"
+            return base
+
+        def _sampler_with_karras_or_exponential(base: str, scheduler_token: str | None) -> str:
+            if scheduler_token == "karras":
+                return f"{base} Karras"
+            if scheduler_token == "exponential":
+                return f"{base} Exponential"
+            return base
+
+        def _compose_civitai_sampler(sampler_name: str | None, scheduler_token: str | None) -> str | None:
+            sampler_clean = _clean_sampler_identifier(sampler_name)
+            if not sampler_clean:
+                return scheduler_token
+
+            sampler_l = sampler_clean.lower()
+            match sampler_l:
+                case "euler" | "euler_cfg_pp":
+                    return "Euler"
+                case "euler_ancestral" | "euler_ancestral_cfg_pp":
+                    return "Euler a"
+                case "heun" | "heunpp2":
+                    return "Heun"
+                case "dpm_2":
+                    return _sampler_with_karras("DPM2", scheduler_token)
+                case "dpm_2_ancestral":
+                    return _sampler_with_karras("DPM2 a", scheduler_token)
+                case "lms":
+                    return _sampler_with_karras("LMS", scheduler_token)
+                case "dpm_fast":
+                    return "DPM fast"
+                case "dpm_adaptive":
+                    return "DPM adaptive"
+                case "dpmpp_2s_ancestral":
+                    return _sampler_with_karras("DPM++ 2S a", scheduler_token)
+                case "dpmpp_sde" | "dpmpp_sde_gpu":
+                    return _sampler_with_karras("DPM++ SDE", scheduler_token)
+                case "dpmpp_2m":
+                    return _sampler_with_karras("DPM++ 2M", scheduler_token)
+                case "dpmpp_2m_sde" | "dpmpp_2m_sde_gpu":
+                    return _sampler_with_karras("DPM++ 2M SDE", scheduler_token)
+                case "dpmpp_3m_sde" | "dpmpp_3m_sde_gpu":
+                    return _sampler_with_karras_or_exponential("DPM++ 3M SDE", scheduler_token)
+                case "lcm":
+                    return "LCM"
+                case "ddim":
+                    return "DDIM"
+                case "plms":
+                    return "PLMS"
+                case "uni_pc" | "uni_pc_bh2":
+                    return "UniPC"
+
+            if not scheduler_token or scheduler_token == "normal":
+                return sampler_clean
+            return f"{sampler_clean}_{scheduler_token}"
+
         # Validate seed
         # ComfyUI's random seed generation produces seeds of varying lengths (typically 13-18 digits, depending on the node used)
         # depending on the seed source and workflow configuration. This range accommodates:
@@ -1688,55 +1832,30 @@ class MetadataValidator:
                 cfg_expected = expected_metadata["guidance"]
             compare_numeric_field("CFG scale", cfg_expected)
 
-        # Validate Sampler & Scheduler with Civitai strict matching
-        # When civitai_sampler is enabled, the sampler name in metadata uses Civitai's naming convention
-        # which combines sampler and scheduler into a single standardized string (e.g., "Euler a" instead
-        # of "euler" + "ancestral"). In this mode:
-        # - Sampler validation uses strict case-insensitive equality matching
-        # - Scheduler validation is relaxed since it's often embedded in the sampler name
-        # When civitai_sampler is disabled, loose substring matching is used to accommodate
-        # variations in sampler naming across different node implementations.
+        # Validate Sampler by mirroring capture.py behavior.
         civitai_sampler_enabled = expected_metadata.get("civitai_sampler", False)
+        sampler_token = _clean_sampler_identifier(_normalize_sampler_token(expected_metadata.get("sampler_name")))
+        scheduler_token = _normalize_scheduler_value(expected_metadata.get("scheduler"))
+        expected_sampler_value = (
+            _compose_civitai_sampler(sampler_token, scheduler_token)
+            if civitai_sampler_enabled
+            else _compose_non_civitai_sampler(sampler_token, scheduler_token)
+        )
 
-        if expected_metadata.get("sampler"):
-            expected_sampler = expected_metadata["sampler"]
-            if "Sampler" in fields:
-                actual_sampler = fields["Sampler"]
-
-                if civitai_sampler_enabled:
-                    # Strict matching for Civitai
-                    if actual_sampler.lower() != expected_sampler.lower():
-                        mark_fail(
-                            "Sampler",
-                            expected_sampler,
-                            actual_sampler,
-                            f"Sampler mismatch (Civitai strict): expected '{expected_sampler}', got '{actual_sampler}'",
-                        )
-                    else:
-                        mark_pass("Sampler", expected_sampler, actual_sampler)
-                else:
-                    # Loose matching (substring)
-                    if expected_sampler.lower() in actual_sampler.lower():
-                        mark_pass("Sampler", expected_sampler, actual_sampler)
-                    else:
-                        mark_fail(
-                            "Sampler",
-                            expected_sampler,
-                            actual_sampler,
-                            f"Sampler mismatch: expected '{expected_sampler}' in '{actual_sampler}'",
-                        )
+        actual_sampler = normalize_text(fields.get("Sampler"))
+        if expected_sampler_value:
+            if not actual_sampler:
+                mark_fail("Sampler", expected_sampler_value, "N/A", "Sampler field missing")
+            elif actual_sampler.lower() != expected_sampler_value.lower():
+                mismatch_msg = (
+                    f"Sampler mismatch (Civitai strict): expected '{expected_sampler_value}', got '{actual_sampler}'"
+                    if civitai_sampler_enabled
+                    else f"Sampler mismatch: expected '{expected_sampler_value}', got '{actual_sampler}'"
+                )
+                mark_fail("Sampler", expected_sampler_value, actual_sampler, mismatch_msg)
             else:
-                mark_fail("Sampler", expected_sampler, "N/A", "Sampler field missing")
+                mark_pass("Sampler", expected_sampler_value, actual_sampler)
 
-        if expected_metadata.get("scheduler"):
-            expected_scheduler = expected_metadata["scheduler"]
-            if "Scheduler" in fields:
-                compare_string_field("Scheduler", expected_scheduler)
-            elif civitai_sampler_enabled:
-                # Civitai sampler often merges scheduler into sampler name, so missing scheduler is acceptable
-                pass
-            else:
-                mark_fail("Scheduler", expected_scheduler, "N/A", "Scheduler field missing")
 
         # Validate denoise and guidance
         if expected_metadata.get("denoise") is not None:
@@ -2095,9 +2214,12 @@ class MetadataValidator:
                 result["warnings"].append(f"Metadata fallback occurred: {fallback_stage}")
                 result["fallback_stage"] = fallback_stage
 
-        # Check for N/A values in any field (should never happen)
+        # Check for N/A values in any field (should never happen outside special cases)
+        baked_vae = MetadataValidator._is_baked_vae(fields)
         for field_name, field_value in fields.items():
-            if field_value.strip() == "N/A":
+            if isinstance(field_value, str) and field_value.strip() == "N/A":
+                if field_name == "VAE hash" and baked_vae:
+                    continue
                 result["errors"].append(f"Field '{field_name}' contains 'N/A' value: {field_value}")
 
         # Validate Hashes summary if present
@@ -2237,13 +2359,17 @@ class MetadataValidator:
                     result["errors"].append(f"Model hash mismatch: metadata has '{metadata_hash}' but Hashes summary has '{hashes_hash}'")
 
         if "VAE hash" in fields:
+            vae_is_baked = MetadataValidator._is_baked_vae(fields)
             if fields["VAE hash"] == "N/A":
-                result["errors"].append("VAE hash is 'N/A' - hash should always be computed")
-            elif "vae" in hashes_dict:
+                if not vae_is_baked:
+                    result["errors"].append("VAE hash is 'N/A' - hash should always be computed")
+            elif "vae" in hashes_dict and not vae_is_baked:
                 metadata_hash = fields["VAE hash"]
                 hashes_hash = hashes_dict["vae"]
                 if metadata_hash != hashes_hash:
-                    result["errors"].append(f"VAE hash mismatch: metadata has '{metadata_hash}' but Hashes summary has '{hashes_hash}'")
+                    result["errors"].append(
+                        f"VAE hash mismatch: metadata has '{metadata_hash}' but Hashes summary has '{hashes_hash}'"
+                    )
 
     def _validate_hash_against_sidecar(
         self, artifact_name: str, metadata_hash: str, artifact_type: str, comfyui_models_path: Path | None, result: dict
@@ -2371,7 +2497,8 @@ class MetadataValidator:
 
         # Validate VAE hash
         if "VAE" in fields and "VAE hash" in fields:
-            self._validate_hash_against_sidecar(fields["VAE"], fields["VAE hash"], "vae", comfyui_models_path, result)
+            if fields["VAE hash"] != "N/A" and not MetadataValidator._is_baked_vae(fields):
+                self._validate_hash_against_sidecar(fields["VAE"], fields["VAE hash"], "vae", comfyui_models_path, result)
 
         # Validate LoRA hashes
         lora_indices = set()

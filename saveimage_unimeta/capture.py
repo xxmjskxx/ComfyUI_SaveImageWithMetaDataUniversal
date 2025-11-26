@@ -2057,26 +2057,6 @@ class Capture:
             ordered_fields = [item for item in ordered_fields if item[0] != "Metadata generator version"]
             ordered_fields.append(("Metadata generator version", metadata_version))
 
-        def _format_sampler(raw: str) -> str:
-            """Return display value for sampler.
-
-            Rules:
-              * Preserve original raw token casing for most samplers (keeps e.g. 'linear/euler_simple').
-              * Map exactly 'euler_karras' (case-insensitive) to 'Euler Karras' for readability & test expectation.
-              * If raw contains a trailing '_karras' but not exactly euler_karras,
-              * replace only the underscore before 'karras' with a space and
-              * capitalize 'Karras'.
-            """
-            rlow = raw.lower()
-            if rlow == "euler_karras":
-                return "Euler Karras"
-            if rlow.endswith("_karras"):
-                # Split once at last underscore to retain rest verbatim
-                head, _sep, tail = raw.rpartition("_")
-                if tail.lower() == "karras":
-                    return f"{head} Karras"
-            return raw
-
         TEST_MODE = bool(os.environ.get("METADATA_TEST_MODE"))  # noqa: N806 - narrow scope, keep style
         multiline = TEST_MODE  # Only multiline in test mode to satisfy snapshot tests
 
@@ -2086,8 +2066,6 @@ class Capture:
                 s = str(v).strip().replace("\n", " ")
             except Exception:
                 s = str(v)
-            if k == "Sampler" and isinstance(s, str) and s:
-                s = _format_sampler(s)
             parts.append(f"{k}: {s}")
 
         # Multi-sampler tail augmentation: only if >1 sampler candidate
@@ -2816,6 +2794,18 @@ class Capture:
     @classmethod
     def get_sampler_for_civitai(cls, sampler_names, schedulers):
         """Return a Civitai-compatible sampler string from captured nodes.
+
+        Get the pretty sampler name for Civitai in the form of `<Sampler Name> <Scheduler name>`.
+            - `dpmpp_2m` and `karras` will return `DPM++ 2M Karras`
+
+        If there is a matching sampler name but no matching scheduler name, return only the matching sampler name.
+            - `dpmpp_2m` and `exponential` will return only `DPM++ 2M`
+
+        if there is no matching sampler and scheduler name, return `<sampler_name>_<scheduler_name>`
+            - `ipndm` and `normal` will return `ipndm`
+            - `ipndm` and `karras` will return `ipndm_karras`
+
+        Reference: https://github.com/civitai/civitai/blob/main/src/server/common/constants.ts
 
         Args:
             sampler_names (list): Candidate sampler tuples or strings.
