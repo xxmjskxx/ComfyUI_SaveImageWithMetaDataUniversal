@@ -143,9 +143,25 @@ class SaveGeneratedUserRules:
         """Extract (key, value_text) tuples from the body of a Python dict literal.
 
         The ``body`` argument should be the content between the braces of a Python
-        dictionary literal (excluding the braces). For example, given ``{"foo": 123}``,
-        the body would be ``"foo": 123`` and the result would be ``[("foo", "123")]``.
-
+        dictionary literal (excluding the braces). For example, given:
+            {
+                "foo": 123,
+                "bar": [1, 2, 3],
+                "baz": {"nested": "dict"}
+            }
+            }
+        The ``body`` string (content between braces, not including them) would be:
+        .. code-block:: text
+            "foo": 123,
+            "bar": [1, 2, 3],
+            "baz": {"nested": "dict"}
+        The function will return:
+        .. code-block:: python
+            [
+                ("foo", "123"),
+                ("bar", "[1, 2, 3]"),
+                ("baz", '{"nested": "dict"}')
+            ]
         Nested structures are preserved as strings: ``[1, 2]`` or ``{"nested": "dict"}``.
 
         Args:
