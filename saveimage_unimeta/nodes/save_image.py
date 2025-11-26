@@ -474,9 +474,10 @@ class SaveImageWithMetaDataUniversal:
         for k, v in extra_metadata.items():
             # Convert key to string first so that falsy non-string keys like 0 become valid strings.
             key = str(k) if k is not None else ""
-            if not key or not v:
+            # Only skip if key is empty, or value is None or empty string (preserve 0, False, [])
+            if not key or v is None or v == "":
                 continue
-            pnginfo_dict_src[key] = v.replace(",", "/")
+            pnginfo_dict_src[key] = str(v).replace(",", "/")
             extra_metadata_keys.append(key)
         if extra_metadata_keys:
             pnginfo_dict_src["__extra_metadata_keys"] = extra_metadata_keys
