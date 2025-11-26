@@ -2012,13 +2012,7 @@ class MetadataValidator:
             return f"{sampler_clean}_{scheduler_token}"
 
         # Validate seed
-        # ComfyUI's random seed generation produces seeds of varying lengths (typically 13-18 digits, depending on the node used)
-        # depending on the seed source and workflow configuration. This range accommodates:
-        # - Standard 15-digit seeds from most samplers
-        # - Shorter seeds from some legacy/custom nodes (often due to differences in random number
-        #   generator implementations or language/runtime, e.g., JavaScript vs. Python)
-        # - Longer seeds from certain seed randomization implementations (e.g., custom RNG logic
-        #   or platform-specific behaviors)
+        # ComfyUI generates seeds with varying lengths (13-18 digits) depending on the node implementation and platform-specific RNG behavior.
         if expected_metadata.get("seed") is not None:
             expected_seed = str(expected_metadata["seed"])
             actual_seed = fields.get("Seed", "")
