@@ -142,10 +142,12 @@ class SaveGeneratedUserRules:
     def _parse_top_level_entries(self, body: str) -> list[tuple[str, str]]:
         """Extract (key, value_text) tuples from the body of a Python dict literal.
 
-        The `body` argument should be a string containing the content between the braces
+        The ``body`` argument should be a string containing the content between the braces
         of a Python dictionary literal, not including the braces themselves.
 
-        For example, given the following dictionary literal::
+        For example, given the following dictionary literal:
+
+        .. code-block:: python
 
             {
                 "foo": 123,
@@ -153,11 +155,17 @@ class SaveGeneratedUserRules:
                 "baz": {"nested": "dict"}
             }
 
-        The `body` string would be::
+        The ``body`` string would contain real newlines (shown here with ``\\n`` for readability):
 
-            '"foo": 123,\\n"bar": [1, 2, 3],\\n"baz": {"nested": "dict"}'
+        .. code-block:: text
 
-        The function will return::
+            "foo": 123,
+            "bar": [1, 2, 3],
+            "baz": {"nested": "dict"}
+
+        The function will return:
+
+        .. code-block:: python
 
             [
                 ("foo", "123"),
