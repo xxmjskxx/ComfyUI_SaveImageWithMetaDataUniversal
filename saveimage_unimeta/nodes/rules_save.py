@@ -149,7 +149,6 @@ class SaveGeneratedUserRules:
                 "bar": [1, 2, 3],
                 "baz": {"nested": "dict"}
             }
-            }
         The ``body`` string (content between braces, not including them) would be:
         .. code-block:: text
             "foo": 123,
