@@ -215,6 +215,8 @@ class TestSamplerValidation:
     def _run_validation(self, fields: dict[str, str], expected: dict[str, Any]) -> dict:
         validator = MetadataValidator(Path("."), Path("."))
         result = {"errors": [], "warnings": [], "check_details": []}
+        fields = {**fields}
+        fields.setdefault("Metadata generator version", "test")
         validator._validate_expected_fields(fields, expected, result)
         return result
 
