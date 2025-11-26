@@ -439,8 +439,8 @@ class WorkflowAnalyzer:
             return None
 
         node_id = str(value[0])
-        # Track visited nodes to prevent cycles
         if visited is None:
+            # Track visited nodes to prevent cycles
             visited = set()
         if node_id in visited:
             return None
@@ -1211,6 +1211,7 @@ class WorkflowAnalyzer:
                 if neg_val == expected.get("positive_prompt"):
                     logger.warning("negative prompt is identical to positive prompt for sampler node %s", sampler_id)
                     expected["negative_prompt_skipped_duplicate"] = True
+                    expected["negative_prompt"] = None
                 else:
                     expected["negative_prompt"] = neg_val
 
@@ -1797,7 +1798,6 @@ class MetadataValidator:
             else:
                 mark_pass("Size", expected_size, actual_size_str)
 
-        # Validate LoRA stack (continues in next message due to length)
         expected_loras = expected_metadata.get("lora_stack")
         if expected_loras:
             lora_indices: set[int] = set()
@@ -1837,8 +1837,9 @@ class MetadataValidator:
                             f"LoRA {idx} name mismatch: expected '{expected_basename}', got '{actual_basename}'",
                         )
 
-                    # Validate model strength only if expected
-                    if expected_lora.get("model_strength") is not None:
+                    # Validate model strength only if key is present with a non-None value;
+                    # the 'in' check differentiates missing keys from explicit None, while allowing 0 as valid
+                    if "model_strength" in expected_lora and expected_lora["model_strength"] is not None:
                         if model_str_key in fields:
                             compare_numeric_field(model_str_key, expected_lora["model_strength"])
                         else:
@@ -2459,8 +2460,6 @@ class MetadataValidator:
         for pattern in filename_patterns:
             pattern_lower = pattern.lower()
             # Match pattern as a whole word or separated by delimiters (_,-,.)
-            # Regex: (^|[_\-.])pattern($|[_\-.])
-            # STRICTER MATCHING: Require the pattern to be a distinct segment
             regex = r"(^|[_\-.])" + re.escape(pattern_lower) + r"($|[_\-.])"
             if re.search(regex, image_name):
                 return True
