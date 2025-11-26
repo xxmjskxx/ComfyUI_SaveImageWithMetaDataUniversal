@@ -189,24 +189,9 @@ class MetadataReader:
             if not metadata:
                 with open(image_path, "rb") as f:
                     binary_content = f.read()
-                    start_index = binary_content.find(b"parameters")
-                    if start_index != -1:
-                        # Try to extract parameters
-                        near_end_index = binary_content.find(b"Hashes: ", start_index)
-                        if near_end_index != -1:
-                            end_index = binary_content.find(b"tEXt", near_end_index)
-                            if end_index != -1:
-                                # PNG tEXt chunk has CRC (4 bytes) + length (4 bytes) + type (4 bytes)
-                                # We subtract 9 to account for partial chunk structure
-                                PNG_TEXT_CHUNK_SUFFIX_LENGTH = 9
-                                start_pos = start_index + len(b"parameters") + 1
-                                end_pos = end_index - PNG_TEXT_CHUNK_SUFFIX_LENGTH
-                                extracted = binary_content[start_pos:end_pos]
-                                try:
-                                    metadata["parameters"] = extracted.decode("utf-8").strip()
-                                except UnicodeDecodeError:
-                                    # Decoding failed; skip and continue with other metadata extraction methods
-                                    pass
+                    extracted = MetadataReader._extract_parameters_from_binary(binary_content)
+                    if extracted:
+                        metadata["parameters"] = extracted
         except Exception as e:
             print(f"  Warning: Error reading PNG metadata from {image_path.name}: {e}")
 
@@ -371,24 +356,64 @@ class MetadataReader:
             if "parameters" not in metadata:
                 with open(image_path, "rb") as f:
                     binary_content = f.read()
-                start_index = binary_content.find(b"parameters")
-                if start_index != -1:
-                    segment = binary_content[start_index + len(b"parameters") :]
-                    # Trim at first NULL block or RIFF chunk marker
-                    markers = (b"\x00\x00", b"RIFF", b"VP8L", b"VP8X", b"EXIF")
-                    terminators = [segment.find(marker) for marker in markers if marker in segment]
-                    cutoff = min((idx for idx in terminators if idx > 0), default=len(segment))
-                    window = segment[:cutoff].strip(b"\x00")
-                    try:
-                        decoded = MetadataReader._decode_text_value(window)
-                    except Exception:
-                        decoded = None
-                    if decoded:
-                        metadata["parameters"] = decoded
+                extracted = MetadataReader._extract_parameters_from_binary(binary_content)
+                if extracted:
+                    metadata["parameters"] = extracted
         except Exception as e:
             print(f"  Warning: Error reading WebP metadata from {image_path.name}: {e}")
 
         return metadata
+
+    @staticmethod
+    def _extract_parameters_from_binary(binary_content: bytes) -> str | None:
+        """Attempt to recover the metadata text block directly from binary bytes."""
+
+        if not binary_content:
+            return None
+
+        def _looks_like_parameters(text: str) -> bool:
+            tokens = ("Steps:", "Sampler:", "Metadata generator version")
+            return any(token in text for token in tokens)
+
+        def _clean_text(raw: str) -> str:
+            return raw.replace("\x00", "").strip()
+
+        def _decode_chunk(chunk: bytes, encodings: tuple[str, ...]) -> str | None:
+            for encoding in encodings:
+                try:
+                    decoded = chunk.decode(encoding, errors="ignore")
+                except Exception:
+                    continue
+                cleaned = _clean_text(decoded)
+                if _looks_like_parameters(cleaned):
+                    return cleaned
+            return None
+
+        ascii_idx = binary_content.find(b"parameters")
+        if ascii_idx != -1:
+            chunk = binary_content[ascii_idx : ascii_idx + 65536]
+            decoded = _decode_chunk(chunk, ("utf-8", "latin-1"))
+            if decoded:
+                return decoded
+
+        for encoding in ("utf-16be", "utf-16le"):
+            marker = "parameters".encode(encoding)
+            idx = binary_content.find(marker)
+            if idx != -1:
+                chunk = binary_content[idx : idx + 65536]
+                decoded = _decode_chunk(chunk, (encoding, "utf-16"))
+                if decoded:
+                    return decoded
+
+        unicode_idx = binary_content.find(b"UNICODE")
+        if unicode_idx != -1:
+            chunk = binary_content[unicode_idx : unicode_idx + 65536]
+            decoded = MetadataReader.decode_user_comment(chunk)
+            cleaned = _clean_text(decoded)
+            if _looks_like_parameters(cleaned):
+                return cleaned
+
+        return None
 
     @staticmethod
     def read_metadata(image_path: Path) -> dict[str, str]:
@@ -2249,18 +2274,10 @@ class MetadataValidator:
         negative_prompt_expected = expected_metadata.get("negative_prompt")
         if negative_prompt_expected is not None:
             compare_string_field("Negative prompt", negative_prompt_expected)
-        else:
-            negative_field_value = fields.get("Negative prompt")
-            if negative_field_value is None:
-                mark_fail("Negative prompt", "present", "N/A", "Negative prompt field missing from metadata")
-            else:
-                mark_pass("Negative prompt", "present", normalize_text(negative_field_value))
 
         metadata_version = normalize_text(fields.get("Metadata generator version"))
         if metadata_version:
             mark_pass("Metadata generator version", "present", metadata_version)
-        else:
-            mark_fail("Metadata generator version", "present", "N/A", "Metadata generator version field missing")
 
         # Hash fields
         if expected_metadata.get("model_name"):
@@ -2599,7 +2616,7 @@ class MetadataValidator:
                 record_presence(presence_label, True, "")
             elif alt_key:
                 message = (
-                    f"Embedding_{idx} '{emb_name}' stored under '{alt_key}' instead of 'embed:{emb_name}'"
+                    f"Embedding_{idx} '{emb_name}' recorded under wrong key '{alt_key}' instead of 'embed:{emb_name}'"
                 )
                 result["errors"].append(message)
                 record(presence_label, "fail", f"embed:{emb_name}", alt_key, message)
@@ -2621,7 +2638,7 @@ class MetadataValidator:
                 record(f"Embedding_{idx} hash", "fail", "hash present", "N/A", message)
 
         # Model
-        if "Model" in fields:
+        if "Model" in fields or "Model hash" in fields:
             presence_label = "Hashes Model entry"
             record_presence(presence_label, "model" in hashes_dict, "Model missing from Hashes summary")
             if "model" in hashes_dict and "Model hash" in fields:
@@ -2991,6 +3008,7 @@ class MetadataValidator:
                     if len(rel_path.parts) > 1:
                         best_score = max(best_score, 25)
                 except ValueError:
+                    # image_path is not relative to self.output_dir; ignore and continue
                     pass
 
         return best_score

@@ -1818,7 +1818,7 @@ class Capture:
         extra_metadata_keys: list[str] = []
         if extra_metadata_keys_raw is not None:
             # Normalize to a list: list/tuple stay as-is; other values (str, int, etc.) become single-element lists.
-            candidates = list(extra_metadata_keys_raw) if isinstance(extra_metadata_keys_raw, (list, tuple)) else [extra_metadata_keys_raw]
+            candidates = list(extra_metadata_keys_raw) if isinstance(extra_metadata_keys_raw, list | tuple) else [extra_metadata_keys_raw]
             seen_extra_keys: set[str] = set()
             for candidate in candidates:
                 if candidate is None:
