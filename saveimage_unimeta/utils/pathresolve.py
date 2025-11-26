@@ -296,9 +296,10 @@ def try_resolve_artifact(
             path = _probe_folder(kind, candidate)
             return candidate, path
 
-        # to find the actual resolvable path. Only instances of list, tuple, dict, or objects
-        # with certain attributes (see RESOLUTION_ATTR_KEYS) are treated as containers here.
-        # Most PathLike objects will not be treated as containers unless they also match these criteria.
+        # Container cases – recurse into containers to find the actual resolvable path.
+        # Only instances of list, tuple, dict, or objects with certain attributes
+        # (see RESOLUTION_ATTR_KEYS) are treated as containers. Most PathLike objects
+        # will not be treated as containers unless they also match these criteria.
         if isinstance(candidate, list | tuple | dict) or any(hasattr(candidate, attr) for attr in RESOLUTION_ATTR_KEYS):
             for nested_candidate in _iter_container_candidates(candidate):
                 nested_display, nested_path = _recurse(nested_candidate, depth + 1)
