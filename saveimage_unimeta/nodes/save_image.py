@@ -564,7 +564,8 @@ class SaveImageWithMetaDataUniversal:
                                 f"prompt:{json.dumps(prompt, separators=(',', ':'))}".encode()
                             )
                         if extra_pnginfo is not None:
-                            # Walk backwards from the Make tag so successive extra_pnginfo keys land in unused slots.
+                            # Allocate tags backwards from Make (271) to avoid conflicts:
+                            # first extra_pnginfo key uses 271, second uses 270, etc.
                             for tag_offset, (k, v) in enumerate(extra_pnginfo.items()):
                                 zeroth_ifd[piexif.ImageIFD.Make - tag_offset] = (
                                     f"{k}:{json.dumps(v, separators=(',', ':'))}".encode()

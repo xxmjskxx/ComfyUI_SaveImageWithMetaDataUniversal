@@ -273,6 +273,38 @@ class TestExtraMetadataOrdering:
         assert custom_pos != -1, "Extra metadata missing"
         assert clip_pos < hashes_pos < custom_pos, "Ordering should be CLIP -> Hashes -> extras"
 
+    def test_multiple_clip_fields_ordering(self):
+        """Ensure multiple CLIP fields maintain numeric ordering (CLIP_1 before CLIP_2)."""
+        from saveimage_unimeta.capture import Capture
+
+        pnginfo_dict = {
+            "Positive prompt": "flux",
+            "Negative prompt": "",
+            "Steps": 4,
+            "Sampler": "dpmpp_2m Karras",
+            "Model": "flux.safetensors",
+            "CLIP_2 Model name": "t5_xxl",
+            "CLIP_1 Model name": "umt5_xxl_fp8",
+            "Hashes": '{"model": "cafebabe"}',
+            "CustomField": "CustomValue",
+            "Metadata generator version": "1.2.3",
+            "__extra_metadata_keys": ["CustomField"],
+        }
+
+        param_str = Capture.gen_parameters_str(pnginfo_dict)
+
+        clip_1_pos = param_str.find("CLIP_1 Model name:")
+        clip_2_pos = param_str.find("CLIP_2 Model name:")
+        hashes_pos = param_str.find("Hashes:")
+        custom_pos = param_str.find("CustomField:")
+
+        assert clip_1_pos != -1, "CLIP_1 field missing"
+        assert clip_2_pos != -1, "CLIP_2 field missing"
+        assert hashes_pos != -1, "Hashes missing"
+        assert custom_pos != -1, "Extra metadata missing"
+        assert clip_1_pos < clip_2_pos, "CLIP_1 should come before CLIP_2"
+        assert clip_2_pos < hashes_pos < custom_pos, "Ordering should be CLIP fields -> Hashes -> extras"
+
 
 class TestExtraMetadataIntegration:
     """Integration tests combining multiple aspects."""

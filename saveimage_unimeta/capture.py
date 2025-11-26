@@ -1816,7 +1816,7 @@ class Capture:
         metadata_version = metadata_fields.pop("Metadata generator version", None)
         extra_metadata_keys_raw = metadata_fields.pop("__extra_metadata_keys", None)
         extra_metadata_keys: list[str] = []
-        if extra_metadata_keys_raw:
+        if extra_metadata_keys_raw is not None:
             # Normalize to a list: list/tuple stay as-is; other values (str, int, etc.) become single-element lists.
             candidates = list(extra_metadata_keys_raw) if isinstance(extra_metadata_keys_raw, (list, tuple)) else [extra_metadata_keys_raw]
             seen_extra_keys: set[str] = set()
@@ -1971,11 +1971,11 @@ class Capture:
         if "Hash detail" in remaining:
             remaining.remove("Hash detail")
 
-        # Multi-pass separation for extra metadata keys ensures the following field order:
+        # Multi-step separation for extra metadata keys ensures the following field order:
         # 1. Core/remaining fields (alphabetically sorted) → standard metadata stays grouped early
         # 2. "Hashes" entry → appears after core fields as a bridge
         # 3. User-provided extra metadata fields → grouped at the tail, also alphabetically sorted
-        # This three-pass approach preserves backward compatibility with existing metadata parsers
+        # This multi-step separation preserves backward compatibility with existing metadata parsers
         # while keeping user-provided extra metadata clearly separated at the end.
 
         # Pass 1: Separate extra_metadata keys from core remaining keys

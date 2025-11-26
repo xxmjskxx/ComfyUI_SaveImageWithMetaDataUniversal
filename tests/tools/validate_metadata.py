@@ -418,7 +418,7 @@ class WorkflowAnalyzer:
             if inputs.get("guidance") is not None:
                 return inputs.get("guidance")
 
-            for key in ("conditioning", "positive", "clip", "input", "guider", "model"):
+            for key in ("conditioning", "positive", "clip", "input", "guider"):
                 ref = inputs.get(key)
                 if isinstance(ref, list) and ref:
                     stack.append(str(ref[0]))
@@ -1237,6 +1237,7 @@ class WorkflowAnalyzer:
             if neg_val:
                 if neg_val == expected.get("positive_prompt"):
                     logger.warning("negative prompt is identical to positive prompt for sampler node %s", sampler_id)
+                    expected["negative_prompt_skipped_duplicate"] = True
                 else:
                     expected["negative_prompt"] = neg_val
 
@@ -1676,8 +1677,10 @@ class MetadataValidator:
         # ComfyUI's random seed generation produces seeds of varying lengths (typically 13-18 digits)
         # depending on the seed source and workflow configuration. This range accommodates:
         # - Standard 15-digit seeds from most samplers
-        # - Shorter seeds from some legacy/custom nodes
-        # - Longer seeds from certain seed randomization implementations
+        # - Shorter seeds from some legacy/custom nodes (often due to differences in random number
+        #   generator implementations or language/runtime, e.g., JavaScript vs. Python)
+        # - Longer seeds from certain seed randomization implementations (e.g., custom RNG logic
+        #   or platform-specific behaviors)
         if expected_metadata.get("seed") is not None:
             expected_seed = str(expected_metadata["seed"])
             actual_seed = fields.get("Seed", "")
@@ -1861,7 +1864,7 @@ class MetadataValidator:
                             f"LoRA {idx} name mismatch: expected '{expected_basename}', got '{actual_basename}'",
                         )
 
-                    # Validate strengths only if name is present
+                    # Validate model strength only if expected
                     if expected_lora.get("model_strength") is not None:
                         if model_str_key in fields:
                             compare_numeric_field(model_str_key, expected_lora["model_strength"])
