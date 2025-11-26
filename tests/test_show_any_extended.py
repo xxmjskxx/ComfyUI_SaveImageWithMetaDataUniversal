@@ -12,10 +12,6 @@ Tests cover:
 
 from __future__ import annotations
 
-import logging
-
-import pytest
-
 from saveimage_unimeta.nodes.show_any import (
     ShowAnyToString,
     _safe_to_str,
@@ -236,8 +232,9 @@ class TestShowAnyToStringExtended:
         """Should handle complex objects in list."""
 
         class DummyTensor:
-            shape = (1, 3, 512, 512)
-            dtype = "float32"
+            def __init__(self):
+                self.shape = (1, 3, 512, 512)
+                self.dtype = "float32"
 
         node = ShowAnyToString()
         result = node.notify(value=[DummyTensor(), {"key": "value"}])
@@ -298,7 +295,7 @@ class TestShowAnyToStringExtended:
         """Should handle single item list."""
         node = ShowAnyToString()
         workflow = {"nodes": [{"id": 42}]}
-        result = node.notify(
+        node.notify(
             value=["single"],
             unique_id=[42],
             extra_pnginfo=[{"workflow": workflow}],

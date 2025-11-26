@@ -3,38 +3,9 @@ import importlib
 import pytest
 
 from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.meta import MetaField
+from tests.test_helpers import install_prompt_environment
 
 MODULE_PATH = "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.capture"
-
-
-def _install_prompt_environment(monkeypatch: pytest.MonkeyPatch, capture_mod, prompt: dict[str, dict]) -> None:
-    """Install a deterministic hook/prompt environment for capture tests."""
-
-    class DummyPromptExecuter:
-        class Caches:
-            outputs = {}
-
-        caches = Caches()
-
-    class DummyHook:
-        current_prompt = prompt
-        current_extra_data = {}
-        prompt_executer = DummyPromptExecuter()
-
-    monkeypatch.setattr(capture_mod, "hook", DummyHook)
-
-    node_classes = {}
-    for node in prompt.values():
-        class_type = node["class_type"]
-        if class_type not in node_classes:
-            node_classes[class_type] = type(f"{class_type}Stub", (), {})
-    monkeypatch.setattr(capture_mod, "NODE_CLASS_MAPPINGS", node_classes)
-
-    def fake_get_input_data(node_inputs, obj_class, node_id, outputs, dyn_prompt, extra):
-        del obj_class, node_id, outputs, dyn_prompt, extra
-        return (node_inputs,)
-
-    monkeypatch.setattr(capture_mod, "get_input_data", fake_get_input_data)
 
 
 def test_get_inputs_supports_fields_and_prefix_rules(monkeypatch: pytest.MonkeyPatch):
@@ -52,7 +23,7 @@ def test_get_inputs_supports_fields_and_prefix_rules(monkeypatch: pytest.MonkeyP
             },
         }
     }
-    _install_prompt_environment(monkeypatch, capture_mod, prompt)
+    install_prompt_environment(monkeypatch, capture_mod, prompt)
 
     def multi_formatter(value, _input_data):
         return [value.upper(), f"tagged:{value}"]
@@ -100,7 +71,7 @@ def test_model_name_hash_formatters_are_skipped(monkeypatch: pytest.MonkeyPatch)
             "inputs": {"model_field": ["TinyModel"]},
         }
     }
-    _install_prompt_environment(monkeypatch, capture_mod, prompt)
+    install_prompt_environment(monkeypatch, capture_mod, prompt)
 
     call_count = 0
 
@@ -141,7 +112,7 @@ def test_model_hash_formatter_requires_path_like_values(monkeypatch: pytest.Monk
             "inputs": {"model_path": ["C:/models/fluxXl.safetensors"]},
         },
     }
-    _install_prompt_environment(monkeypatch, capture_mod, prompt)
+    install_prompt_environment(monkeypatch, capture_mod, prompt)
 
     called_values: list[str] = []
 
