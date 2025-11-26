@@ -60,6 +60,14 @@ def test_prompt_scan_writes_embedding_sidecar(monkeypatch, tmp_path):
     inputs = _build_inputs(positive=f"embedding:{file_path.stem}")
     cap.Capture._augment_embeddings_from_prompts(inputs)
 
+    # Verify the augmented inputs contain the expected embedding metadata
+    assert MetaField.EMBEDDING_NAME in inputs, "Augmented inputs should contain embedding names"
+    assert MetaField.EMBEDDING_HASH in inputs, "Augmented inputs should contain embedding hashes"
+    names = [cap.Capture._extract_value(entry) for entry in inputs[MetaField.EMBEDDING_NAME]]
+    hashes = [cap.Capture._extract_value(entry) for entry in inputs[MetaField.EMBEDDING_HASH]]
+    assert any(file_path.stem in name for name in names), f"Expected embedding name '{file_path.stem}' in {names}"
+    assert any(len(h) == 10 for h in hashes), f"Expected 10-char hash in {hashes}"
+
     sidecar = file_path.with_suffix(".sha256")
     assert sidecar.exists(), "Prompt-driven embedding capture must create sidecars"
     assert len(sidecar.read_text().strip()) == 64
