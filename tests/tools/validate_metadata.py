@@ -529,7 +529,7 @@ class WorkflowAnalyzer:
             "lora_wt",
         ]
 
-        def _find_strength(keys: list[str], default: float) -> float:
+        def _find_strength(keys: list[str], default: float, inputs: dict) -> float:
             """Find strength value, preferring specific keys over generic 'strength'/'lora_wt'."""
             # Check specific keys first (excluding generic ones)
             for key in keys:
@@ -542,8 +542,8 @@ class WorkflowAnalyzer:
                     return inputs[key]
             return default
 
-        model_strength = _find_strength(model_keys, model_default)
-        clip_strength = _find_strength(clip_keys, clip_default)
+        model_strength = _find_strength(model_keys, model_default, inputs)
+        clip_strength = _find_strength(clip_keys, clip_default, inputs)
 
         return model_strength, clip_strength
 
@@ -1839,7 +1839,7 @@ class MetadataValidator:
 
                     # Validate model strength only if key is present with a non-None value;
                     # the 'in' check differentiates missing keys from explicit None, while allowing 0 as valid
-                    if "model_strength" in expected_lora and expected_lora["model_strength"] is not None:
+                    if "model_strength" in expected_lora and expected_lora["model_strength"] is not None:  # Allows 0 as valid strength
                         if model_str_key in fields:
                             compare_numeric_field(model_str_key, expected_lora["model_strength"])
                         else:

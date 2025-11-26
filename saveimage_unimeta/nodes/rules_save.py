@@ -281,11 +281,11 @@ class SaveGeneratedUserRules:
                 merged_entries[key] = value
                 key_order.append(key)
 
-        def _indent_continuation_lines(val: str) -> str:
-            val = val.rstrip()
-            lines = val.splitlines()
+        def _indent_continuation_lines(value_text: str) -> str:
+            value_text = value_text.rstrip()
+            lines = value_text.splitlines()
             if not lines:
-                return val
+                return value_text
             return "\n".join([lines[0]] + ["    " + line for line in lines[1:]])
 
         rebuilt_body_lines = []

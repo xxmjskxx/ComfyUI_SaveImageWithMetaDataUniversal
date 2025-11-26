@@ -1896,6 +1896,15 @@ class Capture:
 
         import re
 
+        def _make_suffix_sorter(sub_order: list[str]):
+            """Return a sort key function that orders strings by suffix match against sub_order."""
+            def sort_key(name: str) -> int:
+                for sub_index, suffix in enumerate(sub_order):
+                    if name.endswith(suffix):
+                        return sub_index
+                return len(sub_order)
+            return sort_key
+
         # LoRA grouped fields
         lora_pattern = re.compile(r"^Lora_(\d+) ")
         lora_groups: dict[int, list[str]] = {}
@@ -1908,13 +1917,7 @@ class Capture:
             sub_order = ["Model name", "Model hash", "Strength model", "Strength clip"]
             keys = lora_groups[idx]
 
-            def sort_key(name: str) -> int:
-                for sub_index, suffix in enumerate(sub_order):
-                    if name.endswith(suffix):
-                        return sub_index
-                return len(sub_order)
-
-            for key in sorted(keys, key=sort_key):
+            for key in sorted(keys, key=_make_suffix_sorter(sub_order)):
                 if key not in ordered_labels:
                     ordered_fields.append((key, metadata_fields[key]))
                     ordered_labels.add(key)
@@ -1931,13 +1934,7 @@ class Capture:
             sub_order = ["name", "hash"]
             keys = emb_groups[idx]
 
-            def sort_key_embedding(name: str) -> int:
-                for sub_index, suffix in enumerate(sub_order):
-                    if name.endswith(suffix):
-                        return sub_index
-                return len(sub_order)
-
-            for key in sorted(keys, key=sort_key_embedding):
+            for key in sorted(keys, key=_make_suffix_sorter(sub_order)):
                 if key not in ordered_labels:
                     ordered_fields.append((key, metadata_fields[key]))
                     ordered_labels.add(key)
@@ -1954,13 +1951,7 @@ class Capture:
             sub_order = ["Model name", "Model hash"]
             keys = clip_groups[idx]
 
-            def sort_key_clip(name: str) -> int:
-                for sub_index, suffix in enumerate(sub_order):
-                    if name.endswith(suffix):
-                        return sub_index
-                return len(sub_order)
-
-            for key in sorted(keys, key=sort_key_clip):
+            for key in sorted(keys, key=_make_suffix_sorter(sub_order)):
                 if key not in ordered_labels:
                     ordered_fields.append((key, metadata_fields[key]))
                     ordered_labels.add(key)
