@@ -1817,12 +1817,8 @@ class Capture:
         extra_metadata_keys_raw = metadata_fields.pop("__extra_metadata_keys", None)
         extra_metadata_keys: list[str] = []
         if extra_metadata_keys_raw:
-            if isinstance(extra_metadata_keys_raw, str):
-                candidates = [extra_metadata_keys_raw]
-            elif isinstance(extra_metadata_keys_raw, (list, tuple)):
-                candidates = list(extra_metadata_keys_raw)
-            else:
-                candidates = [extra_metadata_keys_raw]
+            # Normalize to a list: list/tuple stay as-is; other values (str, int, etc.) become single-element lists.
+            candidates = list(extra_metadata_keys_raw) if isinstance(extra_metadata_keys_raw, (list, tuple)) else [extra_metadata_keys_raw]
             seen_extra_keys: set[str] = set()
             for candidate in candidates:
                 if candidate is None:

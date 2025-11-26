@@ -17,10 +17,13 @@ Requirements:
 import argparse
 import atexit
 import json
+import logging
 import re
 import sys
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 TOOLS_DIR = Path(__file__).resolve().parent
 TESTS_ROOT = TOOLS_DIR.parent
@@ -1233,7 +1236,7 @@ class WorkflowAnalyzer:
             # reuse the positive prompt reference. Logging this case helps debug unexpected behavior.
             if neg_val:
                 if neg_val == expected.get("positive_prompt"):
-                    print(f"Warning: negative prompt is identical to positive prompt for sampler node {sampler_id}")
+                    logger.warning("negative prompt is identical to positive prompt for sampler node %s", sampler_id)
                 else:
                     expected["negative_prompt"] = neg_val
 

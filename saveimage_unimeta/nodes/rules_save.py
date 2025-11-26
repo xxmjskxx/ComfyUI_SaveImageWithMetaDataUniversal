@@ -283,7 +283,7 @@ class SaveGeneratedUserRules:
                 merged_entries[key] = value
                 key_order.append(key)
 
-        def _indent_multiline_value(val: str) -> str:
+        def _indent_continuation_lines(val: str) -> str:
             val = val.rstrip()
             lines = val.splitlines()
             if not lines:
@@ -293,7 +293,7 @@ class SaveGeneratedUserRules:
         rebuilt_body_lines = []
         for key in key_order:
             value = merged_entries[key]
-            entry_text = f'    "{key}": {_indent_multiline_value(value)},'
+            entry_text = f'    "{key}": {_indent_continuation_lines(value)},'
             rebuilt_body_lines.append(entry_text)
         rebuilt_body = "\n" + "\n".join(rebuilt_body_lines) + "\n"
 
