@@ -17,9 +17,18 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for local execution p
 
 @pytest.fixture()
 def fresh_trace_module():
-    """Reload the trace module to clear any patches left by other suites."""
+    """Reload the trace module to clear any patches left by other suites.
 
-    return importlib.reload(trace_mod)
+    This fixture ensures that each test gets a clean module state by reloading
+    the trace module. It verifies the reload was successful by checking that
+    the module has the expected core attributes.
+    """
+    reloaded = importlib.reload(trace_mod)
+    # Verify that the module was properly reloaded with expected attributes
+    assert hasattr(reloaded, "Trace"), "Trace class must exist after reload"
+    assert hasattr(reloaded, "TraceEntry"), "TraceEntry must exist after reload"
+    assert hasattr(reloaded, "SAMPLER_SELECTION_METHOD"), "SAMPLER_SELECTION_METHOD must exist after reload"
+    return reloaded
 
 
 def test_trace_builds_distance_map_and_ignores_missing_edges(fresh_trace_module):

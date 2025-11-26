@@ -1,8 +1,6 @@
 """Tests for saveimage_unimeta/utils/lora.py LoRA parsing and indexing utilities."""
 
 import importlib
-import os
-import sys
 
 import pytest
 
@@ -12,7 +10,7 @@ import folder_paths
 @pytest.fixture
 def lora_mod():
     """Import the lora module."""
-    mod = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.utils.lora")
+    mod = importlib.import_module("saveimage_unimeta.utils.lora")
     # Reset module-level caches before each test
     mod._LORA_INDEX = None
     mod._LORA_INDEX_BUILT = False

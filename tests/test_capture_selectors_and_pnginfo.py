@@ -1,44 +1,13 @@
 """Tests for capture.py selector error handling and gen_pnginfo_dict edge cases."""
 
 import importlib
-import os
-from types import SimpleNamespace
 
 import pytest
 
 from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.meta import MetaField
+from tests.test_helpers import install_prompt_environment
 
 MODULE_PATH = "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.capture"
-
-
-def _install_prompt_environment(monkeypatch, capture_mod, prompt: dict[str, dict]) -> None:
-    """Install a deterministic hook/prompt environment for capture tests."""
-
-    class DummyPromptExecuter:
-        class Caches:
-            outputs = {}
-
-        caches = Caches()
-
-    class DummyHook:
-        current_prompt = prompt
-        current_extra_data = {}
-        prompt_executer = DummyPromptExecuter()
-
-    monkeypatch.setattr(capture_mod, "hook", DummyHook)
-
-    node_classes = {}
-    for node in prompt.values():
-        class_type = node["class_type"]
-        if class_type not in node_classes:
-            node_classes[class_type] = type(f"{class_type}Stub", (), {})
-    monkeypatch.setattr(capture_mod, "NODE_CLASS_MAPPINGS", node_classes)
-
-    def fake_get_input_data(node_inputs, obj_class, node_id, outputs, dyn_prompt, extra):
-        del obj_class, node_id, outputs, dyn_prompt, extra
-        return (node_inputs,)
-
-    monkeypatch.setattr(capture_mod, "get_input_data", fake_get_input_data)
 
 
 # --- Selector error handling ---
@@ -51,7 +20,7 @@ def test_selector_raises_key_error_gracefully(monkeypatch: pytest.MonkeyPatch):
     prompt = {
         "1": {"class_type": "SelectorNode", "inputs": {"field_a": ["hello"]}},
     }
-    _install_prompt_environment(monkeypatch, capture_mod, prompt)
+    install_prompt_environment(monkeypatch, capture_mod, prompt)
 
     def bad_selector(node_id, obj, prompt, extra_data, outputs, input_data):
         raise KeyError("missing_field")
@@ -78,7 +47,7 @@ def test_selector_raises_type_error_gracefully(monkeypatch: pytest.MonkeyPatch):
     prompt = {
         "2": {"class_type": "TypeSelectorNode", "inputs": {}},
     }
-    _install_prompt_environment(monkeypatch, capture_mod, prompt)
+    install_prompt_environment(monkeypatch, capture_mod, prompt)
 
     def bad_selector(*args, **kwargs):
         raise TypeError("bad call")
@@ -104,7 +73,7 @@ def test_selector_returns_list_of_values(monkeypatch: pytest.MonkeyPatch):
     prompt = {
         "3": {"class_type": "MultiSelector", "inputs": {}},
     }
-    _install_prompt_environment(monkeypatch, capture_mod, prompt)
+    install_prompt_environment(monkeypatch, capture_mod, prompt)
 
     def multi_selector(*args, **kwargs):
         return ["val_a", "val_b", "val_c"]
@@ -133,7 +102,7 @@ def test_validation_skips_node_when_false(monkeypatch: pytest.MonkeyPatch):
     prompt = {
         "4": {"class_type": "ValidatedNode", "inputs": {"data": ["captured"]}},
     }
-    _install_prompt_environment(monkeypatch, capture_mod, prompt)
+    install_prompt_environment(monkeypatch, capture_mod, prompt)
 
     def always_false(*args, **kwargs):
         return False
