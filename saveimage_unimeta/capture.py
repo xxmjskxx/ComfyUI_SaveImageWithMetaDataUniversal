@@ -1819,7 +1819,7 @@ class Capture:
         if extra_metadata_keys_raw:
             if isinstance(extra_metadata_keys_raw, str):
                 candidates = [extra_metadata_keys_raw]
-            elif isinstance(extra_metadata_keys_raw, Iterable):
+            elif isinstance(extra_metadata_keys_raw, (list, tuple)):
                 candidates = list(extra_metadata_keys_raw)
             else:
                 candidates = [extra_metadata_keys_raw]
@@ -1974,14 +1974,25 @@ class Capture:
         # Optionally suppress Hash detail from flat parameter string (too verbose for human reading)
         if "Hash detail" in remaining:
             remaining.remove("Hash detail")
-        # Ensure "Hashes" appears before any user-provided extra metadata keys
-        # by processing it first if present
+
+        # Multi-pass separation for extra metadata keys ensures the following field order:
+        # 1. Core/remaining fields (alphabetically sorted) → standard metadata stays grouped early
+        # 2. "Hashes" entry → appears after core fields as a bridge
+        # 3. User-provided extra metadata fields → grouped at the tail, also alphabetically sorted
+        # This three-pass approach preserves backward compatibility with existing metadata parsers
+        # while keeping user-provided extra metadata clearly separated at the end.
+
+        # Pass 1: Separate extra_metadata keys from core remaining keys
         extra_remaining = [key for key in remaining if key in extra_metadata_key_set]
         remaining = [key for key in remaining if key not in extra_metadata_key_set]
+
+        # Pass 2: Extract "Hashes" from both lists so it can be inserted in the bridge position
         if "Hashes" in remaining:
             remaining.remove("Hashes")
         if "Hashes" in extra_remaining:
             extra_remaining.remove("Hashes")
+
+        # Pass 3: Emit fields in order: remaining → Hashes → extra_remaining
         for key in sorted(remaining):
             ordered_fields.append((key, metadata_fields[key]))
             ordered_labels.add(key)

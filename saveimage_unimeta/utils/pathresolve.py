@@ -296,7 +296,10 @@ def try_resolve_artifact(
             path = _probe_folder(kind, candidate)
             return candidate, path
 
-        # Container cases
+        # Container cases – checked before PathLike because containers should be recursed into
+        # to find the actual resolvable path. PathLike objects that implement container protocols
+        # (unusual but possible) would be treated as containers first, which is the intended
+        # behavior since we want to extract their string contents for resolution.
         if isinstance(candidate, list | tuple | dict) or any(hasattr(candidate, attr) for attr in RESOLUTION_ATTR_KEYS):
             for nested_candidate in _iter_container_candidates(candidate):
                 nested_display, nested_path = _recurse(nested_candidate, depth + 1)
@@ -304,7 +307,8 @@ def try_resolve_artifact(
                     return nested_display, nested_path
             return display_value, None
 
-        # Path-like object (e.g., pathlib.Path) – strings already handled above
+        # Path-like object (e.g., pathlib.Path) – strings already handled above.
+        # This branch handles objects implementing __fspath__ that are not containers.
         if isinstance(candidate, os.PathLike):
             try:
                 fspath = os.fspath(candidate)
