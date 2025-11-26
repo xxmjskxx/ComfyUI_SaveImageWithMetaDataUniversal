@@ -468,22 +468,15 @@ class WorkflowAnalyzer:
             if isinstance(direct_value, str):
                 return direct_value
 
-        # Handle CLIPTextEncodeFlux specifically
+        # Handle CLIPTextEncodeFlux list values specifically
+        # The direct key loop above handles string values for t5xxl/clip_l.
+        # This block handles list values (e.g., ["prompt text", ...]) that the direct loop skips.
         if class_type == "CLIPTextEncodeFlux":
-            # Map t5xxl to positive prompt (or generic text)
-            if "t5xxl" in node_inputs:
-                val = node_inputs["t5xxl"]
-                if isinstance(val, str) and val.strip():
-                    return val
-                elif isinstance(val, list) and val and isinstance(val[0], str):
-                    return val[0]
-            # Fallback to clip_l if t5xxl is missing
-            if "clip_l" in node_inputs:
-                val = node_inputs["clip_l"]
-                if isinstance(val, str) and val.strip():
-                    return val
-                elif isinstance(val, list) and val and isinstance(val[0], str):
-                    return val[0]
+            for flux_key in ("t5xxl", "clip_l"):
+                if flux_key in node_inputs:
+                    val = node_inputs[flux_key]
+                    if isinstance(val, list) and val and isinstance(val[0], str):
+                        return val[0]
 
         # Handle ConditioningCombine specifically to join multiple prompts
         if class_type == "ConditioningCombine":
@@ -536,41 +529,21 @@ class WorkflowAnalyzer:
             "lora_wt",
         ]
 
-        model_strength = model_default
-        # Check specific model keys first
-        found_model = False
-        for key in model_keys:
-            if key in inputs and inputs[key] not in (None, ""):
-                # If we found a specific key (not generic "strength" or "lora_wt"), use it
-                if key not in ("strength", "lora_wt"):
-                    model_strength = inputs[key]
-                    found_model = True
-                    break
-
-        # If no specific key found, fall back to generic keys
-        if not found_model:
+        def _find_strength(keys: list[str], default: float) -> float:
+            """Find strength value, preferring specific keys over generic 'strength'/'lora_wt'."""
+            # Check specific keys first (excluding generic ones)
+            for key in keys:
+                if key in inputs and inputs[key] not in (None, ""):
+                    if key not in ("strength", "lora_wt"):
+                        return inputs[key]
+            # Fall back to generic keys
             for key in ("strength", "lora_wt"):
                 if key in inputs and inputs[key] not in (None, ""):
-                    model_strength = inputs[key]
-                    break
+                    return inputs[key]
+            return default
 
-        clip_strength = clip_default
-        # Check specific clip keys first
-        found_clip = False
-        for key in clip_keys:
-            if key in inputs and inputs[key] not in (None, ""):
-                # If we found a specific key (not generic "strength" or "lora_wt"), use it
-                if key not in ("strength", "lora_wt"):
-                    clip_strength = inputs[key]
-                    found_clip = True
-                    break
-
-        # If no specific key found, fall back to generic keys
-        if not found_clip:
-            for key in ("strength", "lora_wt"):
-                if key in inputs and inputs[key] not in (None, ""):
-                    clip_strength = inputs[key]
-                    break
+        model_strength = _find_strength(model_keys, model_default)
+        clip_strength = _find_strength(clip_keys, clip_default)
 
         return model_strength, clip_strength
 
@@ -2489,9 +2462,6 @@ class MetadataValidator:
             # Regex: (^|[_\-.])pattern($|[_\-.])
             # STRICTER MATCHING: Require the pattern to be a distinct segment
             regex = r"(^|[_\-.])" + re.escape(pattern_lower) + r"($|[_\-.])"
-            # Ensure we don't match if the pattern is just a prefix of another word (e.g. eff matching eff_xl)
-            # The above regex handles this by requiring delimiters or start/end of string.
-            # But let's be even stricter: if the pattern is a prefix, it must be followed by a delimiter.
             if re.search(regex, image_name):
                 return True
 

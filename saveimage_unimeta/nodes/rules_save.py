@@ -155,7 +155,7 @@ class SaveGeneratedUserRules:
                 "baz": {"nested": "dict"}
             }
 
-        The ``body`` string would contain real newlines (shown here with ``\\n`` for readability):
+        The ``body`` string (content between braces, not including them) would be:
 
         .. code-block:: text
 

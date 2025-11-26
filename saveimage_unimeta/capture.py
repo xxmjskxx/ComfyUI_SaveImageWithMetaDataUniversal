@@ -1979,7 +1979,8 @@ class Capture:
         # while keeping user-provided extra metadata clearly separated at the end.
 
         # Pass 1: Separate extra_metadata keys from core remaining keys
-        extra_remaining = [key for key in remaining if key in extra_metadata_key_set]
+        # Include `key in metadata_fields` guard to prevent KeyError on missing keys downstream
+        extra_remaining = [key for key in remaining if key in extra_metadata_key_set and key in metadata_fields]
         remaining = [key for key in remaining if key not in extra_metadata_key_set]
 
         # Pass 2: Extract "Hashes" from both lists so it can be inserted in the bridge position
