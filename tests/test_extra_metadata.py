@@ -224,6 +224,9 @@ class TestExtraMetadataOrdering:
         assert hashes_pos < custom1_pos, "CustomField1 should come after Hashes"
         assert hashes_pos < another_pos, "AnotherCustom should come after Hashes"
 
+        # Internal tracking key should not leak into the output string
+        assert "__extra_metadata_keys" not in param_str, "__extra_metadata_keys should not appear in output"
+
     def test_extra_metadata_before_version(self):
         """Verify extra metadata appears before Metadata generator version."""
         from saveimage_unimeta.capture import Capture

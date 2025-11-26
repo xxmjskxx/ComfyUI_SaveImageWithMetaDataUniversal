@@ -1980,24 +1980,24 @@ class Capture:
 
         # Pass 1: Separate extra_metadata keys from core remaining keys
         # Include `key in metadata_fields` guard to prevent KeyError on missing keys downstream
-        extra_remaining = [key for key in remaining if key in extra_metadata_key_set and key in metadata_fields]
+        user_metadata_keys = [key for key in remaining if key in extra_metadata_key_set and key in metadata_fields]
         remaining = [key for key in remaining if key not in extra_metadata_key_set]
 
         # Pass 2: Extract "Hashes" from both lists so it can be inserted in the bridge position
         if "Hashes" in remaining:
             remaining.remove("Hashes")
-        if "Hashes" in extra_remaining:
-            extra_remaining.remove("Hashes")
+        if "Hashes" in user_metadata_keys:
+            user_metadata_keys.remove("Hashes")
 
-        # Pass 3: Emit fields in order: remaining → Hashes → extra_remaining
+        # Pass 3: Emit fields in order: remaining → Hashes → user_metadata_keys
         for key in sorted(remaining):
             ordered_fields.append((key, metadata_fields[key]))
             ordered_labels.add(key)
         if "Hashes" in metadata_fields and "Hashes" not in ordered_labels:
             ordered_fields.append(("Hashes", metadata_fields["Hashes"]))
             ordered_labels.add("Hashes")
-        # Now add remaining keys (extra metadata) alphabetically after Hashes
-        for key in sorted(extra_remaining):
+        # Now add user-provided extra metadata fields alphabetically after Hashes
+        for key in sorted(user_metadata_keys):
             ordered_fields.append((key, metadata_fields[key]))
             ordered_labels.add(key)
         # Append metadata generator version last if present
