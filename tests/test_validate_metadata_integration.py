@@ -102,6 +102,131 @@ class TestValidateMetadataIntegration:
             # Should have save nodes with metadata
             assert len(expected["save_nodes"]) > 0
 
+    def test_resolve_latent_attributes_walks_nested_nodes(self):
+        """Ensure latent tracing finds closest dimensions and upstream batch size."""
+
+        workflow = {
+            "sampler": {
+                "class_type": "KSampler",
+                "inputs": {
+                    "latent_image": ["router", 0],
+                },
+            },
+            "router": {
+                "class_type": "LatentUpscale",
+                "inputs": {
+                    "latent_image": ["source", 0],
+                    "width": 1024,
+                    "height": 768,
+                },
+            },
+            "source": {
+                "class_type": "EfficiencyLatentLoader",
+                "inputs": {
+                    "width": 960,
+                    "height": 640,
+                    "batch_size": 3,
+                    "samples": ["base", 0],
+                },
+            },
+            "base": {
+                "class_type": "EmptyLatentImage",
+                "inputs": {
+                    "width": 512,
+                    "height": 512,
+                    "batch_size": 1,
+                },
+            },
+        }
+
+        sampler_inputs = workflow["sampler"]["inputs"]
+        attrs = WorkflowAnalyzer.resolve_latent_attributes(workflow, sampler_inputs)
+
+        assert attrs["image_width"] == 1024
+        assert attrs["image_height"] == 768
+        assert attrs["batch_size"] == 3
+
+    def test_expected_metadata_merges_inline_and_stack_loras(self):
+        """Inline loader LoRAs should merge with stack nodes for validation."""
+
+        workflow = {
+            "save": {
+                "class_type": "SaveImageWithMetaDataUniversal",
+                "inputs": {
+                    "images": ["vae_decode", 0],
+                    "filename_prefix": "demo",
+                },
+            },
+            "vae_decode": {
+                "class_type": "VAEDecode",
+                "inputs": {
+                    "samples": ["sampler", 0],
+                },
+            },
+            "sampler": {
+                "class_type": "KSampler",
+                "inputs": {
+                    "model": ["model_loader", 0],
+                    "latent_image": ["latent_router", 0],
+                    "steps": 20,
+                    "cfg": 6.5,
+                    "sampler_name": "euler",
+                },
+            },
+            "latent_router": {
+                "class_type": "LatentUpscale",
+                "inputs": {
+                    "latent_image": ["latent_source", 0],
+                    "width": 1024,
+                    "height": 768,
+                },
+            },
+            "latent_source": {
+                "class_type": "EfficiencyLatentLoader",
+                "inputs": {
+                    "width": 960,
+                    "height": 640,
+                    "batch_size": 2,
+                },
+            },
+            "model_loader": {
+                "class_type": "CheckpointLoaderSimple",
+                "inputs": {
+                    "ckpt_name": "base_model.safetensors",
+                    "lora_stack": ["lora_stack_node", 0],
+                    "lora_name": "inline_lora.safetensors",
+                },
+            },
+            "lora_stack_node": {
+                "class_type": "LoraStacker",
+                "inputs": {
+                    "input_mode": "advanced",
+                    "lora_count": 2,
+                    "lora_name_1": "stack_a.safetensors",
+                    "model_str_1": 0.8,
+                    "clip_str_1": 0.5,
+                    "lora_name_2": "stack_b.safetensors",
+                    "model_str_2": 0.6,
+                    "clip_str_2": 0.4,
+                },
+            },
+        }
+
+        expected = WorkflowAnalyzer.extract_expected_metadata(workflow, "demo-workflow")
+        assert expected["has_save_node"]
+        save_node = expected["save_nodes"][0]
+
+        merged_names = sorted(entry["name"] for entry in save_node.get("lora_stack", []))
+        assert merged_names == [
+            "inline_lora.safetensors",
+            "stack_a.safetensors",
+            "stack_b.safetensors",
+        ]
+        assert save_node["image_width"] == 1024
+        assert save_node["image_height"] == 768
+        assert save_node["batch_size"] == 2
+        assert save_node.get("include_lora_summary") is True
+
 
 
 class TestMetadataParserWithRealFormats:

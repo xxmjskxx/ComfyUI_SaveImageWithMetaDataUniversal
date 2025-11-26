@@ -292,6 +292,7 @@ import argparse
 import atexit
 import json
 import logging
+import math
 import re
 import sys
 from pathlib import Path
@@ -1038,6 +1039,179 @@ class WorkflowAnalyzer:
         return None
 
     @staticmethod
+    def _normalize_numeric(value: Any) -> int | None:
+        """Convert numeric-like values (strings, floats) to ints when possible."""
+
+        if value in (None, "", "None"):
+            return None
+        if isinstance(value, bool):
+            return int(value)
+        if isinstance(value, int | float):
+            if isinstance(value, float):
+                if not math.isfinite(value):
+                    return None
+                return int(round(value))
+            return int(value)
+        if isinstance(value, str):
+            cleaned = value.strip()
+            if not cleaned:
+                return None
+            match = re.search(r"-?\d+(?:\.\d+)?", cleaned)
+            if not match:
+                return None
+            token = match.group(0)
+            try:
+                number = float(token)
+            except ValueError:
+                return None
+            if not math.isfinite(number):
+                return None
+            return int(round(number))
+        return None
+
+    @staticmethod
+    def _parse_dimension_value(value: Any) -> tuple[int | None, int | None]:
+        """Extract (width, height) from strings, tuples, or dict-like payloads."""
+
+        if isinstance(value, list | tuple):
+            if len(value) >= 2:
+                return (
+                    WorkflowAnalyzer._normalize_numeric(value[0]),
+                    WorkflowAnalyzer._normalize_numeric(value[1]),
+                )
+            return (None, None)
+
+        if isinstance(value, dict):
+            width = WorkflowAnalyzer._normalize_numeric(
+                value.get("width") or value.get("w") or value.get("latent_width")
+            )
+            height = WorkflowAnalyzer._normalize_numeric(
+                value.get("height") or value.get("h") or value.get("latent_height")
+            )
+            return width, height
+
+        if isinstance(value, str):
+            width = height = None
+            if "x" in value.lower():
+                parts = re.split(r"[xX]\s*", value)
+                if len(parts) >= 2:
+                    width = WorkflowAnalyzer._normalize_numeric(parts[0])
+                    height = WorkflowAnalyzer._normalize_numeric(parts[1])
+            if width is None or height is None:
+                digits = re.findall(r"\d+", value)
+                if len(digits) >= 2:
+                    width = width or WorkflowAnalyzer._normalize_numeric(digits[0])
+                    height = height or WorkflowAnalyzer._normalize_numeric(digits[1])
+            return width, height
+
+        return (None, None)
+
+    @classmethod
+    def _extract_latent_dimensions(cls, class_type: str, inputs: dict[str, Any]) -> dict[str, Any]:
+        """Best-effort extraction of latent width/height/batch metadata."""
+
+        width = None
+        height = None
+        batch_size = None
+
+        width_keys = (
+            "width",
+            "latent_width",
+            "empty_latent_width",
+            "image_width",
+            "output_width",
+            "target_width",
+        )
+        height_keys = (
+            "height",
+            "latent_height",
+            "empty_latent_height",
+            "image_height",
+            "output_height",
+            "target_height",
+        )
+        batch_keys = ("batch_size", "batch_count", "count")
+
+        for key in width_keys:
+            if width is None and inputs.get(key) not in (None, ""):
+                width = cls._normalize_numeric(inputs[key])
+
+        for key in height_keys:
+            if height is None and inputs.get(key) not in (None, ""):
+                height = cls._normalize_numeric(inputs[key])
+
+        for key in batch_keys:
+            if batch_size is None and inputs.get(key) not in (None, ""):
+                batch_size = cls._normalize_numeric(inputs[key])
+
+        for key in ("dimensions", "dimension", "resolution", "size"):
+            if width is not None and height is not None:
+                break
+            compound = inputs.get(key)
+            parsed_width, parsed_height = cls._parse_dimension_value(compound)
+            if width is None and parsed_width is not None:
+                width = parsed_width
+            if height is None and parsed_height is not None:
+                height = parsed_height
+
+        result: dict[str, Any] = {}
+        if width is not None:
+            result["image_width"] = width
+        if height is not None:
+            result["image_height"] = height
+        if batch_size is not None:
+            result["batch_size"] = batch_size
+
+        return result
+
+    @staticmethod
+    def _looks_like_lora_stack_node(class_type: str, inputs: dict[str, Any]) -> bool:
+        lower_class = class_type.lower()
+        if "lorastack" in lower_class or "lora stack" in lower_class:
+            return True
+        for key in inputs.keys():
+            if isinstance(key, str) and key.startswith("lora_name_"):
+                return True
+        return False
+
+    @staticmethod
+    def _add_lora_entry(collection: list[dict[str, Any]], name: Any, model_strength: Any, clip_strength: Any) -> None:
+        if name in (None, "", "None"):
+            return
+        normalized_name = str(name)
+        if not normalized_name:
+            return
+        existing = next((entry for entry in collection if entry.get("name") == normalized_name), None)
+        if existing:
+            if existing.get("model_strength") is None and model_strength is not None:
+                existing["model_strength"] = model_strength
+            if existing.get("clip_strength") is None and clip_strength is not None:
+                existing["clip_strength"] = clip_strength
+            return
+        entry: dict[str, Any] = {
+            "name": normalized_name,
+            "model_strength": model_strength,
+            "clip_strength": clip_strength,
+        }
+        collection.append(entry)
+
+    @staticmethod
+    def _dedupe_lora_entries(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        seen: dict[str, dict[str, Any]] = {}
+        for entry in entries:
+            name = entry.get("name")
+            if not name:
+                continue
+            if name not in seen:
+                seen[name] = entry.copy()
+                continue
+            existing = seen[name]
+            for key in ("model_strength", "clip_strength"):
+                if existing.get(key) is None and entry.get(key) is not None:
+                    existing[key] = entry[key]
+        return list(seen.values())
+
+    @staticmethod
     def _resolve_scheduler_metadata(workflow: dict, scheduler_ref: Any) -> dict[str, Any]:
         """Extract step/scheduler details from scheduler helper nodes."""
 
@@ -1119,18 +1293,27 @@ class WorkflowAnalyzer:
                 normalized_class = lower_class.replace("_", "").replace(" ", "")
                 if "modelonly" in normalized_class:
                     clip_strength = None
-                info.setdefault("lora_stack", []).append(
-                    {
-                        "name": inputs.get("lora_name") or inputs.get("name"),
-                        "model_strength": model_strength,
-                        "clip_strength": clip_strength,
-                    }
+                WorkflowAnalyzer._add_lora_entry(
+                    info.setdefault("lora_stack", []),
+                    inputs.get("lora_name") or inputs.get("name"),
+                    model_strength,
+                    clip_strength,
                 )
 
                 enqueue(inputs.get("model"))
                 enqueue(inputs.get("unet"))
                 enqueue(inputs.get("clip"))
                 continue
+
+            if WorkflowAnalyzer._looks_like_lora_stack_node(class_type, inputs):
+                stack_entries = WorkflowAnalyzer.extract_lora_stack_info(workflow, node_id)
+                for entry in stack_entries:
+                    WorkflowAnalyzer._add_lora_entry(
+                        info.setdefault("lora_stack", []),
+                        entry.get("name"),
+                        entry.get("model_strength"),
+                        entry.get("clip_strength"),
+                    )
 
             checkpoint_keywords = (
                 "checkpointloader",
@@ -1247,12 +1430,18 @@ class WorkflowAnalyzer:
     def resolve_latent_attributes(workflow: dict, sampler_inputs: dict) -> dict[str, Any]:
         """Derive width, height, batch size by tracing latent sources feeding the sampler."""
 
-        latent_ref = sampler_inputs.get("latent_image") or sampler_inputs.get("latent")
-        if not (isinstance(latent_ref, list) and latent_ref):
+        latent_refs: list[str] = []
+        for key in ("latent_image", "latent", "samples", "input", "images"):
+            ref = sampler_inputs.get(key)
+            if isinstance(ref, list) and ref:
+                latent_refs.append(str(ref[0]))
+
+        if not latent_refs:
             return {}
 
-        stack = [str(latent_ref[0])]
+        stack = latent_refs[:]
         visited: set[str] = set()
+        resolved: dict[str, Any] = {"image_width": None, "image_height": None, "batch_size": None}
 
         while stack:
             node_id = stack.pop()
@@ -1267,39 +1456,36 @@ class WorkflowAnalyzer:
             class_type = node.get("class_type", "")
             inputs = node.get("inputs", {})
 
-            if class_type in {
-                "EmptyLatentImage",
-                "LatentImage",
-                "EmptyLatent",
-                "SDXL Empty Latent Image (rgthree)",
-            }:
-                width = inputs.get("width", inputs.get("empty_latent_width"))
-                height = inputs.get("height", inputs.get("empty_latent_height"))
-                batch_size = inputs.get("batch_size", inputs.get("batch_count"))
+            dims = WorkflowAnalyzer._extract_latent_dimensions(class_type, inputs)
+            for key, value in dims.items():
+                if value is not None and resolved.get(key) is None:
+                    resolved[key] = value
 
-                dimensions = inputs.get("dimensions")
-                if (width is None or height is None) and isinstance(dimensions, str):
-                    match = re.search(r"(\d+)\s*[xX]\s*(\d+)", dimensions)
-                    if match:
-                        width = width or int(match.group(1))
-                        height = height or int(match.group(2))
+            if (
+                resolved.get("image_width") is not None
+                and resolved.get("image_height") is not None
+                and resolved.get("batch_size") is not None
+            ):
+                break
 
-                return {
-                    "image_width": width,
-                    "image_height": height,
-                    "batch_size": batch_size,
-                }
-
-            for key in ("samples", "latent_image", "input"):
+            for key in (
+                "samples",
+                "latent_image",
+                "input",
+                "latent",
+                "images",
+                "clip_latent",
+                "base_latent",
+            ):
                 ref = inputs.get(key)
                 if isinstance(ref, list) and ref:
                     stack.append(str(ref[0]))
 
-        return {}
+        return {key: value for key, value in resolved.items() if value is not None}
 
     @staticmethod
     def extract_filename_patterns(workflow: dict) -> list[str]:
-        """Extract all filename patterns from SaveImageWithMetaDataUniversal and SaveImage nodes.
+        """Extract filename prefix tokens from save nodes for workflow detection.
 
         Returns a list of simplified patterns that can be used for matching.
         For example, "Test\\flux-CR-LoRA-stack" becomes "flux-CR-LoRA-stack".
@@ -1740,11 +1926,13 @@ class WorkflowAnalyzer:
             # Inline LoRA (for workflows using loader-level LoRA blend)
             inline_lora = loader_inputs.get("lora_name")
             if inline_lora and inline_lora != "None":
-                expected["inline_lora"] = {
-                    "name": inline_lora,
-                    "model_strength": loader_inputs.get("lora_model_strength", loader_inputs.get("lora_wt", 1.0)),
-                    "clip_strength": loader_inputs.get("lora_clip_strength", loader_inputs.get("lora_wt", 1.0)),
-                }
+                model_strength, clip_strength = WorkflowAnalyzer._resolve_strength_pair(loader_inputs)
+                WorkflowAnalyzer._add_lora_entry(
+                    expected.setdefault("lora_stack", []),
+                    inline_lora,
+                    model_strength,
+                    clip_strength,
+                )
 
             # T5/CLIP prompts for dual CLIP
             expected["t5_prompt"] = WorkflowAnalyzer.resolve_text_input(workflow, loader_inputs.get("t5xxl"))
@@ -1754,7 +1942,16 @@ class WorkflowAnalyzer:
             lora_stack_ref = loader_inputs.get("lora_stack")
             if isinstance(lora_stack_ref, list) and len(lora_stack_ref) >= 1:
                 lora_stack_id = str(lora_stack_ref[0])
-                expected["lora_stack"] = WorkflowAnalyzer.extract_lora_stack_info(workflow, lora_stack_id)
+                stack_entries = WorkflowAnalyzer.extract_lora_stack_info(workflow, lora_stack_id)
+                if stack_entries:
+                    target = expected.setdefault("lora_stack", [])
+                    for entry in stack_entries:
+                        WorkflowAnalyzer._add_lora_entry(
+                            target,
+                            entry.get("name"),
+                            entry.get("model_strength"),
+                            entry.get("clip_strength"),
+                        )
 
         model_info = WorkflowAnalyzer.resolve_model_hierarchy(workflow, sampler_id)
 
@@ -1767,7 +1964,12 @@ class WorkflowAnalyzer:
         if model_info.get("weight_dtype"):
             expected["weight_dtype"] = model_info["weight_dtype"]
         if model_info.get("lora_stack"):
-            expected["lora_stack"] = model_info["lora_stack"]
+            merged = expected.get("lora_stack", []) + model_info["lora_stack"]
+            expected["lora_stack"] = WorkflowAnalyzer._dedupe_lora_entries(merged)
+            if not expected.get("include_lora_summary"):
+                expected["include_lora_summary"] = True
+        elif expected.get("lora_stack"):
+            expected["lora_stack"] = WorkflowAnalyzer._dedupe_lora_entries(expected["lora_stack"])
             if not expected.get("include_lora_summary"):
                 expected["include_lora_summary"] = True
 
