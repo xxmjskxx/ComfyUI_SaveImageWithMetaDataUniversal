@@ -48,3 +48,20 @@ def test_extract_embedding_hashes_without_clip_returns_na(monkeypatch):
     monkeypatch.setattr(fmt, "token_weights", lambda text: [(text, 1.0)])
     hashes = fmt.extract_embedding_hashes("embedding:EasyNegative", ({"text": ["embedding:EasyNegative"]},))
     assert hashes == ["N/A"]
+
+    def test_extract_embedding_hashes_create_sidecar(monkeypatch, tmp_path):
+        """Embedding hashing should reuse the shared helper so .sha256 sidecars exist."""
+
+        fmt = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.formatters")
+        monkeypatch.setattr(fmt, "token_weights", lambda text: [(text, 1.0)])
+        clip = _make_clip(tmp_path)
+        embed_path = tmp_path / "FastNegativeV2.safetensors"
+        embed_path.write_text("hash me", encoding="utf-8")
+
+        stub_input = ({"clip": [clip], "text": [f"embedding:{embed_path.stem}"]},)
+        hashes = fmt.extract_embedding_hashes(f"embedding:{embed_path.stem}", stub_input)
+
+        assert hashes and len(hashes[0]) == 10
+        sidecar = embed_path.with_suffix(".sha256")
+        assert sidecar.exists(), "Embedding hashing must create a .sha256 sidecar"
+        assert len(sidecar.read_text().strip()) == 64

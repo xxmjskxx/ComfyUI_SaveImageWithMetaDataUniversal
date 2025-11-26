@@ -51,7 +51,6 @@ except (ImportError, ModuleNotFoundError):  # noqa: BLE001 - provide minimal stu
 
 
 from ..utils.embedding import get_embedding_file_path
-from ..utils.hash import calc_hash
 from ..utils.lora import find_lora_info
 from ..utils.pathresolve import (
     try_resolve_artifact,
@@ -795,17 +794,17 @@ def extract_embedding_hashes(text, input_data):
             continue
         if mode in {"filename", "path", "detailed", "debug"}:
             _log("embedding", f"hashing {_fmt_display(embedding_path)} hash")
-        try:
-            hash_value = calc_hash(embedding_path)
-        except (OSError, TypeError, ValueError) as err:  # pragma: no cover - defensive
-            logger.debug("[Metadata Lib] Skipping embedding hash due to error: %r", err)
+        hashed = _hash_file("embedding", embedding_path, truncate=10)
+        if not hashed:
+            logger.debug(
+                "[Metadata Lib] Skipping embedding hash due to compute failure path=%s",
+                embedding_path,
+            )
             if mode in {"detailed", "debug"}:
                 _warn_unresolved_once("embedding", embedding_name)
             hashes.append("N/A")
             continue
-        if mode == "debug":
-            _log("embedding", f"full hash {os.path.basename(embedding_path)}={hash_value}")
-        hashes.append(hash_value[:10] if isinstance(hash_value, str) else hash_value)
+        hashes.append(hashed)
 
     if len(hashes) != len(embedding_names):
         logger.debug(

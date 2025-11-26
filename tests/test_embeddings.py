@@ -41,6 +41,30 @@ def test_prompt_scan_populates_embeddings(monkeypatch, tmp_path):
     assert expected_hash in hashes
 
 
+def test_prompt_scan_writes_embedding_sidecar(monkeypatch, tmp_path):
+    """Prompt augmentation should create .sha256 files for discovered embeddings."""
+
+    cap = importlib.import_module(MODULE_PATH)
+    embed_dir = tmp_path / "embeddings"
+    embed_dir.mkdir()
+    file_path = embed_dir / "PromptSidecar.safetensors"
+    file_path.write_text("from prompt", encoding="utf-8")
+
+    def fake_get_folder_paths(kind):
+        if kind == "embeddings":
+            return [str(embed_dir)]
+        return []
+
+    monkeypatch.setattr(cap.folder_paths, "get_folder_paths", fake_get_folder_paths)
+
+    inputs = _build_inputs(positive=f"embedding:{file_path.stem}")
+    cap.Capture._augment_embeddings_from_prompts(inputs)
+
+    sidecar = file_path.with_suffix(".sha256")
+    assert sidecar.exists(), "Prompt-driven embedding capture must create sidecars"
+    assert len(sidecar.read_text().strip()) == 64
+
+
 def test_prompt_scan_deduplicates_and_handles_negative(monkeypatch):
     cap = importlib.import_module(MODULE_PATH)
 
