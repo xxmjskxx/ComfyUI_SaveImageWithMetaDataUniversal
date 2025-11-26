@@ -1837,8 +1837,8 @@ class MetadataValidator:
                             f"LoRA {idx} name mismatch: expected '{expected_basename}', got '{actual_basename}'",
                         )
 
-                    # Validate model strength only if explicitly present in expected metadata;
-                    # using 'in' check allows 0 as a valid expected strength value
+                    # Validate model strength only if key is present with a non-None value;
+                    # the 'in' check differentiates missing keys from explicit None, while allowing 0 as valid
                     if "model_strength" in expected_lora and expected_lora["model_strength"] is not None:
                         if model_str_key in fields:
                             compare_numeric_field(model_str_key, expected_lora["model_strength"])
