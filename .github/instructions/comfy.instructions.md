@@ -13,7 +13,7 @@ applyTo: "**/*.py"
 
 ## Architecture Layers (ComfyUI View)
 
-1. **Registration Layer (`__init__.py`)** – Treat this as the manifest. It should only import concrete node classes, declare `NODE_CLASS_MAPPINGS`, `NODE_DISPLAY_NAME_MAPPINGS`, optional `WEB_DIRECTORY`, and export the curated `__all__`. Never add logic, helpers, or on-import side effects here.
+1. **Registration Layer (`__init__.py`)** – Treat this as the manifest. It should primarily import concrete node classes, declare `NODE_CLASS_MAPPINGS`, `NODE_DISPLAY_NAME_MAPPINGS`, optional `WEB_DIRECTORY`, and export the curated `__all__`. Controlled side effects (e.g., gating test nodes on `METADATA_ENABLE_TEST_NODES` or logging a one-time startup banner) are acceptable, but keep them lightweight and well-documented.
 2. **Logic Layer (`saveimage_unimeta/`)** – All node behavior, utilities, capture/trace helpers, and metadata plumbing live inside this package. New functionality must be implemented here and tested via `pytest` as described in the Python instructions.
 3. **Presentation Layer (`web/`)** – Houses any optional ComfyUI frontend extensions. Keep the JS aligned with node INPUT_TYPES and update the manifest’s `WEB_DIRECTORY` when shipping UI assets.
 
@@ -81,7 +81,7 @@ class SaveImageWithMetaDataUniversal:
         if args.dont_save_previews:
             return ()
 
-        # Business logic defined in saveimage_unimeta/nodes/node.py
+        # Business logic defined in saveimage_unimeta/nodes/save_image.py
 
         return ()
 ```

@@ -30,10 +30,10 @@ applyTo: '**/*.py'
 
 ## Structure & Modules
 
-- Break capture traversal, hashing, and JPEG fallback orchestration into focused helpers instead of embedding everything in node classes like `saveimage_unimeta/nodes/node.py`.
+- Break capture traversal, hashing, and JPEG fallback orchestration into focused helpers instead of embedding everything in node classes like `saveimage_unimeta/nodes/save_image.py`.
 - Prefer pure functions. When mutating shared structures (prompt caches, metadata dicts), document the expected state change in code or docstrings.
 - Use guard clauses and early returns to keep nesting shallow.
-- Keep modules scoped to a single concern (`capture.py`, `trace.py`, `utils/formatters.py`, etc.) and keep package `__init__.py` files minimal (exports/metadata only).
+- Keep modules scoped to a single concern (`capture.py`, `trace.py`, `defs/formatters.py`, etc.) and keep package `__init__.py` files minimal (exports/metadata only).
 
 ## Logging & Diagnostics
 
@@ -55,13 +55,14 @@ applyTo: '**/*.py'
 - Preserve insertion order: append new keys at the tail of metadata dicts and keep `"Metadata generator version"` last for PNGInfo and EXIF stability.
 - JPEG fallback is fixed (`full → reduced-exif → minimal → com-marker`). `_build_minimal_parameters` may only include prompts, sampler core (Steps/Sampler/CFG), seeds, sizes, hashes, `Lora_*`, and the metadata version; adding fields requires product sign-off plus updated docs/tests.
 - Use `Trace.filter_inputs_by_trace_tree` from `saveimage_unimeta/trace.py` when you need deterministic upstream ordering. Do not invent ad-hoc traversals.
-- Keep filename tokens in `saveimage_unimeta/nodes/node.py` backward compatible (`%seed%`, `%width%`, `%pprompt%[:n]`, `%date:<pattern>`, etc.) and update README/tooltips anytime you add tokens.
+- Keep filename tokens in `saveimage_unimeta/nodes/save_image.py` backward compatible (`%seed%`, `%width%`, `%pprompt%[:n]`, `%date:<pattern>`, etc.) and update README/tooltips anytime you add tokens.
+- `_format_filename` and `_build_minimal_parameters` inside `saveimage_unimeta/nodes/save_image.py` are the canonical implementations for token substitution and minimal metadata trimming. Touching either requires coordinated doc/test updates so JPEG fallback behavior stays deterministic.
 - UI overrides (e.g., the `include_lora_summary` checkbox) must take precedence over related environment flags; treat UI state as canonical when both exist.
 
 ## Helper Utilities & Hashing
 
 - Reuse `saveimage_unimeta/defs/formatters.py` helpers (`calc_model_hash`, `calc_lora_hash`, `display_model_name`, etc.) for hashing and labeling—never introduce ad-hoc routines.
-- Depend on the `.sha256` sidecar cache in `saveimage_unimeta/utils/formatters.py` when writing hashes; `METADATA_FORCE_REHASH=1` invalidates caches.
+- Hash primitives (sidecar read/write, SHA truncation) live in `saveimage_unimeta/utils/hash.py`, while metadata-facing wrappers sit in `saveimage_unimeta/defs/formatters.py`. Depend on that split instead of adding ad-hoc caches; `METADATA_FORCE_REHASH=1` invalidates `.sha256` sidecars.
 - Use `saveimage_unimeta/utils/pathresolve` for filesystem work so relative paths resolve consistently across platforms.
 
 ## Error Handling & Node Safety

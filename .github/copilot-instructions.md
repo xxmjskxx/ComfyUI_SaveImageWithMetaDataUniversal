@@ -2,7 +2,7 @@
 Authoritative onboarding for `ComfyUI_SaveImageWithMetaDataUniversal`. This repo is a Python custom-node pack (~220 tracked files excluding local-only `.venv`/outputs) targeting the ComfyUI runtime; edits usually run inside ComfyUI but must stay testable via pure Python.
 
 ## Overview & Tech Stack
-- Purpose: `saveimage_unimeta/nodes/node.py` saves images with rich Automatic1111/Civitai-compatible metadata, hashes, workflow JSON, and filename tokens while degrading gracefully on JPEG limits.
+- Purpose: `saveimage_unimeta/nodes/save_image.py` saves images with rich Automatic1111/Civitai-compatible metadata, hashes, workflow JSON, and filename tokens while degrading gracefully on JPEG limits.
 - Languages & tooling: Python 3.9+ (CI runs 3.10–3.13), Pillow/Numpy/Piexif, ComfyUI APIs (`folder_paths`, `nodes`, `execution`). Browser assets under `web/` use HTML/JavaScript for optional UI helpers. Linting via Ruff (`ruff.toml`), testing via Pytest (`tests/`), coverage tracked by `.coveragerc`.
 - Dependencies live in `requirements.txt` (runtime) and `requirements-test.txt` (adds pytest, ruff, coverage). Installing editable dev extras: `pip install -e .[dev]` (see `pyproject.toml`).
 
@@ -12,7 +12,7 @@ Authoritative onboarding for `ComfyUI_SaveImageWithMetaDataUniversal`. This repo
 - `saveimage_unimeta/nodes/`: save node + supporting UI tooling (scanner, rule writers, extra metadata nodes, test stubs). Each node must keep tooltip text ≤140 chars (see `pyproject` metadata for copy text).
 - `saveimage_unimeta/capture.py`: merges defs + `user_rules` + `FORCED_INCLUDE_CLASSES`, normalizes prompts, ensures `Metadata generator version` is always last. Relies on `saveimage_unimeta/hook.py` to read the active ComfyUI prompt cache (tests shim this when `METADATA_TEST_MODE=1`).
 - `saveimage_unimeta/trace.py`: BFS graph traversal + sampler selection heuristics (exact match in `defs/samplers.py`, else `MetaField.SAMPLER_NAME` or `{STEPS, CFG_SCALE}` hint). `Trace.filter_inputs_by_trace_tree` guarantees deterministic ordering upstream of capture.
-- `saveimage_unimeta/utils/`: hashing (`formatters.py`), LoRA/embed utilities, logging helpers (`color.py`). Always use these helpers—no ad-hoc hashing/log formatting, and prefer `pathresolve` for filesystem work.
+- `saveimage_unimeta/utils/`: hashing primitives (`hash.py`), LoRA/embed utilities, logging helpers (`color.py`). Always use these helpers—no ad-hoc hashing/log formatting, and prefer `pathresolve` for filesystem work.
 - `web/`: static TypeScript/JavaScript snippets for optional UI affordances (see `web/js/`); keep them aligned with node parameter expectations when changing UI-visible behavior.
 
 ## Data Flow & Runtime Contracts
@@ -20,7 +20,7 @@ Authoritative onboarding for `ComfyUI_SaveImageWithMetaDataUniversal`. This repo
 2. `Capture.gen_pnginfo_dict` / `.gen_parameters_str` iterate that ordering, apply rule merges, sanitize prompts, and append deterministic fields (metadata generator version last).
 3. `saveimage_unimeta/nodes/save_image.py` writes PNGInfo or EXIF/WebP metadata, attempts JPEG EXIF up to `max_jpeg_exif_kb` (≤64 KB enforced). `_last_fallback_stages` mirrors whichever fallback stage fired.
 4. JPEG fallback follows the multi-stage pipeline documented in `.github/instructions/python.instructions.md`; `_last_fallback_stages` mirrors whichever stage triggered so downstream tests can assert the markers.
-5. Hashing: `saveimage_unimeta/utils/formatters.py` caches full SHA256 hashes in `.sha256` sidecars which are truncated to 10-chars when written to metadata; `METADATA_FORCE_REHASH=1` invalidates caches. Hash log verbosity controlled via `METADATA_HASH_LOG_MODE` and `METADATA_HASH_LOG_PROPAGATE`.
+5. Hashing: `saveimage_unimeta/defs/formatters.py` (via helpers in `saveimage_unimeta/utils/hash.py`) caches full SHA256 hashes in `.sha256` sidecars which are truncated to 10 chars when written to metadata; `METADATA_FORCE_REHASH=1` invalidates caches. Hash log verbosity is controlled via `METADATA_HASH_LOG_MODE` and `METADATA_HASH_LOG_PROPAGATE`.
 
 ## Runtime Integration & Environment Flags
 - Runs embedded in ComfyUI; expect access to `folder_paths`, sampler nodes, and numerous other `comfy.` imports, and PIL. When unit testing, `saveimage_unimeta/piexif_alias.py` and `hook.py` provide safe stubs—only extend the stub surface actually required.
@@ -40,10 +40,10 @@ Authoritative onboarding for `ComfyUI_SaveImageWithMetaDataUniversal`. This repo
 3. **Unit tests**: `pytest -q` (Pytest auto-discovers under `tests/`). Set `METADATA_TEST_MODE=1` to match CI matrix determinism. Coverage is gathered in CI via `coverage run -m pytest -q`; run locally when touching core pipeline.
 4. **Workflow/CLI tests**: optional but recommended before shipping metadata format changes. Use `python tests/tools/run_dev_workflows.py --comfyui-path "<your ComfyUI root>" [--workflow-dir ...]` (see `tests/comfyui_cli_tests/DEV_WORKFLOW_TESTING.md` + `ignore/DEV_WORKFLOW_TESTING.md`). Always ensure workflows are in API format and clean outputs with `--temp-dir` or manual deletion.
 5. **Integration sanity**: when touching JPEG fallback, temporarily set `max_jpeg_exif_kb=8` via the node UI or JSON to coerce fallback coverage; inspect `_last_fallback_stages` and resulting metadata strings to confirm markers append exactly once.
-6. **CI awareness**: `.github/workflows/ci.yml` runs Ruff + Pytest across Python 3.10–3.13 and toggles `METADATA_TEST_MODE`. `unimeta-ci.yml` covers packaging/comfy-registry smoke tests; `publish_action.yml` handles release packaging. Match local tooling to avoid failures.
+6. **CI awareness**: `.github/workflows/unimeta-ci.yml` is the primary matrix workflow (Ruff + Pytest across Python 3.10–3.13 with both metadata modes, plus lint-only jobs). `.github/workflows/ci.yml` remains from the old template and still targets the `main` branch—confirm no external automation depends on it before deleting or updating the triggers. `publish_action.yml` handles release packaging. Match local tooling to avoid failures.
 
 ## Rules, Scanner & User Overrides
-- `saveimage_unimeta/nodes/scanner.py` inspects installed node classes and suggests capture rules. `rules_save.py` + `rules_view.py` manage JSON/Python persistence (`saveimage_unimeta/user_rules/generated_user_rules.py`). After editing `defs/captures.py`, re-run scanner + saver so automated tests (`tests/test_generated_user_rules.py`) stay in sync.
+- `saveimage_unimeta/nodes/scanner.py` inspects installed node classes and suggests capture rules. `rules_save.py` + `rules_view.py` manage JSON/Python persistence by writing the JSON blobs under `saveimage_unimeta/user_rules/`. `saveimage_unimeta/nodes/rules_writer.py` consumes those JSON files to regenerate `saveimage_unimeta/defs/ext/generated_user_rules.py`. After editing `defs/captures.py`, re-run scanner + saver so automated tests (`tests/test_generated_user_rules.py`) stay in sync. When users trigger node-driven backups, the `saveimage_unimeta/user_rules/backups/` folder may contain timestamped copies of the JSON files and the generated module.
 - `rules_writer.py` stamps a `RULES_VERSION` constant into generated modules; `defs.load_user_definitions` caches it as `LOADED_RULES_VERSION`. `save_image.py` logs a one-time warning when the saved rules are missing or outdated—ask users to re-run `Metadata Rule Scanner` + `Save Custom Metadata Rules` or execute `example_workflows/refresh-rules.json` after updates.
 - `Metadata Force Include` node feeds `FORCED_INCLUDE_CLASSES` used during capture merge; keep manual overrides inside `saveimage_unimeta/user_rules/` so merges remain deterministic.
 - Manual capture additions must update: `defs/captures.py`, `_build_minimal_parameters` (only if the field must survive minimal fallback), docs (README + `docs/...`), targeted tests (e.g., `tests/test_capture_core.py`, `tests/test_guidance_and_exif_fallback.py`).

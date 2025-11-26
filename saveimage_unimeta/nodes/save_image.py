@@ -466,11 +466,24 @@ class SaveImageWithMetaDataUniversal:
                 len(SAMPLERS),
             )
         pnginfo_dict_src = self.gen_pnginfo(sampler_selection_method, sampler_selection_node_id, civitai_sampler)
-        for k, v in extra_metadata.items():
-            if k and v:
-                pnginfo_dict_src[k] = v.replace(",", "/")
 
-        results = list()
+        # Remove any existing __extra_metadata_keys to prevent stale/internal keys from appearing in output.
+        # The tracking and re-insertion of this key happens below, after collecting the new extra metadata keys.
+        pnginfo_dict_src.pop("__extra_metadata_keys", None)
+        extra_metadata_keys: list[str] = []
+        for k, v in extra_metadata.items():
+            # Convert key to string first so that falsy non-string keys like 0 become valid strings.
+            key = str(k) if k is not None else ""
+            # Skip empty keys or None/empty-string values; falsy values like 0, False, or []
+            # are converted to their string representations ("0", "False", "[]").
+            if not key or v is None or v == "":
+                continue
+            pnginfo_dict_src[key] = str(v).replace(",", "/")
+            extra_metadata_keys.append(key)
+        if extra_metadata_keys:
+            pnginfo_dict_src["__extra_metadata_keys"] = extra_metadata_keys
+
+        ui_entries: list[dict[str, str]] = []
         self._last_fallback_stages.clear()
         for index, image in enumerate(images):
             # Support both torch tensors (with .cpu()) and raw numpy arrays in test mode.
@@ -481,8 +494,8 @@ class SaveImageWithMetaDataUniversal:
                     arr = getattr(image, "numpy", lambda: image)()
             except (AttributeError, TypeError, ValueError):  # fallback last resort
                 arr = image
-            i = 255.0 * arr
-            img = Image.fromarray(np.clip(i, 0, 255).astype(np.uint8))
+            scaled_pixels = 255.0 * arr
+            img = Image.fromarray(np.clip(scaled_pixels, 0, 255).astype(np.uint8))
 
             pnginfo_dict = pnginfo_dict_src.copy()
             if len(images) >= 2:
@@ -529,8 +542,8 @@ class SaveImageWithMetaDataUniversal:
             base_filename = filename
             if add_counter_to_filename:
                 base_filename += f"_{counter:05}_"
-            file = base_filename + "." + file_format
-            file_path = os.path.join(full_output_folder, file)
+            output_filename = base_filename + "." + file_format
+            file_path = os.path.join(full_output_folder, output_filename)
 
             if file_format == "png":
                 # PNG: embed via PNGInfo
@@ -552,8 +565,10 @@ class SaveImageWithMetaDataUniversal:
                                 f"prompt:{json.dumps(prompt, separators=(',', ':'))}".encode()
                             )
                         if extra_pnginfo is not None:
-                            for i, (k, v) in enumerate(extra_pnginfo.items()):
-                                zeroth_ifd[piexif.ImageIFD.Make - i] = (
+                            # Allocate tags backwards from Make (271) to avoid conflicts:
+                            # first extra_pnginfo key uses 271, second uses 270, etc.
+                            for tag_index, (k, v) in enumerate(extra_pnginfo.items()):
+                                zeroth_ifd[piexif.ImageIFD.Make - tag_index] = (
                                     f"{k}:{json.dumps(v, separators=(',', ':'))}".encode()
                                 )
                     if parameters:
@@ -756,14 +771,14 @@ class SaveImageWithMetaDataUniversal:
                 with open(file_path_workflow, "w", encoding="utf-8") as f:
                     json.dump(extra_pnginfo["workflow"], f)
 
-            results.append({"filename": file, "subfolder": subfolder, "type": self.type})
+            ui_entries.append({"filename": output_filename, "subfolder": subfolder, "type": self.type})
             try:
                 counter = int(counter) + 1
             except (TypeError, ValueError):
                 counter = 1
 
         # Pass through original tensor batch as output so downstream nodes can reuse the images
-        return {"ui": {"images": results}, "result": (images,)}
+        return {"ui": {"images": ui_entries}, "result": (images,)}
 
     @staticmethod
     def _build_minimal_parameters(full_parameters: str) -> str:

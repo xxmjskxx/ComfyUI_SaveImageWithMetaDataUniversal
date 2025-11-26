@@ -844,16 +844,17 @@ class MetadataRuleScanner:
                     return dtype.upper() if isinstance(dtype, str) else None
 
                 def _maybe_flag_inline_candidate(meta_field, suggestion_dict):
+                    """Mark prompt fields whose metadata is best captured inline."""
                     if not isinstance(meta_field, MetaField):
                         return
                     if meta_field in (MetaField.POSITIVE_PROMPT, MetaField.NEGATIVE_PROMPT):
                         suggestion_dict.setdefault("inline_lora_candidate", True)
 
-                for nm in all_input_names:
+                for input_name in all_input_names:
                     try:
-                        field_types[nm] = _declared_type_for(nm)
+                        field_types[input_name] = _declared_type_for(input_name)
                     except Exception:
-                        field_types[nm] = None
+                        field_types[input_name] = None
 
                 for rule in HEURISTIC_RULES:
                     # Check for excluded class keywords
@@ -965,36 +966,36 @@ class MetadataRuleScanner:
                     # EARLY MULTI-FIELD HANDLING
                     if rule.get("is_multi"):
                         # Gather matching field names
-                        kws_norm = [
+                        keyword_candidates = [
                             kw.lower() if isinstance(kw, str) else str(kw).lower() for kw in rule.get("keywords", [])
                         ]
                         regex_patterns = rule.get("keywords_regex") or []
                         matching_fields = []
-                        for fn in all_input_names:
-                            lname = fn.lower()
-                            if excluded_kws and any(ex_kw in lname for ex_kw in excluded_kws):
+                        for input_name in all_input_names:
+                            lower_name = input_name.lower()
+                            if excluded_kws and any(ex_kw in lower_name for ex_kw in excluded_kws):
                                 continue
-                            if not _type_ok(fn):
+                            if not _type_ok(input_name):
                                 continue
                             matched = False
                             if rule.get("exact_only"):
-                                if any(lname == kw for kw in kws_norm):
+                                if any(lower_name == kw for kw in keyword_candidates):
                                     matched = True
                             else:
-                                if any(kw in lname for kw in kws_norm):
+                                if any(keyword in lower_name for keyword in keyword_candidates):
                                     matched = True
                             if not matched and regex_patterns:
                                 for pat in regex_patterns:
                                     try:
                                         import re as _re
 
-                                        if _re.search(pat, fn, _re.IGNORECASE):
+                                        if _re.search(pat, input_name, _re.IGNORECASE):
                                             matched = True
                                             break
                                     except Exception:
                                         continue
                             if matched:
-                                matching_fields.append(fn)
+                                matching_fields.append(input_name)
                         if matching_fields:
                             priority_specs = tuple(rule.get("priority_keywords") or ())
 

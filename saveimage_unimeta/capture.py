@@ -1797,9 +1797,9 @@ class Capture:
             if pos:
                 header_lines.append(pos)
         header_lines.append(f"Negative prompt: {neg}")
-        result = "\n".join(header_lines) + "\n"
+        prompt_header_block = "\n".join(header_lines) + "\n"
         if DEBUG_PROMPTS:
-            logger.debug("[Metadata Debug] Final header lines (joined):\n%s", result)
+            logger.debug("[Metadata Debug] Final header lines (joined):\n%s", prompt_header_block)
 
         exclude_keys = {
             "Positive prompt",
@@ -1811,27 +1811,42 @@ class Capture:
         for k in list(pnginfo_dict.keys()):
             if k.lower() in {"t5 prompt", "clip prompt"}:
                 exclude_keys.add(k)
-        data = {k: v for k, v in pnginfo_dict.items() if k not in exclude_keys}
+        metadata_fields = {k: v for k, v in pnginfo_dict.items() if k not in exclude_keys}
         # Pull out metadata generator version to force it last later
-        _mgv = None
-        if "Metadata generator version" in data:
-            _mgv = data.pop("Metadata generator version")
-        multi_entries = []
-        if "__multi_sampler_entries" in data:
+        metadata_version = metadata_fields.pop("Metadata generator version", None)
+        extra_metadata_keys_raw = metadata_fields.pop("__extra_metadata_keys", None)
+        extra_metadata_keys: list[str] = []
+        if extra_metadata_keys_raw is not None:
+            # Normalize to a list: list/tuple stay as-is; other values (str, int, etc.) become single-element lists.
+            candidates = list(extra_metadata_keys_raw) if isinstance(extra_metadata_keys_raw, list | tuple) else [extra_metadata_keys_raw]
+            seen_extra_keys: set[str] = set()
+            for candidate in candidates:
+                if candidate is None:
+                    continue
+                key_name = str(candidate)
+                if not key_name or key_name in seen_extra_keys:
+                    continue
+                if key_name not in metadata_fields:
+                    continue
+                seen_extra_keys.add(key_name)
+                extra_metadata_keys.append(key_name)
+        extra_metadata_key_set = set(extra_metadata_keys)
+        multi_sampler_entries: list[dict[str, Any]] = []
+        if "__multi_sampler_entries" in metadata_fields:
             try:
-                multi_entries = data.pop("__multi_sampler_entries") or []
+                multi_sampler_entries = metadata_fields.pop("__multi_sampler_entries") or []
             except Exception:
-                multi_entries = []
+                multi_sampler_entries = []
 
         # Guidance-as-CFG override: when enabled and Guidance present, overwrite CFG scale with Guidance value
         # Then remove the original Guidance key.
-        if guidance_as_cfg and "Guidance" in data:
-            guidance_val = data.get("Guidance")
+        if guidance_as_cfg and "Guidance" in metadata_fields:
+            guidance_val = metadata_fields.get("Guidance")
             try:
-                data["CFG scale"] = float(guidance_val) if guidance_val is not None else guidance_val
+                metadata_fields["CFG scale"] = float(guidance_val) if guidance_val is not None else guidance_val
             except Exception:
-                data["CFG scale"] = guidance_val
-            data.pop("Guidance", None)
+                metadata_fields["CFG scale"] = guidance_val
+            metadata_fields.pop("Guidance", None)
 
         # Determine final inclusion of aggregated LoRAs summary line.
         # Precedence: explicit override (True/False) > env flag > default include.
@@ -1843,8 +1858,8 @@ class Capture:
         else:
             include_lora_summary = _include_lora_summary()
 
-        if not include_lora_summary and "LoRAs" in data:
-            data.pop("LoRAs", None)
+        if not include_lora_summary and "LoRAs" in metadata_fields:
+            metadata_fields.pop("LoRAs", None)
 
         # Primary ordering approximating A111 style; remaining keys alpha-sorted
         # Ordering adapted to user example preference: Sampler block early, Denoise before Seed, Weight/VAE later
@@ -1868,82 +1883,117 @@ class Capture:
             "VAE hash",
             "Shift",
         ]
-        ordered_items = []
-        seen = set()
+        ordered_fields: list[tuple[str, Any]] = []
+        ordered_labels: set[str] = set()
 
-        def add_if_present(key):
-            if key in data and key not in seen:
-                ordered_items.append((key, data[key]))
-                seen.add(key)
+        def append_if_present(key: str) -> None:
+            if key in metadata_fields and key not in ordered_labels:
+                ordered_fields.append((key, metadata_fields[key]))
+                ordered_labels.add(key)
 
-        for k in primary_order:
-            add_if_present(k)
+        for key in primary_order:
+            append_if_present(key)
 
         import re
 
+        def _make_suffix_sorter(sub_order: list[str]):
+            """Return a sort key function that orders strings by suffix match against sub_order."""
+            def sort_key(name: str) -> int:
+                for sub_index, suffix in enumerate(sub_order):
+                    if name.endswith(suffix):
+                        return sub_index
+                return len(sub_order)
+            return sort_key
+
         # LoRA grouped fields
         lora_pattern = re.compile(r"^Lora_(\d+) ")
-        lora_groups = {}
-        for k in data.keys():
-            m = lora_pattern.match(k)
-            if m:
-                idx = int(m.group(1))
-                lora_groups.setdefault(idx, []).append(k)
+        lora_groups: dict[int, list[str]] = {}
+        for key in metadata_fields.keys():
+            match = lora_pattern.match(key)
+            if match:
+                idx = int(match.group(1))
+                lora_groups.setdefault(idx, []).append(key)
         for idx in sorted(lora_groups.keys()):
             sub_order = ["Model name", "Model hash", "Strength model", "Strength clip"]
             keys = lora_groups[idx]
 
-            def sort_key(name):
-                for i, so in enumerate(sub_order):
-                    if name.endswith(so):
-                        return i
-                return len(sub_order)
-
-            for k in sorted(keys, key=sort_key):
-                if k not in seen:
-                    ordered_items.append((k, data[k]))
-                    seen.add(k)
+            for key in sorted(keys, key=_make_suffix_sorter(sub_order)):
+                if key not in ordered_labels:
+                    ordered_fields.append((key, metadata_fields[key]))
+                    ordered_labels.add(key)
 
         # Embedding grouped fields
         emb_pattern = re.compile(r"^Embedding_(\d+) ")
-        emb_groups = {}
-        for k in data.keys():
-            m = emb_pattern.match(k)
-            if m:
-                idx = int(m.group(1))
-                emb_groups.setdefault(idx, []).append(k)
+        emb_groups: dict[int, list[str]] = {}
+        for key in metadata_fields.keys():
+            match = emb_pattern.match(key)
+            if match:
+                idx = int(match.group(1))
+                emb_groups.setdefault(idx, []).append(key)
         for idx in sorted(emb_groups.keys()):
             sub_order = ["name", "hash"]
             keys = emb_groups[idx]
 
-            def sort_key_e(name):
-                for i, so in enumerate(sub_order):
-                    if name.endswith(so):
-                        return i
-                return len(sub_order)
+            for key in sorted(keys, key=_make_suffix_sorter(sub_order)):
+                if key not in ordered_labels:
+                    ordered_fields.append((key, metadata_fields[key]))
+                    ordered_labels.add(key)
 
-            for k in sorted(keys, key=sort_key_e):
-                if k not in seen:
-                    ordered_items.append((k, data[k]))
-                    seen.add(k)
+        # CLIP grouped fields
+        clip_pattern = re.compile(r"^CLIP_(\d+) ")
+        clip_groups: dict[int, list[str]] = {}
+        for key in metadata_fields.keys():
+            match = clip_pattern.match(key)
+            if match:
+                idx = int(match.group(1))
+                clip_groups.setdefault(idx, []).append(key)
+        for idx in sorted(clip_groups.keys()):
+            sub_order = ["Model name", "Model hash"]
+            keys = clip_groups[idx]
+
+            for key in sorted(keys, key=_make_suffix_sorter(sub_order)):
+                if key not in ordered_labels:
+                    ordered_fields.append((key, metadata_fields[key]))
+                    ordered_labels.add(key)
 
         # Remaining keys
-        remaining = [k for k in data.keys() if k not in seen]
+        remaining = [key for key in metadata_fields.keys() if key not in ordered_labels]
         # Optionally suppress Hash detail from flat parameter string (too verbose for human reading)
         if "Hash detail" in remaining:
             remaining.remove("Hash detail")
-        # Ensure "Hashes" appears before any user-provided extra metadata keys
-        # by processing it first if present
+
+        # Multi-step separation for extra metadata keys ensures the following field order:
+        # 1. Core/remaining fields (alphabetically sorted) → standard metadata stays grouped early
+        # 2. "Hashes" entry → appears after core fields as a bridge
+        # 3. User-provided extra metadata fields → grouped at the tail, also alphabetically sorted
+        # This multi-step separation preserves backward compatibility with existing metadata parsers
+        # while keeping user-provided extra metadata clearly separated at the end.
+
+        # Pass 1: Separate extra_metadata keys from core remaining keys
+        # Include `key in metadata_fields` guard to prevent KeyError on missing keys downstream
+        user_metadata_keys = [key for key in remaining if key in extra_metadata_key_set and key in metadata_fields]
+        remaining = [key for key in remaining if key not in extra_metadata_key_set]
+
+        # Pass 2: Extract "Hashes" from both lists so it can be inserted in the bridge position
         if "Hashes" in remaining:
             remaining.remove("Hashes")
-            ordered_items.append(("Hashes", data["Hashes"]))
-            seen.add("Hashes")
-        # Now add remaining keys (extra metadata) alphabetically after Hashes
-        for k in sorted(remaining):
-            ordered_items.append((k, data[k]))
+        if "Hashes" in user_metadata_keys:
+            user_metadata_keys.remove("Hashes")
+
+        # Pass 3: Emit fields in order: remaining → Hashes → user_metadata_keys
+        for key in sorted(remaining):
+            ordered_fields.append((key, metadata_fields[key]))
+            ordered_labels.add(key)
+        if "Hashes" in metadata_fields and "Hashes" not in ordered_labels:
+            ordered_fields.append(("Hashes", metadata_fields["Hashes"]))
+            ordered_labels.add("Hashes")
+        # Now add user-provided extra metadata fields alphabetically after Hashes
+        for key in sorted(user_metadata_keys):
+            ordered_fields.append((key, metadata_fields[key]))
+            ordered_labels.add(key)
         # Append metadata generator version last if present
-        if _mgv is not None:
-            ordered_items.append(("Metadata generator version", _mgv))
+        if metadata_version is not None:
+            ordered_fields.append(("Metadata generator version", metadata_version))
 
         # Safety pass: ensure critical legacy fields captured if they existed in
         # original pnginfo but were somehow missed.
@@ -1957,103 +2007,81 @@ class Capture:
             "Batch index",
             "Batch size",
         ]
-        present_keys = {k for k, _ in ordered_items}
+        present_keys = {k for k, _ in ordered_fields}
         for cf in critical_fields:
-            if cf in data and cf not in present_keys:
-                ordered_items.insert(0, (cf, data[cf]))  # Prepend to emphasize core params
+            if cf in metadata_fields and cf not in present_keys:
+                ordered_fields.insert(0, (cf, metadata_fields[cf]))  # Prepend to emphasize core params
 
         # Inject LoRA summary (optional) before Hashes entry if any LoRAs exist
         if include_lora_summary_override is True or (include_lora_summary_override is None and _include_lora_summary()):
             try:
-                lora_names = []
-                i = 0
+                lora_names: list[str] = []
+                lora_index = 0
                 while True:
-                    nk = f"Lora_{i} Model name"
-                    if nk not in pnginfo_dict:
+                    model_name_key = f"Lora_{lora_index} Model name"
+                    if model_name_key not in pnginfo_dict:
                         break
-                    name = pnginfo_dict.get(nk)
-                    sm = pnginfo_dict.get(f"Lora_{i} Strength model")
-                    if sm is None:
-                        sm = pnginfo_dict.get(f"Lora_{i} Strength clip")
+                    name = pnginfo_dict.get(model_name_key)
+                    strength_value = pnginfo_dict.get(f"Lora_{lora_index} Strength model")
+                    if strength_value is None:
+                        strength_value = pnginfo_dict.get(f"Lora_{lora_index} Strength clip")
                     if name:
                         try:
                             sval = (
-                                f"{float(sm):.3g}"
-                                if isinstance(sm, int | float)  # noqa: UP038
-                                else (str(sm) if sm is not None else "")
+                                f"{float(strength_value):.3g}"
+                                if isinstance(strength_value, int | float)  # noqa: UP038
+                                else (str(strength_value) if strength_value is not None else "")
                             )
                         except Exception:
-                            sval = str(sm) if sm is not None else ""
+                            sval = str(strength_value) if strength_value is not None else ""
                         if sval:
                             lora_names.append(f"{name}: str_{sval}")
                         else:
                             lora_names.append(str(name))
-                    i += 1
+                    lora_index += 1
                 if lora_names:
                     # Find index of Hashes if present
                     hashes_idx = None
-                    for idx, (k, _) in enumerate(ordered_items):
+                    for idx, (k, _) in enumerate(ordered_fields):
                         if k == "Hashes":
                             hashes_idx = idx
                             break
                     summary_val = ", ".join(lora_names)
-                    insert_pos = hashes_idx if hashes_idx is not None else len(ordered_items)
-                    ordered_items.insert(insert_pos, ("LoRAs", summary_val))
+                    insert_pos = hashes_idx if hashes_idx is not None else len(ordered_fields)
+                    ordered_fields.insert(insert_pos, ("LoRAs", summary_val))
             except Exception:
                 pass  # LoRA summary insertion may fail - continue without it
 
-        if _mgv is not None:
+        if metadata_version is not None:
             # Ensure metadata generator version remains last after any subsequent insertions
-            ordered_items = [item for item in ordered_items if item[0] != "Metadata generator version"]
-            ordered_items.append(("Metadata generator version", _mgv))
-
-        def _format_sampler(raw: str) -> str:
-            """Return display value for sampler.
-
-            Rules:
-              * Preserve original raw token casing for most samplers (keeps e.g. 'linear/euler_simple').
-              * Map exactly 'euler_karras' (case-insensitive) to 'Euler Karras' for readability & test expectation.
-              * If raw contains a trailing '_karras' but not exactly euler_karras,
-              * replace only the underscore before 'karras' with a space and
-              * capitalize 'Karras'.
-            """
-            rlow = raw.lower()
-            if rlow == "euler_karras":
-                return "Euler Karras"
-            if rlow.endswith("_karras"):
-                # Split once at last underscore to retain rest verbatim
-                head, _sep, tail = raw.rpartition("_")
-                if tail.lower() == "karras":
-                    return f"{head} Karras"
-            return raw
+            ordered_fields = [item for item in ordered_fields if item[0] != "Metadata generator version"]
+            ordered_fields.append(("Metadata generator version", metadata_version))
 
         TEST_MODE = bool(os.environ.get("METADATA_TEST_MODE"))  # noqa: N806 - narrow scope, keep style
         multiline = TEST_MODE  # Only multiline in test mode to satisfy snapshot tests
 
         parts: list[str] = []
-        for k, v in ordered_items:
+        for k, v in ordered_fields:
             try:
                 s = str(v).strip().replace("\n", " ")
             except Exception:
                 s = str(v)
-            if k == "Sampler" and isinstance(s, str) and s:
-                s = _format_sampler(s)
             parts.append(f"{k}: {s}")
 
         # Multi-sampler tail augmentation: only if >1 sampler candidate
         tail = ""
-        if multi_entries and isinstance(multi_entries, list) and len(multi_entries) > 1:
+        if multi_sampler_entries and isinstance(multi_sampler_entries, list) and len(multi_sampler_entries) > 1:
             try:
                 segs = []
-                for e in multi_entries:
-                    name = e.get("sampler_name") or e.get("class_type") or "?"
-                    if e.get("start_step") is not None and e.get("end_step") is not None:
-                        segs.append(f"{name} ({e['start_step']}-{e['end_step']})")
-                    elif e.get("steps") is not None:
+                for entry in multi_sampler_entries:
+                    name = entry.get("sampler_name") or entry.get("class_type") or "?"
+                    if entry.get("start_step") is not None and entry.get("end_step") is not None:
+                        segs.append(f"{name} ({entry['start_step']}-{entry['end_step']})")
+                    elif entry.get("steps") is not None:
                         # Represent full-run steps as 0-(steps-1) only if there are segment samplers too
-                        any_segments = any(x.get("start_step") is not None for x in multi_entries)
-                        if any_segments and isinstance(e.get("steps"), int):
-                            rng = f"0-{int(e['steps']) - 1}" if int(e["steps"]) > 0 else "0-0"
+                        any_segments = any(x.get("start_step") is not None for x in multi_sampler_entries)
+                        if any_segments and isinstance(entry.get("steps"), int):
+                            rng = f"0-{int(entry['steps']) - 1}" if int(entry["steps"]) > 0 else "0-0"
                             segs.append(f"{name} ({rng})")
                         else:
                             segs.append(f"{name}")
@@ -2085,10 +2113,10 @@ class Capture:
             return s
 
         if multiline:
-            return _normalize_newlines(result + "\n".join(parts) + tail)
+            return _normalize_newlines(prompt_header_block + "\n".join(parts) + tail)
         else:
             # Legacy Automatic1111-style: single parameter line (after prompts / negative)
-            return _normalize_newlines(result + ", ".join(parts) + tail)
+            return _normalize_newlines(prompt_header_block + ", ".join(parts) + tail)
 
     @classmethod
     def add_hash_detail_section(cls, pnginfo_dict):
@@ -2107,7 +2135,7 @@ class Capture:
         try:
             if "Hash detail" in pnginfo_dict:
                 return
-            detail = {
+            hash_detail_payload = {
                 "model": {
                     "name": pnginfo_dict.get("Model"),
                     "hash": pnginfo_dict.get("Model hash"),
@@ -2120,43 +2148,43 @@ class Capture:
                 "embeddings": [],
             }
             if "Metadata generator version" in pnginfo_dict:
-                detail["version"] = pnginfo_dict["Metadata generator version"]
-            i = 0
+                hash_detail_payload["version"] = pnginfo_dict["Metadata generator version"]
+            lora_index = 0
             while True:
-                base = f"Lora_{i}"
-                nk = f"{base} Model name"
-                hk = f"{base} Model hash"
-                if nk not in pnginfo_dict and hk not in pnginfo_dict:
+                base = f"Lora_{lora_index}"
+                model_name_key = f"{base} Model name"
+                model_hash_key = f"{base} Model hash"
+                if model_name_key not in pnginfo_dict and model_hash_key not in pnginfo_dict:
                     break
-                detail["loras"].append(
+                hash_detail_payload["loras"].append(
                     {
-                        "index": i,
-                        "name": pnginfo_dict.get(nk),
-                        "hash": pnginfo_dict.get(hk),
+                        "index": lora_index,
+                        "name": pnginfo_dict.get(model_name_key),
+                        "hash": pnginfo_dict.get(model_hash_key),
                         "strength_model": pnginfo_dict.get(f"{base} Strength model"),
                         "strength_clip": pnginfo_dict.get(f"{base} Strength clip"),
                     }
                 )
-                i += 1
-            i = 0
+                lora_index += 1
+            embedding_index = 0
             while True:
-                base = f"Embedding_{i}"
-                nk = f"{base} name"
-                hk = f"{base} hash"
-                if nk not in pnginfo_dict and hk not in pnginfo_dict:
+                base = f"Embedding_{embedding_index}"
+                embedding_name_key = f"{base} name"
+                embedding_hash_key = f"{base} hash"
+                if embedding_name_key not in pnginfo_dict and embedding_hash_key not in pnginfo_dict:
                     break
-                detail["embeddings"].append(
+                hash_detail_payload["embeddings"].append(
                     {
-                        "index": i,
-                        "name": pnginfo_dict.get(nk),
-                        "hash": pnginfo_dict.get(hk),
+                        "index": embedding_index,
+                        "name": pnginfo_dict.get(embedding_name_key),
+                        "hash": pnginfo_dict.get(embedding_hash_key),
                     }
                 )
-                i += 1
+                embedding_index += 1
             try:
-                pnginfo_dict["Hash detail"] = json.dumps(detail, sort_keys=True)
+                pnginfo_dict["Hash detail"] = json.dumps(hash_detail_payload, sort_keys=True)
             except Exception:
-                pnginfo_dict["Hash detail"] = str(detail)
+                pnginfo_dict["Hash detail"] = str(hash_detail_payload)
         except Exception as e:
             logger.warning("[Metadata Lib] Failed to build Hash detail section: %r", e)
 
@@ -2766,6 +2794,18 @@ class Capture:
     @classmethod
     def get_sampler_for_civitai(cls, sampler_names, schedulers):
         """Return a Civitai-compatible sampler string from captured nodes.
+
+        Get the pretty sampler name for Civitai in the form of `<Sampler Name> <Scheduler name>`.
+            - `dpmpp_2m` and `karras` will return `DPM++ 2M Karras`
+
+        If there is a matching sampler name but no matching scheduler name, return only the matching sampler name.
+            - `dpmpp_2m` and `exponential` will return only `DPM++ 2M`
+
+        if there is no matching sampler and scheduler name, return `<sampler_name>_<scheduler_name>`
+            - `ipndm` and `normal` will return `ipndm`
+            - `ipndm` and `karras` will return `ipndm_karras`
+
+        Reference: https://github.com/civitai/civitai/blob/main/src/server/common/constants.ts
 
         Args:
             sampler_names (list): Candidate sampler tuples or strings.

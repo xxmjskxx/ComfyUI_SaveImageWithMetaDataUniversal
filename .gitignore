@@ -182,6 +182,7 @@ run_dev_workflows.bat
 validate_metadata.bat
 read_write_all_exif_to_txt.bat
 tools/
+tests/tools/VALIDATE_METADATA_FIXES.md
 tests/comfyui_cli_tests/COMPLETION_SUMMARY.txt
 tests/comfyui_cli_tests/demo_output.txt
 tests/comfyui_cli_tests/demo_validation_fixes.py
@@ -202,6 +203,7 @@ tests/comfyui_cli_tests/WORKFLOW_TEST_SUGGESTIONS.md
 tests/tools/Test/
 tests/tools/VALIDATE_METADATA_FIXES.md
 tests/tools/VALIDATION_FIXES_SUMMARY.md
+tests/tools/comfy_node_mappings.txt
 tests/tools/Test/hash_logs.txt
 tests/tools/Test/metadata_dump.txt
 tests/tools/Test/metadata_dump.txt.bak

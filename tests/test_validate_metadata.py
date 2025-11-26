@@ -2,6 +2,7 @@
 
 import sys
 from pathlib import Path
+from typing import Any
 
 try:
     from tests.tools.validate_metadata import MetadataValidator, WorkflowAnalyzer
@@ -206,6 +207,135 @@ class TestImageMatching:
         patterns = ["eff"]
 
         assert not validator.match_image_to_workflow(image_path, patterns)
+
+
+class TestSamplerValidation:
+    """Test sampler and scheduler validation rules."""
+
+    def _run_validation(self, fields: dict[str, str], expected: dict[str, Any]) -> dict:
+        validator = MetadataValidator(Path("."), Path("."))
+        result = {"errors": [], "warnings": [], "check_details": []}
+        validator._validate_expected_fields(fields, expected, result)
+        return result
+
+    def test_non_civitai_sampler_requires_scheduler_suffix(self):
+        expected = {"sampler_name": "euler", "scheduler": "karras", "civitai_sampler": False}
+        fields = {"Sampler": "euler_karras"}
+        result = self._run_validation(fields, expected)
+        assert not result["errors"]
+        assert any(detail["field"] == "Sampler" and detail["status"] == "pass" for detail in result["check_details"])
+
+    def test_non_civitai_sampler_missing_scheduler_fails(self):
+        expected = {"sampler_name": "euler", "scheduler": "karras", "civitai_sampler": False}
+        fields = {"Sampler": "euler"}
+        result = self._run_validation(fields, expected)
+        assert result["errors"]
+        assert any("Sampler mismatch" in err for err in result["errors"])
+
+    def test_civitai_sampler_mapping_passes(self):
+        expected = {"sampler_name": "dpmpp_2m_sde", "scheduler": "karras", "civitai_sampler": True}
+        fields = {"Sampler": "DPM++ 2M SDE Karras"}
+        result = self._run_validation(fields, expected)
+        assert not result["errors"]
+        assert any(detail["field"] == "Sampler" and detail["status"] == "pass" for detail in result["check_details"])
+
+    def test_civitai_sampler_mismatch_fails(self):
+        expected = {"sampler_name": "dpmpp_2m_sde", "scheduler": "karras", "civitai_sampler": True}
+        fields = {"Sampler": "Euler"}
+        result = self._run_validation(fields, expected)
+        assert result["errors"]
+        assert any("Civitai" in err for err in result["errors"])
+
+
+class TestSamplerSelectionWorkflow:
+    """Ensure sampler selection mirrors runtime sampler_selection_method semantics."""
+
+    def _build_multi_sampler_workflow(self, selection_method: str = "Farthest", selection_node_id: int = 0) -> dict[str, Any]:
+        workflow: dict[str, Any] = {
+            "10": {
+                "class_type": "SaveImageWithMetaDataUniversal",
+                "inputs": {
+                    "images": ["9", 0],
+                    "filename_prefix": "Test\\multi-sampler",
+                    "sampler_selection_method": selection_method,
+                    "sampler_selection_node_id": selection_node_id,
+                },
+            },
+            "9": {
+                "class_type": "VAEDecode",
+                "inputs": {
+                    "samples": ["8", 0],
+                    "vae": ["4", 0],
+                },
+            },
+            "8": {
+                "class_type": "KSampler",
+                "inputs": {
+                    "steps": 10,
+                    "cfg": 7,
+                    "sampler_name": "sampler_near",
+                    "scheduler": "normal",
+                    "model": ["5", 0],
+                    "latent_image": ["7", 0],
+                    "positive": "good prompt",
+                    "negative": "bad prompt",
+                },
+            },
+            "7": {
+                "class_type": "KSampler",
+                "inputs": {
+                    "steps": 30,
+                    "cfg": 7,
+                    "sampler_name": "sampler_far",
+                    "scheduler": "karras",
+                    "model": ["5", 0],
+                    "latent_image": ["6", 0],
+                    "positive": "good prompt",
+                    "negative": "bad prompt",
+                },
+            },
+            "6": {
+                "class_type": "EmptyLatentImage",
+                "inputs": {
+                    "width": 512,
+                    "height": 512,
+                    "batch_size": 1,
+                },
+            },
+            "5": {
+                "class_type": "CheckpointLoaderSimple",
+                "inputs": {
+                    "ckpt_name": "model.safetensors",
+                },
+            },
+            "4": {
+                "class_type": "VAELoader",
+                "inputs": {
+                    "vae_name": "vae.safetensors",
+                },
+            },
+        }
+        return workflow
+
+    def _extract_save_node(self, workflow: dict[str, Any]) -> dict[str, Any]:
+        expected = WorkflowAnalyzer.extract_expected_metadata(workflow, "multi-sampler")
+        assert expected["save_nodes"], "Expected at least one save node"
+        return expected["save_nodes"][0]
+
+    def test_farthest_sampler_selected(self):
+        workflow = self._build_multi_sampler_workflow(selection_method="Farthest")
+        save_node_expected = self._extract_save_node(workflow)
+        assert save_node_expected["sampler_node_id"] == "7"
+
+    def test_nearest_sampler_selected(self):
+        workflow = self._build_multi_sampler_workflow(selection_method="Nearest")
+        save_node_expected = self._extract_save_node(workflow)
+        assert save_node_expected["sampler_node_id"] == "8"
+
+    def test_by_node_id_sampler_selected(self):
+        workflow = self._build_multi_sampler_workflow(selection_method="By node ID", selection_node_id=8)
+        save_node_expected = self._extract_save_node(workflow)
+        assert save_node_expected["sampler_node_id"] == "8"
 
     def test_match_case_insensitive(self):
         """Test case-insensitive matching."""

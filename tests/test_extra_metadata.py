@@ -206,6 +206,7 @@ class TestExtraMetadataOrdering:
             "Hashes": '{"model": "abc123"}',
             "CustomField1": "CustomValue1",  # Extra metadata
             "AnotherCustom": "AnotherValue",  # Extra metadata (sorts before "C")
+            "__extra_metadata_keys": ["CustomField1", "AnotherCustom"],
         }
 
         # Generate parameter string
@@ -223,6 +224,9 @@ class TestExtraMetadataOrdering:
         assert hashes_pos < custom1_pos, "CustomField1 should come after Hashes"
         assert hashes_pos < another_pos, "AnotherCustom should come after Hashes"
 
+        # Internal tracking key should not leak into the output string
+        assert "__extra_metadata_keys" not in param_str, "__extra_metadata_keys should not appear in output"
+
     def test_extra_metadata_before_version(self):
         """Verify extra metadata appears before Metadata generator version."""
         from saveimage_unimeta.capture import Capture
@@ -232,6 +236,7 @@ class TestExtraMetadataOrdering:
             "Negative prompt": "",
             "CustomField": "CustomValue",
             "Metadata generator version": "1.0.0",
+            "__extra_metadata_keys": ["CustomField"],
         }
 
         param_str = Capture.gen_parameters_str(pnginfo_dict)
@@ -242,6 +247,66 @@ class TestExtraMetadataOrdering:
         assert custom_pos != -1
         assert version_pos != -1
         assert custom_pos < version_pos, "Extra metadata should come before version"
+
+    def test_clip_fields_ordering(self):
+        """Ensure CLIP fields remain in the core block before the Hashes + extra metadata tail."""
+        from saveimage_unimeta.capture import Capture
+
+        pnginfo_dict = {
+            "Positive prompt": "flux",
+            "Negative prompt": "",
+            "Steps": 4,
+            "Sampler": "dpmpp_2m Karras",
+            "Model": "flux.safetensors",
+            "CLIP_1 Model name": "umt5_xxl_fp8",
+            "Hashes": '{"model": "cafebabe"}',
+            "CustomField": "CustomValue",
+            "Metadata generator version": "1.2.3",
+            "__extra_metadata_keys": ["CustomField"],
+        }
+
+        param_str = Capture.gen_parameters_str(pnginfo_dict)
+
+        clip_pos = param_str.find("CLIP_1 Model name:")
+        hashes_pos = param_str.find("Hashes:")
+        custom_pos = param_str.find("CustomField:")
+
+        assert clip_pos != -1, "CLIP field missing"
+        assert hashes_pos != -1, "Hashes missing"
+        assert custom_pos != -1, "Extra metadata missing"
+        assert clip_pos < hashes_pos < custom_pos, "Ordering should be CLIP -> Hashes -> extras"
+
+    def test_multiple_clip_fields_ordering(self):
+        """Ensure multiple CLIP fields maintain numeric ordering (CLIP_1 before CLIP_2)."""
+        from saveimage_unimeta.capture import Capture
+
+        pnginfo_dict = {
+            "Positive prompt": "flux",
+            "Negative prompt": "",
+            "Steps": 4,
+            "Sampler": "dpmpp_2m Karras",
+            "Model": "flux.safetensors",
+            "CLIP_2 Model name": "t5_xxl",
+            "CLIP_1 Model name": "umt5_xxl_fp8",
+            "Hashes": '{"model": "cafebabe"}',
+            "CustomField": "CustomValue",
+            "Metadata generator version": "1.2.3",
+            "__extra_metadata_keys": ["CustomField"],
+        }
+
+        param_str = Capture.gen_parameters_str(pnginfo_dict)
+
+        clip_1_pos = param_str.find("CLIP_1 Model name:")
+        clip_2_pos = param_str.find("CLIP_2 Model name:")
+        hashes_pos = param_str.find("Hashes:")
+        custom_pos = param_str.find("CustomField:")
+
+        assert clip_1_pos != -1, "CLIP_1 field missing"
+        assert clip_2_pos != -1, "CLIP_2 field missing"
+        assert hashes_pos != -1, "Hashes missing"
+        assert custom_pos != -1, "Extra metadata missing"
+        assert clip_1_pos < clip_2_pos, "CLIP_1 should come before CLIP_2"
+        assert clip_2_pos < hashes_pos < custom_pos, "Ordering should be CLIP fields -> Hashes -> extras"
 
 
 class TestExtraMetadataIntegration:
