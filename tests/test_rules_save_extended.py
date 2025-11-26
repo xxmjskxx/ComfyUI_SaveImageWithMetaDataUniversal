@@ -259,9 +259,9 @@ class TestRebuildDict:
         """Should add new entries to existing dict."""
         existing = 'SAMPLERS = {\n    "A": {},\n}'
         new_text = 'SAMPLERS = {\n    "B": {},\n}'
-        
+
         result = rules_node._rebuild_dict("SAMPLERS", existing, new_text)
-        
+
         assert '"A"' in result
         assert '"B"' in result
 
@@ -269,9 +269,9 @@ class TestRebuildDict:
         """Should update existing entries."""
         existing = 'SAMPLERS = {\n    "A": {"old": "value"},\n}'
         new_text = 'SAMPLERS = {\n    "A": {"new": "value"},\n}'
-        
+
         result = rules_node._rebuild_dict("SAMPLERS", existing, new_text)
-        
+
         assert '"new"' in result
         # Old value should be replaced
         assert result.count('"A"') == 1
@@ -280,9 +280,9 @@ class TestRebuildDict:
         """Should preserve key order from existing dict."""
         existing = 'SAMPLERS = {\n    "A": {},\n    "B": {},\n}'
         new_text = 'SAMPLERS = {\n    "C": {},\n}'
-        
+
         result = rules_node._rebuild_dict("SAMPLERS", existing, new_text)
-        
+
         # A and B should come before C
         idx_a = result.index('"A"')
         idx_b = result.index('"B"')
@@ -293,27 +293,27 @@ class TestRebuildDict:
         """Should append dict when missing from existing."""
         existing = "# Just a comment"
         new_text = "SAMPLERS = {}"
-        
+
         result = rules_node._rebuild_dict("SAMPLERS", existing, new_text)
-        
+
         assert "SAMPLERS = {}" in result
 
     def test_rebuild_dict_missing_in_new(self, rules_node):
         """Should preserve existing when missing from new."""
         existing = 'SAMPLERS = {"A": {}}'
         new_text = "# No samplers here"
-        
+
         result = rules_node._rebuild_dict("SAMPLERS", existing, new_text)
-        
+
         assert result == existing
 
     def test_rebuild_dict_both_missing(self, rules_node):
         """Should return existing when both are missing the dict."""
         existing = "# Just comments"
         new_text = "# More comments"
-        
+
         result = rules_node._rebuild_dict("SAMPLERS", existing, new_text)
-        
+
         assert result == existing
 
 
@@ -330,10 +330,10 @@ class TestSaveRules:
         """Should create file when overwriting."""
         test_path = tmp_path / "test_rules.py"
         monkeypatch.setattr(rules_node, "_rules_path", lambda: str(test_path))
-        
+
         content = "SAMPLERS = {}\nCAPTURE_FIELD_LIST = {}"
         (status,) = rules_node.save_rules(content, append=False)
-        
+
         assert "Overwritten" in status or "Created" in status
         assert test_path.exists()
         assert test_path.read_text() == content
@@ -342,10 +342,10 @@ class TestSaveRules:
         """Should create file when append=True but file doesn't exist."""
         test_path = tmp_path / "new_rules.py"
         monkeypatch.setattr(rules_node, "_rules_path", lambda: str(test_path))
-        
+
         content = "SAMPLERS = {}"
         (status,) = rules_node.save_rules(content, append=True)
-        
+
         assert "Created" in status
         assert test_path.exists()
 
@@ -355,10 +355,10 @@ class TestSaveRules:
         existing = 'SAMPLERS = {\n    "A": {},\n}\nCAPTURE_FIELD_LIST = {}'
         test_path.write_text(existing)
         monkeypatch.setattr(rules_node, "_rules_path", lambda: str(test_path))
-        
+
         new_content = 'SAMPLERS = {\n    "B": {},\n}\nCAPTURE_FIELD_LIST = {}'
         (status,) = rules_node.save_rules(new_content, append=True)
-        
+
         assert "Merged" in status
         result = test_path.read_text()
         assert '"A"' in result
@@ -395,9 +395,9 @@ class TestSaveRules:
         """Should handle empty content."""
         test_path = tmp_path / "empty_rules.py"
         monkeypatch.setattr(rules_node, "_rules_path", lambda: str(test_path))
-        
+
         (status,) = rules_node.save_rules("", append=False)
-        
+
         # Empty string is valid Python
         assert "Overwritten" in status or "Created" in status
 
@@ -408,7 +408,7 @@ class TestInputTypes:
     def test_input_types_has_required_fields(self, rules_module):
         """INPUT_TYPES should define rules_text and append."""
         inputs = rules_module.SaveGeneratedUserRules.INPUT_TYPES()
-        
+
         assert "required" in inputs
         assert "rules_text" in inputs["required"]
         assert "append" in inputs["required"]
@@ -416,7 +416,7 @@ class TestInputTypes:
     def test_input_types_rules_text_multiline(self, rules_module):
         """rules_text should be multiline STRING."""
         inputs = rules_module.SaveGeneratedUserRules.INPUT_TYPES()
-        
+
         rules_text_spec = inputs["required"]["rules_text"]
         assert rules_text_spec[0] == "STRING"
         assert rules_text_spec[1].get("multiline") is True
@@ -424,7 +424,7 @@ class TestInputTypes:
     def test_input_types_append_default_true(self, rules_module):
         """append should default to True."""
         inputs = rules_module.SaveGeneratedUserRules.INPUT_TYPES()
-        
+
         append_spec = inputs["required"]["append"]
         assert append_spec[0] == "BOOLEAN"
         assert append_spec[1].get("default") is True

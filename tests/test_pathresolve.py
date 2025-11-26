@@ -1,9 +1,6 @@
 """Tests for utils/pathresolve.py artifact resolution and hashing utilities."""
 
 import os
-import tempfile
-
-import pytest
 
 import folder_paths
 

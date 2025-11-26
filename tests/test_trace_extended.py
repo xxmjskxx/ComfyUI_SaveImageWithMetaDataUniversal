@@ -9,7 +9,6 @@ These tests complement test_trace.py by covering:
 
 import importlib
 import logging
-import os
 import sys
 
 import pytest

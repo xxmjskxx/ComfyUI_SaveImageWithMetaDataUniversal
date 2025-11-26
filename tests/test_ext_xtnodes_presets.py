@@ -11,8 +11,6 @@ Tests cover:
 
 from __future__ import annotations
 
-import pytest
-
 from saveimage_unimeta.defs.ext.XTNodes import (
     get_lora_data,
     get_lora_model_name,

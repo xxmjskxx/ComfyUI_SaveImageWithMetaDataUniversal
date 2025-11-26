@@ -10,7 +10,6 @@ These tests focus on edge cases and code paths not covered by test_formatters_em
 
 import importlib
 import logging
-import os
 import sys
 import types
 

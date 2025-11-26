@@ -1,8 +1,6 @@
 """Tests for nodes/show_text.py and nodes/rules_view.py node modules."""
 
 import logging
-import os
-
 import pytest
 
 

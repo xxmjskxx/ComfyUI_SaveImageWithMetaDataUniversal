@@ -1,9 +1,5 @@
 """Additional tests for defs/selectors.py to cover edge cases and uncovered paths."""
 
-import math
-
-import pytest
-
 from saveimage_unimeta.defs.selectors import (
     _aligned_strengths_for_prefix,
     _build_normalized_map,

@@ -2,8 +2,6 @@ import os
 import sys
 from pathlib import Path
 import importlib
-import re
-import json
 
 PKG_PARENT = os.path.dirname(os.path.dirname(__file__))
 if PKG_PARENT not in sys.path:

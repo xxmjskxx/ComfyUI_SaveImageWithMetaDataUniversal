@@ -14,8 +14,6 @@ Tests cover:
 
 from __future__ import annotations
 
-import pytest
-
 from saveimage_unimeta.defs.ext.efficiency_nodes import (
     _stack_from_outputs,
     _normalize_connection_target,

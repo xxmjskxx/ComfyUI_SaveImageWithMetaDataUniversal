@@ -11,10 +11,6 @@ Tests cover:
 
 from __future__ import annotations
 
-import os
-
-import pytest
-
 from saveimage_unimeta.version import resolve_runtime_version, _read_pyproject_version
 
 

@@ -1,8 +1,5 @@
 """Tests for defs/ext/rgthree.py and defs/ext/impact.py LoRA extraction modules."""
 
-import importlib
-import sys
-
 import pytest
 
 import folder_paths
