@@ -227,14 +227,22 @@ def _probe_folder(kind: str, base_name: str) -> str | None:
         # Provided recognized extension but direct lookup failed:
         # attempt sanitized variant + fallback probing using stem
         sanitized = sanitize_candidate(base_name)
-        if sanitized != base_name:
+        # Fix: ensure we treat sanitized string itself as a candidate even if it has an extension.
+        # This covers cases where `base_name` was quoted but contained a valid full filename.
+        if sanitized not in candidate_names:
             candidate_names.append(sanitized)
+
         stem_only = os.path.splitext(sanitized)[0]
         for e in EXTENSION_ORDER:
             if stem_only + e not in candidate_names:
                 candidate_names.append(stem_only + e)
     else:
         sanitized_stem = sanitize_candidate(stem)
+        # Fix: ensure we treat sanitized stem itself as a candidate.
+        # This handles cases where sanitize_candidate stripped quotes around a complete filename.
+        if sanitized_stem and sanitized_stem != stem and sanitized_stem not in candidate_names:
+            candidate_names.append(sanitized_stem)
+
         for e in EXTENSION_ORDER:
             candidate_names.append(sanitized_stem + e)
         if sanitized_stem != stem:
