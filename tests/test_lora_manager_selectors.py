@@ -176,3 +176,38 @@ def test_lora_manager_includes_loras_without_active_field(monkeypatch):
     assert names == ["NoActiveField", "WithActiveTrue"]
     assert model_strengths == [0.5, 0.6]
     assert clip_strengths == [0.3, 0.4]
+
+
+def test_lora_manager_active_fields_prevent_text_merge(monkeypatch):
+    """Test that when structured data has 'active' fields, text is NOT merged.
+
+    This tests the exact LoraManager scenario where:
+    - lora_stack has entries with active: true/false
+    - lora_syntax/text has ALL loras (including inactive ones)
+    Only the active loras from structured data should be captured.
+    """
+    mod = _load_module(monkeypatch)
+    # Simulates LoraManager data format where text contains all loras
+    # but structured data has active flags
+    input_data = (
+        {
+            "lora_stack": [
+                [
+                    {"name": "lenovo_z", "strength": 0.2, "clipStrength": 0.2, "active": False},
+                    {"name": "grainscape_zimage", "strength": 0.2, "clipStrength": 0.2, "active": True},
+                    {"name": "Marvel_Spectrum", "strength": 1.0, "clipStrength": 1.0, "active": True},
+                    {"name": "Rainbow_Brite", "strength": 1.0, "clipStrength": 1.0, "active": False},
+                ]
+            ],
+            # This text contains ALL loras including inactive ones - should be ignored
+            # when structured data has 'active' fields
+            "lora_syntax": "<lora:lenovo_z:0.2> <lora:grainscape_zimage:0.2> <lora:Marvel_Spectrum:1.0> <lora:Rainbow_Brite:1.0>",
+        },
+    )
+    names = mod.get_lora_model_names("civitai_test", None, None, None, None, input_data)
+    model_strengths = mod.get_lora_model_strengths("civitai_test", None, None, None, None, input_data)
+    clip_strengths = mod.get_lora_clip_strengths("civitai_test", None, None, None, None, input_data)
+    # Only the 2 active loras should be captured - text should NOT re-add inactive ones
+    assert names == ["grainscape_zimage", "Marvel_Spectrum"]
+    assert model_strengths == [0.2, 1.0]
+    assert clip_strengths == [0.2, 1.0]
