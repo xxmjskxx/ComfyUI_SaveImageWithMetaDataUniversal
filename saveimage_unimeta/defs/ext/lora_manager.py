@@ -133,6 +133,10 @@ def _parse_stack_entries_from_value(value):
             return _parse_stack_entries_from_value(parsed)
         return []
     if isinstance(value, dict):
+        # Skip entries explicitly marked as inactive in LoraManager nodes.
+        # Only skip if 'active' key exists AND is explicitly False.
+        if value.get("active") is False:
+            return entries
         name = value.get("name") or value.get("model")
         if name is not None and any(k in value for k in ("strength", "clipStrength", "clip_strength")):
             ms = value.get("strength") or value.get("model_strength") or value.get("weight")
