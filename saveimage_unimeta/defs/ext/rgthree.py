@@ -21,7 +21,7 @@ Attributes:
 import logging
 from typing import TypedDict
 
-from saveimage_unimeta.defs.validators import is_negative_prompt, is_positive_prompt
+from ..validators import is_negative_prompt, is_positive_prompt
 
 from ...utils.lora import (
     coerce_first,
