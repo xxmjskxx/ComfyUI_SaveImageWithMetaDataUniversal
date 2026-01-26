@@ -225,8 +225,8 @@ def select_stack_by_prefix(
     Return a list of input values for keys starting with a prefix.
 
     Args:
-        input_data (list):
-            List of dictionaries to search for keys.
+        input_data:
+            Collection whose first element (input_data[0]) contains a Mapping to search for keys.
         prefix (str):
             The prefix to match keys against.
         counter_key (str | None, optional):
@@ -247,11 +247,13 @@ def select_stack_by_prefix(
     Notes:
         - Always coerce list-like values to the first element (v[0]).
     """
-    if not input_data or not isinstance(input_data, list) or not input_data[0]:
+    try:
+        input_items = input_data[0].items()
+    except Exception:
         return []
 
     items = []
-    for order_idx, (k, v) in enumerate(input_data[0].items()):
+    for order_idx, (k, v) in enumerate(input_items):
         if not isinstance(k, str) or not k.startswith(prefix):
             continue
         # Do not include the counter_key itself in the returned items
