@@ -224,10 +224,10 @@ CAPTURE_FIELD_LIST = {
         MetaField.LORA_STRENGTH_CLIP: {"selector": get_lora_strength},
     },
     "Lora Loader Stack (rgthree)": {
-        MetaField.LORA_MODEL_NAME: {"selector": get_lora_model_name},
-        MetaField.LORA_MODEL_HASH: {"selector": get_lora_model_hash},
-        MetaField.LORA_STRENGTH_MODEL: {"selector": get_lora_strength},
-        MetaField.LORA_STRENGTH_CLIP: {"selector": get_lora_strength},
+        MetaField.LORA_MODEL_NAME: {"selector": get_lora_model_name_stack},
+        MetaField.LORA_MODEL_HASH: {"selector": get_lora_model_hash_stack},
+        MetaField.LORA_STRENGTH_MODEL: {"selector": get_lora_strength_stack},
+        MetaField.LORA_STRENGTH_CLIP: {"selector": get_lora_strength_stack},
     },
     # Syntax-only prompt nodes
     "Power Prompt (rgthree)": {
