@@ -95,7 +95,7 @@ def test_gen_pnginfo_dict_creates_lora_hashes(inputs, lora_hashes):
 )
 def test_gen_pnginfo_dict_creates_lora_designations_in_positive_prompt(inputs, positive_prompt):
     pnginfo = Capture.gen_pnginfo_dict(inputs, inputs, True)
-    assert pnginfo["Positive prompt"] == positive_prompt
+    assert pnginfo.get("Positive prompt") == positive_prompt
 
 @pytest.mark.parametrize(
     "inputs, lora_hashes",
