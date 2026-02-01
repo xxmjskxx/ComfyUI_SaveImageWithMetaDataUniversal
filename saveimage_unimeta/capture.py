@@ -1706,6 +1706,14 @@ class Capture:
         if len(hashes_for_civitai) > 0:
             pnginfo_dict["Hashes"] = json.dumps(hashes_for_civitai)
 
+        # Generate Civitai-compatible LoRA strength metadata,
+        # which definitely requires a valid positive prompt text.
+        if "Positive prompt" in pnginfo_dict:
+            civitai_lora_hashes, civitai_strengths = cls.gen_civitai_lora_hashes_and_strengths(hashes_for_civitai, lora_records)
+            if civitai_lora_hashes:
+                pnginfo_dict["Lora hashes"] = '"' + ", ".join(civitai_lora_hashes) + '"'
+                pnginfo_dict["Positive prompt"] += ' ' + " ".join(civitai_strengths)
+
         # (dtype heuristic fallback already handled earlier when inserting Weight dtype)
 
         # Add structured hash detail section prior to returning (respect dynamic feature flag)
@@ -2292,6 +2300,22 @@ class Capture:
             pass  # LoRA hash extraction may fail - return collected hashes
 
         return resource_hashes
+
+    @classmethod
+    def gen_civitai_lora_hashes_and_strengths(
+        cls,
+        resource_hashes:dict[str, str],
+        lora_records: list[_LoRARecord]
+    ) -> tuple[list[str], list[str]]:
+        lora_hashes = []
+        lora_designations = []
+        for record in lora_records:
+            strength = record.strength_model if record.strength_model is not None else record.strength_clip
+            norm_name = Capture._clean_name(record.name, drop_extension=True)
+            if strength is not None and "lora:" + norm_name in resource_hashes:
+                lora_hashes.append(f"{norm_name}: {record.hash}")
+                lora_designations.append(f"<lora:{norm_name}:{strength}>")
+        return (lora_hashes, lora_designations)
 
     @classmethod
     def gen_loras(cls, inputs):
