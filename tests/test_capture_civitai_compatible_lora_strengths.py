@@ -73,7 +73,29 @@ def _inputs2():
     })
     return inputs
 
-# TODO: add tests for gen_pnginfo_dict when its behavior is determined.
+@pytest.mark.parametrize(
+    "inputs, lora_hashes",
+    [
+        (_inputs0(), None),
+        (_inputs1(), '"lora-5: 5555555555"'),
+        (_inputs2(), '"lora-5: 5555555555, lora-6: 6666666666"'),
+    ]
+)
+def test_gen_pnginfo_dict_creates_lora_hashes(inputs, lora_hashes):
+    pnginfo = Capture.gen_pnginfo_dict(inputs, inputs, True)
+    assert pnginfo.get("Lora hashes") == lora_hashes
+
+@pytest.mark.parametrize(
+    "inputs, positive_prompt",
+    [
+        (_inputs0(), "1girl"),
+        (_inputs1(), "1girl <lora:lora-5:0.9>"),
+        (_inputs2(), "1girl <lora:lora-5:0.9> <lora:lora-6:0.8>"),
+    ]
+)
+def test_gen_pnginfo_dict_creates_lora_designations_in_positive_prompt(inputs, positive_prompt):
+    pnginfo = Capture.gen_pnginfo_dict(inputs, inputs, True)
+    assert pnginfo["Positive prompt"] == positive_prompt
 
 @pytest.mark.parametrize(
     "inputs, lora_hashes",
