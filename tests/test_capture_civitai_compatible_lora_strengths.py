@@ -129,5 +129,9 @@ def test_gen_parameters_str_creates_lora_designations(inputs, lora_designations,
     # "Negative prompt:" terminates the positive prompt text.
     p = parameters.find('Negative prompt:')
     assert p >= 0, "'Negative prompt:' not found"
-    found = re.findall('<(?:lora|hypernet):[a-zA-Z0-9_.-]+:[0-9.]+>', parameters[:p])
+    # Civitai uses a single regular expression to find a LoRA designation
+    # and Hypernetwork designation. I believe nobody uses Hypernetwork in 2026.
+    # So, this is the same regular expression as Civitai
+    # except for "hypernet:" reference. -- Alissa.
+    found = re.findall('<lora:[a-zA-Z0-9_.-]+:[0-9.]+>', parameters[:p])
     assert found == lora_designations
