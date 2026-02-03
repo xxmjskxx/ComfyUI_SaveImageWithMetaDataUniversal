@@ -1706,8 +1706,9 @@ class Capture:
         if len(hashes_for_civitai) > 0:
             pnginfo_dict["Hashes"] = json.dumps(hashes_for_civitai)
 
-        # Generate Civitai-compatible LoRA strength metadata,
-        # which definitely requires a valid positive prompt text.
+        # Generate Civitai-compatible LoRA strengths metadata.
+        # We definitely require a valid positive prompt text,
+        # because it is where we put the strengths info into.
         if "Positive prompt" in pnginfo_dict:
             civitai_lora_hashes, civitai_strengths = cls.gen_civitai_lora_hashes_and_strengths(hashes_for_civitai, lora_records)
             if civitai_lora_hashes:
@@ -2304,9 +2305,34 @@ class Capture:
     @classmethod
     def gen_civitai_lora_hashes_and_strengths(
         cls,
-        resource_hashes:dict[str, str],
+        resource_hashes: dict[str, str],
         lora_records: list[_LoRARecord]
     ) -> tuple[list[str], list[str]]:
+        """Generate two lists for Civita-compatible LoRA strengths metadata.
+
+        Civitai requires two metadata to recognize LoRA strengths:
+        1) LoRA names in the traditional A1111-style "Lora hashes:"
+        (rather than "LoRAs:" or "Hashes:"), and
+        2) A1111-style lora designation in the positive prompt.
+        This method takes intermediate data for Lora-related metadata generation
+        and generates two lists: one for A1111-style LoRA designation and
+        another for "Lora hashes:".
+
+        Args:
+            resource_hashes: Dictionary created by get_hashes_for_civitai().
+            lora_records: List created by _build_lora_metadata(),
+                which is the first element in the tuple it returns.
+
+        Returns:
+            A tuple of two lists.
+            The first list contains strings of the traditional A1111-style
+            LoRA name-hash pair, i.e., "name: hash",
+            which should be separated by commas and enclosed in double quotes
+            by the caller to be the value of "Lora hashes".
+            The second list contains strings of the A1111-style LoRA designation,
+            i.e., "<lora:name:strength>", which should be embedded in
+            the positive prompt text by the caller.
+        """
         lora_hashes = []
         lora_designations = []
         for record in lora_records:
