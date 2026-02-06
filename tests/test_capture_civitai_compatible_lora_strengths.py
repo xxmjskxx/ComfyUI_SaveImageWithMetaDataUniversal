@@ -1,5 +1,6 @@
 import re
 import pytest
+from typing import Sequence, Iterable
 
 from saveimage_unimeta.defs.meta import MetaField
 from saveimage_unimeta.capture import Capture
@@ -14,6 +15,7 @@ from saveimage_unimeta.capture import Capture
 # in the production environment.
 @pytest.fixture()
 def disable_test_mode():
+    """pytest fixture to force METADATA_TEST_MODE='' during a test."""
     import os
     variable = "METADATA_TEST_MODE"
     value = os.environ.get(variable)
@@ -23,89 +25,143 @@ def disable_test_mode():
     if value is not None:
         os.environ[variable] = value
 
-def _inputs0():
-    """Create and return a new stub inputs with no LoRA."""
-    return {
-        MetaField.MODEL_NAME: [('n1', 'model.safetensors', 2)],
-        MetaField.MODEL_HASH: [('n1', '1111111111', 2)],
+def _parametrize_with_id(argnames: str | Sequence[str], argvalues: Iterable[Sequence[object]]):
+    """Customized pytest.mark.parametrize to use complex data in parameters.
 
-        MetaField.POSITIVE_PROMPT: [('n2', '1girl', 1)],
-        MetaField.NEGATIVE_PROMPT: [('n3', 'nsfw', 1)],
+    This is a custom decorator for parametrized pytest tests
+    that use some complex data in test parameters easily.
+    It automatically makes the first item in each param tuple
+    an id of that param tuple,
+    so that the argvalues values are more legible
+    (because the first item in a tuple is more prominent than the last)
+    as well as test outputs.
+    
+    You can use the first item only as an id,
+    or you can actually use it in the test.
 
-        MetaField.SEED: [('n4', 0, 0)],
-        MetaField.STEPS: [('n4', 30, 0)],
-        MetaField.CFG: [('n4', 4.0, 0)],
-        MetaField.SAMPLER_NAME: [('n4', 'euler', 0)],
-        MetaField.SCHEDULER: [('n4', 'normal', 0)],
-    }
+    Args:
+        argnames: argument names exactly as in pytest.mark.parametrize.
+        argvalues: arguments values represented as an iterable of sequences,
+            usually a list of tuples of argument values.
 
-def _inputs1():
-    """Create and return a new stub inputs with one LoRA."""
-    inputs = _inputs0()
-    inputs.update({
-        MetaField.LORA_MODEL_NAME: [('n5', 'lora-5.safetensors', 1)],
-        MetaField.LORA_MODEL_HASH: [('n5', '5555555555', 1)],
-        MetaField.LORA_STRENGTH_MODEL: [('n5', 0.9, 1)],
-        MetaField.LORA_STRENGTH_CLIP: [('n5', 0.7, 1)],
-    })
-    return inputs
+    Returns:
+        A function that decorates a test method in a similar way as
+        pytest.mark.parametrize,
+        except that each argument values tuple is given an id
+        based on the first argument value in the tuple.
 
-def _inputs2():
-    """Create and return a new stub inputs with two LoRAs."""
-    inputs = _inputs1()
-    inputs.update({
-        MetaField.LORA_MODEL_NAME: [
-            ('n5', 'lora-5.safetensors', 1),
-            ('n6', 'lora-6.safetensors', 1)
-        ],
-        MetaField.LORA_MODEL_HASH: [
-            ('n5', '5555555555', 1),
-            ('n6', '6666666666', 1),
-        ],
-        MetaField.LORA_STRENGTH_MODEL: [
-            ('n5', 0.9, 1),
-            ('n6', 0.8, 1),
-        ],
-        MetaField.LORA_STRENGTH_CLIP: [
-            ('n5', 0.7, 1),
-            ('n5', 0.6, 1),
-        ],
-    })
-    return inputs
+    Examples:
 
-@pytest.mark.parametrize(
-    "inputs, lora_hashes",
+        @_parametrize(
+            "x, y",
+            [
+                ("case1", {'case1': 'value1', 'exception': 'case1'})
+            ]
+        )
+
+        is equivalent to
+
+        @pytest.mark.parametrize(
+            "x, y",
+            [
+                pytest.param("case1", {'case1': 'value1', 'exception': 'case1'}, id="case1")
+            ]
+        )
+    """
+    return pytest.mark.parametrize(
+        argnames,
+        [pytest.param(*param, id=str(param[0])) for param in argvalues]
+    )
+
+# Various stub data for the arguments called "inputs"
+
+# "inputs" that contains no LoRA references.
+_inputs0 = {
+    MetaField.MODEL_NAME: [('n1', 'model.safetensors', 2)],
+    MetaField.MODEL_HASH: [('n1', '1111111111', 2)],
+
+    MetaField.POSITIVE_PROMPT: [('n2', '1girl', 1)],
+    MetaField.NEGATIVE_PROMPT: [('n3', 'nsfw', 1)],
+
+    MetaField.SEED: [('n4', 0, 0)],
+    MetaField.STEPS: [('n4', 30, 0)],
+    MetaField.CFG: [('n4', 4.0, 0)],
+    MetaField.SAMPLER_NAME: [('n4', 'euler', 0)],
+    MetaField.SCHEDULER: [('n4', 'normal', 0)],
+}
+
+# "inputs" that contains one LoRA reference.
+_inputs1 = {
+    **_inputs0,
+    MetaField.LORA_MODEL_NAME: [('n5', 'lora-5.safetensors', 1)],
+    MetaField.LORA_MODEL_HASH: [('n5', '5555555555', 1)],
+    MetaField.LORA_STRENGTH_MODEL: [('n5', 0.9, 1)],
+    MetaField.LORA_STRENGTH_CLIP: [('n5', 0.7, 1)],
+}
+
+# "inputs" that contains two LoRA references.
+_inputs2 = {
+    **_inputs0,
+    MetaField.LORA_MODEL_NAME: [
+        ('n5', 'lora-5.safetensors', 1),
+        ('n6', 'lora-6.safetensors', 1)
+    ],
+    MetaField.LORA_MODEL_HASH: [
+        ('n5', '5555555555', 1),
+        ('n6', '6666666666', 1),
+    ],
+    MetaField.LORA_STRENGTH_MODEL: [
+        ('n5', 0.9, 1),
+        ('n6', 0.8, 1),
+    ],
+    MetaField.LORA_STRENGTH_CLIP: [
+        ('n5', 0.7, 1),
+        ('n5', 0.6, 1),
+    ],
+}
+
+_inputs = {
+    "inputs0": _inputs0,
+    "inputs1": _inputs1,
+    "inputs2": _inputs2,
+}
+
+@_parametrize_with_id(
+    "inputs_name, lora_hashes",
     [
-        (_inputs0(), None),
-        (_inputs1(), '"lora-5: 5555555555"'),
-        (_inputs2(), '"lora-5: 5555555555, lora-6: 6666666666"'),
+        ("inputs0", None),
+        ("inputs1", '"lora-5: 5555555555"'),
+        ("inputs2", '"lora-5: 5555555555, lora-6: 6666666666"'),
     ]
 )
-def test_gen_pnginfo_dict_creates_lora_hashes(inputs, lora_hashes):
+def test_gen_pnginfo_dict_creates_lora_hashes(inputs_name, lora_hashes):
+    inputs = _inputs[inputs_name]
     pnginfo = Capture.gen_pnginfo_dict(inputs, inputs, True)
     assert pnginfo.get("Lora hashes") == lora_hashes
 
-@pytest.mark.parametrize(
-    "inputs, positive_prompt",
+@_parametrize_with_id(
+    "inputs_name, positive_prompt",
     [
-        (_inputs0(), "1girl"),
-        (_inputs1(), "1girl <lora:lora-5:0.9>"),
-        (_inputs2(), "1girl <lora:lora-5:0.9> <lora:lora-6:0.8>"),
+        ("inputs0", "1girl"),
+        ("inputs1", "1girl <lora:lora-5:0.9>"),
+        ("inputs2", "1girl <lora:lora-5:0.9> <lora:lora-6:0.8>"),
     ]
 )
-def test_gen_pnginfo_dict_creates_lora_designations_in_positive_prompt(inputs, positive_prompt):
+def test_gen_pnginfo_dict_creates_lora_designations_in_positive_prompt(inputs_name, positive_prompt):
+    inputs = _inputs[inputs_name]
     pnginfo = Capture.gen_pnginfo_dict(inputs, inputs, True)
     assert pnginfo.get("Positive prompt") == positive_prompt
 
-@pytest.mark.parametrize(
-    "inputs, lora_hashes",
+@_parametrize_with_id(
+    "inputs_name, lora_hashes",
     [
-        (_inputs0(), []),
-        (_inputs1(), ['"lora-5: 5555555555"']),
-        (_inputs2(), ['"lora-5: 5555555555, lora-6: 6666666666"']),
+        ("inputs0", []),
+        ("inputs1", ['"lora-5: 5555555555"']),
+        ("inputs2", ['"lora-5: 5555555555, lora-6: 6666666666"']),
     ]
 )
-def test_gen_parameters_str_creates_lora_hashes(inputs, lora_hashes, disable_test_mode):
+def test_gen_parameters_str_creates_lora_hashes(inputs_name, lora_hashes, disable_test_mode):
+    inputs = _inputs[inputs_name]
     pnginfo = Capture.gen_pnginfo_dict(inputs, inputs, True)
     parameters = Capture.gen_parameters_str(pnginfo)
     # "Steps:" comes first in the _other_ metadata.
@@ -115,15 +171,16 @@ def test_gen_parameters_str_creates_lora_hashes(inputs, lora_hashes, disable_tes
     found = re.findall(', *Lora hashes: *("[^"]*") *(?:,|$)', parameters[p:])
     assert found == lora_hashes
 
-@pytest.mark.parametrize(
-    "inputs, lora_designations",
+@_parametrize_with_id(
+    "inputs_name, lora_designations",
     [
-        (_inputs0(), []),
-        (_inputs1(), ["<lora:lora-5:0.9>"]),
-        (_inputs2(), ["<lora:lora-5:0.9>", "<lora:lora-6:0.8>"]),
+        ("inputs0", []),
+        ("inputs1", ["<lora:lora-5:0.9>"]),
+        ("inputs2", ["<lora:lora-5:0.9>", "<lora:lora-6:0.8>"]),
     ]
 )
-def test_gen_parameters_str_creates_lora_designations(inputs, lora_designations, disable_test_mode):
+def test_gen_parameters_str_creates_lora_designations(inputs_name, lora_designations, disable_test_mode):
+    inputs = _inputs[inputs_name]
     pnginfo = Capture.gen_pnginfo_dict(inputs, inputs, True)
     parameters = Capture.gen_parameters_str(pnginfo)
     # "Negative prompt:" terminates the positive prompt text.
