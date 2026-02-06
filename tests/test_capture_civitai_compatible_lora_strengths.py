@@ -137,7 +137,7 @@ class TestGenPnginfoDict:
         ]
     )
     def test_gen_pnginfo_dict_creates_lora_hashes(self, inputs_name, lora_hashes):
-        inputs = _inputs[inputs_name]
+        inputs = {**_inputs[inputs_name]}
         pnginfo = Capture.gen_pnginfo_dict(inputs, inputs, True)
         assert pnginfo.get("Lora hashes") == lora_hashes
 
@@ -150,7 +150,7 @@ class TestGenPnginfoDict:
         ]
     )
     def test_gen_pnginfo_dict_creates_lora_strengths(self, inputs_name, lora_strengths):
-        inputs = _inputs[inputs_name]
+        inputs = {**_inputs[inputs_name]}
         pnginfo = Capture.gen_pnginfo_dict(inputs, inputs, True)
         assert pnginfo.get("Lora strengths") == lora_strengths
 
@@ -164,13 +164,18 @@ class TestGenPnginfoDict:
         ]
     )
     def test_gen_pnginfo_dict_does_not_create_lora_designations_in_positive_prompt(self, inputs_name, positive_prompt):
-        inputs = _inputs[inputs_name]
+        inputs = {**_inputs[inputs_name]}
         pnginfo = Capture.gen_pnginfo_dict(inputs, inputs, True)
         assert pnginfo.get("Positive prompt") == positive_prompt
 
-@pytest.mark.skip("gen_parameters_str is not updated yet.")
 @pytest.mark.usefixtures("disable_test_mode")
 class TestGenParametersStr:
+
+    # Civitai uses a single regular expression to find a LoRA designation
+    # and Hypernetwork designation.
+    # This is the same regular expression as Civitai
+    # with "hypernet:" reference removed.
+    LORA_DESIGNATION_RE = '<lora:[a-zA-Z0-9_.-]+:[0-9.]+>'
 
     @_parametrize_with_id(
         "inputs_name, lora_hashes",
@@ -180,10 +185,11 @@ class TestGenParametersStr:
             ("inputs2", ['"lora-5: 5555555555, lora-6: 6666666666"']),
         ]
     )
-    def test_gen_parameters_str_creates_lora_hashes(self, inputs_name, lora_hashes):
-        inputs = _inputs[inputs_name]
+    def test_gen_parameters_str_creates_lora_hashes_if_lora_strengths_in_prompt_is_true(
+            self, inputs_name, lora_hashes):
+        inputs = {**_inputs[inputs_name]}
         pnginfo = Capture.gen_pnginfo_dict(inputs, inputs, True)
-        parameters = Capture.gen_parameters_str(pnginfo)
+        parameters = Capture.gen_parameters_str(pnginfo, lora_strengths_in_prompt=True)
         # "Steps:" comes first in the _other_ metadata.
         # "Lora hashes:" should be somewhere after it.
         p = parameters.find('Steps:')
@@ -192,23 +198,76 @@ class TestGenParametersStr:
         assert found == lora_hashes
 
     @_parametrize_with_id(
-        "inputs_name, lora_designations",
+        "inputs_name, lora_hashes",
         [
             ("inputs0", []),
-            ("inputs1", ["<lora:lora-5:0.9>"]),
-            ("inputs2", ["<lora:lora-5:0.9>", "<lora:lora-6:0.8>"]),
+            ("inputs1", []),
+            ("inputs2", []),
         ]
     )
-    def test_gen_parameters_str_creates_lora_designations(self, inputs_name, lora_designations):
-        inputs = _inputs[inputs_name]
+    def test_gen_parameters_str_does_not_create_lora_hashes_if_lora_strengths_in_prompt_is_false(
+            self, inputs_name, lora_hashes):
+        inputs = {**_inputs[inputs_name]}
         pnginfo = Capture.gen_pnginfo_dict(inputs, inputs, True)
-        parameters = Capture.gen_parameters_str(pnginfo)
+        parameters = Capture.gen_parameters_str(pnginfo, lora_strengths_in_prompt=False)
+        found = re.findall(', *Lora hashes: *("[^"]*") *(?:,|$)', parameters)
+        assert found == lora_hashes
+
+    @_parametrize_with_id(
+        "inputs_name, lora_strengths_in_prompt, lora_designations",
+        [
+            ("inputs0", False, []),
+            ("inputs0", True,  []),
+            ("inputs1", False, []),
+            ("inputs1", True,  ["<lora:lora-5:0.9>"]),
+            ("inputs2", False, []),
+            ("inputs2", True,  ["<lora:lora-5:0.9>", "<lora:lora-6:0.8>"]),
+        ]
+    )
+    def test_gen_parameters_str_creates_lora_designations_in_positive_prompt_depending_on_lora_strengths_in_prompt(
+            self, inputs_name, lora_strengths_in_prompt, lora_designations):
+        inputs = {**_inputs[inputs_name]}
+        pnginfo = Capture.gen_pnginfo_dict(inputs, inputs, True)
+        parameters = Capture.gen_parameters_str(pnginfo, lora_strengths_in_prompt=lora_strengths_in_prompt)
         # "Negative prompt:" terminates the positive prompt text.
         p = parameters.find('Negative prompt:')
         assert p >= 0, "'Negative prompt:' not found"
-        # Civitai uses a single regular expression to find a LoRA designation
-        # and Hypernetwork designation. I believe nobody uses Hypernetwork in 2026.
-        # So, this is the same regular expression as Civitai
-        # except for "hypernet:" reference. -- Alissa.
-        found = re.findall('<lora:[a-zA-Z0-9_.-]+:[0-9.]+>', parameters[:p])
+        found = re.findall(self.LORA_DESIGNATION_RE, parameters[:p])
         assert found == lora_designations
+
+    @pytest.mark.parametrize(
+        "inputs_name",
+        [
+            ("inputs0"),
+            ("inputs1"),
+            ("inputs2"),
+        ]
+    )
+    def test_gen_parameters_str_does_not_create_lora_designations_if_no_positive_prompt(
+            self, inputs_name):
+        inputs = {**_inputs[inputs_name]}
+        del inputs[MetaField.POSITIVE_PROMPT]
+        pnginfo = Capture.gen_pnginfo_dict(inputs, inputs, True)
+        parameters = Capture.gen_parameters_str(pnginfo, lora_strengths_in_prompt=True)
+        found = re.findall(self.LORA_DESIGNATION_RE, parameters)
+        assert not found
+        assert parameters.startswith("Negative prompt")
+
+    @_parametrize_with_id(
+        "inputs_name, lora_strengths_in_prompt",
+        [
+            ("inputs0", False),
+            ("inputs0", True),
+            ("inputs1", False),
+            ("inputs1", True),
+            ("inputs2", False),
+            ("inputs2", True),
+        ]
+    )
+    def test_gen_parameters_str_never_leaves_lora_strengths_metadata(
+            self, inputs_name, lora_strengths_in_prompt):
+        inputs = {**_inputs[inputs_name]}
+        pnginfo = Capture.gen_pnginfo_dict(inputs, inputs, True)
+        parameters = Capture.gen_parameters_str(pnginfo, lora_strengths_in_prompt=lora_strengths_in_prompt)
+        found = re.findall(', *Lora strengths:', parameters)
+        assert not found

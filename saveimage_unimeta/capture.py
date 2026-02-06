@@ -1742,8 +1742,8 @@ class Capture:
         Args:
             *args: A PNGInfo dictionary or the two capture snapshots described
                 above.
-            **kwargs: Optional ``include_lora_summary`` and ``guidance_as_cfg``
-                switches.
+            **kwargs: Optional ``include_lora_summary``, ``guidance_as_cfg``,
+                and ``lora_strengths_in_prompt`` switches.
 
         Returns:
             str: The formatted parameter string.
@@ -1761,6 +1761,8 @@ class Capture:
         # Keyword override: include_lora_summary (default None -> use env flag)
         include_lora_summary_override = kwargs.get("include_lora_summary")
         guidance_as_cfg = bool(kwargs.get("guidance_as_cfg", False))
+        lora_strengths_in_prompt = kwargs.get("lora_strengths_in_prompt", False)
+
         # --- Prompt header reconstruction (robust dual-encoder handling) ---
         pos = (pnginfo_dict.get("Positive prompt", "") or "").rstrip("\r\n")
         neg = (pnginfo_dict.get("Negative prompt", "") or "").rstrip("\r\n")
@@ -1803,6 +1805,20 @@ class Capture:
             # Single prompt scenario: show the unified positive prompt.
             if pos:
                 header_lines.append(pos)
+
+        # Positive prompt has been established. Move the LoRA designations to its end.
+        # We definitely need a valid positive prompt to do so.
+        if lora_strengths_in_prompt and header_lines and "Lora strengths" in pnginfo_dict:
+            header_lines[-1] += ' ' + pnginfo_dict["Lora strengths"]
+            pnginfo_dict.pop("Lora strengths", None)
+        else:
+            # Civitai malfunctions if "Lora hashes:" is present and
+            # corresponding lora designation (<lora:name:strength>) is not included
+            # in the positive prompt text.
+            # So, remove the "Lora hashes:" when not generating lora designations.
+            pnginfo_dict.pop("Lora hashes", None)
+            pnginfo_dict.pop("Lora strengths", None)
+
         header_lines.append(f"Negative prompt: {neg}")
         prompt_header_block = "\n".join(header_lines) + "\n"
         if DEBUG_PROMPTS:
