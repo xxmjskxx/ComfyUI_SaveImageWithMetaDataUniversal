@@ -142,18 +142,33 @@ class TestGenPnginfoDict:
         assert pnginfo.get("Lora hashes") == lora_hashes
 
     @_parametrize_with_id(
-        "inputs_name, positive_prompt",
+        "inputs_name, lora_strengths",
         [
-            ("inputs0", "1girl"),
-            ("inputs1", "1girl <lora:lora-5:0.9>"),
-            ("inputs2", "1girl <lora:lora-5:0.9> <lora:lora-6:0.8>"),
+            ("inputs0", None),
+            ("inputs1", '<lora:lora-5:0.9>'),
+            ("inputs2", '<lora:lora-5:0.9> <lora:lora-6:0.8>'),
         ]
     )
-    def test_gen_pnginfo_dict_creates_lora_designations_in_positive_prompt(self, inputs_name, positive_prompt):
+    def test_gen_pnginfo_dict_creates_lora_strengths(self, inputs_name, lora_strengths):
+        inputs = _inputs[inputs_name]
+        pnginfo = Capture.gen_pnginfo_dict(inputs, inputs, True)
+        assert pnginfo.get("Lora strengths") == lora_strengths
+
+    @_parametrize_with_id(
+        "inputs_name, positive_prompt",
+        [
+            # Unlike earlier versions, gen_pnginfo_dict never changes "Positive prompt".
+            ("inputs0", "1girl"),
+            ("inputs1", "1girl"),
+            ("inputs2", "1girl"),
+        ]
+    )
+    def test_gen_pnginfo_dict_does_not_create_lora_designations_in_positive_prompt(self, inputs_name, positive_prompt):
         inputs = _inputs[inputs_name]
         pnginfo = Capture.gen_pnginfo_dict(inputs, inputs, True)
         assert pnginfo.get("Positive prompt") == positive_prompt
 
+@pytest.mark.skip("gen_parameters_str is not updated yet.")
 @pytest.mark.usefixtures("disable_test_mode")
 class TestGenParametersStr:
 

@@ -1706,14 +1706,12 @@ class Capture:
         if len(hashes_for_civitai) > 0:
             pnginfo_dict["Hashes"] = json.dumps(hashes_for_civitai)
 
-        # Generate Civitai-compatible LoRA strengths metadata.
-        # We definitely require a valid positive prompt text,
-        # because it is where we put the strengths info into.
-        if "Positive prompt" in pnginfo_dict:
-            civitai_lora_hashes, civitai_strengths = cls.gen_civitai_lora_hashes_and_strengths(hashes_for_civitai, lora_records)
-            if civitai_lora_hashes:
-                pnginfo_dict["Lora hashes"] = '"' + ", ".join(civitai_lora_hashes) + '"'
-                pnginfo_dict["Positive prompt"] += ' ' + " ".join(civitai_strengths)
+        # Generate A1111-style (Civitai-compatible) LoRA strengths metadata.
+        # The caller will move Lora strengths to Positive prompt.
+        civitai_lora_hashes, civitai_strengths = cls.gen_civitai_lora_hashes_and_strengths(hashes_for_civitai, lora_records)
+        if civitai_lora_hashes:
+            pnginfo_dict["Lora hashes"] = '"' + ", ".join(civitai_lora_hashes) + '"'
+            pnginfo_dict["Lora strengths"] = " ".join(civitai_strengths)
 
         # (dtype heuristic fallback already handled earlier when inserting Weight dtype)
 
