@@ -324,6 +324,16 @@ class SaveImageWithMetaDataUniversal:
                         ),
                     },
                 ),
+                "lora_strengths_in_prompt": (
+                    "BOOLEAN",
+                    {
+                        "default": False,
+                        "tooltip": (
+                            "When enabled, A1111-style LoRA designation is added to the positive prompt text "
+                            "so that Civitai can recognize LoRA strengths."
+                        ),
+                    },
+                ),
             },
             "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO"},
         }
@@ -361,6 +371,7 @@ class SaveImageWithMetaDataUniversal:
         include_lora_summary=True,
         guidance_as_cfg=False,
         suppress_missing_class_log=False,
+        lora_strengths_in_prompt=False,
     ):
         """Save images to disk with embedded metadata.
 
@@ -407,6 +418,9 @@ class SaveImageWithMetaDataUniversal:
                 scale. Defaults to False.
             suppress_missing_class_log (bool, optional): Whether to suppress
                 warnings about missing node classes. Defaults to False.
+            lora_strengths_in_prompt (bool, optional): Add A1111-style LoRA
+                designation to positive prompt so that Civitai can recognize LoRA
+                strengths.
 
         Returns:
             dict: A dictionary containing the UI data and the result, which
@@ -510,6 +524,7 @@ class SaveImageWithMetaDataUniversal:
                     pnginfo_dict,
                     include_lora_summary=include_lora_summary,
                     guidance_as_cfg=guidance_as_cfg,
+                    lora_strengths_in_prompt=lora_strengths_in_prompt,
                 )
                 if pnginfo_dict:
                     metadata.add_text("parameters", parameters)
