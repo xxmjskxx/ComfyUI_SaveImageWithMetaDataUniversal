@@ -14,16 +14,9 @@ from saveimage_unimeta.capture import Capture
 # validate what string the function will generate
 # in the production environment.
 @pytest.fixture()
-def disable_test_mode():
+def disable_test_mode(monkeypatch):
     """pytest fixture to force METADATA_TEST_MODE='' during a test."""
-    import os
-    variable = "METADATA_TEST_MODE"
-    value = os.environ.get(variable)
-    if value is not None:
-        os.environ[variable] = ""
-    yield
-    if value is not None:
-        os.environ[variable] = value
+    monkeypatch.setenv("METADATA_TEST_MODE", "")
 
 def _parametrize_with_id(argnames: str | Sequence[str], argvalues: Iterable[Sequence[object]]):
     """Customized pytest.mark.parametrize to use complex data in parameters.
