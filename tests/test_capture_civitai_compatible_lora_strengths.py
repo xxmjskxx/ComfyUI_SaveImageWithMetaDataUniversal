@@ -35,7 +35,7 @@ def _parametrize_with_id(argnames: str | Sequence[str], argvalues: Iterable[Sequ
     so that the argvalues values are more legible
     (because the first item in a tuple is more prominent than the last)
     as well as test outputs.
-    
+
     You can use the first item only as an id,
     or you can actually use it in the test.
 
@@ -126,69 +126,74 @@ _inputs = {
     "inputs2": _inputs2,
 }
 
-@_parametrize_with_id(
-    "inputs_name, lora_hashes",
-    [
-        ("inputs0", None),
-        ("inputs1", '"lora-5: 5555555555"'),
-        ("inputs2", '"lora-5: 5555555555, lora-6: 6666666666"'),
-    ]
-)
-def test_gen_pnginfo_dict_creates_lora_hashes(inputs_name, lora_hashes):
-    inputs = _inputs[inputs_name]
-    pnginfo = Capture.gen_pnginfo_dict(inputs, inputs, True)
-    assert pnginfo.get("Lora hashes") == lora_hashes
+class TestGenPnginfoDict:
 
-@_parametrize_with_id(
-    "inputs_name, positive_prompt",
-    [
-        ("inputs0", "1girl"),
-        ("inputs1", "1girl <lora:lora-5:0.9>"),
-        ("inputs2", "1girl <lora:lora-5:0.9> <lora:lora-6:0.8>"),
-    ]
-)
-def test_gen_pnginfo_dict_creates_lora_designations_in_positive_prompt(inputs_name, positive_prompt):
-    inputs = _inputs[inputs_name]
-    pnginfo = Capture.gen_pnginfo_dict(inputs, inputs, True)
-    assert pnginfo.get("Positive prompt") == positive_prompt
+    @_parametrize_with_id(
+        "inputs_name, lora_hashes",
+        [
+            ("inputs0", None),
+            ("inputs1", '"lora-5: 5555555555"'),
+            ("inputs2", '"lora-5: 5555555555, lora-6: 6666666666"'),
+        ]
+    )
+    def test_gen_pnginfo_dict_creates_lora_hashes(self, inputs_name, lora_hashes):
+        inputs = _inputs[inputs_name]
+        pnginfo = Capture.gen_pnginfo_dict(inputs, inputs, True)
+        assert pnginfo.get("Lora hashes") == lora_hashes
 
-@_parametrize_with_id(
-    "inputs_name, lora_hashes",
-    [
-        ("inputs0", []),
-        ("inputs1", ['"lora-5: 5555555555"']),
-        ("inputs2", ['"lora-5: 5555555555, lora-6: 6666666666"']),
-    ]
-)
-def test_gen_parameters_str_creates_lora_hashes(inputs_name, lora_hashes, disable_test_mode):
-    inputs = _inputs[inputs_name]
-    pnginfo = Capture.gen_pnginfo_dict(inputs, inputs, True)
-    parameters = Capture.gen_parameters_str(pnginfo)
-    # "Steps:" comes first in the _other_ metadata.
-    # "Lora hashes:" should be somewhere after it.
-    p = parameters.find('Steps:')
-    assert p >= 0, "'Steps:' not found"
-    found = re.findall(', *Lora hashes: *("[^"]*") *(?:,|$)', parameters[p:])
-    assert found == lora_hashes
+    @_parametrize_with_id(
+        "inputs_name, positive_prompt",
+        [
+            ("inputs0", "1girl"),
+            ("inputs1", "1girl <lora:lora-5:0.9>"),
+            ("inputs2", "1girl <lora:lora-5:0.9> <lora:lora-6:0.8>"),
+        ]
+    )
+    def test_gen_pnginfo_dict_creates_lora_designations_in_positive_prompt(self, inputs_name, positive_prompt):
+        inputs = _inputs[inputs_name]
+        pnginfo = Capture.gen_pnginfo_dict(inputs, inputs, True)
+        assert pnginfo.get("Positive prompt") == positive_prompt
 
-@_parametrize_with_id(
-    "inputs_name, lora_designations",
-    [
-        ("inputs0", []),
-        ("inputs1", ["<lora:lora-5:0.9>"]),
-        ("inputs2", ["<lora:lora-5:0.9>", "<lora:lora-6:0.8>"]),
-    ]
-)
-def test_gen_parameters_str_creates_lora_designations(inputs_name, lora_designations, disable_test_mode):
-    inputs = _inputs[inputs_name]
-    pnginfo = Capture.gen_pnginfo_dict(inputs, inputs, True)
-    parameters = Capture.gen_parameters_str(pnginfo)
-    # "Negative prompt:" terminates the positive prompt text.
-    p = parameters.find('Negative prompt:')
-    assert p >= 0, "'Negative prompt:' not found"
-    # Civitai uses a single regular expression to find a LoRA designation
-    # and Hypernetwork designation. I believe nobody uses Hypernetwork in 2026.
-    # So, this is the same regular expression as Civitai
-    # except for "hypernet:" reference. -- Alissa.
-    found = re.findall('<lora:[a-zA-Z0-9_.-]+:[0-9.]+>', parameters[:p])
-    assert found == lora_designations
+@pytest.mark.usefixtures("disable_test_mode")
+class TestGenParametersStr:
+
+    @_parametrize_with_id(
+        "inputs_name, lora_hashes",
+        [
+            ("inputs0", []),
+            ("inputs1", ['"lora-5: 5555555555"']),
+            ("inputs2", ['"lora-5: 5555555555, lora-6: 6666666666"']),
+        ]
+    )
+    def test_gen_parameters_str_creates_lora_hashes(self, inputs_name, lora_hashes):
+        inputs = _inputs[inputs_name]
+        pnginfo = Capture.gen_pnginfo_dict(inputs, inputs, True)
+        parameters = Capture.gen_parameters_str(pnginfo)
+        # "Steps:" comes first in the _other_ metadata.
+        # "Lora hashes:" should be somewhere after it.
+        p = parameters.find('Steps:')
+        assert p >= 0, "'Steps:' not found"
+        found = re.findall(', *Lora hashes: *("[^"]*") *(?:,|$)', parameters[p:])
+        assert found == lora_hashes
+
+    @_parametrize_with_id(
+        "inputs_name, lora_designations",
+        [
+            ("inputs0", []),
+            ("inputs1", ["<lora:lora-5:0.9>"]),
+            ("inputs2", ["<lora:lora-5:0.9>", "<lora:lora-6:0.8>"]),
+        ]
+    )
+    def test_gen_parameters_str_creates_lora_designations(self, inputs_name, lora_designations):
+        inputs = _inputs[inputs_name]
+        pnginfo = Capture.gen_pnginfo_dict(inputs, inputs, True)
+        parameters = Capture.gen_parameters_str(pnginfo)
+        # "Negative prompt:" terminates the positive prompt text.
+        p = parameters.find('Negative prompt:')
+        assert p >= 0, "'Negative prompt:' not found"
+        # Civitai uses a single regular expression to find a LoRA designation
+        # and Hypernetwork designation. I believe nobody uses Hypernetwork in 2026.
+        # So, this is the same regular expression as Civitai
+        # except for "hypernet:" reference. -- Alissa.
+        found = re.findall('<lora:[a-zA-Z0-9_.-]+:[0-9.]+>', parameters[:p])
+        assert found == lora_designations
