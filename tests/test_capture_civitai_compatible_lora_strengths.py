@@ -1,6 +1,6 @@
 import re
 import pytest
-from typing import Sequence, Iterable
+from collections.abc import Sequence, Iterable
 
 from saveimage_unimeta.defs.meta import MetaField
 from saveimage_unimeta.capture import Capture
