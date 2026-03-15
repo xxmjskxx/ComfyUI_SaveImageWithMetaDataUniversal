@@ -14,7 +14,7 @@ def _normalize_key(key: str) -> str:
 
 
 def _build_normalized_map(input_data):
-    if not input_data or not isinstance(input_data, list):
+    if not input_data or not isinstance(input_data, (list, tuple)):
         return {}
     first = input_data[0]
     if not isinstance(first, dict):
@@ -200,7 +200,7 @@ def select_by_prefix(input_data, prefix):
     if not prefix:
         return []
     return [
-        v[0] for k, v in input_data[0].items() if k.startswith(prefix) and v and isinstance(v, list) and v[0] != "None"
+        v[0] for k, v in input_data[0].items() if k.startswith(prefix) and v and isinstance(v, (list, tuple)) and v[0] != "None"
     ]
 
 
@@ -225,8 +225,9 @@ def select_stack_by_prefix(
     Return a list of input values for keys starting with a prefix.
 
     Args:
-        input_data (list):
-            List of dictionaries to search for keys.
+        input_data (list | tuple):
+            Collection whose first element (input_data[0]) contains a
+            Mapping to search for keys.
         prefix (str):
             The prefix to match keys against.
         counter_key (str | None, optional):
@@ -247,18 +248,22 @@ def select_stack_by_prefix(
     Notes:
         - Always coerce list-like values to the first element (v[0]).
     """
-    if not input_data or not isinstance(input_data, list) or not input_data[0]:
+    try:
+        input_items = input_data[0].items()
+    except (TypeError, IndexError, AttributeError):
+        return []
+    if not input_items:
         return []
 
     items = []
-    for order_idx, (k, v) in enumerate(input_data[0].items()):
+    for order_idx, (k, v) in enumerate(input_items):
         if not isinstance(k, str) or not k.startswith(prefix):
             continue
         # Do not include the counter_key itself in the returned items
         # because it contains the count value, not a stack item to return
         if counter_key and k == counter_key:
             continue
-        if not v or not isinstance(v, list):
+        if not v or not isinstance(v, (list, tuple)):
             continue
         first = v[0]
         if filter_none and first == "None":
@@ -275,7 +280,7 @@ def select_stack_by_prefix(
     else:
         ordered_values = [entry[2] for entry in items]
 
-    if counter_key and counter_key in input_data[0] and isinstance(input_data[0][counter_key], list):
+    if counter_key and counter_key in input_data[0] and isinstance(input_data[0][counter_key], (list, tuple)):
         try:
             max_n = int(input_data[0][counter_key][0])
             return ordered_values[:max_n]

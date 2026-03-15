@@ -87,14 +87,33 @@ def get_lora_data(input_data, attribute):
     LoRAs that are currently active ("on" is True) and extracts the specified
     attribute (e.g., "lora" for the name, "strength" for the strength).
 
+    Uses EAFP pattern to accept both list and tuple input_data.
+
     Args:
-        input_data (dict): The input data for the node.
+        input_data: The input data for the node.
         attribute (str): The name of the attribute to extract from the LoRA data.
 
     Returns:
         list: A list of the extracted attribute values from all active LoRAs.
     """
-    return [v[0][attribute] for k, v in input_data[0].items() if k.startswith("lora_") and v[0]["on"]]
+    try:
+        batch = input_data[0]
+        items = batch.items()
+    except (TypeError, IndexError, AttributeError):
+        return []
+    results = []
+    for k, v in items:
+        if not k.startswith("lora_"):
+            continue
+        try:
+            if not v[0]["on"]:
+                continue
+            candidate = v[0].get(attribute)
+        except (TypeError, IndexError, KeyError):
+            continue
+        if candidate is not None:
+            results.append(candidate)
+    return results
 
 
 CAPTURE_FIELD_LIST = {

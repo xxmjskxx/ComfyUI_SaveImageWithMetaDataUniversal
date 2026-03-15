@@ -25,9 +25,12 @@ def get_width(preset, input_data):
         input_data (dict): The input data for the node.
 
     Returns:
-        str: The extracted width as a string.
+        str: The extracted width as a string, or the original value on failure.
     """
-    return preset.split("x")[0].strip()
+    try:
+        return str(preset).split("x")[0].strip()
+    except (AttributeError, IndexError, TypeError):
+        return str(preset) if preset is not None else ""
 
 
 def get_height(preset, input_data):
@@ -38,9 +41,12 @@ def get_height(preset, input_data):
         input_data (dict): The input data for the node.
 
     Returns:
-        str: The extracted height as a string.
+        str: The extracted height as a string, or the original value on failure.
     """
-    return preset.split("x")[1].strip()
+    try:
+        return str(preset).split("x")[1].strip()
+    except (AttributeError, IndexError, TypeError):
+        return str(preset) if preset is not None else ""
 
 
 CAPTURE_FIELD_LIST = {

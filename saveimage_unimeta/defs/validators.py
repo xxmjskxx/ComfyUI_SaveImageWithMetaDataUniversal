@@ -69,7 +69,7 @@ def _get_node_id_list(prompt, field_name):
                     break
                 if "inputs" in prompt[current_node_id]:
                     for v in prompt[current_node_id]["inputs"].values():
-                        if isinstance(v, list):
+                        if isinstance(v, (list, tuple)):
                             d.append(v[0])
     return node_id_list.values()
 
