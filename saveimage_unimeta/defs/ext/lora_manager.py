@@ -20,7 +20,10 @@ Attributes:
 # https://github.com/willmiao/ComfyUI-Lora-Manager
 import json
 import logging
-
+from ..validators import (
+    is_positive_prompt,
+    is_negative_prompt
+)
 from ...utils.lora import (
     coerce_first,
     parse_lora_syntax,
@@ -363,4 +366,8 @@ CAPTURE_FIELD_LIST = {
         MetaField.LORA_STRENGTH_MODEL: {"selector": get_lora_model_strengths},
         MetaField.LORA_STRENGTH_CLIP: {"selector": get_lora_clip_strengths},
     },
+    "Prompt (LoraManager)": {
+        MetaField.POSITIVE_PROMPT: {'field_name': "text", 'validate': is_positive_prompt},
+        MetaField.NEGATIVE_PROMPT: {'field_name': "text", 'validate': is_negative_prompt},
+    }
 }
