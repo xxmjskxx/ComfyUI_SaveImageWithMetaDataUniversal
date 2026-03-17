@@ -18,6 +18,7 @@ def disable_test_mode(monkeypatch):
     """pytest fixture to force METADATA_TEST_MODE='' during a test."""
     monkeypatch.setenv("METADATA_TEST_MODE", "")
 
+
 def _parametrize_with_id(argnames: str | Sequence[str], argvalues: Iterable[Sequence[object]]):
     """Customized pytest.mark.parametrize to use complex data in parameters.
 

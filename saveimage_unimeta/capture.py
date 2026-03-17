@@ -2352,8 +2352,10 @@ class Capture:
         for record in lora_records:
             strength = record.strength_model if record.strength_model is not None else record.strength_clip
             norm_name = Capture._clean_name(record.name, drop_extension=True)
-            if strength is not None and "lora:" + norm_name in resource_hashes:
-                lora_hashes.append(f"{norm_name}: {record.hash}")
+            lora_key = f"lora:{norm_name}"
+            resolved_hash = resource_hashes.get(lora_key)
+            if strength is not None and resolved_hash:
+                lora_hashes.append(f"{norm_name}: {resolved_hash}")
                 lora_designations.append(f"<lora:{norm_name}:{strength}>")
         return (lora_hashes, lora_designations)
 

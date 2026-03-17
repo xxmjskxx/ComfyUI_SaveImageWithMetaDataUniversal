@@ -249,7 +249,7 @@ def select_stack_by_prefix(
     """
     try:
         input_items = input_data[0].items()
-    except (TypeError, IndexError, AttributeError):
+    except (TypeError, IndexError, KeyError, AttributeError):
         return []
 
     items = []
