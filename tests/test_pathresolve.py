@@ -177,6 +177,21 @@ class TestProbeFolder:
         result = _probe_folder("checkpoints", "model.safetensors")
         assert result == str(test_file)
 
+    def test_resolves_quoted_filename_with_extension(self, monkeypatch):
+        """Should resolve a quoted filename that already includes an extension."""
+        expected_path = "/path/to/model.safetensors"
+
+        def mock_get_full_path(kind, name):
+            if name == "model.safetensors":
+                return expected_path
+            return None
+
+        monkeypatch.setattr(folder_paths, "get_full_path", mock_get_full_path)
+        monkeypatch.setattr(os.path, "exists", lambda p: p == expected_path)
+
+        result = _probe_folder("checkpoints", "'model.safetensors'")
+        assert result == expected_path
+
 
 # --- try_resolve_artifact tests ---
 
