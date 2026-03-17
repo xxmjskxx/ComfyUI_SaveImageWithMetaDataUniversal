@@ -2,7 +2,10 @@
 import os
 import pytest
 from unittest.mock import MagicMock, patch
-from saveimage_unimeta.capture import Capture, _LoRARecord, _include_lora_summary, _include_hash_detail, _debug_prompts_enabled, _OutputCacheCompat
+from saveimage_unimeta.capture import (
+    Capture, _LoRARecord, _include_lora_summary,
+    _include_hash_detail, _debug_prompts_enabled, _OutputCacheCompat,
+)
 from saveimage_unimeta.defs.meta import MetaField
 
 def test_clean_name_tuple_variants():
@@ -106,16 +109,6 @@ def test_resolve_lora_hash():
         assert h == "captured"
 
 def test_get_sampler_for_civitai_fallbacks():
-    # Case: Sampler object with no name
-    obj = MagicMock()
-    del obj.sampler_name
-    del obj.name
-    # But has sampler_name in __dict__? or attribute
-    # The code probes attributes.
-
-    # Test logic where sampler is found via heuristic scan
-    # KNOWN_TOKENS = {"euler", ...}
-
     # Test fallback to scheduler if sampler missing
     res = Capture.get_sampler_for_civitai([], [("id", "normal")])
     assert res == "normal"
@@ -137,7 +130,10 @@ def test_add_hash_detail_section(monkeypatch):
 def test_gen_pnginfo_dict_multi_sampler():
     # Test multi sampler entries formatting
     meta = {
-        "__multi_sampler_entries": [{"sampler_name": "s1", "start_step": 0, "end_step": 10}, {"sampler_name": "s2", "start_step": 10, "end_step": 20}]
+        "__multi_sampler_entries": [
+            {"sampler_name": "s1", "start_step": 0, "end_step": 10},
+            {"sampler_name": "s2", "start_step": 10, "end_step": 20},
+        ]
     }
     # This logic is in gen_parameters_str
     res = Capture.gen_parameters_str(meta)

@@ -3,7 +3,6 @@ import os
 import shutil
 import json
 import pytest
-import time
 from unittest.mock import MagicMock, patch
 from saveimage_unimeta.nodes.rules_writer import SaveCustomMetadataRules, _timestamp, _looks_like_timestamp
 
@@ -21,8 +20,7 @@ def test_prune_backups(tmp_path):
 
     # Create fake backups
     for i in range(5):
-        (backups_dir / f"20250101-00000{i}").mkdir() # Oldest
-        time.sleep(0.01) # Ensure time diff for safety, though sorted via string
+        (backups_dir / f"20250101-00000{i}").mkdir()
 
     # Check creation
     assert len(list(backups_dir.iterdir())) == 5
@@ -106,9 +104,14 @@ def test_merge_append_new():
     assert out_s["Sampler1"]["new_role"] == "val"
     assert out_s["Sampler2"]["role"] == "new"
 
-    # With conflict replacement
-    metrics = {k:0 for k in metrics if isinstance(metrics[k], int)} # Reset counters
-    metrics["unchanged"] = False
+    # With conflict replacement – reset counters while preserving the full schema
+    metrics = {
+        "mode": "append_new", "backup": None, "nodes_added": 0, "metafields_added": 0,
+        "metafields_replaced": 0, "metafields_skipped_conflict": 0,
+        "samplers_added": 0, "sampler_roles_added": 0, "sampler_roles_replaced": 0,
+        "sampler_roles_skipped_conflict": 0, "pruned": 0, "unchanged": False,
+        "restored": False, "partial": False,
+    }
 
     out_n, out_s = writer._merge_append_new(existing_nodes, existing_samplers, incoming_nodes, incoming_samplers, True, metrics)
     assert out_n["Node1"]["Meta1"] == "Conflict"
@@ -133,21 +136,23 @@ def test_generate_python_extension(tmp_path):
 def test_save_rules_integration(tmp_path, monkeypatch):
     writer = SaveCustomMetadataRules()
 
+    from unittest.mock import mock_open
+
     with patch("os.makedirs"), \
-         patch("builtins.open", new_callable=MagicMock) as mock_open, \
-         patch("json.dump") as mock_json_dump, \
-         patch("json.load", return_value={}) as mock_json_load, \
+         patch("builtins.open", mock_open()), \
+         patch("json.dump"), \
+         patch("json.load", return_value={}), \
          patch("shutil.copy2"), \
          patch("os.listdir", return_value=[]), \
          patch("saveimage_unimeta.nodes.rules_writer.SaveCustomMetadataRules._generate_python_extension"):
 
-         res = writer.save_rules(
-             rules_json_string='{"nodes": {"N": {}}, "samplers": {}}',
-             save_mode="overwrite",
-             backup_before_save=False
-         )
-         # Should succeed now that we provided content
-         assert "mode=overwrite" in res[0]
+        res = writer.save_rules(
+            rules_json_string='{"nodes": {"N": {}}, "samplers": {}}',
+            save_mode="overwrite",
+            backup_before_save=False
+        )
+        # Should succeed now that we provided content
+        assert "mode=overwrite" in res[0]
 
 def test_restore_backup_logic():
     # Test restore path
