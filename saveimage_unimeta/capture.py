@@ -2359,7 +2359,7 @@ class Capture:
             lora_hash = resource_hashes.get(rh_key) or record.hash
             if lora_hash and lora_hash != "N/A":
                 lora_hash_entries.append(f"{norm_name}: {lora_hash}")
-            strength = record.strength_model
+            strength = record.strength_model if record.strength_model is not None else record.strength_clip
             if strength is not None:
                 lora_strength_entries.append(f"<lora:{norm_name}:{strength}>")
         return lora_hash_entries, lora_strength_entries

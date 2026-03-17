@@ -312,7 +312,7 @@ def _get_lora_data_from_node(node_id, input_data):
     text_field = None
     text_to_parse = None
     text_result = None
-    skip_text_parsing = structured_result and has_active_fields
+    skip_text_parsing = has_active_fields
     if not skip_text_parsing:
         if input_data and input_data[0]:
             field_choice = _select_text_field(input_data)
