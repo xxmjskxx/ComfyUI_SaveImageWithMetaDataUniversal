@@ -124,6 +124,90 @@ def test_get_lora_strength_selector():
     assert result == [0.75]
 
 
+# --- rgthree stack selector tests ---
+
+
+def test_get_lora_model_name_stack_selector():
+    """get_lora_model_name_stack should extract LoRA names from stacked input."""
+    from saveimage_unimeta.defs.ext.rgthree import get_lora_model_name_stack
+
+    input_data = [
+        {
+            "lora_1": ["ModelA.safetensors"],
+            "lora_2": ["ModelB.safetensors"],
+            "strength_1": [0.8],
+            "strength_2": [0.6],
+        }
+    ]
+
+    result = get_lora_model_name_stack(1, {}, {}, {}, {}, input_data)
+    assert result == ["ModelA.safetensors", "ModelB.safetensors"]
+
+
+def test_get_lora_strength_stack_selector():
+    """get_lora_strength_stack should extract strengths from stacked input."""
+    from saveimage_unimeta.defs.ext.rgthree import get_lora_strength_stack
+
+    input_data = [
+        {
+            "lora_1": ["ModelA.safetensors"],
+            "lora_2": ["ModelB.safetensors"],
+            "strength_1": [0.8],
+            "strength_2": [0.6],
+        }
+    ]
+
+    result = get_lora_strength_stack(1, {}, {}, {}, {}, input_data)
+    assert result == [0.8, 0.6]
+
+
+def test_get_lora_model_hash_stack_selector(mock_lora_index):
+    """get_lora_model_hash_stack should compute hashes for stacked LoRA names."""
+    from saveimage_unimeta.defs.ext.rgthree import get_lora_model_hash_stack
+
+    input_data = [
+        {
+            "lora_1": ["TestLoRA.safetensors"],
+            "lora_2": ["DetailLoRA.safetensors"],
+        }
+    ]
+
+    result = get_lora_model_hash_stack(1, {}, {}, {}, {}, input_data)
+    assert len(result) == 2
+    assert all(isinstance(h, str) for h in result)
+
+
+def test_get_lora_model_name_stack_filters_none():
+    """get_lora_model_name_stack should filter out None values."""
+    from saveimage_unimeta.defs.ext.rgthree import get_lora_model_name_stack
+
+    input_data = [
+        {
+            "lora_1": ["ModelA.safetensors"],
+            "lora_2": ["None"],
+            "lora_3": ["ModelC.safetensors"],
+        }
+    ]
+
+    result = get_lora_model_name_stack(1, {}, {}, {}, {}, input_data)
+    assert result == ["ModelA.safetensors", "ModelC.safetensors"]
+
+
+def test_stack_selectors_handle_empty_input():
+    """Stack selectors should handle empty or malformed input gracefully."""
+    from saveimage_unimeta.defs.ext.rgthree import (
+        get_lora_model_name_stack,
+        get_lora_strength_stack,
+    )
+
+    assert get_lora_model_name_stack(1, {}, {}, {}, {}, []) == []
+    assert get_lora_strength_stack(1, {}, {}, {}, {}, []) == []
+    assert get_lora_model_name_stack(1, {}, {}, {}, {}, [{}]) == []
+    assert get_lora_strength_stack(1, {}, {}, {}, {}, "bad") == []
+    assert get_lora_model_name_stack(1, {}, {}, {}, {}, None) == []
+    assert get_lora_strength_stack(1, {}, {}, {}, {}, None) == []
+
+
 # --- rgthree _parse_syntax tests ---
 
 

@@ -1706,6 +1706,13 @@ class Capture:
         if len(hashes_for_civitai) > 0:
             pnginfo_dict["Hashes"] = json.dumps(hashes_for_civitai)
 
+        # Generate A1111-style (Civitai-compatible) LoRA strengths metadata.
+        # The caller will move Lora strengths to Positive prompt.
+        civitai_lora_hashes, civitai_strengths = cls.gen_civitai_lora_hashes_and_strengths(hashes_for_civitai, lora_records)
+        if civitai_lora_hashes:
+            pnginfo_dict["Lora hashes"] = '"' + ", ".join(civitai_lora_hashes) + '"'
+            pnginfo_dict["Lora strengths"] = " ".join(civitai_strengths)
+
         # (dtype heuristic fallback already handled earlier when inserting Weight dtype)
 
         # Add structured hash detail section prior to returning (respect dynamic feature flag)
@@ -1735,8 +1742,8 @@ class Capture:
         Args:
             *args: A PNGInfo dictionary or the two capture snapshots described
                 above.
-            **kwargs: Optional ``include_lora_summary`` and ``guidance_as_cfg``
-                switches.
+            **kwargs: Optional ``include_lora_summary``, ``guidance_as_cfg``,
+                and ``lora_strengths_in_prompt`` switches.
 
         Returns:
             str: The formatted parameter string.
@@ -1754,6 +1761,8 @@ class Capture:
         # Keyword override: include_lora_summary (default None -> use env flag)
         include_lora_summary_override = kwargs.get("include_lora_summary")
         guidance_as_cfg = bool(kwargs.get("guidance_as_cfg", False))
+        lora_strengths_in_prompt = kwargs.get("lora_strengths_in_prompt", False)
+
         # --- Prompt header reconstruction (robust dual-encoder handling) ---
         pos = (pnginfo_dict.get("Positive prompt", "") or "").rstrip("\r\n")
         neg = (pnginfo_dict.get("Negative prompt", "") or "").rstrip("\r\n")
@@ -1796,6 +1805,20 @@ class Capture:
             # Single prompt scenario: show the unified positive prompt.
             if pos:
                 header_lines.append(pos)
+
+        # Positive prompt has been established. Move the LoRA designations to its end.
+        # We definitely need a valid positive prompt to do so.
+        if lora_strengths_in_prompt and header_lines and "Lora strengths" in pnginfo_dict:
+            header_lines[-1] += ' ' + pnginfo_dict["Lora strengths"]
+            pnginfo_dict.pop("Lora strengths", None)
+        else:
+            # Civitai malfunctions if "Lora hashes:" is present and
+            # corresponding lora designation (<lora:name:strength>) is not included
+            # in the positive prompt text.
+            # So, remove the "Lora hashes:" when not generating lora designations.
+            pnginfo_dict.pop("Lora hashes", None)
+            pnginfo_dict.pop("Lora strengths", None)
+
         header_lines.append(f"Negative prompt: {neg}")
         prompt_header_block = "\n".join(header_lines) + "\n"
         if DEBUG_PROMPTS:
@@ -2292,6 +2315,49 @@ class Capture:
             pass  # LoRA hash extraction may fail - return collected hashes
 
         return resource_hashes
+
+    @classmethod
+    def gen_civitai_lora_hashes_and_strengths(
+        cls,
+        resource_hashes: dict[str, str],
+        lora_records: list[_LoRARecord]
+    ) -> tuple[list[str], list[str]]:
+        """Generate two lists for Civitai-compatible LoRA strengths metadata.
+
+        Civitai requires two metadata to recognize LoRA strengths:
+        1) LoRA names in the traditional A1111-style "Lora hashes:"
+        (rather than "LoRAs:" or "Hashes:"), and
+        2) A1111-style lora designation in the positive prompt.
+        This method takes intermediate data for Lora-related metadata generation
+        and generates two lists: one for A1111-style LoRA designation and
+        another for "Lora hashes:".
+
+        Args:
+            resource_hashes: Dictionary created by get_hashes_for_civitai().
+            lora_records: List created by _build_lora_metadata(),
+                which is the first element in the tuple it returns.
+
+        Returns:
+            A tuple of two lists.
+            The first list contains strings of the traditional A1111-style
+            LoRA name-hash pair, i.e., "name: hash",
+            which should be separated by commas and enclosed in double quotes
+            by the caller to be the value of "Lora hashes".
+            The second list contains strings of the A1111-style LoRA designation,
+            i.e., "<lora:name:strength>", which should be embedded in
+            the positive prompt text by the caller.
+        """
+        lora_hashes = []
+        lora_designations = []
+        for record in lora_records:
+            strength = record.strength_model if record.strength_model is not None else record.strength_clip
+            norm_name = Capture._clean_name(record.name, drop_extension=True)
+            lora_key = f"lora:{norm_name}"
+            resolved_hash = resource_hashes.get(lora_key)
+            if strength is not None and resolved_hash:
+                lora_hashes.append(f"{norm_name}: {resolved_hash}")
+                lora_designations.append(f"<lora:{norm_name}:{strength}>")
+        return (lora_hashes, lora_designations)
 
     @classmethod
     def gen_loras(cls, inputs):
