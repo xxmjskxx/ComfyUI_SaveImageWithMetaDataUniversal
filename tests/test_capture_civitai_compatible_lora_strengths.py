@@ -1,6 +1,6 @@
 import re
 import pytest
-from collections.abc import Sequence, Iterable
+from collections.abc import Iterable, Sequence
 
 from saveimage_unimeta.defs.meta import MetaField
 from saveimage_unimeta.capture import Capture
@@ -179,7 +179,8 @@ class TestGenParametersStr:
         ]
     )
     def test_gen_parameters_str_creates_lora_hashes_if_lora_strengths_in_prompt_is_true(
-            self, inputs_name, lora_hashes):
+        self, inputs_name, lora_hashes,
+    ):
         inputs = {**_inputs[inputs_name]}
         pnginfo = Capture.gen_pnginfo_dict(inputs, inputs, True)
         parameters = Capture.gen_parameters_str(pnginfo, lora_strengths_in_prompt=True)
@@ -199,7 +200,8 @@ class TestGenParametersStr:
         ]
     )
     def test_gen_parameters_str_does_not_create_lora_hashes_if_lora_strengths_in_prompt_is_false(
-            self, inputs_name, lora_hashes):
+        self, inputs_name, lora_hashes,
+    ):
         inputs = {**_inputs[inputs_name]}
         pnginfo = Capture.gen_pnginfo_dict(inputs, inputs, True)
         parameters = Capture.gen_parameters_str(pnginfo, lora_strengths_in_prompt=False)
@@ -218,7 +220,8 @@ class TestGenParametersStr:
         ]
     )
     def test_gen_parameters_str_creates_lora_designations_in_positive_prompt_depending_on_lora_strengths_in_prompt(
-            self, inputs_name, lora_strengths_in_prompt, lora_designations):
+        self, inputs_name, lora_strengths_in_prompt, lora_designations,
+    ):
         inputs = {**_inputs[inputs_name]}
         pnginfo = Capture.gen_pnginfo_dict(inputs, inputs, True)
         parameters = Capture.gen_parameters_str(pnginfo, lora_strengths_in_prompt=lora_strengths_in_prompt)
@@ -237,7 +240,8 @@ class TestGenParametersStr:
         ]
     )
     def test_gen_parameters_str_does_not_create_lora_designations_if_no_positive_prompt(
-            self, inputs_name):
+        self, inputs_name,
+    ):
         inputs = {**_inputs[inputs_name]}
         del inputs[MetaField.POSITIVE_PROMPT]
         pnginfo = Capture.gen_pnginfo_dict(inputs, inputs, True)
@@ -258,7 +262,8 @@ class TestGenParametersStr:
         ]
     )
     def test_gen_parameters_str_never_leaves_lora_strengths_metadata(
-            self, inputs_name, lora_strengths_in_prompt):
+        self, inputs_name, lora_strengths_in_prompt,
+    ):
         inputs = {**_inputs[inputs_name]}
         pnginfo = Capture.gen_pnginfo_dict(inputs, inputs, True)
         parameters = Capture.gen_parameters_str(pnginfo, lora_strengths_in_prompt=lora_strengths_in_prompt)
