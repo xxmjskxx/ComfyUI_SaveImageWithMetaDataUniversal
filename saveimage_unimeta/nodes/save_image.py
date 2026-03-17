@@ -266,6 +266,17 @@ class SaveImageWithMetaDataUniversal:
                         ),
                     },
                 ),
+                "lora_strengths_in_prompt": (
+                    "BOOLEAN",
+                    {
+                        "default": False,
+                        "tooltip": (
+                            "When enabled, A1111-style LoRA designations (e.g. <lora:name:strength>) are appended "
+                            "to the positive prompt text and Lora hashes are included in metadata so that Civitai "
+                            "can recognise LoRA strengths."
+                        ),
+                    },
+                ),
                 "guidance_as_cfg": (
                     "BOOLEAN",
                     {
@@ -324,16 +335,6 @@ class SaveImageWithMetaDataUniversal:
                         ),
                     },
                 ),
-                "lora_strengths_in_prompt": (
-                    "BOOLEAN",
-                    {
-                        "default": False,
-                        "tooltip": (
-                            "When enabled, A1111-style LoRA designation is added to the positive prompt text "
-                            "so that Civitai can recognize LoRA strengths."
-                        ),
-                    },
-                ),
             },
             "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO"},
         }
@@ -363,6 +364,7 @@ class SaveImageWithMetaDataUniversal:
         save_workflow_json=False,
         add_counter_to_filename=True,
         civitai_sampler=False,
+        lora_strengths_in_prompt=False,
         max_jpeg_exif_kb=60,
         extra_metadata={},
         prompt=None,
@@ -371,7 +373,6 @@ class SaveImageWithMetaDataUniversal:
         include_lora_summary=True,
         guidance_as_cfg=False,
         suppress_missing_class_log=False,
-        lora_strengths_in_prompt=False,
     ):
         """Save images to disk with embedded metadata.
 

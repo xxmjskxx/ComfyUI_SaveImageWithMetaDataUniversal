@@ -60,7 +60,7 @@ def _coerce(v):
     Returns:
         str: The coerced string value.
     """
-    if isinstance(v, list):
+    if isinstance(v, list | tuple):
         return v[0] if v else ""
     return v if isinstance(v, str) else ""
 
@@ -158,7 +158,7 @@ def _extract(node_id, input_data) -> _ImpactData:
     """
     # Likely text fields produced after wildcard expansion
     candidates = ["text", "prompt", "positive", "combined", "out"]
-    if not isinstance(input_data, list) or not input_data:
+    if not isinstance(input_data, list | tuple) or not input_data:
         return {"names": [], "hashes": [], "model_strengths": [], "clip_strengths": []}
     batch = input_data[0]
     if not isinstance(batch, dict):

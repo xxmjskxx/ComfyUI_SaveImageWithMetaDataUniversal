@@ -94,12 +94,17 @@ class _OutputCacheCompat:
         """Initializes the `_OutputCacheCompat` wrapper.
 
         Args:
-            outputs_dict (dict): The dictionary of node outputs.
+            outputs_dict: The outputs cache – a plain dict (legacy) or a
+                ``HierarchicalCache`` instance (ComfyUI 0.3.65+).
         """
         self._outputs = outputs_dict if outputs_dict is not None else {}
 
     def get_output_cache(self, input_unique_id, unique_id):
         """Return the cached output for a given node ID.
+
+        In ComfyUI 0.3.65+, ``HierarchicalCache.get`` is an async coroutine,
+        so we use the synchronous ``get_local`` method when available to avoid
+        returning an unawaited coroutine.
 
         Args:
             input_unique_id (str): The ID of the node to get the output from.
@@ -108,6 +113,11 @@ class _OutputCacheCompat:
         Returns:
             The cached output, or None if not found.
         """
+        # HierarchicalCache (0.3.65+) exposes synchronous get_local(); plain
+        # dicts only have get().  Prefer the synchronous path to avoid
+        # returning a coroutine that the caller cannot await.
+        if hasattr(self._outputs, "get_local"):
+            return self._outputs.get_local(input_unique_id)
         return self._outputs.get(input_unique_id)
 
     def get_cache(self, input_unique_id, unique_id):
@@ -1706,12 +1716,14 @@ class Capture:
         if len(hashes_for_civitai) > 0:
             pnginfo_dict["Hashes"] = json.dumps(hashes_for_civitai)
 
-        # Generate A1111-style (Civitai-compatible) LoRA strengths metadata.
-        # The caller will move Lora strengths to Positive prompt.
-        civitai_lora_hashes, civitai_strengths = cls.gen_civitai_lora_hashes_and_strengths(hashes_for_civitai, lora_records)
-        if civitai_lora_hashes:
-            pnginfo_dict["Lora hashes"] = '"' + ", ".join(civitai_lora_hashes) + '"'
-            pnginfo_dict["Lora strengths"] = " ".join(civitai_strengths)
+        # Civitai-compatible LoRA hashes and strengths (for lora_strengths_in_prompt)
+        lora_hash_entries, lora_strength_entries = cls.gen_civitai_lora_hashes_and_strengths(
+            hashes_for_civitai, lora_records
+        )
+        if lora_hash_entries:
+            pnginfo_dict["Lora hashes"] = '"' + ", ".join(lora_hash_entries) + '"'
+        if lora_strength_entries:
+            pnginfo_dict["Lora strengths"] = " ".join(lora_strength_entries)
 
         # (dtype heuristic fallback already handled earlier when inserting Weight dtype)
 
@@ -1761,7 +1773,7 @@ class Capture:
         # Keyword override: include_lora_summary (default None -> use env flag)
         include_lora_summary_override = kwargs.get("include_lora_summary")
         guidance_as_cfg = bool(kwargs.get("guidance_as_cfg", False))
-        lora_strengths_in_prompt = kwargs.get("lora_strengths_in_prompt", False)
+        lora_strengths_in_prompt = bool(kwargs.get("lora_strengths_in_prompt", False))
 
         # --- Prompt header reconstruction (robust dual-encoder handling) ---
         pos = (pnginfo_dict.get("Positive prompt", "") or "").rstrip("\r\n")
@@ -2320,44 +2332,37 @@ class Capture:
     def gen_civitai_lora_hashes_and_strengths(
         cls,
         resource_hashes: dict[str, str],
-        lora_records: list[_LoRARecord]
+        lora_records: list[_LoRARecord],
     ) -> tuple[list[str], list[str]]:
-        """Generate two lists for Civitai-compatible LoRA strengths metadata.
+        """Generate Civitai-compatible LoRA hash and strength entries.
 
-        Civitai requires two metadata to recognize LoRA strengths:
-        1) LoRA names in the traditional A1111-style "Lora hashes:"
-        (rather than "LoRAs:" or "Hashes:"), and
-        2) A1111-style lora designation in the positive prompt.
-        This method takes intermediate data for Lora-related metadata generation
-        and generates two lists: one for A1111-style LoRA designation and
-        another for "Lora hashes:".
+        Produces two lists:
+        - A1111-style ``"name: hash"`` pairs for ``Lora hashes``
+        - A1111-style ``"<lora:name:strength>"`` designations for appending
+          to the positive prompt so Civitai can recognise LoRA strengths.
 
         Args:
-            resource_hashes: Dictionary created by get_hashes_for_civitai().
-            lora_records: List created by _build_lora_metadata(),
-                which is the first element in the tuple it returns.
+            resource_hashes: The Civitai resource hash dict (used as the
+                source of truth for per-LoRA hashes).
+            lora_records: Structured LoRA records from capture.
 
         Returns:
-            A tuple of two lists.
-            The first list contains strings of the traditional A1111-style
-            LoRA name-hash pair, i.e., "name: hash",
-            which should be separated by commas and enclosed in double quotes
-            by the caller to be the value of "Lora hashes".
-            The second list contains strings of the A1111-style LoRA designation,
-            i.e., "<lora:name:strength>", which should be embedded in
-            the positive prompt text by the caller.
+            A ``(lora_hash_entries, lora_strength_entries)`` tuple.
         """
-        lora_hashes = []
-        lora_designations = []
+        lora_hash_entries: list[str] = []
+        lora_strength_entries: list[str] = []
         for record in lora_records:
-            strength = record.strength_model if record.strength_model is not None else record.strength_clip
-            norm_name = Capture._clean_name(record.name, drop_extension=True)
-            lora_key = f"lora:{norm_name}"
-            resolved_hash = resource_hashes.get(lora_key)
-            if strength is not None and resolved_hash:
-                lora_hashes.append(f"{norm_name}: {resolved_hash}")
-                lora_designations.append(f"<lora:{norm_name}:{strength}>")
-        return (lora_hashes, lora_designations)
+            norm_name = cls._clean_name(record.name, drop_extension=True)
+            if not norm_name:
+                continue
+            rh_key = f"lora:{norm_name}"
+            lora_hash = resource_hashes.get(rh_key) or record.hash
+            if lora_hash and lora_hash != "N/A":
+                lora_hash_entries.append(f"{norm_name}: {lora_hash}")
+            strength = record.strength_model
+            if strength is not None:
+                lora_strength_entries.append(f"<lora:{norm_name}:{strength}>")
+        return lora_hash_entries, lora_strength_entries
 
     @classmethod
     def gen_loras(cls, inputs):
