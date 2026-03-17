@@ -21,7 +21,7 @@ Attributes:
 import logging
 from typing import TypedDict
 
-from saveimage_unimeta.defs.validators import is_negative_prompt, is_positive_prompt
+from ..validators import is_negative_prompt, is_positive_prompt
 
 from ...utils.lora import (
     coerce_first,
@@ -59,23 +59,21 @@ def get_lora_strength(node_id, obj, prompt, extra_data, outputs, input_data):
 
 def get_lora_data(input_data, attribute):
     """Helper to extract data from active LoRA inputs on a Power Lora Loader."""
-    if not isinstance(input_data, list) or not input_data:
+    try:
+        batch = input_data[0]
+        results = []
+        for key, value in batch.items():
+            if not key.startswith("lora_"):
+                continue
+            if not value[0]["on"]:
+                continue
+            candidate = value[0].get(attribute)
+            if candidate is None:
+                continue
+            results.append(candidate)
+        return results
+    except Exception:
         return []
-    batch = input_data[0]
-    if not isinstance(batch, dict):
-        return []
-    results = []
-    for key, value in batch.items():
-        if not key.startswith("lora_"):
-            continue
-        if not value[0]["on"]:
-            continue
-        candidate = value[0].get(attribute)
-        if candidate is None:
-            continue
-        results.append(candidate)
-    return results
-
 
 def get_lora_model_name_stack(node_id, obj, prompt, extra_data, outputs, input_data):
     """Selector for LoRA names from rgthree's Lora Loader Stack."""
