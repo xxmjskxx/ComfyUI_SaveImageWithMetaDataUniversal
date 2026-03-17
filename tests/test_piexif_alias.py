@@ -43,12 +43,6 @@ def test_piexif_import_success():
             for m, mod in saved_modules.items():
                 sys.modules[m] = mod
 
-def test_piexif_fallback_stub():
-    """Test that the fallback stub is used when piexif is not available."""
-    # This test is tricky because we need to fail imports.
-    # The `test_piexif_alias_fallback_logic` below covers this more thoroughly.
-    pass
-
 def test_piexif_alias_fallback_logic(monkeypatch):
     """
     Test the fallback logic in piexif_alias.py by forcing imports to fail.

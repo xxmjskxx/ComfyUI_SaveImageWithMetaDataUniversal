@@ -72,28 +72,7 @@ def test_iter_container_candidates_exceptions():
                 raise RuntimeError("Fail on second access")
             return "ok"
 
-    # hasattr(obj, 'model_name') -> calls property -> calls=1, returns "ok" (True)
-    # getattr(obj, 'model_name') -> calls property -> calls=2, raises RuntimeError
-
-    # But wait, `hasattr` swallows exceptions?
-    # "The result is True if the string is the name of one of the object’s attributes, False if not. (This is implemented by calling getattr(object, name) and seeing whether it raises an AttributeError or not.)"
-    # It only swallows AttributeError. Other exceptions propagate.
-
-    # So if we raise AttributeError in the property, hasattr returns False.
-    # If we raise RuntimeError, hasattr propagates it.
-
-    # So to trigger the `except Exception` block around `getattr`:
-    # We need `hasattr` to return True.
-    # And `getattr` to raise Exception.
-
-    f = Flaky()
-    # verify logic
-    # hasattr(f, "model_name") # calls=1. Returns True.
-    # getattr(f, "model_name") # calls=2. Raises RuntimeError.
-
-    # But does `hasattr` really call the property? Yes.
-
-    # Let's use this Flaky class.
+    # hasattr only swallows AttributeError; other exceptions propagate.
 
     candidates = list(_iter_container_candidates(Flaky()))
     # It should yield nothing if exception is caught and continue is executed.
@@ -109,7 +88,7 @@ def test_probe_folder_extensions(monkeypatch):
         if name == "base.safetensors":
             return "/path/to/base.safetensors"
         if name == "base.01.safetensors":
-             return "/path/to/base.01.safetensors"
+            return "/path/to/base.01.safetensors"
         return None
 
     # We need os.path.exists to match
@@ -185,13 +164,13 @@ def test_load_or_calc_hash_read_failure(tmp_path):
     real_open = open
     def mock_open(file, mode="r", *args, **kwargs):
         if str(file).endswith(".sha256") and "r" in mode:
-             raise OSError("Read failed")
+            raise OSError("Read failed")
         return real_open(file, mode, *args, **kwargs)
 
     with patch("builtins.open", side_effect=mock_open):
         with patch("saveimage_unimeta.utils.pathresolve.calc_hash", return_value="b"*64):
-             res = load_or_calc_hash(str(f))
-             assert res == ("b"*64)[:10]
+            res = load_or_calc_hash(str(f))
+            assert res == ("b"*64)[:10]
 
 def test_load_or_calc_hash_rehash_env(tmp_path, monkeypatch):
     f = tmp_path / "test.txt"

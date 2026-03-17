@@ -52,13 +52,13 @@ def test_node_piexif_stub_implementation(monkeypatch):
             assert stub.helper.UserComment.dump(123) == b""
 
         finally:
-             sys.meta_path.pop(0)
+            sys.meta_path.pop(0)
 
 def test_node_exports():
     """Verify that expected symbols are exported."""
     # Since previous tests might have messed with imports, we ensure we have a valid module here
     if "saveimage_unimeta.nodes.node" not in sys.modules:
-         import saveimage_unimeta.nodes.node
+        import saveimage_unimeta.nodes.node
     node_mod = sys.modules["saveimage_unimeta.nodes.node"]
 
     assert "SaveCustomMetadataRules" in node_mod.__all__
