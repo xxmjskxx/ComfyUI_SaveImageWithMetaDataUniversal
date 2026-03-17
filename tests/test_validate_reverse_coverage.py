@@ -13,17 +13,16 @@ from unittest.mock import MagicMock
 
 import pytest
 
-
-# Add tools directory to path for import
-TOOLS_DIR = Path(__file__).parent.parent / "tests" / "tools"
-if str(TOOLS_DIR) not in sys.path:
-    sys.path.insert(0, str(TOOLS_DIR))
+try:
+    from tests.tools.validate_metadata import MetadataValidator
+except ModuleNotFoundError:  # pragma: no cover - fallback for direct invocation
+    sys.path.insert(0, str(Path(__file__).parent / "tools"))
+    from validate_metadata import MetadataValidator  # type: ignore
 
 
 @pytest.fixture
 def validator():
     """Create a MetadataValidator instance for testing."""
-    from validate_metadata import MetadataValidator
 
     # Create validator with mock paths
     v = MetadataValidator(

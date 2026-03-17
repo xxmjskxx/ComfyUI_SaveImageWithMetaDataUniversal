@@ -69,8 +69,8 @@ metadata also reports three LoRAs).
     PER-WORKFLOW MANDATORY CHECKS:
     - **LoRA count**: If the workflow loads any LoRAs, verify that the number of
         `Lora_N` entries in metadata equals the number of loras loaded in the
-        workflow (loras can be loaded in single-model loaders, inline (only by a select few nodes), stack loaders, etc.) (1 check per
-            workflow when applicable).
+        workflow (loras can be loaded in single-model loaders, inline,
+        stack loaders, etc.) (1 check per workflow when applicable).
     - **Hash uniqueness**: Ensure every recorded artifact hash (model, VAE, each
         LoRA, each embedding) is unique (1 check per workflow).
     - **Metadata generator version**: Confirm the `Metadata generator version`
@@ -3081,8 +3081,6 @@ class MetadataValidator:
         for detail in check_details:
             field_name = detail.get("field", "")
             if field_name:
-                # Normalize field names: extract base field from compound names
-                # e.g., "Hashes LoRA:model entry" -> track as validated for Lora_N fields
                 validated_field_names.add(field_name)
 
         reverse_stats: dict[str, Any] = {
@@ -3143,11 +3141,15 @@ class MetadataValidator:
             else:
                 reverse_stats["unvalidated_fields"].append(field_name)
 
+            field_value_str = str(field_value)
+            value_preview = field_value_str[:50]
+            if len(field_value_str) > 50:
+                value_preview += "..."
             field_details.append({
                 "field": field_name,
                 "has_check": has_check,
                 "check_source": check_source,
-                "value_preview": str(field_value)[:50] + ("..." if len(str(field_value)) > 50 else ""),
+                "value_preview": value_preview,
             })
 
             if verbose:
