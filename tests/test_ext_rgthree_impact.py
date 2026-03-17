@@ -204,6 +204,8 @@ def test_stack_selectors_handle_empty_input():
     assert get_lora_strength_stack(1, {}, {}, {}, {}, []) == []
     assert get_lora_model_name_stack(1, {}, {}, {}, {}, [{}]) == []
     assert get_lora_strength_stack(1, {}, {}, {}, {}, "bad") == []
+    assert get_lora_model_name_stack(1, {}, {}, {}, {}, None) == []
+    assert get_lora_strength_stack(1, {}, {}, {}, {}, None) == []
 
 
 # --- rgthree _parse_syntax tests ---
