@@ -882,7 +882,10 @@ def _extract_embedding_candidates(text, input_data):
 
     try:
         escaped = escape_important(text)
-        parsed_weights = token_weights(escaped, 1.0)
+        try:
+            parsed_weights = token_weights(escaped, 1.0)
+        except TypeError:
+            parsed_weights = token_weights(escaped)
     except Exception as err:  # pragma: no cover - defensive
         logger.debug("[Metadata Lib] Failed parsing token weights for embeddings: %r", err)
         parsed_weights = [(text, 1.0)]

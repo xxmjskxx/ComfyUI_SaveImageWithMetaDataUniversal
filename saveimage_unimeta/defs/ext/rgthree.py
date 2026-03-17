@@ -72,7 +72,8 @@ def get_lora_data(input_data, attribute):
                 continue
             results.append(candidate)
         return results
-    except Exception:
+    except (TypeError, IndexError, KeyError, AttributeError) as err:
+        logger.debug("[Meta DBG] get_lora_data failed for attribute %r: %r", attribute, err)
         return []
 
 def get_lora_model_name_stack(node_id, obj, prompt, extra_data, outputs, input_data):
