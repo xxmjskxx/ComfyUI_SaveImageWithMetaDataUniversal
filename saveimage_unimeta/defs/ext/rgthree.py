@@ -61,20 +61,31 @@ def get_lora_data(input_data, attribute):
     """Helper to extract data from active LoRA inputs on a Power Lora Loader."""
     try:
         batch = input_data[0]
-        results = []
-        for key, value in batch.items():
-            if not key.startswith("lora_"):
-                continue
+    except (TypeError, IndexError, KeyError) as err:
+        logger.debug("[Meta DBG] get_lora_data failed accessing batch for attribute %r: %r", attribute, err)
+        return []
+
+    results = []
+    try:
+        entries = batch.items()
+    except AttributeError as err:
+        logger.debug("[Meta DBG] get_lora_data batch has no items() for attribute %r: %r", attribute, err)
+        return []
+
+    for key, value in entries:
+        if not key.startswith("lora_"):
+            continue
+        try:
             if not value[0]["on"]:
                 continue
             candidate = value[0].get(attribute)
             if candidate is None:
                 continue
             results.append(candidate)
-        return results
-    except (TypeError, IndexError, KeyError, AttributeError) as err:
-        logger.debug("[Meta DBG] get_lora_data failed for attribute %r: %r", attribute, err)
-        return []
+        except (TypeError, IndexError, KeyError, AttributeError) as err:
+            logger.debug("[Meta DBG] get_lora_data skipping entry %r for attribute %r: %r", key, attribute, err)
+            continue
+    return results
 
 def get_lora_model_name_stack(node_id, obj, prompt, extra_data, outputs, input_data):
     """Selector for LoRA names from rgthree's Lora Loader Stack."""

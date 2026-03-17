@@ -22,6 +22,7 @@ from saveimage_unimeta.defs.combo import SAMPLER_SELECTION_METHOD
 from saveimage_unimeta.defs.meta import MetaField
 from saveimage_unimeta.nodes.save_image import SaveImageWithMetaDataUniversal, hook
 
+
 def _create_stub_prompt(loras: int) -> dict[str, dict[str, dict[str, object] | str]]:
     """Create and return a prompt for this test.
 
@@ -225,7 +226,7 @@ _LORA_HASHES_2 = ', Lora hashes: "lora-9: 9999999999, lora-8: 8888888888", '
 def test_save_images_for_lora_strengths_in_prompt(
     monkeypatch, tmp_path, format, lora_strengths_in_prompt, loras, expected_positive_prompt, expected_lora_hashes,
 ):
-    """Test SaveImageWithMetaDataUnivesal.save_images handles lora_strengths_in_prompt."""
+    """Test SaveImageWithMetaDataUniversal.save_images handles lora_strengths_in_prompt."""
 
     # SaveImageWithMetaDataUniversal enters the _test mode_ when invoked in pytest,
     # and it behaves differently from the production environment.
