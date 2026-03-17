@@ -75,7 +75,7 @@
     - NOTE: These two nodes should be rerun every time you update this node pack or add new nodes to ComfyUI that you want to capture from, using either of the above workflows.
 2. Add `Save Image w/ Metadata Universal` to your workflow and connect to the image input to save images using your custom capture ruleset.
 3. (Optional) Use `Create Extra MetaData` node(s) to manually record additional info.
-4. (Optional) For full Civitai style parity enable the `civitai_sampler` and `guidance_as_cfg` toggles in the save node.
+4. (Optional) For full Civitai style parity enable the `civitai_sampler`, `guidance_as_cfg`, and `lora_strengths_in_prompt` toggles in the save node.
 5. Prefer PNG (or lossless WebP) when you need guaranteed full workflow embedding (JPEG has strict size limits—[see tips below](#format--fallback-quick-tips)).
 6. Hover any parameters on the nodes in this pack for concise tooltips (fallback stages, `max_jpeg_exif_kb`, LoRA summary toggle, guidance→CFG mapping, sampler naming, filename tokens). For further detail see: [Node UI Parameters](#node-ui-parameters-key-additions), [JPEG Metadata Size & Fallback Behavior](#jpeg-metadata-size--fallback-behavior); advanced env tuning: [Environment Flags](#environment-flags).
 
@@ -223,10 +223,11 @@ Date pattern components:
 
 Key quality‑of‑life and compatibility controls exposed by the primary save node:
 
-* `include_lora_summary` (BOOLEAN, default True): Toggles the aggregated `LoRAs:` summary line; when False only individual `Lora_*` entries are emitted. UI setting overrides env flags.
+* `include_lora_summary` (BOOLEAN, default False): Toggles the aggregated `LoRAs:` summary line; when False only individual `Lora_*` entries are emitted. UI setting overrides env flags.
 * `guidance_as_cfg` (BOOLEAN, default False): Substitutes the captured `Guidance` value into `CFG scale` and omits the separate `Guidance:` field for better A1111 / Civitai parity when models expose guidance separately.
 * `max_jpeg_exif_kb` (INT, default 60, min 4, max 64): UI‑enforced ceiling for attempted JPEG EXIF payload. Real-world single APP1 EXIF segment limit is ~64KB; exceeding it triggers staged fallback (reduced-exif → minimal → com-marker). For large workflows prefer PNG / lossless WebP.
-* `suppress_missing_class_log` (BOOLEAN, default False): Hide the informational log listing missing classes that would trigger a user JSON rules merge. Useful to reduce noise in large custom node environments.
+* `lora_strengths_in_prompt` (BOOLEAN, default False): When enabled, A1111-style LoRA designations (e.g. `<lora:name:strength>`) are appended to the positive prompt text and `Lora hashes` metadata is included so that Civitai can recognise LoRA strengths.
+* `suppress_missing_class_log` (BOOLEAN, default True): Hide the informational log listing missing classes that would trigger a user JSON rules merge. Useful to reduce noise in large custom node environments.
 
 </details>
 
@@ -427,7 +428,19 @@ Stable output characteristics to aid tooling & reproducibility:
 
 ### Changelog
 
-**Latest Release: v1.3.0 (2025-11-18)**
+**Latest Release: v1.4.0**
+
+Compatibility and bug fix release:
+- **Critical Fix**: Resolved `'coroutine' object has no attribute 'outputs'` error with ComfyUI 0.3.65+ (async `HierarchicalCache.get` compatibility)
+- **New Feature**: `lora_strengths_in_prompt` toggle appends A1111-style LoRA designations to the positive prompt for Civitai LoRA strength recognition
+- **Bug Fix**: Fixed `token_weights` function signature for parenthesized embeddings in prompts (upstream PR #80)
+- **Bug Fix**: Fixed rgthree extension import path (`from saveimage_unimeta.defs.validators` → relative import) preventing module load at runtime (upstream PRs #82, #84)
+- **Bug Fix**: Fixed Lora Loader Stack (rgthree) using wrong selectors (Power Lora Loader selectors instead of stack selectors) (upstream PR #84)
+- **Bug Fix**: Fixed `select_stack_by_prefix` and multiple selectors/validators to accept both list and tuple input data for broader ComfyUI version compatibility
+- **Bug Fix**: Fixed unsafe list comprehension in XTNodes `get_lora_data` and unsafe string split in `size_from_presets`
+- **Robustness**: EAFP-style error handling across extension modules for resilient metadata capture
+
+**Previous Release: v1.3.0 (2025-11-18)**
 
 Major consolidation release with 219 commits bringing:
 - **LoRA & Embedding System Overhaul**: Opt-in inline parsing, enhanced LoRA manager with structured field inspection, fixed "Schedule LoRAs" clip duplication, cached embedding hashes, per-node strength tracking
