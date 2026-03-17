@@ -4,7 +4,6 @@ import shutil
 import json
 import pytest
 from unittest.mock import MagicMock, patch, mock_open
-import saveimage_unimeta.nodes.rules_writer as _rw_mod
 from saveimage_unimeta.nodes.rules_writer import SaveCustomMetadataRules, _timestamp, _looks_like_timestamp
 
 def test_timestamp_utils():
