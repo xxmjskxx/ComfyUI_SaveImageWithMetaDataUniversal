@@ -2322,7 +2322,7 @@ class Capture:
         resource_hashes: dict[str, str],
         lora_records: list[_LoRARecord]
     ) -> tuple[list[str], list[str]]:
-        """Generate two lists for Civita-compatible LoRA strengths metadata.
+        """Generate two lists for Civitai-compatible LoRA strengths metadata.
 
         Civitai requires two metadata to recognize LoRA strengths:
         1) LoRA names in the traditional A1111-style "Lora hashes:"
