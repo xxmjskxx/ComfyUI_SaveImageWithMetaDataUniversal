@@ -370,7 +370,7 @@ class SaveImageWithMetaDataUniversal:
         prompt=None,
         extra_pnginfo=None,
         save_workflow_image=True,
-        include_lora_summary=True,
+        include_lora_summary=False,
         guidance_as_cfg=False,
         suppress_missing_class_log=False,
     ):
