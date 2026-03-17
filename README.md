@@ -223,11 +223,11 @@ Date pattern components:
 
 Key quality‑of‑life and compatibility controls exposed by the primary save node:
 
-* `include_lora_summary` (BOOLEAN, default True): Toggles the aggregated `LoRAs:` summary line; when False only individual `Lora_*` entries are emitted. UI setting overrides env flags.
+* `include_lora_summary` (BOOLEAN, default False): Toggles the aggregated `LoRAs:` summary line; when False only individual `Lora_*` entries are emitted. UI setting overrides env flags.
 * `guidance_as_cfg` (BOOLEAN, default False): Substitutes the captured `Guidance` value into `CFG scale` and omits the separate `Guidance:` field for better A1111 / Civitai parity when models expose guidance separately.
 * `max_jpeg_exif_kb` (INT, default 60, min 4, max 64): UI‑enforced ceiling for attempted JPEG EXIF payload. Real-world single APP1 EXIF segment limit is ~64KB; exceeding it triggers staged fallback (reduced-exif → minimal → com-marker). For large workflows prefer PNG / lossless WebP.
 * `lora_strengths_in_prompt` (BOOLEAN, default False): When enabled, A1111-style LoRA designations (e.g. `<lora:name:strength>`) are appended to the positive prompt text and `Lora hashes` metadata is included so that Civitai can recognise LoRA strengths.
-* `suppress_missing_class_log` (BOOLEAN, default False): Hide the informational log listing missing classes that would trigger a user JSON rules merge. Useful to reduce noise in large custom node environments.
+* `suppress_missing_class_log` (BOOLEAN, default True): Hide the informational log listing missing classes that would trigger a user JSON rules merge. Useful to reduce noise in large custom node environments.
 
 </details>
 
