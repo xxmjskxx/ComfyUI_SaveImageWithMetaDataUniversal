@@ -1178,10 +1178,11 @@ class WorkflowAnalyzer:
     def _add_lora_entry(collection: list[dict[str, Any]], name: Any, model_strength: Any, clip_strength: Any) -> None:
         if name in (None, "", "None"):
             return
-        normalized_name = str(name)
+        normalized_name = str(name).strip()
         if not normalized_name:
             return
-        existing = next((entry for entry in collection if entry.get("name") == normalized_name), None)
+        lower_key = normalized_name.lower()
+        existing = next((entry for entry in collection if entry.get("name", "").lower() == lower_key), None)
         if existing:
             if existing.get("model_strength") is None and model_strength is not None:
                 existing["model_strength"] = model_strength
@@ -1202,13 +1203,14 @@ class WorkflowAnalyzer:
             name = entry.get("name")
             if not name:
                 continue
-            if name not in seen:
-                seen[name] = entry.copy()
+            key = str(name).strip().lower()
+            if key not in seen:
+                seen[key] = entry.copy()
                 continue
-            existing = seen[name]
-            for key in ("model_strength", "clip_strength"):
-                if existing.get(key) is None and entry.get(key) is not None:
-                    existing[key] = entry[key]
+            existing = seen[key]
+            for field in ("model_strength", "clip_strength"):
+                if existing.get(field) is None and entry.get(field) is not None:
+                    existing[field] = entry[field]
         return list(seen.values())
 
     @staticmethod
