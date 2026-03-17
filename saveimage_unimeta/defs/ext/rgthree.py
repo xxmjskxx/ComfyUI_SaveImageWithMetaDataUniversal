@@ -66,8 +66,14 @@ def get_lora_data(input_data, attribute):
         return []
 
     results = []
-    for key, value in getattr(batch, "items", lambda: [])():
-        if not isinstance(key, str) or not key.startswith("lora_"):
+    try:
+        entries = batch.items()
+    except AttributeError as err:
+        logger.debug("[Meta DBG] get_lora_data batch has no items() for attribute %r: %r", attribute, err)
+        return []
+
+    for key, value in entries:
+        if not key.startswith("lora_"):
             continue
         try:
             if not value[0]["on"]:
