@@ -366,7 +366,7 @@ class SaveImageWithMetaDataUniversal:
         civitai_sampler=False,
         lora_strengths_in_prompt=False,
         max_jpeg_exif_kb=60,
-        extra_metadata={},
+        extra_metadata=None,
         prompt=None,
         extra_pnginfo=None,
         save_workflow_image=True,
@@ -427,6 +427,8 @@ class SaveImageWithMetaDataUniversal:
             dict: A dictionary containing the UI data and the result, which
                 includes the original images for passthrough.
         """
+        if extra_metadata is None:
+            extra_metadata = {}
         # Refresh definitions each run with smarter merge order. We pass a set
         # of classes seen from the SaveImage node back through the graph so the
         # loader can decide if user JSON is needed or defaults+ext suffice.
