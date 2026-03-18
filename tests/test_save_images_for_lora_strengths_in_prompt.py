@@ -135,10 +135,10 @@ def _create_stub_prompt(loras: int) -> dict[str, dict[str, dict[str, object] | s
 
 def _find_node_id_by_class_type(prompt: dict[str, dict[str, object]], class_type: str) -> str:
     """Find the first node of the specified class type in the prompt and return its id."""
-    id = next((id for id, node in prompt.items() if node.get("class_type") == class_type), None)
-    if id is None:
+    node_id = next((nid for nid, node in prompt.items() if node.get("class_type") == class_type), None)
+    if node_id is None:
         raise ValueError(f"{class_type} not found in the prompt.")
-    return id
+    return node_id
 
 def _get_inputs_stub(cls):
     """Return a fixed inputs data for testing to substitute the Capture.get_inputs()."""
