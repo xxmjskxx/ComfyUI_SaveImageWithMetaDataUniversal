@@ -1765,7 +1765,7 @@ class Capture:
         """
         # Backwards compatibility wrapper: accept either (pnginfo_dict) or (inputs_before_sampler, inputs_before_this)
         if len(args) == 1:
-            pnginfo_dict = args[0]
+            pnginfo_dict = dict(args[0])  # shallow copy to avoid mutating the caller's dict
         elif len(args) == 2:
             pnginfo_dict = cls.gen_pnginfo_dict(args[0], args[1], False)
         else:  # pragma: no cover
