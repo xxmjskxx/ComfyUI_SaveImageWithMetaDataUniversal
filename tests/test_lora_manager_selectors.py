@@ -127,3 +127,116 @@ def test_lora_manager_ignores_placeholder_stack_reference(monkeypatch):
     assert names == ["OnlyText"]
     assert model_strengths == [0.77]
     assert clip_strengths == [0.5]
+
+
+def test_lora_manager_filters_inactive_loras(monkeypatch):
+    """Test that only loras with active=True (or no active field) are captured."""
+    mod = _load_module(monkeypatch)
+    input_data = (
+        {
+            "lora_stack": [
+                [
+                    {"name": "lenovo_z", "strength": 0.2, "clipStrength": 0.2, "active": False},
+                    {"name": "grainscape_zimage", "strength": 0.2, "clipStrength": 0.2, "active": True},
+                    {"name": "z-image_turbo", "strength": 1.0, "clipStrength": 1.0, "active": True},
+                    {"name": "Rainbow_Brite", "strength": 1.0, "clipStrength": 1.0, "active": False},
+                    {"name": "Marvel_Spectrum", "strength": 1.0, "clipStrength": 1.0, "active": True},
+                    {"name": "DC_Comics_Mera", "strength": 1.0, "clipStrength": 1.0, "active": False},
+                ]
+            ]
+        },
+    )
+    names = mod.get_lora_model_names("active_test", None, None, None, None, input_data)
+    model_strengths = mod.get_lora_model_strengths("active_test", None, None, None, None, input_data)
+    clip_strengths = mod.get_lora_clip_strengths("active_test", None, None, None, None, input_data)
+    # Only the 3 active loras should be captured
+    assert names == ["grainscape_zimage", "z-image_turbo", "Marvel_Spectrum"]
+    assert model_strengths == [0.2, 1.0, 1.0]
+    assert clip_strengths == [0.2, 1.0, 1.0]
+
+
+def test_lora_manager_includes_loras_without_active_field(monkeypatch):
+    """Test that loras without an 'active' field are included (backward compat)."""
+    mod = _load_module(monkeypatch)
+    input_data = (
+        {
+            "lora_stack": [
+                [
+                    {"name": "NoActiveField", "strength": 0.5, "clipStrength": 0.3},
+                    {"name": "WithActiveTrue", "strength": 0.6, "clipStrength": 0.4, "active": True},
+                    {"name": "WithActiveFalse", "strength": 0.7, "clipStrength": 0.5, "active": False},
+                ]
+            ]
+        },
+    )
+    names = mod.get_lora_model_names("compat_test", None, None, None, None, input_data)
+    model_strengths = mod.get_lora_model_strengths("compat_test", None, None, None, None, input_data)
+    clip_strengths = mod.get_lora_clip_strengths("compat_test", None, None, None, None, input_data)
+    # NoActiveField and WithActiveTrue should be captured, WithActiveFalse should not
+    assert names == ["NoActiveField", "WithActiveTrue"]
+    assert model_strengths == [0.5, 0.6]
+    assert clip_strengths == [0.3, 0.4]
+
+
+def test_lora_manager_active_fields_prevent_text_merge(monkeypatch):
+    """Test that when structured data has 'active' fields, text is NOT merged.
+
+    This tests the exact LoraManager scenario where:
+    - lora_stack has entries with active: true/false
+    - lora_syntax/text has ALL loras (including inactive ones)
+    Only the active loras from structured data should be captured.
+    """
+    mod = _load_module(monkeypatch)
+    # Simulates LoraManager data format where text contains all loras
+    # but structured data has active flags
+    input_data = (
+        {
+            "lora_stack": [
+                [
+                    {"name": "lenovo_z", "strength": 0.2, "clipStrength": 0.2, "active": False},
+                    {"name": "grainscape_zimage", "strength": 0.2, "clipStrength": 0.2, "active": True},
+                    {"name": "Marvel_Spectrum", "strength": 1.0, "clipStrength": 1.0, "active": True},
+                    {"name": "Rainbow_Brite", "strength": 1.0, "clipStrength": 1.0, "active": False},
+                ]
+            ],
+            # This text contains ALL loras including inactive ones - should be ignored
+            # when structured data has 'active' fields
+            "lora_syntax": "<lora:lenovo_z:0.2> <lora:grainscape_zimage:0.2> <lora:Marvel_Spectrum:1.0> <lora:Rainbow_Brite:1.0>",
+        },
+    )
+    names = mod.get_lora_model_names("civitai_test", None, None, None, None, input_data)
+    model_strengths = mod.get_lora_model_strengths("civitai_test", None, None, None, None, input_data)
+    clip_strengths = mod.get_lora_clip_strengths("civitai_test", None, None, None, None, input_data)
+    # Only the 2 active loras should be captured - text should NOT re-add inactive ones
+    assert names == ["grainscape_zimage", "Marvel_Spectrum"]
+    assert model_strengths == [0.2, 1.0]
+    assert clip_strengths == [0.2, 1.0]
+
+
+def test_lora_manager_all_inactive_prevents_text_merge(monkeypatch):
+    """Regression: all-inactive structured data must still prevent text merge.
+
+    Even when every entry is filtered out (entries == []), the presence of
+    'active' fields must keep skip_text_parsing=True so inactive LoRAs are
+    not re-added via the text fallback path.
+    """
+    mod = _load_module(monkeypatch)
+    input_data = (
+        {
+            "lora_stack": [
+                [
+                    {"name": "lenovo_z", "strength": 0.2, "clipStrength": 0.2, "active": False},
+                    {"name": "Rainbow_Brite", "strength": 1.0, "clipStrength": 1.0, "active": False},
+                ]
+            ],
+            # Text contains the inactive LoRAs - must NOT be merged when 'active' fields present
+            "lora_syntax": "<lora:lenovo_z:0.2> <lora:Rainbow_Brite:1.0>",
+        },
+    )
+    names = mod.get_lora_model_names("all_inactive", None, None, None, None, input_data)
+    model_strengths = mod.get_lora_model_strengths("all_inactive", None, None, None, None, input_data)
+    clip_strengths = mod.get_lora_clip_strengths("all_inactive", None, None, None, None, input_data)
+    # All entries inactive -> nothing should be returned; text must not re-add them
+    assert names == []
+    assert model_strengths == []
+    assert clip_strengths == []

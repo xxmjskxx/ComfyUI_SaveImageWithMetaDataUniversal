@@ -266,6 +266,17 @@ class SaveImageWithMetaDataUniversal:
                         ),
                     },
                 ),
+                "lora_strengths_in_prompt": (
+                    "BOOLEAN",
+                    {
+                        "default": False,
+                        "tooltip": (
+                            "When enabled, A1111-style LoRA designations (e.g. <lora:name:strength>) are appended "
+                            "to the positive prompt text and Lora hashes are included in metadata so that Civitai "
+                            "can recognise LoRA strengths."
+                        ),
+                    },
+                ),
                 "guidance_as_cfg": (
                     "BOOLEAN",
                     {
@@ -353,14 +364,15 @@ class SaveImageWithMetaDataUniversal:
         save_workflow_json=False,
         add_counter_to_filename=True,
         civitai_sampler=False,
+        lora_strengths_in_prompt=False,
         max_jpeg_exif_kb=60,
-        extra_metadata={},
+        extra_metadata=None,
         prompt=None,
         extra_pnginfo=None,
         save_workflow_image=True,
-        include_lora_summary=True,
+        include_lora_summary=False,
         guidance_as_cfg=False,
-        suppress_missing_class_log=False,
+        suppress_missing_class_log=True,
     ):
         """Save images to disk with embedded metadata.
 
@@ -394,7 +406,7 @@ class SaveImageWithMetaDataUniversal:
             max_jpeg_exif_kb (int, optional): The maximum size of the EXIF data
                 in kilobytes for JPEGs. Defaults to 60.
             extra_metadata (dict, optional): Additional metadata to be included.
-                Defaults to {}.
+                Defaults to None.
             prompt (dict, optional): The workflow prompt. Injected by ComfyUI.
                 Defaults to None.
             extra_pnginfo (dict, optional): Additional PNG info. Injected by
@@ -402,16 +414,21 @@ class SaveImageWithMetaDataUniversal:
             save_workflow_image (bool, optional): Whether to save the workflow
                 data within the image metadata. Defaults to True.
             include_lora_summary (bool, optional): Whether to include a summary
-                of LoRAs in the metadata. Defaults to True.
+                of LoRAs in the metadata. Defaults to False.
             guidance_as_cfg (bool, optional): Whether to treat guidance as CFG
                 scale. Defaults to False.
             suppress_missing_class_log (bool, optional): Whether to suppress
-                warnings about missing node classes. Defaults to False.
+                warnings about missing node classes. Defaults to True.
+            lora_strengths_in_prompt (bool, optional): Add A1111-style LoRA
+                designation to positive prompt so that Civitai can recognize LoRA
+                strengths.
 
         Returns:
             dict: A dictionary containing the UI data and the result, which
                 includes the original images for passthrough.
         """
+        if extra_metadata is None:
+            extra_metadata = {}
         # Refresh definitions each run with smarter merge order. We pass a set
         # of classes seen from the SaveImage node back through the graph so the
         # loader can decide if user JSON is needed or defaults+ext suffice.
@@ -510,6 +527,7 @@ class SaveImageWithMetaDataUniversal:
                     pnginfo_dict,
                     include_lora_summary=include_lora_summary,
                     guidance_as_cfg=guidance_as_cfg,
+                    lora_strengths_in_prompt=lora_strengths_in_prompt,
                 )
                 if pnginfo_dict:
                     metadata.add_text("parameters", parameters)

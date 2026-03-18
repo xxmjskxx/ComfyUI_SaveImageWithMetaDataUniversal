@@ -105,3 +105,38 @@ def test_output_cache_compat_get_cache_alias():
     assert compat.get_cache("2", "current") == ("output2", "extra")
     assert compat.get_cache("3", "current") is None
     assert compat.get_cache("nonexistent", "current") is None
+
+
+def test_output_cache_compat_uses_get_local_when_available():
+    """Test that _OutputCacheCompat prefers get_local() over get().
+
+    ComfyUI 0.3.65+ uses HierarchicalCache whose get() is async. The wrapper
+    must use the synchronous get_local() method when it exists to avoid
+    returning an unawaited coroutine.
+    """
+
+    class FakeHierarchicalCache:
+        """Simulates a HierarchicalCache with async get() and sync get_local()."""
+
+        def __init__(self):
+            self._store = {"1": ("output1",), "2": ("output2",)}
+
+        async def get(self, node_id):
+            # This would return a coroutine if called directly
+            return self._store.get(node_id)
+
+        def get_local(self, node_id):
+            return self._store.get(node_id)
+
+    cache = FakeHierarchicalCache()
+    compat = _OutputCacheCompat(cache)
+
+    # Should use get_local, not get (which would return a coroutine)
+    result = compat.get_output_cache("1", "current")
+    assert result == ("output1",), f"Expected tuple, got {type(result)}: {result}"
+    assert not hasattr(result, "__await__"), "Result should not be a coroutine"
+
+    result2 = compat.get_cache("2", "current")
+    assert result2 == ("output2",)
+
+    assert compat.get_output_cache("nonexistent", "current") is None

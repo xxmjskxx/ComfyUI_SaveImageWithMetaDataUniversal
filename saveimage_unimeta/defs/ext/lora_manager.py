@@ -133,6 +133,10 @@ def _parse_stack_entries_from_value(value):
             return _parse_stack_entries_from_value(parsed)
         return []
     if isinstance(value, dict):
+        # Skip entries explicitly marked as inactive in LoraManager nodes.
+        # Only skip if 'active' key exists AND is explicitly False.
+        if value.get("active") is False:
+            return entries
         name = value.get("name") or value.get("model")
         if name is not None and any(k in value for k in ("strength", "clipStrength", "clip_strength")):
             ms = value.get("strength") or value.get("model_strength") or value.get("weight")
@@ -190,16 +194,43 @@ def _build_result_from_entries(raw_entries):
     }
 
 
-def _extract_structured_entries(batch: dict) -> tuple[str | None, tuple[tuple[str | None, float | None, float | None], ...]]:
-    """Return the first stack-like field that yields concrete entries."""
+def _has_active_fields(value) -> bool:
+    """Check if the value contains entries with 'active' field (LoraManager format)."""
+    if isinstance(value, dict):
+        if "active" in value:
+            return True
+        for v in value.values():
+            if _has_active_fields(v):
+                return True
+    elif isinstance(value, list | tuple):
+        for item in value:
+            if _has_active_fields(item):
+                return True
+    return False
+
+
+def _extract_structured_entries(batch: dict) -> tuple[str | None, tuple[tuple[str | None, float | None, float | None], ...], bool]:
+    """Return the first stack-like field that yields concrete entries.
+
+    Returns:
+        tuple: (field_name, entries, has_active_fields)
+            - field_name: The field that contained the entries
+            - entries: Tuple of (name, model_strength, clip_strength) tuples
+            - has_active_fields: True if the raw data contained 'active' fields
+    """
 
     for field in _STACK_FIELD_CANDIDATES:
         if field not in batch:
             continue
-        entries = _parse_stack_entries_from_value(batch[field])
-        if entries:
-            return field, tuple(entries)
-    return None, ()
+        raw_value = batch[field]
+        # Check for 'active' fields BEFORE filtering entries, so that a payload
+        # where every entry is inactive still sets has_active=True and prevents
+        # the text-merge path from re-adding those inactive LoRAs.
+        has_active = _has_active_fields(raw_value)
+        entries = _parse_stack_entries_from_value(raw_value)
+        if entries or has_active:
+            return field, tuple(entries), has_active
+    return None, (), False
 
 
 def _build_result_from_text(text: str | None):
@@ -271,22 +302,30 @@ def _get_lora_data_from_node(node_id, input_data):
     batch = input_data[0] if input_data and input_data[0] else None
     stack_field = None
     stack_payload: tuple[tuple[str | None, float | None, float | None], ...] = ()
+    has_active_fields = False
     if isinstance(batch, dict):
-        stack_field, stack_payload = _extract_structured_entries(batch)
+        stack_field, stack_payload, has_active_fields = _extract_structured_entries(batch)
     structured_result = _build_result_from_entries(list(stack_payload)) if stack_payload else None
 
+    # Parse text for lora syntax, but skip if structured data has 'active' fields.
+    # When 'active' fields are present (LoraManager format), the structured data
+    # already filters inactive loras. The text string doesn't reflect active status,
+    # so merging would re-add inactive loras.
     text_field = None
     text_to_parse = None
-    if input_data and input_data[0]:
-        field_choice = _select_text_field(input_data)
-        candidate = input_data[0].get(field_choice, "")
-        coerced = coerce_first(candidate)
-        if coerced:
-            text_field = field_choice
-            text_to_parse = coerced
-    text_result = _build_result_from_text(text_to_parse)
+    text_result = None
+    skip_text_parsing = has_active_fields
+    if not skip_text_parsing:
+        if input_data and input_data[0]:
+            field_choice = _select_text_field(input_data)
+            candidate = input_data[0].get(field_choice, "")
+            coerced = coerce_first(candidate)
+            if coerced:
+                text_field = field_choice
+                text_to_parse = coerced
+        text_result = _build_result_from_text(text_to_parse)
 
-    cache_signature = (stack_field, stack_payload, text_field, text_to_parse)
+    cache_signature = (stack_field, stack_payload, text_field, text_to_parse, has_active_fields)
     cached = _NODE_DATA_CACHE.get(node_id)
     if cached and cached.get("signature") == cache_signature:
         return cached["data"]

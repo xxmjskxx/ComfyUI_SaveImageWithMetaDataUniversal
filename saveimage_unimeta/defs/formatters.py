@@ -45,9 +45,9 @@ except (ImportError, ModuleNotFoundError):  # noqa: BLE001 - provide minimal stu
         """A stub for the `unescape_important` function."""
         return x
 
-    def token_weights(x):
+    def token_weights(string, current_weight):
         """A stub for the `token_weights` function."""
-        return []
+        return [(string, current_weight)]
 
 
 from ..utils.embedding import get_embedding_file_path
@@ -882,7 +882,11 @@ def _extract_embedding_candidates(text, input_data):
 
     try:
         escaped = escape_important(text)
-        parsed_weights = token_weights(escaped)
+        try:
+            parsed_weights = token_weights(escaped, 1.0)
+        except TypeError:
+            logger.debug("[Metadata Lib] token_weights 2-arg call failed, retrying with 1-arg signature.")
+            parsed_weights = token_weights(escaped)
     except Exception as err:  # pragma: no cover - defensive
         logger.debug("[Metadata Lib] Failed parsing token weights for embeddings: %r", err)
         parsed_weights = [(text, 1.0)]
