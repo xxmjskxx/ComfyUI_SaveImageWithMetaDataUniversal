@@ -428,7 +428,7 @@ Stable output characteristics to aid tooling & reproducibility:
 
 ### Changelog
 
-**Latest Release: v1.4.0**
+**Latest Release: v1.4.0  (2026-03-17)**
 
 Compatibility and bug fix release:
 - **Critical Fix**: Resolved `'coroutine' object has no attribute 'outputs'` error with ComfyUI 0.3.65+ (async `HierarchicalCache.get` compatibility)
