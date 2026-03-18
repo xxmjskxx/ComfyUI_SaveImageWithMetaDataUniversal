@@ -82,10 +82,9 @@ class SaveCustomMetadataRules:
             },
             "optional": {
                 "save_mode": (
-                    "STRING",
+                    ("overwrite", "append_new"),
                     {
                         "default": "overwrite",
-                        "choices": ("overwrite", "append_new"),
                         "tooltip": (
                             "overwrite: replace existing user JSON with provided content (legacy).\n"
                             "append_new: add only missing metafields / sampler roles."
