@@ -204,7 +204,7 @@ def select_by_prefix(input_data, prefix):
     except (TypeError, IndexError, KeyError, AttributeError):
         return []
     return [
-        v[0] for k, v in input_items if k.startswith(prefix) and v and isinstance(v, (list, tuple)) and v[0] != "None"
+        v[0] for k, v in input_items if k.startswith(prefix) and v and isinstance(v, list | tuple) and v[0] != "None"
     ]
 
 

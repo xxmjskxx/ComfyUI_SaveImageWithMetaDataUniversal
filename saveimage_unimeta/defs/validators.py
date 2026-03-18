@@ -69,7 +69,7 @@ def _get_node_id_list(prompt, field_name):
                     break
                 if "inputs" in prompt[current_node_id]:
                     for v in prompt[current_node_id]["inputs"].values():
-                        if isinstance(v, (list, tuple)) and v:
+                        if isinstance(v, list | tuple) and v:
                             d.append(v[0])
     return node_id_list.values()
 
@@ -85,7 +85,7 @@ def is_node_connected(node_id, prompt, *args):
         # FIX: Check if 'inputs' key exists before accessing it.
         if "inputs" in other_node:
             for input_val in other_node["inputs"].values():
-                if isinstance(input_val, list) and str(input_val[0]) == str(node_id):
+                if isinstance(input_val, list | tuple) and str(input_val[0]) == str(node_id):
                     _CONNECTION_CACHE[node_id] = True
                     return True
     _CONNECTION_CACHE[node_id] = False
