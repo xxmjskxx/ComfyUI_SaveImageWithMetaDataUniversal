@@ -110,7 +110,7 @@ _inputs2 = {
     ],
     MetaField.LORA_STRENGTH_CLIP: [
         ('n5', 0.7, 1),
-        ('n5', 0.6, 1),
+        ('n6', 0.6, 1),
     ],
 }
 
