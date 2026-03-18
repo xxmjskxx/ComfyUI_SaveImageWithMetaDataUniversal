@@ -191,18 +191,14 @@ class SaveImageWithMetaDataUniversal:
                         "max": 999999999,
                         "step": 1,
                         "tooltip": (
-                            "When method is 'By node ID', this specifies which sampler node to treat as "
-                            "authoritative for Steps/CFG/etc."
+                            "When method is 'By node ID', this specifies which sampler node to treat as " "authoritative for Steps/CFG/etc."
                         ),
                     },
                 ),
                 "file_format": (
                     cls.SAVE_FILE_FORMATS,
                     {
-                        "tooltip": (
-                            "Image format for output. PNG retains full metadata; JPEG/WebP may strip or "
-                            "re-encode some fields."
-                        ),
+                        "tooltip": ("Image format for output. PNG retains full metadata; JPEG/WebP may strip or " "re-encode some fields."),
                     },
                 ),
             },
@@ -251,8 +247,7 @@ class SaveImageWithMetaDataUniversal:
                     {
                         "default": True,
                         "tooltip": (
-                            "Automatically append an incrementing counter to avoid overwriting existing files "
-                            "with the same prefix."
+                            "Automatically append an incrementing counter to avoid overwriting existing files " "with the same prefix."
                         ),
                     },
                 ),
@@ -260,21 +255,7 @@ class SaveImageWithMetaDataUniversal:
                     "BOOLEAN",
                     {
                         "default": False,
-                        "tooltip": (
-                            "Add a Civitai-compatible sampler notation (if enabled) for better import fidelity on "
-                            "Civitai."
-                        ),
-                    },
-                ),
-                "lora_strengths_in_prompt": (
-                    "BOOLEAN",
-                    {
-                        "default": False,
-                        "tooltip": (
-                            "When enabled, A1111-style LoRA designations (e.g. <lora:name:strength>) are appended "
-                            "to the positive prompt text and Lora hashes are included in metadata so that Civitai "
-                            "can recognise LoRA strengths."
-                        ),
+                        "tooltip": ("Add a Civitai-compatible sampler notation (if enabled) for better import fidelity on " "Civitai."),
                     },
                 ),
                 "guidance_as_cfg": (
@@ -291,8 +272,7 @@ class SaveImageWithMetaDataUniversal:
                     "EXTRA_METADATA",
                     {
                         "tooltip": (
-                            "Additional metadata key-value pairs from the Create Extra MetaData node to include in "
-                            "the saved image."
+                            "Additional metadata key-value pairs from the Create Extra MetaData node to include in " "the saved image."
                         )
                     },
                 ),
@@ -308,8 +288,7 @@ class SaveImageWithMetaDataUniversal:
                     {
                         "default": False,
                         "tooltip": (
-                            "Include a compact aggregated LoRAs summary line (set False to list only individual "
-                            "Lora_X entries)."
+                            "Include a compact aggregated LoRAs summary line (set False to list only individual " "Lora_X entries)."
                         ),
                     },
                 ),
@@ -330,11 +309,23 @@ class SaveImageWithMetaDataUniversal:
                     {
                         "default": "none",
                         "tooltip": (
-                            "Artifact hashing log: filename=short, path=full, detailed=resolution+sidecar, "
-                            "debug=+candidates+full hash."[:140]
+                            "Artifact hashing log: filename=short, path=full, detailed=resolution+sidecar, " "debug=+candidates+full hash."[
+                                :140
+                            ]
                         ),
                     },
                 ),
+                "lora_strengths_in_prompt": (
+                    "BOOLEAN",
+                    {
+                        "default": False,
+                        "tooltip": (
+                            "When enabled, A1111-style LoRA designations (e.g. <lora:name:strength>) are appended "
+                            "to the positive prompt text and Lora hashes are included in metadata so that Civitai "
+                            "can recognize LoRA strengths."
+                        ),
+                    },
+                )
             },
             "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO"},
         }
