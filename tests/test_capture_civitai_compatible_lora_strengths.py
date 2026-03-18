@@ -270,3 +270,31 @@ class TestGenParametersStr:
         parameters = Capture.gen_parameters_str(pnginfo, lora_strengths_in_prompt=lora_strengths_in_prompt)
         found = re.findall(', *Lora strengths:', parameters)
         assert not found
+
+    @_parametrize_with_id(
+        "inputs_name, lora_strengths_in_prompt",
+        [
+            ("inputs0", False),
+            ("inputs0", True),
+            ("inputs1", False),
+            ("inputs1", True),
+            ("inputs2", False),
+            ("inputs2", True),
+        ]
+    )
+    def test_gen_parameters_str_does_not_mutate_pnginfo_dict(
+        self, inputs_name, lora_strengths_in_prompt,
+    ):
+        """Regression: gen_parameters_str must not mutate the caller's pnginfo_dict.
+
+        Previously dict.pop() was called directly on the passed-in dict, silently
+        destroying 'Lora hashes' / 'Lora strengths' for downstream consumers such
+        as logging, filename token substitution, or a second call with different kwargs.
+        """
+        inputs = {**_inputs[inputs_name]}
+        pnginfo = Capture.gen_pnginfo_dict(inputs, inputs, True)
+        pnginfo_before = dict(pnginfo)
+        Capture.gen_parameters_str(pnginfo, lora_strengths_in_prompt=lora_strengths_in_prompt)
+        assert pnginfo == pnginfo_before, (
+            "gen_parameters_str must not modify the caller's pnginfo_dict"
+        )

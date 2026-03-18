@@ -223,10 +223,12 @@ def _extract_structured_entries(batch: dict) -> tuple[str | None, tuple[tuple[st
         if field not in batch:
             continue
         raw_value = batch[field]
+        # Check for 'active' fields BEFORE filtering entries, so that a payload
+        # where every entry is inactive still sets has_active=True and prevents
+        # the text-merge path from re-adding those inactive LoRAs.
+        has_active = _has_active_fields(raw_value)
         entries = _parse_stack_entries_from_value(raw_value)
-        if entries:
-            # Check if raw data had 'active' fields (LoraManager format)
-            has_active = _has_active_fields(raw_value)
+        if entries or has_active:
             return field, tuple(entries), has_active
     return None, (), False
 

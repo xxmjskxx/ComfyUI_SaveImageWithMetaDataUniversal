@@ -211,3 +211,32 @@ def test_lora_manager_active_fields_prevent_text_merge(monkeypatch):
     assert names == ["grainscape_zimage", "Marvel_Spectrum"]
     assert model_strengths == [0.2, 1.0]
     assert clip_strengths == [0.2, 1.0]
+
+
+def test_lora_manager_all_inactive_prevents_text_merge(monkeypatch):
+    """Regression: all-inactive structured data must still prevent text merge.
+
+    Even when every entry is filtered out (entries == []), the presence of
+    'active' fields must keep skip_text_parsing=True so inactive LoRAs are
+    not re-added via the text fallback path.
+    """
+    mod = _load_module(monkeypatch)
+    input_data = (
+        {
+            "lora_stack": [
+                [
+                    {"name": "lenovo_z", "strength": 0.2, "clipStrength": 0.2, "active": False},
+                    {"name": "Rainbow_Brite", "strength": 1.0, "clipStrength": 1.0, "active": False},
+                ]
+            ],
+            # Text contains the inactive LoRAs - must NOT be merged when 'active' fields present
+            "lora_syntax": "<lora:lenovo_z:0.2> <lora:Rainbow_Brite:1.0>",
+        },
+    )
+    names = mod.get_lora_model_names("all_inactive", None, None, None, None, input_data)
+    model_strengths = mod.get_lora_model_strengths("all_inactive", None, None, None, None, input_data)
+    clip_strengths = mod.get_lora_clip_strengths("all_inactive", None, None, None, None, input_data)
+    # All entries inactive -> nothing should be returned; text must not re-add them
+    assert names == []
+    assert model_strengths == []
+    assert clip_strengths == []
