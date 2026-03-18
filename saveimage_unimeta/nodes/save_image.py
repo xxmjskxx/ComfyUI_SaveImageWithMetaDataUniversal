@@ -325,7 +325,7 @@ class SaveImageWithMetaDataUniversal:
                             "can recognize LoRA strengths."
                         ),
                     },
-                )
+                ),
             },
             "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO"},
         }
