@@ -188,6 +188,9 @@ CAPTURE_FIELD_LIST = {
     "FluxGuidance": {
         MetaField.GUIDANCE: {"field_name": "guidance"},
     },
+    "CFGGuider": {
+        MetaField.CFG: {"field_name": "cfg"},
+    },
     "BasicScheduler": {
         MetaField.STEPS: {"field_name": "steps"},
         MetaField.SCHEDULER: {"field_name": "scheduler"},

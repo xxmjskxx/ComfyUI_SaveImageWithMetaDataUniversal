@@ -19,6 +19,28 @@ Attributes:
                      mapping conditioning type (e.g., "positive", "negative") to the corresponding
                      input name (str).
 """
+GUIDERS: dict[str, dict[str, str]] = {
+    "CFGGuider": {
+        "positive": "positive",
+        "negative": "negative",
+    },
+    "DualCFGGuider": {
+        "positive": "cond1",
+        "negative": "negative",
+    },
+    "BasicGuider": {
+        "positive": "conditioning",
+    },
+}
+"""Guider nodes that route conditioning between text encoders and samplers.
+
+When the BFS in ``_get_node_id_list`` encounters one of these nodes while
+tracing from a ``SamplerCustomAdvanced`` node, it follows only the
+conditioning input that matches the requested field (positive/negative)
+instead of blindly exploring all inputs.  This ensures the negative prompt
+connected to a CFGGuider's *negative* input is correctly detected.
+"""
+
 SAMPLERS = {
     "KSampler": {
         "positive": "positive",
@@ -31,6 +53,7 @@ SAMPLERS = {
     # Flux - https://comfyanonymous.github.io/ComfyUI_examples/flux/
     "SamplerCustomAdvanced": {
         "positive": "guider",
+        "negative": "guider",
     },
     # --- Add other common samplers here ---
     "SamplerCustom": {
