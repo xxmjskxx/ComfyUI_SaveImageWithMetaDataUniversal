@@ -28,6 +28,7 @@ from ...utils.lora import (
 )
 from ..formatters import calc_lora_hash
 from ..meta import MetaField
+from ..validators import is_negative_prompt, is_positive_prompt
 
 logger = logging.getLogger(__name__)
 logger.debug("[Meta DBG] Lora Loader (LoraManager) metadata definition file loaded.")
@@ -401,5 +402,13 @@ CAPTURE_FIELD_LIST = {
         MetaField.LORA_MODEL_HASH: {"selector": get_lora_model_hashes},
         MetaField.LORA_STRENGTH_MODEL: {"selector": get_lora_model_strengths},
         MetaField.LORA_STRENGTH_CLIP: {"selector": get_lora_clip_strengths},
+    },
+    # Prompt nodes produce CONDITIONING from text input, similar to CLIPTextEncode.
+    # Adding prompt rules here lets _is_text_encoder() in validators.py detect
+    # these nodes automatically via _has_prompt_capture_rules() without
+    # hard-coding third-party class names in the core validator.
+    "Prompt (LoraManager)": {
+        MetaField.POSITIVE_PROMPT: {"field_name": "text", "validate": is_positive_prompt},
+        MetaField.NEGATIVE_PROMPT: {"field_name": "text", "validate": is_negative_prompt},
     },
 }
