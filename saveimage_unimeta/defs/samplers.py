@@ -24,15 +24,15 @@ GUIDERS: dict[str, dict[str, str]] = {
         "positive": "positive",
         "negative": "negative",
     },
-    "PerpNegGuider"{
+    "PerpNegGuider": {
         "positive": "positive",
         "negative": "negative",
     },
-    "Scheduled CFGGuider (Inspire)"{
+    "Scheduled CFGGuider (Inspire)": {
         "positive": "positive",
         "negative": "negative",
     },
-    "Scheduled PerpNeg CFGGuider (Inspire)"{
+    "Scheduled PerpNeg CFGGuider (Inspire)": {
         "positive": "positive",
         "negative": "negative",
     },
