@@ -188,6 +188,18 @@ CAPTURE_FIELD_LIST = {
     "FluxGuidance": {
         MetaField.GUIDANCE: {"field_name": "guidance"},
     },
+    "CFGGuider": {
+        MetaField.CFG: {"field_name": "cfg"},
+    },
+    "PerpNegGuider": {
+        MetaField.CFG: {"field_name": "cfg"},
+    },
+    "Scheduled CFGGuider (Inspire)": {
+        MetaField.CFG: {"field_name": "to_cfg"},
+    },
+    "Scheduled PerpNeg CFGGuider (Inspire)": {
+        MetaField.CFG: {"field_name": "to_cfg"},
+    },
     "BasicScheduler": {
         MetaField.STEPS: {"field_name": "steps"},
         MetaField.SCHEDULER: {"field_name": "scheduler"},

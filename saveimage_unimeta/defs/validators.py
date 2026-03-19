@@ -2,7 +2,7 @@
 import re
 from collections import deque
 
-from .samplers import SAMPLERS
+from .samplers import GUIDERS, SAMPLERS
 
 _CONNECTION_CACHE: dict[str, bool] = {}  # Cache for is_node_connected results
 
@@ -68,6 +68,19 @@ def _get_node_id_list(prompt, field_name):
                 if _is_text_encoder(class_type):
                     node_id_list[nid] = current_node_id
                     break
+                # When traversing through a known guider node (e.g. CFGGuider),
+                # follow only the conditioning input that matches the requested
+                # field so positive and negative prompts are resolved correctly.
+                if class_type in GUIDERS:
+                    guider_map = GUIDERS[class_type]
+                    if field_name in guider_map:
+                        input_name = guider_map[field_name]
+                        node_inputs = prompt[current_node_id].get("inputs", {})
+                        if input_name in node_inputs:
+                            inp = node_inputs[input_name]
+                            if isinstance(inp, list | tuple) and inp:
+                                d.append(inp[0])
+                    continue
                 if "inputs" in prompt[current_node_id]:
                     for v in prompt[current_node_id]["inputs"].values():
                         if isinstance(v, list | tuple) and v:
