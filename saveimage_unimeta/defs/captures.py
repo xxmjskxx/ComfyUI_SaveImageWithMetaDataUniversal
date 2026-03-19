@@ -111,6 +111,7 @@ CAPTURE_FIELD_LIST = {
         MetaField.SEED: {"field_name": "seed"},
         MetaField.STEPS: {"field_name": "steps"},
         MetaField.CFG: {"field_name": "cfg"},
+        MetaField.DENOISE: {"field_name": "denoise"},
         MetaField.SAMPLER_NAME: {"field_name": "sampler_name"},
         MetaField.SCHEDULER: {"field_name": "scheduler"},
     },
@@ -160,6 +161,7 @@ CAPTURE_FIELD_LIST = {
     "UNETLoader": {
         MetaField.MODEL_NAME: {"field_name": "unet_name"},
         MetaField.MODEL_HASH: {"field_name": "unet_name", "format": calc_unet_hash},
+        MetaField.WEIGHT_DTYPE: {"field_name": "weight_dtype"},
     },
     "RandomNoise": {
         MetaField.SEED: {"field_name": "noise_seed"},

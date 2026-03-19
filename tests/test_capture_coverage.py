@@ -6,6 +6,7 @@ from saveimage_unimeta.capture import (
     Capture, _LoRARecord, _include_lora_summary,
     _include_hash_detail, _debug_prompts_enabled, _OutputCacheCompat,
 )
+from saveimage_unimeta.defs.captures import CAPTURE_FIELD_LIST as BASE_CAPTURE_FIELD_LIST
 from saveimage_unimeta.defs.meta import MetaField
 
 def test_clean_name_tuple_variants():
@@ -151,3 +152,13 @@ def test_gen_parameters_str_dual_prompt_suppression():
     assert "T5 Prompt: t5" in res
     assert "CLIP Prompt: clip" in res
     assert "Positive prompt:" not in res # Suppressed because dual prompt present
+
+
+def test_base_ksampler_captures_denoise():
+    entry = BASE_CAPTURE_FIELD_LIST["KSampler"]
+    assert entry[MetaField.DENOISE]["field_name"] == "denoise"
+
+
+def test_base_unet_loader_captures_weight_dtype():
+    entry = BASE_CAPTURE_FIELD_LIST["UNETLoader"]
+    assert entry[MetaField.WEIGHT_DTYPE]["field_name"] == "weight_dtype"

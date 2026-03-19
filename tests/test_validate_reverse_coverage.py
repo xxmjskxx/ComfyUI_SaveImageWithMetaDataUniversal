@@ -186,6 +186,23 @@ class TestDynamicPatterns:
         assert stats["validated_fields"] == 2
         assert stats["unvalidated_fields"] == []
 
+    def test_lora_field_alias_is_recognized(self, validator):
+        """Forward checks that use display labels should still cover raw LoRA fields."""
+        result = {
+            "check_details": [
+                {"field": "LoRA 0 name", "status": "pass"},
+            ]
+        }
+        fields = {
+            "Lora_0 Model name": "my_lora.safetensors",
+        }
+
+        stats = validator._validate_reverse_coverage(fields, result)
+
+        assert stats["validated_fields"] == 1
+        assert stats["unvalidated_fields"] == []
+        assert stats["field_details"][0]["check_source"] == "alias"
+
     def test_embedding_fields_need_individual_checks(self, validator):
         """Each Embedding field needs its own check in check_details."""
         result = {
@@ -319,6 +336,21 @@ class TestHashFieldValidation:
         assert stats["validated_fields"] == 1
         assert "Model hash" not in stats["unvalidated_fields"]
 
+    def test_grouped_presence_alias_validates_model_hash(self, validator):
+        """Grouped presence checks should count toward reverse coverage."""
+        result = {
+            "check_details": [
+                {"field": "Model hash field", "status": "pass"},
+            ]
+        }
+        fields = {"Model hash": "abc123def0"}
+
+        stats = validator._validate_reverse_coverage(fields, result)
+
+        assert stats["validated_fields"] == 1
+        assert stats["unvalidated_fields"] == []
+        assert stats["field_details"][0]["check_source"] == "alias"
+
 
 class TestRequiredFieldChecks:
     """Tests for required field self-validation."""
@@ -362,6 +394,19 @@ class TestRequiredFieldChecks:
         stats = validator._validate_reverse_coverage(fields, result)
 
         assert "Seed" not in stats["missing_required_checks"]
+
+    def test_required_field_alias_satisfies_missing_check_guard(self, validator):
+        """Alias checks should satisfy required-field self-validation too."""
+        result = {
+            "check_details": [
+                {"field": "Model field", "status": "pass"},
+            ]
+        }
+        fields = {"Model": "base_model.safetensors"}
+
+        stats = validator._validate_reverse_coverage(fields, result)
+
+        assert "Model" not in stats["missing_required_checks"]
 
 
 class TestFieldDetails:
