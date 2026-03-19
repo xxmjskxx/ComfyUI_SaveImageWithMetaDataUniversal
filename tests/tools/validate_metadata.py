@@ -863,8 +863,19 @@ class WorkflowAnalyzer:
         return None
 
     @staticmethod
-    def resolve_text_input(workflow: dict, value: Any, visited: set[str] | None = None) -> str | None:
-        """Resolve text-like inputs that may reference other nodes."""
+    def resolve_text_input(
+        workflow: dict,
+        value: Any,
+        visited: set[str] | None = None,
+        *,
+        route: str | None = None,
+    ) -> str | None:
+        """Resolve text-like inputs that may reference other nodes.
+
+        The route parameter keeps traversal aligned with the edge being resolved
+        so positive, negative, T5, and CLIP prompts do not bleed into each
+        other when a workflow reuses multi-input prompt/guider nodes.
+        """
 
         if value in (None, ""):
             return None
@@ -874,6 +885,30 @@ class WorkflowAnalyzer:
 
         if not isinstance(value, list) or not value:
             return None
+
+        route_key = route if route in {"positive", "negative", "t5", "clip"} else "generic"
+
+        def _direct_text_keys() -> tuple[str, ...]:
+            if route_key == "positive":
+                return ("positive", "positive_prompt", "text", "value", "string", "prompt")
+            if route_key == "negative":
+                return ("negative", "negative_prompt", "text", "value", "string", "prompt")
+            if route_key == "t5":
+                return ("t5xxl", "text", "value", "string", "prompt")
+            if route_key == "clip":
+                return ("clip_l", "clip_prompt", "clip_g", "text", "value", "string", "prompt")
+            return ("value", "text", "string", "prompt")
+
+        def _linked_text_keys() -> tuple[str, ...]:
+            if route_key == "positive":
+                return ("positive", "conditioning", "text", "value", "input", "clip", "guider")
+            if route_key == "negative":
+                return ("negative", "conditioning", "text", "value", "input", "clip", "guider")
+            if route_key == "t5":
+                return ("t5xxl", "text", "value", "input", "conditioning")
+            if route_key == "clip":
+                return ("clip_l", "clip_prompt", "clip", "text", "value", "input", "conditioning")
+            return ("text", "value", "input", "conditioning", "guider", "clip")
 
         node_id = str(value[0])
         if visited is None:
@@ -898,16 +933,7 @@ class WorkflowAnalyzer:
                     return text_val
 
         # Direct text-bearing keys
-        for key in (
-            "value",
-            "text",
-            "string",
-            "clip_l",
-            "clip_g",
-            "prompt",
-            "t5xxl",
-            "clip_prompt",
-        ):
+        for key in _direct_text_keys():
             direct_value = node_inputs.get(key)
             if isinstance(direct_value, str):
                 return direct_value
@@ -916,12 +942,18 @@ class WorkflowAnalyzer:
         # The direct key loop above handles string values for t5xxl/clip_l.
         # This block handles list values (e.g., [node_ref, ...]) that the direct loop skips.
         if class_type == "CLIPTextEncodeFlux":
-            for flux_key in ("t5xxl", "clip_l"):
+            flux_keys: tuple[str, ...] = ()
+            if route_key == "t5":
+                flux_keys = ("t5xxl",)
+            elif route_key == "clip":
+                flux_keys = ("clip_l",)
+
+            for flux_key in flux_keys:
                 if flux_key not in node_inputs:
                     continue
                 val = node_inputs[flux_key]
                 if isinstance(val, list) and val:
-                    flux_text = WorkflowAnalyzer.resolve_text_input(workflow, val, visited)
+                    flux_text = WorkflowAnalyzer.resolve_text_input(workflow, val, visited, route=route_key)
                     if flux_text:
                         return flux_text
                 elif isinstance(val, str):
@@ -936,7 +968,7 @@ class WorkflowAnalyzer:
                     # Pass the original visited set to both branches to ensure that:
                     # 1. Shared ancestor nodes are tracked globally and not traversed twice
                     # 2. Cycles through ConditioningCombine nodes are properly detected
-                    branch_text = WorkflowAnalyzer.resolve_text_input(workflow, linked, visited)
+                    branch_text = WorkflowAnalyzer.resolve_text_input(workflow, linked, visited, route=route_key)
                     if branch_text:
                         texts.append(branch_text)
 
@@ -946,10 +978,10 @@ class WorkflowAnalyzer:
 
         # Follow common linkage keys recursively
         # For generic nodes, we just take the first valid text we find
-        for key in ("text", "value", "input", "conditioning", "guider", "clip"):
+        for key in _linked_text_keys():
             linked = node_inputs.get(key)
             if isinstance(linked, list) and linked:
-                resolved = WorkflowAnalyzer.resolve_text_input(workflow, linked, visited)
+                resolved = WorkflowAnalyzer.resolve_text_input(workflow, linked, visited, route=route_key)
                 if resolved:
                     return resolved
 
@@ -1882,20 +1914,42 @@ class WorkflowAnalyzer:
                 expected["sampler_name"] = sampler_choice
 
         if sampler_inputs.get("positive"):
-            expected["positive_prompt"] = WorkflowAnalyzer.resolve_text_input(workflow, sampler_inputs.get("positive"))
+            expected["positive_prompt"] = WorkflowAnalyzer.resolve_text_input(
+                workflow,
+                sampler_inputs.get("positive"),
+                route="positive",
+            )
         if expected.get("positive_prompt") is None:
             expected["positive_prompt"] = WorkflowAnalyzer.resolve_text_input(
                 workflow,
                 sampler_inputs.get("guider"),
+                route="positive",
             )
 
         if sampler_inputs.get("negative"):
-            neg_val = WorkflowAnalyzer.resolve_text_input(workflow, sampler_inputs.get("negative"))
+            neg_val = WorkflowAnalyzer.resolve_text_input(
+                workflow,
+                sampler_inputs.get("negative"),
+                route="negative",
+            )
             # Skip if negative prompt is identical to positive prompt.
             # This can occur when workflows share text nodes or when certain sampler configurations
             # reuse the positive prompt reference. Logging this case helps debug unexpected behavior.
             # Note: We only perform the duplicate check for non-empty negative prompts; empty/falsy
             # negative prompts are silently skipped since they carry no semantic content to validate.
+            if neg_val:
+                if neg_val == expected.get("positive_prompt"):
+                    logger.warning("negative prompt is identical to positive prompt for sampler node %s", sampler_id)
+                    expected["negative_prompt_skipped_duplicate"] = True
+                    expected["negative_prompt"] = None
+                else:
+                    expected["negative_prompt"] = neg_val
+        if expected.get("negative_prompt") is None and sampler_inputs.get("guider"):
+            neg_val = WorkflowAnalyzer.resolve_text_input(
+                workflow,
+                sampler_inputs.get("guider"),
+                route="negative",
+            )
             if neg_val:
                 if neg_val == expected.get("positive_prompt"):
                     logger.warning("negative prompt is identical to positive prompt for sampler node %s", sampler_id)
@@ -1917,13 +1971,26 @@ class WorkflowAnalyzer:
 
             loader_inputs = loader_node.get("inputs", {})
 
-            loader_positive = WorkflowAnalyzer.resolve_text_input(workflow, loader_inputs.get("positive"))
+            loader_positive = WorkflowAnalyzer.resolve_text_input(
+                workflow,
+                loader_inputs.get("positive"),
+                route="positive",
+            )
             if loader_positive:
                 expected["positive_prompt"] = loader_positive
 
-            loader_negative = WorkflowAnalyzer.resolve_text_input(workflow, loader_inputs.get("negative"))
+            loader_negative = WorkflowAnalyzer.resolve_text_input(
+                workflow,
+                loader_inputs.get("negative"),
+                route="negative",
+            )
             if loader_negative:
-                expected["negative_prompt"] = loader_negative
+                if loader_negative == expected.get("positive_prompt"):
+                    logger.warning("loader negative prompt is identical to positive prompt for sampler node %s", sampler_id)
+                    expected["negative_prompt_skipped_duplicate"] = True
+                    expected["negative_prompt"] = None
+                else:
+                    expected["negative_prompt"] = loader_negative
 
             # Inline LoRA (for workflows using loader-level LoRA blend)
             inline_lora = loader_inputs.get("lora_name")
@@ -1937,8 +2004,16 @@ class WorkflowAnalyzer:
                 )
 
             # T5/CLIP prompts for dual CLIP
-            expected["t5_prompt"] = WorkflowAnalyzer.resolve_text_input(workflow, loader_inputs.get("t5xxl"))
-            expected["clip_prompt"] = WorkflowAnalyzer.resolve_text_input(workflow, loader_inputs.get("clip_l"))
+            expected["t5_prompt"] = WorkflowAnalyzer.resolve_text_input(
+                workflow,
+                loader_inputs.get("t5xxl"),
+                route="t5",
+            )
+            expected["clip_prompt"] = WorkflowAnalyzer.resolve_text_input(
+                workflow,
+                loader_inputs.get("clip_l"),
+                route="clip",
+            )
 
             # LoRA stack node reference
             lora_stack_ref = loader_inputs.get("lora_stack")
@@ -3672,6 +3747,31 @@ class MetadataValidator:
                 f"{len(artifact_hashes)} unique hashes",
             )
 
+    @staticmethod
+    def _score_image_name_against_patterns(
+        image_name_lower: str,
+        leaf_markers: list[str] | None,
+        patterns: list[str] | None,
+    ) -> int:
+        """Score a filename against static leaf markers and extracted patterns."""
+
+        best_score = 0
+
+        for marker in leaf_markers or []:
+            marker_lower = str(marker).lower().strip()
+            if marker_lower and image_name_lower.startswith(marker_lower):
+                best_score = max(best_score, 200 + len(marker_lower))
+
+        for pattern in patterns or []:
+            pattern_lower = str(pattern).lower().strip()
+            if not pattern_lower:
+                continue
+            regex = r"(^|[_\-.])" + re.escape(pattern_lower) + r"($|[_\-.])"
+            if re.search(regex, image_name_lower):
+                best_score = max(best_score, 100 + len(pattern_lower))
+
+        return best_score
+
     def _score_image_for_workflow(
         self,
         image_path: Path,
@@ -3688,34 +3788,8 @@ class MetadataValidator:
         if expected and not patterns:
             patterns = expected.get("filename_patterns", []) or []
 
-        best_score = 0
-
-        if expected:
-            for marker in expected.get("filename_leaf_markers", []) or []:
-                marker_lower = marker.lower()
-                if marker_lower and image_name.startswith(marker_lower):
-                    best_score = max(best_score, 200 + len(marker_lower))
-
-        for pattern in patterns:
-            pattern_lower = pattern.lower()
-            if not pattern_lower:
-                continue
-            regex = r"(^|[_\-.])" + re.escape(pattern_lower) + r"($|[_\-.])"
-            if re.search(regex, image_name):
-                best_score = max(best_score, 100 + len(pattern_lower))
-
-        if best_score == 0 and expected and expected.get("filename_prefix"):
-            prefix = expected["filename_prefix"]
-            if any(sep in prefix for sep in ("/", "\\")):
-                try:
-                    rel_path = image_path.relative_to(self.output_dir)
-                    if len(rel_path.parts) > 1:
-                        best_score = max(best_score, 25)
-                except ValueError:
-                    # image_path is not relative to self.output_dir; ignore and continue
-                    pass
-
-        return best_score
+        leaf_markers = expected.get("filename_leaf_markers", []) if expected else []
+        return self._score_image_name_against_patterns(image_name, leaf_markers, patterns)
 
     def match_image_to_workflow(self, image_path: Path, filename_patterns: list[str], expected: dict[str, Any] | None = None) -> bool:
         """Check if an image filename matches any of the workflow's filename patterns.
@@ -3723,9 +3797,8 @@ class MetadataValidator:
         Uses word-boundary matching to avoid false positives like "eff" matching "jeff_image.png".
         Patterns must match as whole words or be separated by delimiters (_, -, .).
 
-        If no static patterns exist, falls back to checking if the image is in a subdirectory
-        structure that matches the workflow's filename_prefix path pattern, or matches based
-        on seed values if available.
+        Matching intentionally stays strict: only concrete leaf markers and extracted
+        static filename tokens are considered valid matches.
         """
         return self._score_image_for_workflow(image_path, filename_patterns, expected) > 0
 
@@ -3734,25 +3807,67 @@ class MetadataValidator:
         if not save_nodes:
             return None
 
-        # Prefer direct matches against the sanitized filename_prefix leaf stored per save node
-        for node in save_nodes:
-            marker = str(node.get("filename_prefix_leaf") or "").lower()
-            if marker and image_name_lower.startswith(marker):
-                return node
+        if len(save_nodes) == 1:
+            return save_nodes[0]
 
-        # Fallback to legacy pattern matching semantics if no leaf markers matched
+        best_node = None
+        best_score = 0
+        is_tied = False
+
         for node in save_nodes:
-            patterns = node.get("filename_patterns", []) or []
-            for pattern in patterns:
-                pattern_lower = pattern.lower()
-                if not pattern_lower:
+            marker = node.get("filename_prefix_leaf")
+            leaf_markers = [marker] if marker else []
+            score = MetadataValidator._score_image_name_against_patterns(
+                image_name_lower,
+                leaf_markers,
+                node.get("filename_patterns", []) or [],
+            )
+            if score > best_score:
+                best_score = score
+                best_node = node
+                is_tied = False
+            elif score > 0 and score == best_score:
+                is_tied = True
+
+        if best_score > 0 and not is_tied:
+            return best_node
+
+        return None
+
+    def _assign_images_to_workflows(
+        self,
+        workflow_entries: list[dict[str, Any]],
+        all_images: list[Path],
+    ) -> tuple[dict[Path, list[Path]], dict[Path, list[str]]]:
+        """Assign each image to at most one workflow using the strongest unique match."""
+
+        workflow_to_images: dict[Path, list[Path]] = {entry["file"]: [] for entry in workflow_entries}
+        ambiguous_matches: dict[Path, list[str]] = {}
+
+        for image_path in all_images:
+            best_score = 0
+            best_entries: list[dict[str, Any]] = []
+
+            for entry in workflow_entries:
+                expected = entry["expected"]
+                if not expected.get("has_save_node"):
                     continue
-                regex = r"(^|[_\-.])" + re.escape(pattern_lower) + r"($|[_\-.])"
-                if re.search(regex, image_name_lower):
-                    return node
+                score = self._score_image_for_workflow(image_path, expected.get("filename_patterns"), expected)
+                if score > best_score:
+                    best_score = score
+                    best_entries = [entry]
+                elif score > 0 and score == best_score:
+                    best_entries.append(entry)
 
-        # Final fallback: return first save node if nothing matched explicitly
-        return save_nodes[0]
+            if best_score <= 0:
+                continue
+
+            if len(best_entries) == 1:
+                workflow_to_images[best_entries[0]["file"]].append(image_path)
+            else:
+                ambiguous_matches[image_path] = sorted(entry["file"].name for entry in best_entries)
+
+        return workflow_to_images, ambiguous_matches
 
     def _print_validation_result(self, result: dict, save_node_metadata: dict | None = None):
         """Print validation result with optional verbose output."""
@@ -3957,24 +4072,7 @@ class MetadataValidator:
             print("⚠ No workflows could be loaded for validation")
             return 0, 0, 0
 
-        workflow_to_images: dict[Path, list[Path]] = {entry["file"]: [] for entry in workflow_entries}
-        for image_path in all_images:
-            best_entry = None
-            best_score = 0
-            for entry in workflow_entries:
-                expected = entry["expected"]
-                if not expected.get("has_save_node"):
-                    continue
-                score = self._score_image_for_workflow(image_path, expected.get("filename_patterns"), expected)
-                if score > best_score:
-                    best_score = score
-                    best_entry = entry
-
-            if best_entry and best_score > 0:
-                workflow_to_images[best_entry["file"]].append(image_path)
-
-        initially_assigned = {img for images in workflow_to_images.values() for img in images}
-        unassigned_images = set(all_images) - initially_assigned
+        workflow_to_images, ambiguous_matches = self._assign_images_to_workflows(workflow_entries, all_images)
 
         # Validate each workflow's outputs
         all_results = []
@@ -3984,11 +4082,10 @@ class MetadataValidator:
 
         for entry in workflow_entries:
             workflow_file = entry["file"]
-            assigned_images = workflow_to_images.get(workflow_file) or None
-            search_pool = assigned_images or list(unassigned_images)
+            assigned_images = workflow_to_images.get(workflow_file, [])
             results = self.validate_workflow_outputs(
                 workflow_file,
-                search_pool,
+                assigned_images,
                 workflow_data=entry["workflow"],
                 expected_metadata=entry["expected"],
                 prefiltered_images=assigned_images,
@@ -4003,8 +4100,6 @@ class MetadataValidator:
                 for result in results:
                     image_path = Path(result["image_path"])
                     validated_images.add(image_path)
-                    if image_path in unassigned_images:
-                        unassigned_images.remove(image_path)
             else:
                 if workflow_file.name != "1-scan-and-save-custom-metadata-rules.json" and entry["expected"].get("has_save_node"):
                     workflows_without_images.add(workflow_file.name)
@@ -4013,7 +4108,7 @@ class MetadataValidator:
         total = len(all_results)
         passed = sum(1 for r in all_results if r["passed"])
         failed = total - passed
-        unmatched_images = set(all_images) - validated_images
+        unmatched_images = set(all_images) - validated_images - set(ambiguous_matches)
 
         # Build summary results list (excluding control images)
         summary_results = [
@@ -4052,9 +4147,16 @@ class MetadataValidator:
         print(f"  Total Images Validated: {total}")
         print(f"  ✓ Passed:               {passed}")
         print(f"  ✗ Failed:               {failed}")
+        print(f"  ⚠ Ambiguous Images:     {len(ambiguous_matches)}")
         print(f"  ⚠ Unmatched Images:     {len(unmatched_images)}")
         print(f"  ⚠ Unmatched Workflows:  {len(workflows_without_images)}")
         print("=" * 70)
+
+        if ambiguous_matches:
+            print(f"\nAmbiguous Workflow Matches ({len(ambiguous_matches)}):")
+            for img, workflow_names in sorted(ambiguous_matches.items()):
+                joined = ", ".join(workflow_names)
+                print(f"  - {img.name}: {joined}")
 
         # Report unmatched images
         if unmatched_images:
@@ -4194,18 +4296,20 @@ Examples:
     if workflow_dir is None:
         print("✗ Error: Unable to resolve workflow directory path.")
         return 1
-    output_dir = Path(args.output_folder)
-    models_path = Path(args.models_path) if args.models_path else None
+    output_dir = Path(args.output_folder).expanduser()
+    if not output_dir.exists():
+        print(f"✗ Error: Output directory not found: {output_dir}")
+        return 1
+    models_path = Path(args.models_path).expanduser() if args.models_path else None
     extra_workflows_dir = _resolve_relative_path(args.extra_workflows, fallback=CLI_COMPAT_DIR)
 
     # Setup logging
     # Determine log file path
-    log_path = Path(args.log_file) if args.log_file else (output_dir / "validation_log.txt")
+    log_path = Path(args.log_file).expanduser() if args.log_file else (output_dir / "validation_log.txt")
     setup_print_tee(log_path)
 
     # Create validator and run
-    validator = MetadataValidator(workflow_dir, output_dir, models_path)
-    validator.verbose = args.verbose  # Pass verbose flag to validator
+    validator = MetadataValidator(workflow_dir, output_dir, models_path, verbose=args.verbose)
     total, passed, failed = validator.run_validation(extra_workflows_dir)
 
     # Exit with appropriate code
