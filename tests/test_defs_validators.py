@@ -238,7 +238,7 @@ def test_qwen_image_edit_plus_prompt_detection():
 # --- Extension-registered text encoders (e.g., LoraManager Prompt) ---
 
 
-def test_has_prompt_capture_rules_true_for_registered_node(monkeypatch):
+def test_has_prompt_capture_rules_true_for_registered_node():
     """_has_prompt_capture_rules should return True when CAPTURE_FIELD_LIST contains prompt rules."""
     from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs import meta as meta_mod
     from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs import (
@@ -260,7 +260,7 @@ def test_has_prompt_capture_rules_false_for_unregistered_node():
     assert not validators_mod._has_prompt_capture_rules("SomeUnknownNode")
 
 
-def test_has_prompt_capture_rules_false_for_non_prompt_rules(monkeypatch):
+def test_has_prompt_capture_rules_false_for_non_prompt_rules():
     """_has_prompt_capture_rules should return False when rules exist but have no prompt fields."""
     from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs import meta as meta_mod
     from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs import (
@@ -276,7 +276,7 @@ def test_has_prompt_capture_rules_false_for_non_prompt_rules(monkeypatch):
         CAPTURE_FIELD_LIST.pop("LoraOnlyNode", None)
 
 
-def test_prompt_loramanager_positive_detected(monkeypatch):
+def test_prompt_loramanager_positive_detected():
     """Prompt (LoraManager) node connected to KSampler positive input should be identified as positive prompt.
 
     This test simulates the workflow from issue #92 where Prompt (LoraManager) nodes
@@ -288,7 +288,9 @@ def test_prompt_loramanager_positive_detected(monkeypatch):
         CAPTURE_FIELD_LIST,
     )
 
-    # Ensure the capture rules are present (lora_manager.py registers these)
+    # In test mode CAPTURE_FIELD_LIST is empty so we inject the same rules that
+    # lora_manager.py registers at runtime.  This verifies the validator path
+    # without depending on ext module import ordering.
     CAPTURE_FIELD_LIST.setdefault("Prompt (LoraManager)", {}).update({
         meta_mod.MetaField.POSITIVE_PROMPT: {"field_name": "text", "validate": validators_mod.is_positive_prompt},
         meta_mod.MetaField.NEGATIVE_PROMPT: {"field_name": "text", "validate": validators_mod.is_negative_prompt},
