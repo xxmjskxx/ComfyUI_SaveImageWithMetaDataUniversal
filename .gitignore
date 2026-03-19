@@ -232,7 +232,11 @@ tasksync/
 docs/HIGH_PRIORITY_TASKS.md
 docs/HIGH_PRIORITY_TASKS_OG.md
 docs/HEURISTICS_CHANGES.md
-docs/releases/
+docs/releases/*
+!docs/releases/
+!docs/releases/RELEASE_NOTES_v1.3.0.md
+!docs/releases/RELEASE_NOTES_v1.4.2.md
+!docs/releases/v1.3.0_REVIEW_SUMMARY.md
 /RELEASE_NOTES_*.md
 /PR_DRAFT_*.md
 docs/releases/RELEASE_NOTES_*1.2*.md
