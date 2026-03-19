@@ -224,6 +224,16 @@ CAPTURE_FIELD_LIST = {
             "validate": is_negative_prompt,
         },
     },
+    "TextEncodeQwenImageEditPlus": {
+        MetaField.POSITIVE_PROMPT: {
+            "field_name": "prompt",
+            "validate": is_positive_prompt,
+        },
+        MetaField.NEGATIVE_PROMPT: {
+            "field_name": "prompt",
+            "validate": is_negative_prompt,
+        },
+    },
     "MetadataTestSampler": {
         MetaField.POSITIVE_PROMPT: {
             "field_name": "positive_prompt",

@@ -205,3 +205,31 @@ def test_basic_guider_no_false_negative_detection():
     }
     assert validators_mod.is_positive_prompt("pos_clip", None, prompt, None, None, None)
     assert not validators_mod.is_negative_prompt("pos_clip", None, prompt, None, None, None)
+
+
+# TextEncodeQwenImageEditPlus should be recognised as a known text encoder
+# and correctly routed as positive/negative prompt based on KSampler connections.
+def test_qwen_image_edit_plus_prompt_detection():
+    prompt = {
+        "1": {
+            "class_type": "KSampler",
+            "inputs": {
+                "positive": ["pos_enc", 0],
+                "negative": ["neg_enc", 0],
+            },
+        },
+        "pos_enc": {
+            "class_type": "TextEncodeQwenImageEditPlus",
+            "inputs": {"prompt": "Draw the text Hello in white."},
+        },
+        "neg_enc": {
+            "class_type": "TextEncodeQwenImageEditPlus",
+            "inputs": {"prompt": "blurry text, landscape"},
+        },
+    }
+
+    assert validators_mod.is_positive_prompt("pos_enc", None, prompt, None, None, None)
+    assert not validators_mod.is_negative_prompt("pos_enc", None, prompt, None, None, None)
+
+    assert validators_mod.is_negative_prompt("neg_enc", None, prompt, None, None, None)
+    assert not validators_mod.is_positive_prompt("neg_enc", None, prompt, None, None, None)
