@@ -2,6 +2,8 @@ import os
 import types
 import importlib
 
+from tests.test_helpers import install_prompt_environment
+
 # We will import capture module and test a few isolated helper behaviors.
 # Runtime ComfyUI dependencies are guarded by try/except inside capture.
 
@@ -292,3 +294,55 @@ def test_get_hashes_for_civitai_skips_plaintext_vae_entries():
     )
     assert hashes["model"] == "abc123def0"
     assert "vae" not in hashes
+
+
+def test_qwen_image_edit_plus_prompts_in_parameters(monkeypatch):
+    """Full capture path for TextEncodeQwenImageEditPlus: get_inputs → gen_pnginfo_dict → gen_parameters_str."""
+    cap = importlib.import_module(MODULE_PATH)
+    meta_mod = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.meta")
+    MetaField = meta_mod.MetaField
+    captures_mod = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.captures")
+
+    prompt = {
+        "1": {
+            "class_type": "KSampler",
+            "inputs": {
+                "positive": ["pos_enc", 0],
+                "negative": ["neg_enc", 0],
+                "steps": 20,
+                "cfg": 1.0,
+                "sampler_name": "euler",
+                "scheduler": "simple",
+                "seed": 12345,
+            },
+        },
+        "pos_enc": {
+            "class_type": "TextEncodeQwenImageEditPlus",
+            "inputs": {"prompt": 'Draw the text "Hello" in white.'},
+        },
+        "neg_enc": {
+            "class_type": "TextEncodeQwenImageEditPlus",
+            "inputs": {"prompt": "blurry text, landscape,"},
+        },
+    }
+
+    install_prompt_environment(monkeypatch, cap, prompt)
+    # In test mode CAPTURE_FIELD_LIST is empty; load the real rules for the nodes under test.
+    monkeypatch.setattr(cap, "CAPTURE_FIELD_LIST", captures_mod.CAPTURE_FIELD_LIST)
+
+    inputs = cap.Capture.get_inputs()
+
+    # Stage 1: verify get_inputs() captured both prompts
+    assert MetaField.POSITIVE_PROMPT in inputs
+    assert MetaField.NEGATIVE_PROMPT in inputs
+    pos_vals = [v[1] for v in inputs[MetaField.POSITIVE_PROMPT]]
+    neg_vals = [v[1] for v in inputs[MetaField.NEGATIVE_PROMPT]]
+    assert any('Draw the text "Hello" in white.' in str(v) for v in pos_vals)
+    assert any("blurry text, landscape," in str(v) for v in neg_vals)
+
+    # Stage 2: verify prompts survive into the final parameter string
+    pnginfo = cap.Capture.gen_pnginfo_dict(inputs, inputs, save_civitai_sampler=False)
+    param_str = cap.Capture.gen_parameters_str(pnginfo)
+
+    assert 'Draw the text "Hello" in white.' in param_str
+    assert "Negative prompt: blurry text, landscape," in param_str

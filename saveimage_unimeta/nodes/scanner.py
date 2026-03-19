@@ -759,7 +759,7 @@ class MetadataRuleScanner:
                             "negative": "base_negative",
                         }
                     elif "guider" in inputs:
-                        candidate = {"positive": "guider"}
+                        candidate = {"positive": "guider", "negative": "guider"}
                     if candidate:
                         if class_name in SAMPLERS:
                             existing_map = SAMPLERS.get(class_name, {})

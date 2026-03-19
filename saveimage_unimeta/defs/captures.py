@@ -188,6 +188,18 @@ CAPTURE_FIELD_LIST = {
     "FluxGuidance": {
         MetaField.GUIDANCE: {"field_name": "guidance"},
     },
+    "CFGGuider": {
+        MetaField.CFG: {"field_name": "cfg"},
+    },
+    "PerpNegGuider": {
+        MetaField.CFG: {"field_name": "cfg"},
+    },
+    "Scheduled CFGGuider (Inspire)": {
+        MetaField.CFG: {"field_name": "to_cfg"},
+    },
+    "Scheduled PerpNeg CFGGuider (Inspire)": {
+        MetaField.CFG: {"field_name": "to_cfg"},
+    },
     "BasicScheduler": {
         MetaField.STEPS: {"field_name": "steps"},
         MetaField.SCHEDULER: {"field_name": "scheduler"},
@@ -203,6 +215,16 @@ CAPTURE_FIELD_LIST = {
         MetaField.BASE_SHIFT: {"field_name": "base_shift"},
     },
     "TextEncodeQwenImageEdit": {
+        MetaField.POSITIVE_PROMPT: {
+            "field_name": "prompt",
+            "validate": is_positive_prompt,
+        },
+        MetaField.NEGATIVE_PROMPT: {
+            "field_name": "prompt",
+            "validate": is_negative_prompt,
+        },
+    },
+    "TextEncodeQwenImageEditPlus": {
         MetaField.POSITIVE_PROMPT: {
             "field_name": "prompt",
             "validate": is_positive_prompt,
