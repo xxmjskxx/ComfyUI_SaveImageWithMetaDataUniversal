@@ -21,6 +21,7 @@ def _is_text_encoder(class_type: str) -> bool:
         "CLIPTextEncode",
         "CLIPTextEncodeFlux",
         "TextEncodeQwenImageEdit",
+        "TextEncodeQwenImageEditPlus",
     }
     if ct in KNOWN:
         return True
