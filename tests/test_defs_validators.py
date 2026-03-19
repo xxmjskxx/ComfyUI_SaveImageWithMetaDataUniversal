@@ -238,6 +238,9 @@ def test_qwen_image_edit_plus_prompt_detection():
 # --- Extension-registered text encoders (e.g., LoraManager Prompt) ---
 
 
+_SENTINEL = object()
+
+
 def test_has_prompt_capture_rules_true_for_registered_node():
     """_has_prompt_capture_rules should return True when CAPTURE_FIELD_LIST contains prompt rules."""
     from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs import meta as meta_mod
@@ -245,14 +248,17 @@ def test_has_prompt_capture_rules_true_for_registered_node():
         CAPTURE_FIELD_LIST,
     )
 
-    # Inject a test entry with prompt capture rules
+    prev = CAPTURE_FIELD_LIST.get("TestPromptNode", _SENTINEL)
     CAPTURE_FIELD_LIST["TestPromptNode"] = {
         meta_mod.MetaField.POSITIVE_PROMPT: {"field_name": "text"},
     }
     try:
         assert validators_mod._has_prompt_capture_rules("TestPromptNode")
     finally:
-        CAPTURE_FIELD_LIST.pop("TestPromptNode", None)
+        if prev is _SENTINEL:
+            CAPTURE_FIELD_LIST.pop("TestPromptNode", None)
+        else:
+            CAPTURE_FIELD_LIST["TestPromptNode"] = prev
 
 
 def test_has_prompt_capture_rules_false_for_unregistered_node():
@@ -267,13 +273,17 @@ def test_has_prompt_capture_rules_false_for_non_prompt_rules():
         CAPTURE_FIELD_LIST,
     )
 
+    prev = CAPTURE_FIELD_LIST.get("LoraOnlyNode", _SENTINEL)
     CAPTURE_FIELD_LIST["LoraOnlyNode"] = {
         meta_mod.MetaField.LORA_MODEL_NAME: {"selector": lambda *a: []},
     }
     try:
         assert not validators_mod._has_prompt_capture_rules("LoraOnlyNode")
     finally:
-        CAPTURE_FIELD_LIST.pop("LoraOnlyNode", None)
+        if prev is _SENTINEL:
+            CAPTURE_FIELD_LIST.pop("LoraOnlyNode", None)
+        else:
+            CAPTURE_FIELD_LIST["LoraOnlyNode"] = prev
 
 
 def test_prompt_loramanager_positive_detected():
@@ -288,6 +298,7 @@ def test_prompt_loramanager_positive_detected():
         CAPTURE_FIELD_LIST,
     )
 
+    prev = CAPTURE_FIELD_LIST.get("Prompt (LoraManager)", _SENTINEL)
     # In test mode CAPTURE_FIELD_LIST is empty so we inject the same rules that
     # lora_manager.py registers at runtime.  This verifies the validator path
     # without depending on ext module import ordering.
@@ -328,4 +339,7 @@ def test_prompt_loramanager_positive_detected():
         assert validators_mod.is_negative_prompt("neg_prompt", None, prompt, None, None, None)
         assert not validators_mod.is_negative_prompt("pos_prompt", None, prompt, None, None, None)
     finally:
-        CAPTURE_FIELD_LIST.pop("Prompt (LoraManager)", None)
+        if prev is _SENTINEL:
+            CAPTURE_FIELD_LIST.pop("Prompt (LoraManager)", None)
+        else:
+            CAPTURE_FIELD_LIST["Prompt (LoraManager)"] = prev
