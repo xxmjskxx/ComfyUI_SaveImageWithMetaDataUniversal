@@ -176,9 +176,9 @@ def test_dual_cfg_guider_negative_prompt_detected():
                 "cfg_cond2_negative": 1.0,
             },
         },
-        "pos_clip": {"class_type": "CLIPTextEncode", "inputs": {}},
-        "style_clip": {"class_type": "CLIPTextEncode", "inputs": {}},
-        "neg_clip": {"class_type": "CLIPTextEncode", "inputs": {}},
+        "pos_clip": {"class_type": "CLIPTextEncode", "inputs": {"text": "a cat", "clip": ["ckpt", 1]}},
+        "style_clip": {"class_type": "CLIPTextEncode", "inputs": {"text": "anime style", "clip": ["ckpt", 1]}},
+        "neg_clip": {"class_type": "CLIPTextEncode", "inputs": {"text": "bad quality", "clip": ["ckpt", 1]}},
         "ckpt": {"class_type": "CheckpointLoaderSimple", "inputs": {}},
     }
     assert validators_mod.is_negative_prompt("neg_clip", None, prompt, None, None, None)
@@ -200,8 +200,8 @@ def test_basic_guider_no_false_negative_detection():
                 "conditioning": ["pos_clip", 0],
             },
         },
-        "pos_clip": {"class_type": "CLIPTextEncode", "inputs": {}},
-        "ckpt": {"class_type": "CheckpointLoaderSimple", "inputs": {}},
+        "pos_clip": {"class_type": "CLIPTextEncode", "inputs": {"text": "a sunset", "clip": ["ckpt", 1]}},
+        "ckpt": {"class_type": "CheckpointLoaderSimple", "inputs": {"ckpt_name": "model.safetensors"}},
     }
     assert validators_mod.is_positive_prompt("pos_clip", None, prompt, None, None, None)
     assert not validators_mod.is_negative_prompt("pos_clip", None, prompt, None, None, None)
