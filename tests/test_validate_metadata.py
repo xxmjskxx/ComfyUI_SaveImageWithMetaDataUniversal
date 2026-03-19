@@ -5,10 +5,13 @@ from pathlib import Path
 from typing import Any
 
 try:
+    from tests.tools import validate_metadata as validate_metadata_module
     from tests.tools.validate_metadata import MetadataValidator, WorkflowAnalyzer
 except ModuleNotFoundError:  # pragma: no cover - fallback for direct invocation
     # Add tests/tools directory to path to import validate_metadata when running the test directly
     sys.path.insert(0, str(Path(__file__).parent / "tools"))
+    import validate_metadata as validate_metadata_module  # type: ignore
+
     from validate_metadata import MetadataValidator, WorkflowAnalyzer  # type: ignore
 
 
@@ -208,6 +211,81 @@ class TestImageMatching:
 
         assert not validator.match_image_to_workflow(image_path, patterns)
 
+    def test_no_match_from_subdir_only(self, tmp_path):
+        """Images should not match solely because they live in a nested output folder."""
+        validator = MetadataValidator(tmp_path, tmp_path)
+
+        image_path = tmp_path / "2026-03-19" / "1234567890123.png"
+        expected = {
+            "filename_prefix": "Test\\%date:yyyy-MM-dd%//%seed%",
+            "filename_patterns": [],
+            "filename_leaf_markers": [],
+        }
+
+        assert not validator.match_image_to_workflow(image_path, [], expected)
+
+
+class TestWorkflowAssignment:
+    """Test strict one-image-to-one-workflow assignment."""
+
+    def test_assign_images_prefers_strongest_unique_match(self, tmp_path):
+        validator = MetadataValidator(tmp_path, tmp_path)
+        image_path = tmp_path / "eff_xl_hash_00002_.png"
+
+        workflow_entries = [
+            {
+                "file": Path("efficiency-nodes.json"),
+                "expected": {
+                    "has_save_node": True,
+                    "filename_patterns": ["eff_xl"],
+                    "filename_leaf_markers": ["eff_xl"],
+                },
+            },
+            {
+                "file": Path("efficiency-nodes-debug-hash.json"),
+                "expected": {
+                    "has_save_node": True,
+                    "filename_patterns": ["eff_xl_hash"],
+                    "filename_leaf_markers": ["eff_xl_hash"],
+                },
+            },
+        ]
+
+        workflow_to_images, ambiguous_matches = validator._assign_images_to_workflows(workflow_entries, [image_path])
+
+        assert workflow_to_images[Path("efficiency-nodes.json")] == []
+        assert workflow_to_images[Path("efficiency-nodes-debug-hash.json")] == [image_path]
+        assert ambiguous_matches == {}
+
+    def test_assign_images_marks_equal_strength_matches_ambiguous(self, tmp_path):
+        validator = MetadataValidator(tmp_path, tmp_path)
+        image_path = tmp_path / "zoo-cat_dog-bar_00001_.png"
+
+        workflow_entries = [
+            {
+                "file": Path("cat.json"),
+                "expected": {
+                    "has_save_node": True,
+                    "filename_patterns": ["cat"],
+                    "filename_leaf_markers": ["cat"],
+                },
+            },
+            {
+                "file": Path("dog.json"),
+                "expected": {
+                    "has_save_node": True,
+                    "filename_patterns": ["dog"],
+                    "filename_leaf_markers": ["dog"],
+                },
+            },
+        ]
+
+        workflow_to_images, ambiguous_matches = validator._assign_images_to_workflows(workflow_entries, [image_path])
+
+        assert workflow_to_images[Path("cat.json")] == []
+        assert workflow_to_images[Path("dog.json")] == []
+        assert ambiguous_matches[image_path] == ["cat.json", "dog.json"]
+
 
 class TestSamplerValidation:
     """Test sampler and scheduler validation rules."""
@@ -347,6 +425,107 @@ class TestSamplerSelectionWorkflow:
         patterns = ["flux-turbo"]
 
         assert validator.match_image_to_workflow(image_path, patterns)
+
+
+class TestPromptResolution:
+    """Ensure prompt traversal stays aligned with the requested edge."""
+
+    def test_guider_positive_and_negative_prompts_resolve_separately(self):
+        workflow = {
+            "save": {
+                "class_type": "SaveImageWithMetaDataUniversal",
+                "inputs": {
+                    "images": ["decode", 0],
+                    "filename_prefix": "Test\\guider-prompts",
+                },
+            },
+            "decode": {
+                "class_type": "VAEDecode",
+                "inputs": {
+                    "samples": ["sampler", 0],
+                    "vae": ["vae", 0],
+                },
+            },
+            "sampler": {
+                "class_type": "SamplerCustomAdvanced",
+                "inputs": {
+                    "steps": 20,
+                    "cfg": 5,
+                    "sampler_name": "euler",
+                    "scheduler": "normal",
+                    "model": ["ckpt", 0],
+                    "latent_image": ["latent", 0],
+                    "guider": ["guider", 0],
+                },
+            },
+            "guider": {
+                "class_type": "BasicGuider",
+                "inputs": {
+                    "model": ["ckpt", 0],
+                    "positive": ["positive_text", 0],
+                    "negative": ["negative_text", 0],
+                },
+            },
+            "positive_text": {
+                "class_type": "CLIPTextEncode",
+                "inputs": {
+                    "text": "bright sunrise",
+                },
+            },
+            "negative_text": {
+                "class_type": "CLIPTextEncode",
+                "inputs": {
+                    "text": "low quality",
+                },
+            },
+            "latent": {
+                "class_type": "EmptyLatentImage",
+                "inputs": {
+                    "width": 512,
+                    "height": 512,
+                    "batch_size": 1,
+                },
+            },
+            "ckpt": {
+                "class_type": "CheckpointLoaderSimple",
+                "inputs": {
+                    "ckpt_name": "model.safetensors",
+                },
+            },
+            "vae": {
+                "class_type": "VAELoader",
+                "inputs": {
+                    "vae_name": "vae.safetensors",
+                },
+            },
+        }
+
+        expected = WorkflowAnalyzer.extract_expected_metadata(workflow, "guider-prompts")
+        save_node_expected = expected["save_nodes"][0]
+
+        assert save_node_expected["positive_prompt"] == "bright sunrise"
+        assert save_node_expected["negative_prompt"] == "low quality"
+
+
+class TestCliBehavior:
+    """Test main() side effects and argument handling."""
+
+    def test_main_rejects_missing_output_dir_before_setting_up_log(self, monkeypatch, tmp_path):
+        missing_output = tmp_path / "missing-output"
+        tee_calls: list[Path] = []
+
+        monkeypatch.setattr(validate_metadata_module, "setup_print_tee", lambda path: tee_calls.append(path))
+        monkeypatch.setattr(
+            validate_metadata_module.sys,
+            "argv",
+            ["validate_metadata.py", "--output-folder", str(missing_output)],
+        )
+
+        exit_code = validate_metadata_module.main()
+
+        assert exit_code == 1
+        assert tee_calls == []
+        assert not missing_output.exists()
 
 
 if __name__ == "__main__":
