@@ -207,6 +207,165 @@ def test_basic_guider_no_false_negative_detection():
     assert not validators_mod.is_negative_prompt("pos_clip", None, prompt, None, None, None)
 
 
+def _controlnet_apply_advanced_prompt():
+    """Build a prompt mimicking CLIPTextEncode -> ControlNetApplyAdvanced -> KSampler."""
+    return {
+        "sampler": {
+            "class_type": "KSampler",
+            "inputs": {
+                "positive": ["controlnet", 0],
+                "negative": ["controlnet", 1],
+            },
+        },
+        "controlnet": {
+            "class_type": "ControlNetApplyAdvanced",
+            "inputs": {
+                "positive": ["pos_clip", 0],
+                "negative": ["neg_clip", 0],
+                "control_net": ["cn_loader", 0],
+                "image": ["load_image", 0],
+                "strength": 1.0,
+                "start_percent": 0.0,
+                "end_percent": 1.0,
+            },
+        },
+        "pos_clip": {
+            "class_type": "CLIPTextEncode",
+            "inputs": {"text": "girl character", "clip": ["ckpt", 1]},
+        },
+        "neg_clip": {
+            "class_type": "CLIPTextEncode",
+            "inputs": {"text": "bad hands", "clip": ["ckpt", 1]},
+        },
+        "ckpt": {"class_type": "CheckpointLoaderSimple", "inputs": {}},
+        "cn_loader": {"class_type": "ControlNetLoader", "inputs": {}},
+        "load_image": {"class_type": "LoadImage", "inputs": {}},
+    }
+
+
+def test_controlnet_apply_advanced_positive_prompt_detected():
+    prompt = _controlnet_apply_advanced_prompt()
+    assert validators_mod.is_positive_prompt("pos_clip", None, prompt, None, None, None)
+    assert not validators_mod.is_positive_prompt("neg_clip", None, prompt, None, None, None)
+
+
+def test_controlnet_apply_advanced_negative_prompt_detected():
+    prompt = _controlnet_apply_advanced_prompt()
+    assert validators_mod.is_negative_prompt("neg_clip", None, prompt, None, None, None)
+    assert not validators_mod.is_negative_prompt("pos_clip", None, prompt, None, None, None)
+
+
+def test_inpaint_model_conditioning_negative_prompt_detected():
+    """InpaintModelConditioning should route only the negative branch upstream."""
+    prompt = {
+        "sampler": {
+            "class_type": "KSampler",
+            "inputs": {
+                "positive": ["inpaint", 0],
+                "negative": ["inpaint", 1],
+            },
+        },
+        "inpaint": {
+            "class_type": "InpaintModelConditioning",
+            "inputs": {
+                "positive": ["pos_clip", 0],
+                "negative": ["neg_clip", 0],
+                "vae": ["ckpt", 2],
+                "pixels": ["load_image", 0],
+                "mask": ["load_mask", 0],
+                "noise_mask": True,
+            },
+        },
+        "pos_clip": {"class_type": "CLIPTextEncode", "inputs": {"text": "sunset", "clip": ["ckpt", 1]}},
+        "neg_clip": {"class_type": "CLIPTextEncode", "inputs": {"text": "lowres", "clip": ["ckpt", 1]}},
+        "ckpt": {"class_type": "CheckpointLoaderSimple", "inputs": {}},
+        "load_image": {"class_type": "LoadImage", "inputs": {}},
+        "load_mask": {"class_type": "LoadImageMask", "inputs": {}},
+    }
+    assert validators_mod.is_positive_prompt("pos_clip", None, prompt, None, None, None)
+    assert not validators_mod.is_positive_prompt("neg_clip", None, prompt, None, None, None)
+    assert validators_mod.is_negative_prompt("neg_clip", None, prompt, None, None, None)
+    assert not validators_mod.is_negative_prompt("pos_clip", None, prompt, None, None, None)
+
+
+def test_prefixed_pair_conditioning_inputs_are_routed_by_branch():
+    """Branch-aware routing should follow positive_A/negative_A style names."""
+    prompt = {
+        "sampler": {
+            "class_type": "KSampler",
+            "inputs": {
+                "positive": ["pair_router", 0],
+                "negative": ["pair_router", 1],
+            },
+        },
+        "pair_router": {
+            "class_type": "PairConditioningCombine",
+            "inputs": {
+                "positive_A": ["pos_clip", 0],
+                "negative_A": ["neg_clip", 0],
+                "positive_B": ["positive_aux", 0],
+                "negative_B": ["negative_aux", 0],
+            },
+        },
+        "pos_clip": {"class_type": "CLIPTextEncode", "inputs": {"text": "forest", "clip": ["ckpt", 1]}},
+        "neg_clip": {"class_type": "CLIPTextEncode", "inputs": {"text": "artifact", "clip": ["ckpt", 1]}},
+        "positive_aux": {"class_type": "ConditioningSetTimestepRange", "inputs": {"conditioning": ["pos_clip", 0]}},
+        "negative_aux": {"class_type": "ConditioningSetTimestepRange", "inputs": {"conditioning": ["neg_clip", 0]}},
+        "ckpt": {"class_type": "CheckpointLoaderSimple", "inputs": {}},
+    }
+    assert validators_mod.is_positive_prompt("pos_clip", None, prompt, None, None, None)
+    assert not validators_mod.is_positive_prompt("neg_clip", None, prompt, None, None, None)
+    assert validators_mod.is_negative_prompt("neg_clip", None, prompt, None, None, None)
+    assert not validators_mod.is_negative_prompt("pos_clip", None, prompt, None, None, None)
+
+
+def test_cfg_guider_routes_through_controlnet_apply_advanced_chain():
+    """Generic routing should work across SamplerCustomAdvanced -> CFGGuider -> ControlNetApplyAdvanced."""
+    prompt = {
+        "sampler": {
+            "class_type": "SamplerCustomAdvanced",
+            "inputs": {
+                "guider": ["cfg_guider", 0],
+            },
+        },
+        "cfg_guider": {
+            "class_type": "CFGGuider",
+            "inputs": {
+                "model": ["ckpt", 0],
+                "positive": ["controlnet", 0],
+                "negative": ["controlnet", 1],
+            },
+        },
+        "controlnet": {
+            "class_type": "ControlNetApplyAdvanced",
+            "inputs": {
+                "positive": ["positive_range", 0],
+                "negative": ["negative_range", 0],
+                "control_net": ["cn_loader", 0],
+                "image": ["load_image", 0],
+                "strength": 1.0,
+            },
+        },
+        "positive_range": {
+            "class_type": "ConditioningSetTimestepRange",
+            "inputs": {"conditioning": ["pos_clip", 0]},
+        },
+        "negative_range": {
+            "class_type": "ConditioningSetTimestepRange",
+            "inputs": {"conditioning": ["neg_clip", 0]},
+        },
+        "pos_clip": {"class_type": "CLIPTextEncode", "inputs": {"text": "portrait", "clip": ["ckpt", 1]}},
+        "neg_clip": {"class_type": "CLIPTextEncode", "inputs": {"text": "blurry", "clip": ["ckpt", 1]}},
+        "ckpt": {"class_type": "CheckpointLoaderSimple", "inputs": {}},
+        "cn_loader": {"class_type": "ControlNetLoader", "inputs": {}},
+        "load_image": {"class_type": "LoadImage", "inputs": {}},
+    }
+    assert validators_mod.is_positive_prompt("pos_clip", None, prompt, None, None, None)
+    assert not validators_mod.is_positive_prompt("neg_clip", None, prompt, None, None, None)
+    assert validators_mod.is_negative_prompt("neg_clip", None, prompt, None, None, None)
+    assert not validators_mod.is_negative_prompt("pos_clip", None, prompt, None, None, None)
+
+
 # TextEncodeQwenImageEditPlus should be recognised as a known text encoder
 # and correctly routed as positive/negative prompt based on KSampler connections.
 def test_qwen_image_edit_plus_prompt_detection():

@@ -1,4 +1,4 @@
-"""Mappings of sampler and guider nodes to their conditioning text inputs.
+"""Mappings of sampler inputs and non-standard guider routing overrides.
 
 This module provides two companion dictionaries used by the validator BFS
 (``_get_node_id_list``) to resolve positive and negative prompt connections
@@ -11,39 +11,23 @@ positive and negative conditioning.  For example, ``KSampler`` uses
 routes both through a single ``"guider"`` input — the downstream guider
 node determines how conditioning is split.
 
-``GUIDERS`` maps guider class names (e.g. ``CFGGuider``, ``BasicGuider``)
-to the conditioning inputs they expose.  When the BFS encounters one of
-these nodes it follows only the input that matches the requested field
-(positive or negative) instead of blindly exploring all inputs.
+``GUIDERS`` maps guider class names whose conditioning inputs use
+non-standard names. Standard dual-path guiders and other conditioning
+modifiers are routed generically in ``validators.py`` by following only
+the input names that match the requested branch.
 
 Both dictionaries are easily extensible: add a new entry keyed by the
 node's class name with a sub-dictionary of conditioning mappings.
 
 Attributes:
     GUIDERS (dict): A dictionary where keys are guider class names (str)
-                    and values map conditioning type to the corresponding
-                    input name (str).
+                    that need explicit routing overrides because their
+                    conditioning inputs do not use standard branch names.
     SAMPLERS (dict): A dictionary where keys are sampler class names (str)
                      and values map conditioning type to the corresponding
                      input name (str).
 """
 GUIDERS: dict[str, dict[str, str]] = {
-    "CFGGuider": {
-        "positive": "positive",
-        "negative": "negative",
-    },
-    "PerpNegGuider": {
-        "positive": "positive",
-        "negative": "negative",
-    },
-    "Scheduled CFGGuider (Inspire)": {
-        "positive": "positive",
-        "negative": "negative",
-    },
-    "Scheduled PerpNeg CFGGuider (Inspire)": {
-        "positive": "positive",
-        "negative": "negative",
-    },
     "DualCFGGuider": {
         "positive": "cond1",
         "negative": "negative",
@@ -52,12 +36,8 @@ GUIDERS: dict[str, dict[str, str]] = {
         "positive": "conditioning",
     },
 }
-# Guider nodes that route conditioning between text encoders and samplers.
-# When the BFS in _get_node_id_list encounters one of these nodes while tracing
-# from a SamplerCustomAdvanced node, it follows only the conditioning input that
-# matches the requested field (positive/negative) instead of blindly exploring
-# all inputs.  This ensures the negative prompt connected to a CFGGuider's
-# *negative* input is correctly detected.
+# Guider nodes that need explicit routing overrides because their conditioning
+# inputs do not use standard positive/negative-style names.
 
 SAMPLERS = {
     "KSampler": {
