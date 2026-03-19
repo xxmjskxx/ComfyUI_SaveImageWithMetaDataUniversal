@@ -1,6 +1,6 @@
-"""Mappings of sampler and guider nodes to their conditioning text inputs.
+"""Mappings of sampler, guider, and conditioning-router nodes to their inputs.
 
-This module provides two companion dictionaries used by the validator BFS
+This module provides three companion dictionaries used by the validator BFS
 (``_get_node_id_list``) to resolve positive and negative prompt connections
 in a ComfyUI workflow.
 
@@ -11,19 +11,27 @@ positive and negative conditioning.  For example, ``KSampler`` uses
 routes both through a single ``"guider"`` input — the downstream guider
 node determines how conditioning is split.
 
-``GUIDERS`` maps class names of guider and conditioning-modifier nodes
-(e.g. ``CFGGuider``, ``BasicGuider``, ``ControlNetApplyAdvanced``) to the
-conditioning inputs they expose.  When the BFS encounters one of these
-nodes it follows only the input that matches the requested field
+``GUIDERS`` maps guider class names (e.g. ``CFGGuider``, ``BasicGuider``)
+to the conditioning inputs they expose.  When the BFS encounters one of
+these nodes it follows only the input that matches the requested field
 (positive or negative) instead of blindly exploring all inputs.
 
-Both dictionaries are easily extensible: add a new entry keyed by the
+``CONDITIONING_ROUTERS`` maps conditioning-modifier class names (e.g.
+``ControlNetApplyAdvanced``) that pass through separate positive and
+negative conditioning paths.  These are not guiders — they do not produce
+a guider output — but the BFS must still follow only the matching
+conditioning input rather than blindly exploring all inputs.
+
+All three dictionaries are easily extensible: add a new entry keyed by the
 node's class name with a sub-dictionary of conditioning mappings.
 
 Attributes:
-    GUIDERS (dict): A dictionary where keys are guider or conditioning-
+    CONDITIONING_ROUTERS (dict): A dictionary where keys are conditioning-
                     modifier class names (str) and values map conditioning
                     type to the corresponding input name (str).
+    GUIDERS (dict): A dictionary where keys are guider class names (str)
+                    and values map conditioning type to the corresponding
+                    input name (str).
     SAMPLERS (dict): A dictionary where keys are sampler class names (str)
                      and values map conditioning type to the corresponding
                      input name (str).
@@ -52,21 +60,23 @@ GUIDERS: dict[str, dict[str, str]] = {
     "BasicGuider": {
         "positive": "conditioning",
     },
-    # Conditioning-modifier nodes that pass-through separate positive/negative
-    # conditioning paths and must not be traversed blindly.
+}
+# Guider nodes that route conditioning between text encoders and samplers.
+# When the BFS in _get_node_id_list encounters one of these nodes while tracing
+# from a SamplerCustomAdvanced node, it follows only the conditioning input that
+# matches the requested field (positive/negative) instead of blindly exploring
+# all inputs.  This ensures the negative prompt connected to a CFGGuider's
+# *negative* input is correctly detected.
+
+CONDITIONING_ROUTERS: dict[str, dict[str, str]] = {
     "ControlNetApplyAdvanced": {
         "positive": "positive",
         "negative": "negative",
     },
 }
-# Guider and conditioning-modifier nodes that route conditioning between
-# text encoders and samplers.
-# When the BFS in _get_node_id_list encounters one of these nodes while tracing
-# from a SamplerCustomAdvanced node, it follows only the conditioning input that
-# matches the requested field (positive/negative) instead of blindly exploring
-# all inputs.  This ensures the negative prompt connected to a CFGGuider's
-# *negative* input — or passed through ControlNetApplyAdvanced's *negative*
-# input — is correctly detected.
+# Conditioning-modifier nodes that pass through separate positive/negative
+# conditioning paths without being guiders.  The BFS treats them the same
+# way as GUIDERS: follow only the matching conditioning input.
 
 SAMPLERS = {
     "KSampler": {

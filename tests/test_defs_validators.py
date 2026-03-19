@@ -207,7 +207,7 @@ def test_basic_guider_no_false_negative_detection():
     assert not validators_mod.is_negative_prompt("pos_clip", None, prompt, None, None, None)
 
 
-# --- ControlNetApplyAdvanced conditioning-modifier traversal ---
+# --- ControlNetApplyAdvanced conditioning-router traversal ---
 
 
 def _controlnet_apply_advanced_prompt():

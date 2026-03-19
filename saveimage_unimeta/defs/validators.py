@@ -2,7 +2,7 @@
 import re
 from collections import deque
 
-from .samplers import GUIDERS, SAMPLERS
+from .samplers import CONDITIONING_ROUTERS, GUIDERS, SAMPLERS
 
 _CONNECTION_CACHE: dict[str, bool] = {}  # Cache for is_node_connected results
 
@@ -90,12 +90,13 @@ def _get_node_id_list(prompt, field_name):
                     node_id_list[nid] = current_node_id
                     break
                 # When traversing through a known guider node (e.g. CFGGuider),
+                # or a conditioning-router node (e.g. ControlNetApplyAdvanced),
                 # follow only the conditioning input that matches the requested
                 # field so positive and negative prompts are resolved correctly.
-                if class_type in GUIDERS:
-                    guider_map = GUIDERS[class_type]
-                    if field_name in guider_map:
-                        input_name = guider_map[field_name]
+                routing_map = GUIDERS.get(class_type) or CONDITIONING_ROUTERS.get(class_type)
+                if routing_map is not None:
+                    if field_name in routing_map:
+                        input_name = routing_map[field_name]
                         node_inputs = prompt[current_node_id].get("inputs", {})
                         if input_name in node_inputs:
                             inp = node_inputs[input_name]
