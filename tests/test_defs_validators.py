@@ -19,6 +19,16 @@ def reset_connection_cache(monkeypatch):
     monkeypatch.setattr(validators_mod, "_CONNECTION_CACHE", {}, raising=False)
 
 
+def test_is_link_input_rejects_literal_lists_without_output_index():
+    """Only ComfyUI-style [node_id, output_index] sequences count as links."""
+
+    assert validators_mod._is_link_input(["clip_node", 0])
+    assert validators_mod._is_link_input(("clip_node", 1))
+    assert not validators_mod._is_link_input(["prompt a", "prompt b"])
+    assert not validators_mod._is_link_input(["clip_node"])
+    assert not validators_mod._is_link_input("clip_node")
+
+
 # Positive prompt validator should identify direct CLIPTextEncode connections.
 def test_is_positive_prompt_detects_known_text_encoder():
     prompt = {
@@ -461,10 +471,12 @@ def test_prompt_loramanager_positive_detected():
     # In test mode CAPTURE_FIELD_LIST is empty so we inject the same rules that
     # lora_manager.py registers at runtime.  This verifies the validator path
     # without depending on ext module import ordering.
-    CAPTURE_FIELD_LIST.setdefault("Prompt (LoraManager)", {}).update({
+    existing_rules = CAPTURE_FIELD_LIST.get("Prompt (LoraManager)")
+    CAPTURE_FIELD_LIST["Prompt (LoraManager)"] = {
+        **(existing_rules if isinstance(existing_rules, dict) else {}),
         meta_mod.MetaField.POSITIVE_PROMPT: {"field_name": "text", "validate": validators_mod.is_positive_prompt},
         meta_mod.MetaField.NEGATIVE_PROMPT: {"field_name": "text", "validate": validators_mod.is_negative_prompt},
-    })
+    }
 
     prompt = {
         "1": {

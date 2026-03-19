@@ -8,7 +8,20 @@ _CONNECTION_CACHE: dict[str, bool] = {}  # Cache for is_node_connected results
 
 
 def _is_link_input(value) -> bool:
-    return isinstance(value, list | tuple) and len(value) > 0
+    """Return True only for ComfyUI-style graph links.
+
+    Links are typically ``[node_id, output_index]`` sequences. Tightening this
+    predicate avoids following list-typed literal inputs such as text batches.
+    """
+    if not isinstance(value, list | tuple) or len(value) < 2:
+        return False
+    node_id, output_index = value[0], value[1]
+    return (
+        isinstance(node_id, str | int)
+        and not isinstance(node_id, bool)
+        and isinstance(output_index, int)
+        and not isinstance(output_index, bool)
+    )
 
 
 def _matches_conditioning_branch(input_name: str, field_name: str) -> bool:
