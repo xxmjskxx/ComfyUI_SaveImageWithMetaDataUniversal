@@ -48,7 +48,7 @@
 <summary><strong></strong></summary>
 
 - I'm an amateur at coding, at best. I started writing this myself, but as I began increasing the scope of the project I started using GitHub Copilot.
-- If you have any questions, think any documentation is lacking, or experience issues with certain workflows or custom node packs, create a new issue an I'll try and see if it's something I can address.
+- If you have any questions, think any documentation is lacking, or experience issues with certain workflows or custom node packs, create a new issue and I'll try and see if it's something I can address.
 
 </details>
 
