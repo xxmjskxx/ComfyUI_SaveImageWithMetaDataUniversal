@@ -194,7 +194,7 @@ CAPTURE_FIELD_LIST = {
     "PerpNegGuider": {
         MetaField.CFG: {"field_name": "cfg"},
     },
-    "Scheduled CFGGuider (Inspire)"{: {
+    "Scheduled CFGGuider (Inspire)": {
         MetaField.CFG: {"field_name": "to_cfg"},
     },
     "Scheduled PerpNeg CFGGuider (Inspire)": {
