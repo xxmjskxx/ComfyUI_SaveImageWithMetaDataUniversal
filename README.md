@@ -428,29 +428,21 @@ Stable output characteristics to aid tooling & reproducibility:
 
 ### Changelog
 
-**Latest Release: v1.4.0 (2026-03-17)**
+**Latest Release: v1.4.2 (2026-03-19)**
 
-Compatibility and bug fix release:
-- **Critical Fix**: Resolved `'coroutine' object has no attribute 'outputs'` error with ComfyUI 0.3.65+ (async `HierarchicalCache.get` compatibility)
-- **New Feature**: `lora_strengths_in_prompt` toggle appends A1111-style LoRA designations to the positive prompt for Civitai LoRA strength recognition
-- **Bug Fix**: Fixed `token_weights` function signature for parenthesized embeddings in prompts (upstream PR #80)
-- **Bug Fix**: Fixed rgthree extension import path (`from saveimage_unimeta.defs.validators` → relative import) preventing module load at runtime (upstream PRs #82, #84)
-- **Bug Fix**: Fixed Lora Loader Stack (rgthree) using wrong selectors (Power Lora Loader selectors instead of stack selectors) (upstream PR #84)
-- **Bug Fix**: Fixed `select_stack_by_prefix` and multiple selectors/validators to accept both list and tuple input data for broader ComfyUI version compatibility
-- **Bug Fix**: Fixed unsafe list comprehension in XTNodes `get_lora_data` and unsafe string split in `size_from_presets`
-- **Robustness**: EAFP-style error handling across extension modules for resilient metadata capture
+Prompt-routing and metadata-validation hardening release:
+- **Prompt capture fixes**: Generic guider/conditioning routing now preserves positive and negative prompts more reliably, including `Prompt (LoraManager)` and `TextEncodeQwenImageEditPlus` flows.
+- **Runtime metadata recovery**: Capture now falls back more gracefully for `Steps`, `Seed`, `Denoise`, `Size`, `Scheduler`, and `weight_dtype`, with better Civitai sampler normalization.
+- **Validator alignment**: Workflow validation now resolves nested seed refs, dual T5/CLIP prompt routes, LoRA stacks, baked VAE fields, batch indices, and indexed CLIP model names without synthesizing false dual-prompt expectations.
+- **Regression coverage**: Expanded tests around validators, capture fallbacks, prompt routing, reverse coverage, and real workflow matching.
+- **Tracked fixes**: Also resolves upstream tracker items #87, #89, #92, and #94.
 
-**Previous Release: v1.3.0 (2025-11-18)**
+**Recent Prior Releases**
 
-Major consolidation release with 219 commits bringing:
-- **LoRA & Embedding System Overhaul**: Opt-in inline parsing, enhanced LoRA manager with structured field inspection, fixed "Schedule LoRAs" clip duplication, cached embedding hashes, per-node strength tracking
-- **User Rule System Redesign**: Selective rule merging with `required_classes` parameter, version tracking with outdated warnings, coverage-aware test runs
-- **Scanner Enhancements**: Priority keywords, improved heuristics, better LoRA/embedding detection
-- **Testing Infrastructure**: Comprehensive new test suites, enhanced CLI validation tools, Python 3.13 support
-- **Documentation**: Comprehensive docstrings on all Python files, enhanced inline documentation
-- **Code Quality**: Structured logging, better exception handling, type safety improvements
+- **v1.4.1 (2026-03-18)**: Save Image widget ordering and fit hotfix release.
+- **v1.4.0 (2026-03-17)**: ComfyUI 0.3.65+ compatibility, `lora_strengths_in_prompt`, and extension hardening release.
 
-See [CHANGELOG.md](CHANGELOG.md) for complete details or [RELEASE_NOTES_v1.3.0.md](docs/releases/RELEASE_NOTES_v1.3.0.md) for the full release notes.
+See [CHANGELOG.md](CHANGELOG.md) for complete details or [RELEASE_NOTES_v1.4.2.md](docs/releases/RELEASE_NOTES_v1.4.2.md) for the full release notes.
 
 **Previous Notable Changes:**
 - Refactor notice: legacy monolithic module removed; see [CHANGELOG.md](CHANGELOG.md) for new direct import paths
