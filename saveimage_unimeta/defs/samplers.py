@@ -11,18 +11,19 @@ positive and negative conditioning.  For example, ``KSampler`` uses
 routes both through a single ``"guider"`` input — the downstream guider
 node determines how conditioning is split.
 
-``GUIDERS`` maps guider class names (e.g. ``CFGGuider``, ``BasicGuider``)
-to the conditioning inputs they expose.  When the BFS encounters one of
-these nodes it follows only the input that matches the requested field
+``GUIDERS`` maps class names of guider and conditioning-modifier nodes
+(e.g. ``CFGGuider``, ``BasicGuider``, ``ControlNetApplyAdvanced``) to the
+conditioning inputs they expose.  When the BFS encounters one of these
+nodes it follows only the input that matches the requested field
 (positive or negative) instead of blindly exploring all inputs.
 
 Both dictionaries are easily extensible: add a new entry keyed by the
 node's class name with a sub-dictionary of conditioning mappings.
 
 Attributes:
-    GUIDERS (dict): A dictionary where keys are guider class names (str)
-                    and values map conditioning type to the corresponding
-                    input name (str).
+    GUIDERS (dict): A dictionary where keys are guider or conditioning-
+                    modifier class names (str) and values map conditioning
+                    type to the corresponding input name (str).
     SAMPLERS (dict): A dictionary where keys are sampler class names (str)
                      and values map conditioning type to the corresponding
                      input name (str).
@@ -51,13 +52,21 @@ GUIDERS: dict[str, dict[str, str]] = {
     "BasicGuider": {
         "positive": "conditioning",
     },
+    # Conditioning-modifier nodes that pass-through separate positive/negative
+    # conditioning paths and must not be traversed blindly.
+    "ControlNetApplyAdvanced": {
+        "positive": "positive",
+        "negative": "negative",
+    },
 }
-# Guider nodes that route conditioning between text encoders and samplers.
+# Guider and conditioning-modifier nodes that route conditioning between
+# text encoders and samplers.
 # When the BFS in _get_node_id_list encounters one of these nodes while tracing
 # from a SamplerCustomAdvanced node, it follows only the conditioning input that
 # matches the requested field (positive/negative) instead of blindly exploring
 # all inputs.  This ensures the negative prompt connected to a CFGGuider's
-# *negative* input is correctly detected.
+# *negative* input — or passed through ControlNetApplyAdvanced's *negative*
+# input — is correctly detected.
 
 SAMPLERS = {
     "KSampler": {

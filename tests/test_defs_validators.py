@@ -207,7 +207,88 @@ def test_basic_guider_no_false_negative_detection():
     assert not validators_mod.is_negative_prompt("pos_clip", None, prompt, None, None, None)
 
 
-# TextEncodeQwenImageEditPlus should be recognised as a known text encoder
+# --- ControlNetApplyAdvanced conditioning-modifier traversal ---
+
+
+def _controlnet_apply_advanced_prompt():
+    """Build a prompt mimicking CLIPTextEncode → ControlNetApplyAdvanced → KSampler.
+
+    This reproduces the workflow from issue #96 where Apply ControlNet
+    (ControlNetApplyAdvanced) sits between the text encoders and the sampler.
+    """
+    return {
+        "sampler": {
+            "class_type": "KSampler",
+            "inputs": {
+                "model": ["ckpt", 0],
+                "positive": ["controlnet", 0],
+                "negative": ["controlnet", 1],
+                "latent_image": ["latent", 0],
+                "seed": 1,
+                "steps": 20,
+                "cfg": 8.0,
+                "sampler_name": "euler",
+                "scheduler": "simple",
+                "denoise": 1.0,
+            },
+        },
+        "controlnet": {
+            "class_type": "ControlNetApplyAdvanced",
+            "inputs": {
+                "positive": ["pos_clip", 0],
+                "negative": ["neg_clip", 0],
+                "control_net": ["cn_loader", 0],
+                "image": ["load_image", 0],
+                "strength": 1.0,
+                "start_percent": 0.0,
+                "end_percent": 1.0,
+            },
+        },
+        "pos_clip": {
+            "class_type": "CLIPTextEncode",
+            "inputs": {
+                "text": "girl character, fox ears, blonde, sky, clouds, standing, flower garden,",
+                "clip": ["ckpt", 1],
+            },
+        },
+        "neg_clip": {
+            "class_type": "CLIPTextEncode",
+            "inputs": {
+                "text": "text, error, cropped, bad hands, extra legs,",
+                "clip": ["ckpt", 1],
+            },
+        },
+        "ckpt": {
+            "class_type": "CheckpointLoaderSimple",
+            "inputs": {"ckpt_name": "sd_xl_base_1.0.safetensors"},
+        },
+        "cn_loader": {
+            "class_type": "ControlNetLoader",
+            "inputs": {"control_net_name": "t2i-adapter_xl_sketch.safetensors"},
+        },
+        "load_image": {
+            "class_type": "LoadImage",
+            "inputs": {"image": "input_scribble_example.png"},
+        },
+        "latent": {
+            "class_type": "EmptyLatentImage",
+            "inputs": {"width": 1024, "height": 1024, "batch_size": 1},
+        },
+    }
+
+
+def test_controlnet_apply_advanced_positive_prompt_detected():
+    """Positive CLIPTextEncode routed through ControlNetApplyAdvanced must be identified."""
+    prompt = _controlnet_apply_advanced_prompt()
+    assert validators_mod.is_positive_prompt("pos_clip", None, prompt, None, None, None)
+    assert not validators_mod.is_positive_prompt("neg_clip", None, prompt, None, None, None)
+
+
+def test_controlnet_apply_advanced_negative_prompt_detected():
+    """Negative CLIPTextEncode routed through ControlNetApplyAdvanced must be identified."""
+    prompt = _controlnet_apply_advanced_prompt()
+    assert validators_mod.is_negative_prompt("neg_clip", None, prompt, None, None, None)
+    assert not validators_mod.is_negative_prompt("pos_clip", None, prompt, None, None, None)
 # and correctly routed as positive/negative prompt based on KSampler connections.
 def test_qwen_image_edit_plus_prompt_detection():
     prompt = {
