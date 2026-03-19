@@ -7,7 +7,7 @@ from .samplers import GUIDERS, SAMPLERS
 _CONNECTION_CACHE: dict[str, bool] = {}  # Cache for is_node_connected results
 
 
-def _is_link_input(value) -> bool:
+def _is_link_input(value: object) -> bool:
     """Return True only for ComfyUI-style graph links.
 
     Links are typically ``[node_id, output_index]`` sequences. Tightening this
