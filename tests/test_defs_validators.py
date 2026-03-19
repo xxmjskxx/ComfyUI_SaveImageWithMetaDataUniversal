@@ -233,3 +233,97 @@ def test_qwen_image_edit_plus_prompt_detection():
 
     assert validators_mod.is_negative_prompt("neg_enc", None, prompt, None, None, None)
     assert not validators_mod.is_positive_prompt("neg_enc", None, prompt, None, None, None)
+
+
+# --- Extension-registered text encoders (e.g., LoraManager Prompt) ---
+
+
+def test_has_prompt_capture_rules_true_for_registered_node(monkeypatch):
+    """_has_prompt_capture_rules should return True when CAPTURE_FIELD_LIST contains prompt rules."""
+    from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs import meta as meta_mod
+    from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs import (
+        CAPTURE_FIELD_LIST,
+    )
+
+    # Inject a test entry with prompt capture rules
+    CAPTURE_FIELD_LIST["TestPromptNode"] = {
+        meta_mod.MetaField.POSITIVE_PROMPT: {"field_name": "text"},
+    }
+    try:
+        assert validators_mod._has_prompt_capture_rules("TestPromptNode")
+    finally:
+        CAPTURE_FIELD_LIST.pop("TestPromptNode", None)
+
+
+def test_has_prompt_capture_rules_false_for_unregistered_node():
+    """_has_prompt_capture_rules should return False for unknown classes."""
+    assert not validators_mod._has_prompt_capture_rules("SomeUnknownNode")
+
+
+def test_has_prompt_capture_rules_false_for_non_prompt_rules(monkeypatch):
+    """_has_prompt_capture_rules should return False when rules exist but have no prompt fields."""
+    from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs import meta as meta_mod
+    from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs import (
+        CAPTURE_FIELD_LIST,
+    )
+
+    CAPTURE_FIELD_LIST["LoraOnlyNode"] = {
+        meta_mod.MetaField.LORA_MODEL_NAME: {"selector": lambda *a: []},
+    }
+    try:
+        assert not validators_mod._has_prompt_capture_rules("LoraOnlyNode")
+    finally:
+        CAPTURE_FIELD_LIST.pop("LoraOnlyNode", None)
+
+
+def test_prompt_loramanager_positive_detected(monkeypatch):
+    """Prompt (LoraManager) node connected to KSampler positive input should be identified as positive prompt.
+
+    This test simulates the workflow from issue #92 where Prompt (LoraManager) nodes
+    replace CLIPTextEncode nodes. The validator must recognise these nodes via the
+    extension-registered capture rules rather than the hardcoded whitelist.
+    """
+    from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs import meta as meta_mod
+    from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs import (
+        CAPTURE_FIELD_LIST,
+    )
+
+    # Ensure the capture rules are present (lora_manager.py registers these)
+    CAPTURE_FIELD_LIST.setdefault("Prompt (LoraManager)", {}).update({
+        meta_mod.MetaField.POSITIVE_PROMPT: {"field_name": "text", "validate": validators_mod.is_positive_prompt},
+        meta_mod.MetaField.NEGATIVE_PROMPT: {"field_name": "text", "validate": validators_mod.is_negative_prompt},
+    })
+
+    prompt = {
+        "1": {
+            "class_type": "KSampler",
+            "inputs": {
+                "positive": ["pos_prompt", 0],
+                "negative": ["neg_prompt", 0],
+            },
+        },
+        "pos_prompt": {
+            "class_type": "Prompt (LoraManager)",
+            "inputs": {"text": "photo of a woman in full color.", "clip": ["lora_loader", 1]},
+        },
+        "neg_prompt": {
+            "class_type": "Prompt (LoraManager)",
+            "inputs": {"text": "nude, kid, child,", "clip": ["lora_loader", 1]},
+        },
+        "lora_loader": {
+            "class_type": "Lora Loader (LoraManager)",
+            "inputs": {"model": ["ckpt", 0], "clip": ["ckpt", 1]},
+        },
+        "ckpt": {
+            "class_type": "CheckpointLoaderSimple",
+            "inputs": {"ckpt_name": "sd_xl_base_1.0.safetensors"},
+        },
+    }
+
+    try:
+        assert validators_mod.is_positive_prompt("pos_prompt", None, prompt, None, None, None)
+        assert not validators_mod.is_positive_prompt("neg_prompt", None, prompt, None, None, None)
+        assert validators_mod.is_negative_prompt("neg_prompt", None, prompt, None, None, None)
+        assert not validators_mod.is_negative_prompt("pos_prompt", None, prompt, None, None, None)
+    finally:
+        CAPTURE_FIELD_LIST.pop("Prompt (LoraManager)", None)

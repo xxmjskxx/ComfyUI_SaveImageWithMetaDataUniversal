@@ -7,10 +7,28 @@ from .samplers import GUIDERS, SAMPLERS
 _CONNECTION_CACHE: dict[str, bool] = {}  # Cache for is_node_connected results
 
 
+def _has_prompt_capture_rules(class_type: str) -> bool:
+    """Check if a node class has prompt capture rules in CAPTURE_FIELD_LIST.
+
+    Extensions can register their nodes as text encoders by adding
+    ``MetaField.POSITIVE_PROMPT`` or ``MetaField.NEGATIVE_PROMPT`` entries
+    to their ``CAPTURE_FIELD_LIST``.  This function performs a lazy import
+    to avoid circular dependencies at module load time.
+    """
+    from . import CAPTURE_FIELD_LIST
+    from .meta import MetaField
+
+    rules = CAPTURE_FIELD_LIST.get(class_type)
+    if isinstance(rules, dict):
+        return MetaField.POSITIVE_PROMPT in rules or MetaField.NEGATIVE_PROMPT in rules
+    return False
+
+
 def _is_text_encoder(class_type: str) -> bool:
     """Heuristic to decide if a node class encodes text for conditioning.
     - First, match known encoder class names exactly (stable and explicit).
-    - Then, use a case-insensitive regex for common patterns (text/prompt + encode),
+    - Then, check if extensions registered prompt capture rules for this class.
+    - Finally, use a case-insensitive regex for common patterns (text/prompt + encode),
       allowing flexible spacing and ordering to catch variants without being too noisy.
     """
     if not class_type:
@@ -24,6 +42,9 @@ def _is_text_encoder(class_type: str) -> bool:
         "TextEncodeQwenImageEditPlus",
     }
     if ct in KNOWN:
+        return True
+    # Check if extensions registered prompt capture rules for this class
+    if _has_prompt_capture_rules(ct):
         return True
     # Flexible pattern: match "text encode", "encode text", "prompt encode", "encode prompt" (any spacing)
     if re.search(
