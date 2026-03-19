@@ -214,6 +214,22 @@ def test_sampler_fallback_from_this_node_inputs(monkeypatch: pytest.MonkeyPatch)
     assert pnginfo.get("Sampler") == "euler_ancestral"
 
 
+def test_civitai_sampler_uses_scheduler_fallback_from_this_node():
+    """Unsupported Civitai samplers should still keep a fallback scheduler suffix."""
+    capture_mod = importlib.import_module(MODULE_PATH)
+    Capture = capture_mod.Capture
+
+    before_sampler = {
+        MetaField.SAMPLER_NAME: [("5", "linear/euler", "sampler_name")],
+    }
+    before_this = {
+        MetaField.SCHEDULER: [("5", "bong_tangent", "scheduler")],
+    }
+
+    pnginfo = Capture.gen_pnginfo_dict(before_sampler, before_this, True)
+    assert pnginfo.get("Sampler") == "linear/euler_bong_tangent"
+
+
 def test_steps_rejects_negative_values():
     """Steps should not be written when value is negative."""
     capture_mod = importlib.import_module(MODULE_PATH)
@@ -236,6 +252,63 @@ def test_steps_accepts_zero():
     }
     pnginfo = Capture.gen_pnginfo_dict(inputs, {}, False)
     assert pnginfo.get("Steps") == 0
+
+
+def test_steps_fallback_from_this_node_inputs():
+    """Steps should fall back to the save-node snapshot when sampler snapshot misses them."""
+    capture_mod = importlib.import_module(MODULE_PATH)
+    Capture = capture_mod.Capture
+
+    before_sampler = {}
+    before_this = {
+        MetaField.STEPS: [("1", 2, "steps")],
+    }
+
+    pnginfo = Capture.gen_pnginfo_dict(before_sampler, before_this, False)
+    assert pnginfo.get("Steps") == 2
+
+
+def test_seed_fallback_from_this_node_inputs():
+    """Seed should fall back to the save-node snapshot when sampler snapshot misses it."""
+    capture_mod = importlib.import_module(MODULE_PATH)
+    Capture = capture_mod.Capture
+
+    before_sampler = {}
+    before_this = {
+        MetaField.SEED: [("1", 684898030661856, "seed")],
+    }
+
+    pnginfo = Capture.gen_pnginfo_dict(before_sampler, before_this, False)
+    assert pnginfo.get("Seed") == 684898030661856
+
+
+def test_denoise_fallback_from_this_node_inputs():
+    """Denoise should fall back to the save-node snapshot when sampler snapshot misses it."""
+    capture_mod = importlib.import_module(MODULE_PATH)
+    Capture = capture_mod.Capture
+
+    before_sampler = {}
+    before_this = {
+        MetaField.DENOISE: [("1", 1.0, "denoise")],
+    }
+
+    pnginfo = Capture.gen_pnginfo_dict(before_sampler, before_this, False)
+    assert pnginfo.get("Denoise") == 1.0
+
+
+def test_size_fallback_from_this_node_inputs():
+    """Size should fall back to the save-node snapshot when sampler snapshot misses dimensions."""
+    capture_mod = importlib.import_module(MODULE_PATH)
+    Capture = capture_mod.Capture
+
+    before_sampler = {}
+    before_this = {
+        MetaField.IMAGE_WIDTH: [("725", " 832 x 1216  (portrait)", "dimensions")],
+        MetaField.IMAGE_HEIGHT: [("725", " 832 x 1216  (portrait)", "dimensions")],
+    }
+
+    pnginfo = Capture.gen_pnginfo_dict(before_sampler, before_this, False)
+    assert pnginfo.get("Size") == "832x1216"
 
 
 # --- LoRA record edge cases ---

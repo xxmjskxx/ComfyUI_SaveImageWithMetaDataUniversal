@@ -77,6 +77,9 @@ class TestValidateMetadataIntegration:
         save_node = expected["save_nodes"][0]
         assert save_node.get("steps") is not None
         assert save_node.get("cfg") is not None
+        assert save_node.get("clip_skip") == -2
+        assert save_node.get("t5_prompt") is None
+        assert save_node.get("clip_prompt") is None
 
     def test_flux_workflows(self):
         """Test various flux workflows."""
@@ -226,6 +229,465 @@ class TestValidateMetadataIntegration:
         assert save_node["image_height"] == 768
         assert save_node["batch_size"] == 2
         assert save_node.get("include_lora_summary") is True
+
+    def test_expected_metadata_collects_multiple_clip_model_names(self):
+        """Model tracing should keep all CLIP model names in indexed order."""
+
+        workflow = {
+            "save": {
+                "class_type": "SaveImageWithMetaDataUniversal",
+                "inputs": {
+                    "images": ["vae_decode", 0],
+                    "filename_prefix": "demo",
+                },
+            },
+            "vae_decode": {
+                "class_type": "VAEDecode",
+                "inputs": {
+                    "samples": ["sampler", 0],
+                },
+            },
+            "sampler": {
+                "class_type": "KSampler",
+                "inputs": {
+                    "model": ["dual_clip_loader", 0],
+                    "steps": 8,
+                    "cfg": 3.5,
+                    "sampler_name": "euler",
+                },
+            },
+            "dual_clip_loader": {
+                "class_type": "DualCLIPLoader",
+                "inputs": {
+                    "clip_name1": "t5xxl_fp8_e4m3fn_scaled.safetensors",
+                    "clip_name2": "Long-ViT-L-14-REG-TE-only-HF-format.safetensors",
+                    "unet_name": "flux1-dev-fp8-e4m3fn.safetensors",
+                },
+            },
+        }
+
+        expected = WorkflowAnalyzer.extract_expected_metadata(workflow, "demo-workflow")
+        save_node = expected["save_nodes"][0]
+
+        assert save_node["clip_model_names"] == [
+            "t5xxl_fp8_e4m3fn_scaled.safetensors",
+            "Long-ViT-L-14-REG-TE-only-HF-format.safetensors",
+        ]
+
+    def test_resolve_seed_value_follows_nested_noise_links(self):
+        """Nested RandomNoise -> seed node links should preserve random-seed expectations."""
+
+        workflow = {
+            "noise": {
+                "class_type": "RandomNoise",
+                "inputs": {
+                    "noise_seed": ["seed_node", 0],
+                },
+            },
+            "seed_node": {
+                "class_type": "Seed (rgthree)",
+                "inputs": {
+                    "seed": -1,
+                },
+            },
+        }
+
+        assert WorkflowAnalyzer.resolve_seed_value(workflow, ["noise", 0]) == "-1"
+        assert WorkflowAnalyzer._resolve_noise_seed(workflow, ["noise", 0]) == "-1"
+
+    def test_extract_lora_stack_info_supports_cr_stack_weights(self):
+        """CR LoRA Stack uses model_weight/clip_weight fields rather than model_str/clip_str."""
+
+        workflow = {
+            "stack": {
+                "class_type": "CR LoRA Stack",
+                "inputs": {
+                    "switch_1": "On",
+                    "lora_name_1": "flux\\film\\80sFantasyMovieMJ7Flux.safetensors",
+                    "model_weight_1": 0.96,
+                    "clip_weight_1": 1.02,
+                    "switch_2": "On",
+                    "lora_name_2": "flux\\fashion\\closeupfilm.safetensors",
+                    "model_weight_2": 1.05,
+                    "clip_weight_2": 0.98,
+                    "switch_3": "Off",
+                    "lora_name_3": "flux\\artstyle\\style\\aidmaAbadonedHorror-FLUX-V0.1.safetensors",
+                    "model_weight_3": 1.0,
+                    "clip_weight_3": 0.91,
+                },
+            }
+        }
+
+        loras = WorkflowAnalyzer.extract_lora_stack_info(workflow, "stack")
+
+        assert loras == [
+            {
+                "name": "flux\\film\\80sFantasyMovieMJ7Flux.safetensors",
+                "model_strength": 0.96,
+                "clip_strength": 1.02,
+            },
+            {
+                "name": "flux\\fashion\\closeupfilm.safetensors",
+                "model_strength": 1.05,
+                "clip_strength": 0.98,
+            },
+        ]
+
+    def test_extract_lora_stack_info_keeps_local_stack_entries_before_nested_refs(self):
+        """LoRA stackers should emit local entries before inherited stack refs."""
+
+        workflow = {
+            "nested": {
+                "class_type": "CR LoRA Stack",
+                "inputs": {
+                    "switch_1": "On",
+                    "lora_name_1": "LoRA\\sd15\\official\\Hyper-SD15-8steps-CFG-lora.safetensors",
+                    "model_weight_1": 0.7,
+                    "clip_weight_1": 0.69,
+                },
+            },
+            "stack": {
+                "class_type": "LoRA Stacker",
+                "inputs": {
+                    "input_mode": "advanced",
+                    "lora_count": 2,
+                    "lora_name_1": "LoRA\\sd15\\zelda\\Majora_Zelda.safetensors",
+                    "model_str_1": 0.97,
+                    "clip_str_1": 0.88,
+                    "lora_name_2": "LoRA\\sd15\\zelda\\ootlink-nvwls-v1.safetensors",
+                    "model_str_2": 0.6,
+                    "clip_str_2": 0.51,
+                    "lora_stack": ["nested", 0],
+                },
+            },
+        }
+
+        loras = WorkflowAnalyzer.extract_lora_stack_info(workflow, "stack")
+
+        assert [entry["name"] for entry in loras] == [
+            "LoRA\\sd15\\zelda\\Majora_Zelda.safetensors",
+            "LoRA\\sd15\\zelda\\ootlink-nvwls-v1.safetensors",
+            "LoRA\\sd15\\official\\Hyper-SD15-8steps-CFG-lora.safetensors",
+        ]
+
+    def test_extract_lora_stack_info_supports_lora_manager_structured_entries(self):
+        """LoraManager nodes expose active LoRAs via structured loras.__value__ entries."""
+
+        workflow = {
+            "stack": {
+                "class_type": "Lora Stacker (LoraManager)",
+                "inputs": {
+                    "loras": {
+                        "__value__": [
+                            {
+                                "name": "FluxMythG0thicL1nes",
+                                "strength": 0.47,
+                                "clipStrength": 0.35,
+                                "active": True,
+                            },
+                            {
+                                "name": "InactiveLoRA",
+                                "strength": 1.0,
+                                "clipStrength": 1.0,
+                                "active": False,
+                            },
+                        ]
+                    }
+                },
+            }
+        }
+
+        loras = WorkflowAnalyzer.extract_lora_stack_info(workflow, "stack")
+
+        assert loras == [
+            {
+                "name": "FluxMythG0thicL1nes",
+                "model_strength": 0.47,
+                "clip_strength": 0.35,
+            }
+        ]
+
+    def test_extract_lora_stack_info_follows_linked_loader_text_sources(self):
+        """Loader nodes should collect linked LoRA syntax from referenced text nodes and stack refs."""
+
+        workflow = {
+            "prompt_text": {
+                "class_type": "SeargePromptText",
+                "inputs": {
+                    "prompt": "<lora:3d-anaglyphs:0.7>\n<lora:Elden_Ring_Style:0.5>",
+                },
+            },
+            "stack": {
+                "class_type": "Lora Stacker (LoraManager)",
+                "inputs": {
+                    "loras": {
+                        "__value__": [
+                            {
+                                "name": "FluxMythG0thicL1nes",
+                                "strength": 0.47,
+                                "clipStrength": 0.35,
+                                "active": True,
+                            }
+                        ]
+                    }
+                },
+            },
+            "loader": {
+                "class_type": "LoRA Text Loader (LoraManager)",
+                "inputs": {
+                    "lora_syntax": ["prompt_text", 0],
+                    "lora_stack": ["stack", 0],
+                },
+            },
+        }
+
+        loras = WorkflowAnalyzer.extract_lora_stack_info(workflow, "loader")
+
+        assert loras == [
+            {
+                "name": "FluxMythG0thicL1nes",
+                "model_strength": 0.47,
+                "clip_strength": 0.35,
+            },
+            {
+                "name": "3d-anaglyphs",
+                "model_strength": 0.7,
+                "clip_strength": 0.7,
+            },
+            {
+                "name": "Elden_Ring_Style",
+                "model_strength": 0.5,
+                "clip_strength": 0.5,
+            },
+        ]
+
+    def test_expected_metadata_collects_flux_prompts_from_guider(self):
+        """Flux guider chains should populate T5 and CLIP prompt expectations."""
+
+        workflow = {
+            "save": {
+                "class_type": "SaveImageWithMetaDataUniversal",
+                "inputs": {
+                    "images": ["decode", 0],
+                    "filename_prefix": "dual-clip",
+                },
+            },
+            "decode": {
+                "class_type": "VAEDecode",
+                "inputs": {
+                    "samples": ["sampler", 0],
+                },
+            },
+            "sampler": {
+                "class_type": "SamplerCustomAdvanced",
+                "inputs": {
+                    "guider": ["guider", 0],
+                    "sampler": ["sampler_select", 0],
+                    "sigmas": ["sigmas", 0],
+                    "latent_image": ["latent", 0],
+                },
+            },
+            "guider": {
+                "class_type": "BasicGuider",
+                "inputs": {
+                    "model": ["unet", 0],
+                    "conditioning": ["flux_text", 0],
+                },
+            },
+            "flux_text": {
+                "class_type": "CLIPTextEncodeFlux",
+                "inputs": {
+                    "clip_l": "short clip prompt",
+                    "t5xxl": "long t5 prompt",
+                    "clip": ["dual_clip", 0],
+                },
+            },
+            "dual_clip": {
+                "class_type": "DualCLIPLoader",
+                "inputs": {
+                    "clip_name1": "flux\\t5xxl_fp16.safetensors",
+                    "clip_name2": "flux\\clip_l.safetensors",
+                },
+            },
+            "unet": {
+                "class_type": "UNETLoader",
+                "inputs": {
+                    "unet_name": "flux\\flux1-dev-fp8-e4m3fn.safetensors",
+                },
+            },
+            "sampler_select": {
+                "class_type": "KSamplerSelect",
+                "inputs": {
+                    "sampler_name": "euler",
+                },
+            },
+            "sigmas": {
+                "class_type": "BasicScheduler",
+                "inputs": {
+                    "scheduler": "beta",
+                    "steps": 8,
+                },
+            },
+            "latent": {
+                "class_type": "EmptyLatentImage",
+                "inputs": {
+                    "width": 1024,
+                    "height": 1024,
+                    "batch_size": 1,
+                },
+            },
+        }
+
+        expected = WorkflowAnalyzer.extract_expected_metadata(workflow, "flux-dual")
+        save_node = expected["save_nodes"][0]
+
+        assert save_node.get("t5_prompt") == "long t5 prompt"
+        assert save_node.get("clip_prompt") == "short clip prompt"
+
+    def test_expected_metadata_collects_sdxl_tuple_clip_skip_and_baked_vae(self):
+        """SDXL tuple loaders should still contribute clip skip and baked VAE metadata."""
+
+        workflow = {
+            "save": {
+                "class_type": "SaveImageWithMetaDataUniversal",
+                "inputs": {
+                    "images": ["decode", 0],
+                    "filename_prefix": "eff-sdxl",
+                },
+            },
+            "decode": {
+                "class_type": "VAEDecode",
+                "inputs": {
+                    "samples": ["sampler", 0],
+                },
+            },
+            "sampler": {
+                "class_type": "KSampler SDXL (Eff.)",
+                "inputs": {
+                    "noise_seed": 790,
+                    "steps": 8,
+                    "cfg": 7.5,
+                    "sampler_name": "heun",
+                    "scheduler": "AYS SDXL",
+                    "sdxl_tuple": ["loader", 0],
+                    "latent_image": ["latent", 0],
+                },
+            },
+            "loader": {
+                "class_type": "Eff. Loader SDXL",
+                "inputs": {
+                    "base_ckpt_name": "sd\\StableDiffusion\\Originals\\xl\\Juggernaut_X_RunDiffusion.safetensors",
+                    "base_clip_skip": -2,
+                    "vae_name": "Baked VAE",
+                    "positive": "positive",
+                    "negative": "negative",
+                    "batch_size": 2,
+                },
+            },
+            "latent": {
+                "class_type": "EmptyLatentImage",
+                "inputs": {
+                    "width": 832,
+                    "height": 1216,
+                    "batch_size": 2,
+                },
+            },
+        }
+
+        expected = WorkflowAnalyzer.extract_expected_metadata(workflow, "eff-sdxl")
+        save_node = expected["save_nodes"][0]
+
+        assert save_node.get("clip_skip") == -2
+        assert save_node.get("vae_name") == "Baked VAE"
+
+    def test_expected_metadata_collects_prompt_side_clip_models_and_shift(self):
+        """Prompt-side clip loaders and ModelSamplingSD3 shift should reach expected metadata."""
+
+        workflow = {
+            "save": {
+                "class_type": "SaveImageWithMetaDataUniversal",
+                "inputs": {
+                    "images": ["vae_decode", 0],
+                    "filename_prefix": "wan-demo",
+                },
+            },
+            "vae_decode": {
+                "class_type": "VAEDecode",
+                "inputs": {
+                    "samples": ["sampler", 0],
+                    "vae": ["vae", 0],
+                },
+            },
+            "vae": {
+                "class_type": "VAELoader",
+                "inputs": {
+                    "vae_name": "wan_2.1_vae.safetensors",
+                },
+            },
+            "sampler": {
+                "class_type": "KSampler",
+                "inputs": {
+                    "seed": 706190577933098,
+                    "steps": 4,
+                    "cfg": 1,
+                    "sampler_name": "dpmpp_2m",
+                    "scheduler": "karras",
+                    "denoise": 1,
+                    "model": ["sampling", 0],
+                    "positive": ["positive", 0],
+                    "negative": ["negative", 0],
+                    "latent_image": ["latent", 0],
+                },
+            },
+            "sampling": {
+                "class_type": "ModelSamplingSD3",
+                "inputs": {
+                    "shift": 8,
+                    "model": ["unet", 0],
+                },
+            },
+            "unet": {
+                "class_type": "UNETLoader",
+                "inputs": {
+                    "unet_name": "wan\\Wan2_1-T2V-14B_fp8_e4m3fn_scaled_KJ.safetensors",
+                    "weight_dtype": "default",
+                },
+            },
+            "clip_loader": {
+                "class_type": "CLIPLoader",
+                "inputs": {
+                    "clip_name": "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+                },
+            },
+            "positive": {
+                "class_type": "CLIPTextEncode",
+                "inputs": {
+                    "text": "a fox moving quickly",
+                    "clip": ["clip_loader", 0],
+                },
+            },
+            "negative": {
+                "class_type": "CLIPTextEncode",
+                "inputs": {
+                    "text": "bad anatomy",
+                    "clip": ["clip_loader", 0],
+                },
+            },
+            "latent": {
+                "class_type": "EmptyHunyuanLatentVideo",
+                "inputs": {
+                    "width": 800,
+                    "height": 448,
+                    "batch_size": 1,
+                },
+            },
+        }
+
+        expected = WorkflowAnalyzer.extract_expected_metadata(workflow, "wan-demo")
+        save_node = expected["save_nodes"][0]
+
+        assert save_node["clip_model_names"] == ["umt5_xxl_fp8_e4m3fn_scaled.safetensors"]
+        assert save_node["shift"] == 8
 
 
 

@@ -28,6 +28,10 @@ def _wrap(name):
     [
         ("dpmpp_2m", "karras", "DPM++ 2M Karras"),
         ("dpmpp_2m", "exponential", "DPM++ 2M"),
+        ("dpmpp_2m_karras", "normal", "DPM++ 2M Karras"),
+        ("dpmpp_3m_sde", "exponential", "DPM++ 3M SDE Exponential"),
+        ("dpmpp_sde_gpu", "karras", "DPM++ SDE Karras"),
+        ("lms", "karras", "LMS Karras"),
         ("ipndm", "normal", "ipndm"),
         ("ipndm", "karras", "ipndm_karras"),
     ],

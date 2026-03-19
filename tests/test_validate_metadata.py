@@ -326,6 +326,70 @@ class TestSamplerValidation:
         assert result["errors"]
         assert any("Civitai" in err for err in result["errors"])
 
+    def test_guidance_as_cfg_without_cfg_still_checks_cfg_scale(self):
+        expected = {"guidance": 3.5, "guidance_as_cfg": True}
+        fields = {"CFG scale": "3.5"}
+        result = self._run_validation(fields, expected)
+
+        assert not result["errors"]
+        assert any(detail["field"] == "CFG scale" and detail["status"] == "pass" for detail in result["check_details"])
+        assert not any(detail["field"] == "Guidance" for detail in result["check_details"])
+
+    def test_clip_model_names_validate_indexed_metadata_fields(self):
+        expected = {
+            "clip_model_names": [
+                "t5xxl_fp8_e4m3fn_scaled.safetensors",
+                "Long-ViT-L-14-REG-TE-only-HF-format.safetensors",
+            ]
+        }
+        fields = {
+            "CLIP_1 Model name": "t5xxl_fp8_e4m3fn_scaled",
+            "CLIP_2 Model name": "Long-ViT-L-14-REG-TE-only-HF-format",
+        }
+        result = self._run_validation(fields, expected)
+
+        assert not result["errors"]
+        assert any(detail["field"] == "CLIP_1 Model name" and detail["status"] == "pass" for detail in result["check_details"])
+        assert any(detail["field"] == "CLIP_2 Model name" and detail["status"] == "pass" for detail in result["check_details"])
+
+    def test_lora_name_preserves_dotted_version_suffix_without_extension(self):
+        expected = {
+            "lora_stack": [
+                {
+                    "name": "aidmaAbadonedHorror-FLUX-V0.1",
+                    "model_strength": 0.5,
+                    "clip_strength": 0.5,
+                }
+            ]
+        }
+        fields = {
+            "Lora_0 Model name": "aidmaAbadonedHorror-FLUX-V0.1.safetensors",
+            "Lora_0 Strength model": "0.5",
+            "Lora_0 Strength clip": "0.5",
+            "Lora_0 Model hash": "abc123def0",
+        }
+        result = self._run_validation(fields, expected)
+
+        assert not result["errors"]
+        assert any(detail["field"] == "LoRA 0 name" and detail["status"] == "pass" for detail in result["check_details"])
+
+    def test_baked_vae_fields_are_validated(self):
+        expected = {"vae_name": "Baked VAE"}
+        fields = {"VAE": "Baked VAE", "VAE hash": "N/A"}
+        result = self._run_validation(fields, expected)
+
+        assert not result["errors"]
+        assert any(detail["field"] == "VAE" and detail["status"] == "pass" for detail in result["check_details"])
+        assert any(detail["field"] == "VAE hash" and detail["status"] == "pass" for detail in result["check_details"])
+
+    def test_batch_index_uses_saved_metadata_field(self):
+        expected = {"batch_index": 1}
+        fields = {"Batch index": "1"}
+        result = self._run_validation(fields, expected)
+
+        assert not result["errors"]
+        assert any(detail["field"] == "Batch index" and detail["status"] == "pass" for detail in result["check_details"])
+
 
 class TestSamplerSelectionWorkflow:
     """Ensure sampler selection mirrors runtime sampler_selection_method semantics."""

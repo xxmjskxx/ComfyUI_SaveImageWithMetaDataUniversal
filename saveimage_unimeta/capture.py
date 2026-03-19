@@ -935,9 +935,9 @@ class Capture:
                 if val is None:
                     val = Capture._extract_value(x[0])
                 # Normalize booleans/ints that should be floats for A1111
-                if key in ("CFG scale", "Guidance"):
+                if key in ("CFG scale", "Guidance", "Denoise"):
                     try:
-                        # Guidance sometimes comes from sliders or ints
+                        # Guidance and denoise sometimes come from sliders or ints
                         val = float(val)
                     except Exception:
                         pass  # Keep original value if conversion fails
@@ -1173,7 +1173,7 @@ class Capture:
             pass  # Dual-encoder aliasing may fail - continue with single prompt
 
         # Prefer valid positive steps; avoid placeholder -1 or None
-        steps_list = inputs_before_sampler_node.get(MetaField.STEPS, [])
+        steps_list = inputs_before_sampler_node.get(MetaField.STEPS, []) or inputs_before_this_node.get(MetaField.STEPS, [])
         if steps_list:
             steps_val = steps_list[0][1]
             try:
@@ -1221,6 +1221,19 @@ class Capture:
                     )
                 except Exception:
                     pass  # Debug logging may fail - continue processing
+
+        if not schedulers:
+            fallback_schedulers = inputs_before_this_node.get(MetaField.SCHEDULER, [])
+            if fallback_schedulers:
+                schedulers = fallback_schedulers
+                if _debug_prompts_enabled():
+                    try:
+                        logger.debug(
+                            cstr("[Metadata Debug] Recovered schedulers from inputs_before_this_node: %r").msg,
+                            schedulers,
+                        )
+                    except Exception:
+                        pass  # Debug logging may fail - continue processing
 
         # Direct graph introspection fallback: look into hook.current_prompt for KSamplerSelect / SamplerCustomAdvanced
         # nodes that expose a textual 'sampler_name' input but were not captured by rule scanning.
@@ -1461,6 +1474,8 @@ class Capture:
 
         update_pnginfo_dict(inputs_before_sampler_node, MetaField.GUIDANCE, "Guidance")
         update_pnginfo_dict(inputs_before_sampler_node, MetaField.DENOISE, "Denoise")
+        if "Denoise" not in pnginfo_dict:
+            update_pnginfo_dict(inputs_before_this_node, MetaField.DENOISE, "Denoise")
 
         # Capture a Weight dtype candidate (don't insert yet; we'll place it after Model/Model hash)
         def choose_weight_dtype():
@@ -1478,13 +1493,19 @@ class Capture:
         dtype_candidate = choose_weight_dtype()
 
         update_pnginfo_dict(inputs_before_sampler_node, MetaField.SEED, "Seed")
+        if "Seed" not in pnginfo_dict:
+            update_pnginfo_dict(inputs_before_this_node, MetaField.SEED, "Seed")
 
         update_pnginfo_dict(inputs_before_sampler_node, MetaField.CLIP_SKIP, "Clip skip")
 
         # Size handling: support discrete width/height, a single dimensions tuple,
         # or strings like "832 x 1216  (portrait)"
-        image_widths = inputs_before_sampler_node.get(MetaField.IMAGE_WIDTH, [])
-        image_heights = inputs_before_sampler_node.get(MetaField.IMAGE_HEIGHT, [])
+        image_widths = inputs_before_sampler_node.get(MetaField.IMAGE_WIDTH, []) or inputs_before_this_node.get(
+            MetaField.IMAGE_WIDTH, []
+        )
+        image_heights = inputs_before_sampler_node.get(MetaField.IMAGE_HEIGHT, []) or inputs_before_this_node.get(
+            MetaField.IMAGE_HEIGHT, []
+        )
         size_set = False
 
         def parse_dims_from_string(s):
@@ -2887,18 +2908,40 @@ class Capture:
             str: Formatted sampler value (may be empty when none qualify).
         """
 
-        def sampler_with_karras_exponential(sampler, scheduler):
-            match scheduler:
-                case "karras":
-                    sampler += " Karras"
-                case "exponential":
-                    sampler += " Exponential"
-            return sampler
-
-        def sampler_with_karras(sampler, scheduler):
-            if scheduler == "karras":
-                return sampler + " Karras"
-            return sampler
+        civitai_sampler_map = {
+            "euler_ancestral": "Euler a",
+            "euler": "Euler",
+            "lms": "LMS",
+            "heun": "Heun",
+            "dpm_2": "DPM2",
+            "dpm_2_ancestral": "DPM2 a",
+            "dpmpp_2s_ancestral": "DPM++ 2S a",
+            "dpmpp_2m": "DPM++ 2M",
+            "dpmpp_sde": "DPM++ SDE",
+            "dpmpp_2m_sde": "DPM++ 2M SDE",
+            "dpmpp_3m_sde": "DPM++ 3M SDE",
+            "dpm_fast": "DPM fast",
+            "dpm_adaptive": "DPM adaptive",
+            "lms_karras": "LMS Karras",
+            "dpm_2_karras": "DPM2 Karras",
+            "dpm_2_ancestral_karras": "DPM2 a Karras",
+            "dpmpp_2s_ancestral_karras": "DPM++ 2S a Karras",
+            "dpmpp_2m_karras": "DPM++ 2M Karras",
+            "dpmpp_sde_karras": "DPM++ SDE Karras",
+            "dpmpp_2m_sde_karras": "DPM++ 2M SDE Karras",
+            "dpmpp_3m_sde_karras": "DPM++ 3M SDE Karras",
+            "dpmpp_3m_sde_exponential": "DPM++ 3M SDE Exponential",
+            "ddim": "DDIM",
+            "plms": "PLMS",
+            "uni_pc": "UniPC",
+            "uni_pc_bh2": "UniPC",
+            "lcm": "LCM",
+        }
+        sampler_aliases = {
+            "euler_cfg_pp": "euler",
+            "euler_ancestral_cfg_pp": "euler_ancestral",
+            "heunpp2": "heun",
+        }
 
         # Choose sampler and scheduler from provided candidates
         sampler = None
@@ -3043,7 +3086,17 @@ class Capture:
             if candidate:
                 sampler = candidate.strip()
 
-        sampler_l = sampler.lower() if sampler else None
+        def normalize_sampler_token(token):
+            if not token:
+                return None
+            normalized = token.strip().lower()
+            normalized = normalized.replace("_gpu_karras", "_karras")
+            normalized = normalized.replace("_gpu_exponential", "_exponential")
+            if normalized.endswith("_gpu"):
+                normalized = normalized[:-4]
+            return sampler_aliases.get(normalized, normalized)
+
+        sampler_l = normalize_sampler_token(sampler)
         scheduler_l = scheduler.lower() if scheduler else None
         if _debug_prompts_enabled():
             try:
@@ -3066,41 +3119,16 @@ class Capture:
 
         if _debug_prompts_enabled():
             logger.debug(cstr("[Metadata Debug] Civitai mapper: matching sampler '%s'").msg, sampler_l)
-        match sampler_l:
-            case "euler" | "euler_cfg_pp":
-                return "Euler"
-            case "euler_ancestral" | "euler_ancestral_cfg_pp":
-                return "Euler a"
-            case "heun" | "heunpp2":
-                return "Heun"
-            case "dpm_2":
-                return sampler_with_karras("DPM2", scheduler_l)
-            case "dpm_2_ancestral":
-                return sampler_with_karras("DPM2 a", scheduler_l)
-            case "lms":
-                return sampler_with_karras("LMS", scheduler_l)
-            case "dpm_fast":
-                return "DPM fast"
-            case "dpm_adaptive":
-                return "DPM adaptive"
-            case "dpmpp_2s_ancestral":
-                return sampler_with_karras("DPM++ 2S a", scheduler_l)
-            case "dpmpp_sde" | "dpmpp_sde_gpu":
-                return sampler_with_karras("DPM++ SDE", scheduler_l)
-            case "dpmpp_2m":
-                return sampler_with_karras("DPM++ 2M", scheduler_l)
-            case "dpmpp_2m_sde" | "dpmpp_2m_sde_gpu":
-                return sampler_with_karras("DPM++ 2M SDE", scheduler_l)
-            case "dpmpp_3m_sde" | "dpmpp_3m_sde_gpu":
-                return sampler_with_karras_exponential("DPM++ 3M SDE", scheduler_l)
-            case "lcm":
-                return "LCM"
-            case "ddim":
-                return "DDIM"
-            case "plms":
-                return "PLMS"
-            case "uni_pc" | "uni_pc_bh2":
-                return "UniPC"
+
+        if scheduler_l and scheduler_l != "normal":
+            combined_token = f"{sampler_l}_{scheduler_l}"
+            combined_match = civitai_sampler_map.get(combined_token)
+            if combined_match:
+                return combined_match
+
+        sampler_match = civitai_sampler_map.get(sampler_l)
+        if sampler_match:
+            return sampler_match
 
         # Fallback: include scheduler suffix when present and not 'normal'
         if not scheduler_l or scheduler_l == "normal":
