@@ -46,6 +46,7 @@ _TEXT_FIELD_CANDIDATES: tuple[str, ...] = (
     "lora_syntax",
     "loaded_loras",
     "text",
+    "lora_name",
 )
 
 
@@ -326,12 +327,40 @@ def _get_lora_data_from_node(node_id, input_data):
                 text_to_parse = coerced
         text_result = _build_result_from_text(text_to_parse)
 
-    cache_signature = (stack_field, stack_payload, text_field, text_to_parse, has_active_fields)
+    # Scalar fallback: when both structured and text paths yield nothing,
+    # check if the node carries a simple ``lora_name`` scalar (plain filename
+    # without ``<lora:…>`` syntax).  This covers ``Lora Loader (LoraManager)``
+    # when the field value is a bare filename rather than lora-syntax text.
+    scalar_name = None
+    scalar_sm = None
+    scalar_sc = None
+    if isinstance(batch, dict) and not skip_text_parsing and not structured_result and not text_result:
+        raw = batch.get("lora_name")
+        if raw:
+            coerced_name = coerce_first(raw) if isinstance(raw, list | tuple) else raw
+            if isinstance(coerced_name, str) and coerced_name.strip():
+                scalar_name = coerced_name.strip()
+                raw_sm = _flatten_singleton(batch.get("strength_model"))
+                raw_sc = _flatten_singleton(batch.get("strength_clip"))
+                scalar_sm = _coerce_float(raw_sm)
+                scalar_sc = _coerce_float(raw_sc)
+
+    cache_signature = (
+        stack_field, stack_payload, text_field, text_to_parse,
+        has_active_fields, scalar_name, scalar_sm, scalar_sc,
+    )
     cached = _NODE_DATA_CACHE.get(node_id)
     if cached and cached.get("signature") == cache_signature:
         return cached["data"]
 
     result = _merge_lora_results(structured_result, text_result)
+
+    # Apply scalar fallback when both primary paths yielded empty results.
+    if not result["names"] and scalar_name:
+        scalar_result = _build_result_from_entries([(scalar_name, scalar_sm, scalar_sc)])
+        if scalar_result:
+            result = scalar_result
+
     _NODE_DATA_CACHE[node_id] = {
         "signature": cache_signature,
         "data": result,
