@@ -240,3 +240,125 @@ def test_lora_manager_all_inactive_prevents_text_merge(monkeypatch):
     assert names == []
     assert model_strengths == []
     assert clip_strengths == []
+
+
+def test_lora_manager_lora_loader_syntax_in_lora_name(monkeypatch):
+    """Regression: 'Lora Loader (LoraManager)' stores LoRA data in lora_name.
+
+    The node uses ``<lora:name:strength>`` syntax in its ``lora_name`` field.
+    Previously ``lora_name`` was not in ``_TEXT_FIELD_CANDIDATES``, causing names
+    and hashes to be silently lost.
+    """
+    mod = _load_module(monkeypatch)
+    input_data = (
+        {
+            "lora_name": "<lora:Hyper-SD15-8steps-CFG-lora:1.00>",
+        },
+    )
+    names = mod.get_lora_model_names("loader_1", None, None, None, None, input_data)
+    hashes = mod.get_lora_model_hashes("loader_1", None, None, None, None, input_data)
+    model_strengths = mod.get_lora_model_strengths("loader_1", None, None, None, None, input_data)
+    clip_strengths = mod.get_lora_clip_strengths("loader_1", None, None, None, None, input_data)
+    assert names == ["Hyper-SD15-8steps-CFG-lora"]
+    assert hashes == ["hash::Hyper-SD15-8steps-CFG-lora"]
+    assert model_strengths == [1.0]
+    assert clip_strengths == [1.0]
+
+
+def test_lora_manager_lora_loader_multiple_loras_in_lora_name(monkeypatch):
+    """Regression: multiple LoRAs in lora_name text are all captured."""
+    mod = _load_module(monkeypatch)
+    input_data = (
+        {
+            "lora_name": "<lora:LoraA:0.8:0.6> <lora:LoraB:0.5>",
+        },
+    )
+    names = mod.get_lora_model_names("loader_multi", None, None, None, None, input_data)
+    hashes = mod.get_lora_model_hashes("loader_multi", None, None, None, None, input_data)
+    model_strengths = mod.get_lora_model_strengths("loader_multi", None, None, None, None, input_data)
+    clip_strengths = mod.get_lora_clip_strengths("loader_multi", None, None, None, None, input_data)
+    assert names == ["LoraA", "LoraB"]
+    assert hashes == ["hash::LoraA", "hash::LoraB"]
+    assert model_strengths == [0.8, 0.5]
+    assert clip_strengths == [0.6, 0.5]
+
+
+def test_lora_manager_lora_loader_plain_filename_fallback(monkeypatch):
+    """Scalar fallback: plain filename in lora_name with strength fields."""
+    mod = _load_module(monkeypatch)
+    input_data = (
+        {
+            "lora_name": "my_lora.safetensors",
+            "strength_model": 0.75,
+            "strength_clip": 0.5,
+        },
+    )
+    names = mod.get_lora_model_names("loader_plain", None, None, None, None, input_data)
+    hashes = mod.get_lora_model_hashes("loader_plain", None, None, None, None, input_data)
+    model_strengths = mod.get_lora_model_strengths("loader_plain", None, None, None, None, input_data)
+    clip_strengths = mod.get_lora_clip_strengths("loader_plain", None, None, None, None, input_data)
+    assert names == ["my_lora.safetensors"]
+    assert hashes == ["hash::my_lora.safetensors"]
+    assert model_strengths == [0.75]
+    assert clip_strengths == [0.5]
+
+
+def test_lora_manager_lora_loader_plain_filename_default_strengths(monkeypatch):
+    """Scalar fallback: plain filename without strength fields uses defaults."""
+    mod = _load_module(monkeypatch)
+    input_data = (
+        {
+            "lora_name": "my_lora.safetensors",
+        },
+    )
+    names = mod.get_lora_model_names("loader_defaults", None, None, None, None, input_data)
+    hashes = mod.get_lora_model_hashes("loader_defaults", None, None, None, None, input_data)
+    model_strengths = mod.get_lora_model_strengths("loader_defaults", None, None, None, None, input_data)
+    clip_strengths = mod.get_lora_clip_strengths("loader_defaults", None, None, None, None, input_data)
+    assert names == ["my_lora.safetensors"]
+    assert hashes == ["hash::my_lora.safetensors"]
+    assert model_strengths == [1.0]
+    assert clip_strengths == [1.0]
+
+
+def test_lora_manager_lora_name_not_used_when_stack_has_active_data(monkeypatch):
+    """lora_name scalar fallback must NOT fire when structured data has results."""
+    mod = _load_module(monkeypatch)
+    input_data = (
+        {
+            "lora_stack": [
+                [
+                    {"name": "StackLoRA", "strength": 0.9, "clipStrength": 0.7, "active": True},
+                ]
+            ],
+            "lora_name": "<lora:ShouldBeIgnored:0.5>",
+        },
+    )
+    names = mod.get_lora_model_names("stack_priority", None, None, None, None, input_data)
+    hashes = mod.get_lora_model_hashes("stack_priority", None, None, None, None, input_data)
+    model_strengths = mod.get_lora_model_strengths("stack_priority", None, None, None, None, input_data)
+    clip_strengths = mod.get_lora_clip_strengths("stack_priority", None, None, None, None, input_data)
+    # Only the stack data should appear; lora_name text must not be merged
+    # because 'active' fields are present.
+    assert names == ["StackLoRA"]
+    assert hashes == ["hash::StackLoRA"]
+    assert model_strengths == [0.9]
+    assert clip_strengths == [0.7]
+
+
+def test_lora_manager_lora_name_list_input(monkeypatch):
+    """lora_name delivered as a list (ComfyUI wraps widget values) is handled."""
+    mod = _load_module(monkeypatch)
+    input_data = (
+        {
+            "lora_name": ["<lora:ListLora:0.9:0.4>"],
+        },
+    )
+    names = mod.get_lora_model_names("list_input", None, None, None, None, input_data)
+    hashes = mod.get_lora_model_hashes("list_input", None, None, None, None, input_data)
+    model_strengths = mod.get_lora_model_strengths("list_input", None, None, None, None, input_data)
+    clip_strengths = mod.get_lora_clip_strengths("list_input", None, None, None, None, input_data)
+    assert names == ["ListLora"]
+    assert hashes == ["hash::ListLora"]
+    assert model_strengths == [0.9]
+    assert clip_strengths == [0.4]
