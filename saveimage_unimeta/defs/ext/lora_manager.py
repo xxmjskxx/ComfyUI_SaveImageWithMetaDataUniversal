@@ -334,14 +334,16 @@ def _get_lora_data_from_node(node_id, input_data):
     scalar_name = None
     scalar_sm = None
     scalar_sc = None
-    if isinstance(batch, dict) and not structured_result and not text_result:
+    if isinstance(batch, dict) and not skip_text_parsing and not structured_result and not text_result:
         raw = batch.get("lora_name")
         if raw:
             coerced_name = coerce_first(raw) if isinstance(raw, list | tuple) else raw
             if isinstance(coerced_name, str) and coerced_name.strip():
                 scalar_name = coerced_name.strip()
-                scalar_sm = _coerce_float(batch.get("strength_model"))
-                scalar_sc = _coerce_float(batch.get("strength_clip"))
+                raw_sm = _flatten_singleton(batch.get("strength_model"))
+                raw_sc = _flatten_singleton(batch.get("strength_clip"))
+                scalar_sm = _coerce_float(raw_sm)
+                scalar_sc = _coerce_float(raw_sc)
 
     cache_signature = (
         stack_field, stack_payload, text_field, text_to_parse,

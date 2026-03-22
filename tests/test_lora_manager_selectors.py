@@ -362,3 +362,49 @@ def test_lora_manager_lora_name_list_input(monkeypatch):
     assert hashes == ["hash::ListLora"]
     assert model_strengths == [0.9]
     assert clip_strengths == [0.4]
+
+
+def test_lora_manager_scalar_fallback_skipped_when_active_fields_present(monkeypatch):
+    """Scalar fallback must respect active-field skip behavior."""
+    mod = _load_module(monkeypatch)
+    input_data = (
+        {
+            "lora_stack": [
+                [
+                    {"name": "InactiveA", "strength": 0.2, "clipStrength": 0.2, "active": False},
+                ]
+            ],
+            # If scalar fallback ran while active fields are present, this would be reintroduced.
+            "lora_name": "ShouldNotBeReintroduced.safetensors",
+            "strength_model": 0.9,
+            "strength_clip": 0.8,
+        },
+    )
+    names = mod.get_lora_model_names("active_skip_scalar", None, None, None, None, input_data)
+    hashes = mod.get_lora_model_hashes("active_skip_scalar", None, None, None, None, input_data)
+    model_strengths = mod.get_lora_model_strengths("active_skip_scalar", None, None, None, None, input_data)
+    clip_strengths = mod.get_lora_clip_strengths("active_skip_scalar", None, None, None, None, input_data)
+    assert names == []
+    assert hashes == []
+    assert model_strengths == []
+    assert clip_strengths == []
+
+
+def test_lora_manager_scalar_fallback_unwraps_strength_lists(monkeypatch):
+    """Scalar fallback should unwrap ComfyUI-style one-item list strengths."""
+    mod = _load_module(monkeypatch)
+    input_data = (
+        {
+            "lora_name": "wrapped_strengths.safetensors",
+            "strength_model": [0.35],
+            "strength_clip": [0.15],
+        },
+    )
+    names = mod.get_lora_model_names("wrapped_strengths", None, None, None, None, input_data)
+    hashes = mod.get_lora_model_hashes("wrapped_strengths", None, None, None, None, input_data)
+    model_strengths = mod.get_lora_model_strengths("wrapped_strengths", None, None, None, None, input_data)
+    clip_strengths = mod.get_lora_clip_strengths("wrapped_strengths", None, None, None, None, input_data)
+    assert names == ["wrapped_strengths.safetensors"]
+    assert hashes == ["hash::wrapped_strengths.safetensors"]
+    assert model_strengths == [0.35]
+    assert clip_strengths == [0.15]
