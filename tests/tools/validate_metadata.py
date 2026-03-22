@@ -2023,7 +2023,7 @@ class WorkflowAnalyzer:
                 text = None
             if text in (None, ""):
                 return None
-            return text.replace(",", "/")
+            return text
 
         def _collect_pairs(inputs: dict[str, Any]) -> dict[str, str]:
             collected: dict[str, str] = {}

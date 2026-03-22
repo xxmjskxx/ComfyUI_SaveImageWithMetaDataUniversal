@@ -145,6 +145,22 @@ class TestExtraMetadataChaining:
         assert meta2["Style"] == "Impressionism"
 
 
+class TestExtraMetadataCommasPreserved:
+    """Tests that commas in values are preserved as-is."""
+
+    def test_commas_not_replaced(self):
+        """Verify that commas in extra metadata values are not replaced."""
+        node = CreateExtraMetaDataUniversal()
+
+        result = node.create_extra_metadata(
+            key1="Prompt",
+            value1="a cat, sitting on a mat, looking happy",
+        )
+        metadata = result[0]
+
+        assert metadata["Prompt"] == "a cat, sitting on a mat, looking happy"
+
+
 class TestExtraMetadataEmptyKeys:
     """Tests for handling empty keys."""
 
