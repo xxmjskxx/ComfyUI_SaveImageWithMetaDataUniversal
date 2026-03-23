@@ -124,6 +124,7 @@ def test_user_config_path_linux_manual_fallback(monkeypatch):
 def test_user_config_path_windows_manual_fallback(monkeypatch):
     """Falls back to %APPDATA%\\ComfyUI-LoRA-Manager\\settings.json on Windows."""
     import builtins
+    import sys
     real_import = builtins.__import__
 
     def _block_platformdirs(name, *args, **kwargs):
@@ -131,6 +132,9 @@ def test_user_config_path_windows_manual_fallback(monkeypatch):
             raise ImportError("blocked for test")
         return real_import(name, *args, **kwargs)
 
+    # Evict platformdirs from sys.modules so the import statement inside the
+    # function isn't bypassed by the module cache, making the __import__ patch reliable.
+    monkeypatch.delitem(sys.modules, "platformdirs", raising=False)
     monkeypatch.setattr(builtins, "__import__", _block_platformdirs)
     monkeypatch.setattr("platform.system", lambda: "Windows")
     appdata = r"C:\Users\Tester\AppData\Roaming"

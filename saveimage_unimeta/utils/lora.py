@@ -55,7 +55,10 @@ def _find_lora_manager_root() -> str | None:
             if os.path.isdir(candidate):
                 return candidate
     except Exception:
-        pass
+        logger.debug(
+            "Unexpected error while locating LoraManager plugin directory.",
+            exc_info=True,
+        )
     return None
 
 
@@ -115,7 +118,7 @@ def _read_lora_manager_settings(plugin_root: str) -> dict | None:
             if data.get("use_portable_settings"):
                 return data
         except Exception:
-            pass
+            logger.debug("Failed to parse LoraManager settings at %r.", portable_path, exc_info=True)
 
     # 2. User-config directory
     user_path = _get_lora_manager_user_config_path()
@@ -124,7 +127,7 @@ def _read_lora_manager_settings(plugin_root: str) -> dict | None:
             with open(user_path, encoding="utf-8") as fh:
                 return json.load(fh)
         except Exception:
-            pass
+            logger.debug("Failed to parse LoraManager settings at %r.", user_path, exc_info=True)
 
     # 3. Legacy: settings.json in plugin root without portable flag
     if os.path.isfile(portable_path):
@@ -132,7 +135,7 @@ def _read_lora_manager_settings(plugin_root: str) -> dict | None:
             with open(portable_path, encoding="utf-8") as fh:
                 return json.load(fh)
         except Exception:
-            pass
+            logger.debug("Failed to parse LoraManager settings at %r.", portable_path, exc_info=True)
 
     return None
 
