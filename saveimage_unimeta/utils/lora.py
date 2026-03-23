@@ -181,6 +181,8 @@ def build_lora_index() -> None:
 
         * Deduplication is case-insensitive on Windows (``os.path.normcase`` + ``normpath``) so
           directories that appear in both sources are only walked once.
+        * ComfyUI standard paths take precedence — they are walked first, so a
+          filename in a standard directory shadows the same filename in a LoraManager-only path.
         * Recursively walks subdirectories within each unique directory.
         * Records the FIRST occurrence of each base filename (stem) only.
         * Supported extensions: ``.safetensors``, ``.st``, ``.pt``, ``.bin``, ``.ckpt``.
@@ -200,19 +202,39 @@ def build_lora_index() -> None:
     lora_paths = folder_paths.get_folder_paths("loras")
     extensions = list(SUPPORTED_MODEL_EXTENSIONS)
 
-    # Include extra lora paths registered only with LoraManager (not ComfyUI's folder_paths).
     extra_lm_paths = _get_lora_manager_lora_paths()
-    if extra_lm_paths:
-        logger.info("[Metadata Lib] Found %d extra LoRA path(s) from LoraManager settings.", len(extra_lm_paths))
 
-    # Deduplicate across both sources (case-insensitive on Windows) to avoid walking the same directory twice.
+    # Deduplicate across both sources (case-insensitive on Windows) to avoid
+    # walking the same directory twice. Standard ComfyUI paths are added first
+    # so they take precedence in the filename-stem index.
     seen_dirs: set[str] = set()
     all_lora_dirs: list[str] = []
-    for d in list(lora_paths) + extra_lm_paths:
+
+    for d in lora_paths:
         norm = os.path.normcase(os.path.normpath(d))
         if norm not in seen_dirs:
             seen_dirs.add(norm)
             all_lora_dirs.append(d)
+
+    extra_unique_dirs: list[str] = []
+    for d in extra_lm_paths:
+        norm = os.path.normcase(os.path.normpath(d))
+        if norm not in seen_dirs:
+            seen_dirs.add(norm)
+            all_lora_dirs.append(d)
+            extra_unique_dirs.append(d)
+
+    if extra_lm_paths:
+        if extra_unique_dirs:
+            logger.info(
+                "[Metadata Lib] Found %d extra LoRA path(s) from LoraManager settings.",
+                len(extra_unique_dirs),
+            )
+        else:
+            logger.info(
+                "[Metadata Lib] LoraManager settings.json defined LoRA paths,"
+                " but all are already covered by existing LoRA directories.",
+            )
 
     for lora_dir in all_lora_dirs:
         for root, _, files in os.walk(lora_dir):
