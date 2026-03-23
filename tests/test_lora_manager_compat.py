@@ -102,6 +102,7 @@ def test_user_config_path_returns_settings_json_string():
 def test_user_config_path_linux_manual_fallback(monkeypatch):
     """Falls back to ~/.config/ComfyUI-LoRA-Manager/settings.json on Linux when no platformdirs."""
     import builtins
+    import sys
     real_import = builtins.__import__
 
     def _block_platformdirs(name, *args, **kwargs):
@@ -109,6 +110,9 @@ def test_user_config_path_linux_manual_fallback(monkeypatch):
             raise ImportError("blocked for test")
         return real_import(name, *args, **kwargs)
 
+    # Evict platformdirs from sys.modules so the import statement inside the
+    # function isn't bypassed by the module cache, making the __import__ patch reliable.
+    monkeypatch.delitem(sys.modules, "platformdirs", raising=False)
     monkeypatch.setattr(builtins, "__import__", _block_platformdirs)
     monkeypatch.setattr("platform.system", lambda: "Linux")
     monkeypatch.setenv("XDG_CONFIG_HOME", "/custom/config")

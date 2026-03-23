@@ -72,6 +72,12 @@ def _get_lora_manager_user_config_path() -> str | None:
         return os.path.join(platformdirs.user_config_dir(app, appauthor=False), "settings.json")
     except ImportError:
         pass
+    except Exception:
+        logger.debug(
+            "Failed to resolve LoraManager user_config_dir via platformdirs; "
+            "falling back to manual path derivation.",
+            exc_info=True,
+        )
     # Manual fallback per platform
     try:
         system = platform.system()
