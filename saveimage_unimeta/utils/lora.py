@@ -173,8 +173,15 @@ def build_lora_index() -> None:
     """Populate (idempotently) the in-memory LoRA file index.
 
     Scan order & behavior:
-        * Enumerates every directory in ``folder_paths.get_folder_paths('loras')``.
-        * Recursively walks subdirectories.
+        * Enumerates every directory from two sources, merged and deduplicated:
+
+          1. ``folder_paths.get_folder_paths('loras')`` — standard ComfyUI LoRA paths.
+          2. ``_get_lora_manager_lora_paths()`` — any additional paths registered only with
+             LoraManager (via its ``extra_folder_paths`` or ``folder_paths`` settings).
+
+        * Deduplication is case-insensitive on Windows (``os.path.normcase`` + ``normpath``) so
+          directories that appear in both sources are only walked once.
+        * Recursively walks subdirectories within each unique directory.
         * Records the FIRST occurrence of each base filename (stem) only.
         * Supported extensions: ``.safetensors``, ``.st``, ``.pt``, ``.bin``, ``.ckpt``.
 

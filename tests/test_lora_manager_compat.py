@@ -52,8 +52,6 @@ def test_find_lora_manager_root_finds_hyphenated_name(monkeypatch, tmp_path):
     target = tmp_path / "comfyui-lora-manager"
     target.mkdir()
 
-    real_isdir = os.path.isdir
-
     def _patched(path):
         if path == str(target):
             return True
@@ -131,10 +129,11 @@ def test_user_config_path_windows_manual_fallback(monkeypatch):
 
     monkeypatch.setattr(builtins, "__import__", _block_platformdirs)
     monkeypatch.setattr("platform.system", lambda: "Windows")
-    monkeypatch.setenv("APPDATA", r"C:\Users\Tester\AppData\Roaming")
+    appdata = r"C:\Users\Tester\AppData\Roaming"
+    monkeypatch.setenv("APPDATA", appdata)
 
     path = _get_lora_manager_user_config_path()
-    assert path == r"C:\Users\Tester\AppData\Roaming\ComfyUI-LoRA-Manager\settings.json"
+    assert path == os.path.join(appdata, "ComfyUI-LoRA-Manager", "settings.json")
 
 
 # ---------------------------------------------------------------------------
