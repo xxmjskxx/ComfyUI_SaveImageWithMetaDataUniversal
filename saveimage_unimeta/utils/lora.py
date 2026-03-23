@@ -10,6 +10,7 @@ Includes:
 
 import logging
 import os
+import platform
 import re
 
 import folder_paths
@@ -21,6 +22,151 @@ import json
 _LORA_INDEX: dict[str, dict[str, str]] | None = None
 _LORA_INDEX_BUILT: bool = False
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# LoraManager compat helpers – read extra lora paths from its settings.json
+# ---------------------------------------------------------------------------
+# Directory names the comfyui-lora-manager plugin is commonly installed under.
+_LORA_MANAGER_DIR_NAMES: tuple[str, ...] = (
+    "comfyui-lora-manager",
+    "ComfyUI-Lora-Manager",
+    "ComfyUI-LoRA-Manager",
+    "comfyui_lora_manager",
+    "ComfyUI_Lora_Manager",
+)
+# The app name used by LoraManager for its platformdirs user-config directory.
+_LORA_MANAGER_APP_NAME = "ComfyUI-LoRA-Manager"
+
+
+def _find_lora_manager_root() -> str | None:
+    """Locate the comfyui-lora-manager custom node directory, or None if not installed.
+
+    Derives the ``custom_nodes/`` parent from this file's own path
+    (lora.py → utils/ → saveimage_unimeta/ → plugin_root/ → custom_nodes/)
+    and then checks common directory names for the LoraManager plugin.
+    """
+    try:
+        # Walk up four dirname levels: lora.py -> utils -> saveimage_unimeta -> plugin_root -> custom_nodes
+        custom_nodes_dir = os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        )
+        for name in _LORA_MANAGER_DIR_NAMES:
+            candidate = os.path.join(custom_nodes_dir, name)
+            if os.path.isdir(candidate):
+                return candidate
+    except Exception:
+        pass
+    return None
+
+
+def _get_lora_manager_user_config_path() -> str | None:
+    """Return the platform-specific user-config path for LoraManager's settings.json.
+
+    Tries ``platformdirs`` first (same library LoraManager itself uses), then
+    falls back to per-platform manual derivation so we don't require it as a
+    hard dependency.
+    """
+    app = _LORA_MANAGER_APP_NAME
+    try:
+        import platformdirs  # available when LoraManager is installed
+        return os.path.join(platformdirs.user_config_dir(app, appauthor=False), "settings.json")
+    except ImportError:
+        pass
+    # Manual fallback per platform
+    try:
+        system = platform.system()
+        if system == "Windows":
+            base = os.environ.get("APPDATA") or os.path.expanduser(os.path.join("~", "AppData", "Roaming"))
+            return os.path.join(base, app, "settings.json")
+        if system == "Darwin":
+            return os.path.expanduser(os.path.join("~", "Library", "Application Support", app, "settings.json"))
+        # Linux / other POSIX
+        base = os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser(os.path.join("~", ".config"))
+        return os.path.join(base, app, "settings.json")
+    except Exception:
+        return None
+
+
+def _read_lora_manager_settings(plugin_root: str) -> dict | None:
+    """Parse LoraManager's settings.json, handling portable vs user-config locations.
+
+    Resolution order (mirrors LoraManager's own ``ensure_settings_file`` logic):
+
+    1. **Portable mode** – ``<plugin_root>/settings.json`` exists *and* contains
+       ``"use_portable_settings": true``.
+    2. **User-config mode** – platform user-config directory
+       (e.g. ``%APPDATA%\\ComfyUI-LoRA-Manager\\settings.json`` on Windows).
+    3. **Legacy fallback** – ``<plugin_root>/settings.json`` without the portable
+       flag (present before first migration to user-config dir).
+    """
+    portable_path = os.path.join(plugin_root, "settings.json")
+
+    # 1. Portable mode
+    if os.path.isfile(portable_path):
+        try:
+            with open(portable_path, encoding="utf-8") as fh:
+                data = json.load(fh)
+            if data.get("use_portable_settings"):
+                return data
+        except Exception:
+            pass
+
+    # 2. User-config directory
+    user_path = _get_lora_manager_user_config_path()
+    if user_path and os.path.isfile(user_path):
+        try:
+            with open(user_path, encoding="utf-8") as fh:
+                return json.load(fh)
+        except Exception:
+            pass
+
+    # 3. Legacy: settings.json in plugin root without portable flag
+    if os.path.isfile(portable_path):
+        try:
+            with open(portable_path, encoding="utf-8") as fh:
+                return json.load(fh)
+        except Exception:
+            pass
+
+    return None
+
+
+def _get_lora_manager_lora_paths() -> list[str]:
+    """Return lora directory paths from LoraManager's settings.json.
+
+    Reads from both ``extra_folder_paths.loras`` (paths exclusive to LoraManager)
+    and ``folder_paths.loras`` (which may differ from ComfyUI's paths when the
+    user has activated a non-default LoraManager library).
+
+    Returns an empty list if LoraManager is not installed, has no settings file,
+    or has no additional lora paths configured.
+    """
+    plugin_root = _find_lora_manager_root()
+    if not plugin_root:
+        return []
+
+    settings = _read_lora_manager_settings(plugin_root)
+    if not settings or not isinstance(settings, dict):
+        return []
+
+    paths: list[str] = []
+    for key in ("extra_folder_paths", "folder_paths"):
+        section = settings.get(key)
+        if not isinstance(section, dict):
+            continue
+        for p in section.get("loras", []):
+            if isinstance(p, str) and p.strip():
+                paths.append(p.strip())
+
+    # Deduplicate (case-insensitive on Windows) while preserving order.
+    seen: set[str] = set()
+    unique: list[str] = []
+    for p in paths:
+        norm = os.path.normcase(os.path.normpath(p))
+        if norm not in seen:
+            seen.add(norm)
+            unique.append(p)
+    return unique
 
 
 def build_lora_index() -> None:
@@ -47,7 +193,21 @@ def build_lora_index() -> None:
     lora_paths = folder_paths.get_folder_paths("loras")
     extensions = list(SUPPORTED_MODEL_EXTENSIONS)
 
-    for lora_dir in lora_paths:
+    # Include extra lora paths registered only with LoraManager (not ComfyUI's folder_paths).
+    extra_lm_paths = _get_lora_manager_lora_paths()
+    if extra_lm_paths:
+        logger.info("[Metadata Lib] Found %d extra LoRA path(s) from LoraManager settings.", len(extra_lm_paths))
+
+    # Deduplicate across both sources (case-insensitive on Windows) to avoid walking the same directory twice.
+    seen_dirs: set[str] = set()
+    all_lora_dirs: list[str] = []
+    for d in list(lora_paths) + extra_lm_paths:
+        norm = os.path.normcase(os.path.normpath(d))
+        if norm not in seen_dirs:
+            seen_dirs.add(norm)
+            all_lora_dirs.append(d)
+
+    for lora_dir in all_lora_dirs:
         for root, _, files in os.walk(lora_dir):
             for file in files:
                 file_base, file_ext = os.path.splitext(file)
