@@ -51,7 +51,7 @@ except (ImportError, ModuleNotFoundError):  # noqa: BLE001 - provide minimal stu
 
 
 from ..utils.embedding import get_embedding_file_path
-from ..utils.lora import find_lora_info
+from ..utils.lora import find_lora_info, find_checkpoint_info, find_unet_info, get_lora_manager_paths
 from ..utils.pathresolve import (
     try_resolve_artifact,
     sanitize_candidate,
@@ -73,6 +73,9 @@ _LOGGER_INITIALIZED = False
 _HANDLER_TAG = "__hash_logger_handler__"
 _BANNER_PRINTED = False
 
+# Session-lifetime cache for LoraManager embedding paths (avoids file I/O on every image)
+_LM_EMBEDDING_DIRS_CACHE: list[str] | None = None
+
 # Prevent duplicate module instances under different package names (runtime vs tests)
 _SELF = _sys.modules.get(__name__)
 _ALT_NAMES = [
@@ -82,6 +85,14 @@ _ALT_NAMES = [
 for _n in _ALT_NAMES:
     if _n not in _sys.modules and _SELF is not None:
         _sys.modules[_n] = _SELF
+
+
+def _get_lm_embedding_dirs() -> list[str]:
+    """Return LoraManager embedding paths, cached for the session lifetime."""
+    global _LM_EMBEDDING_DIRS_CACHE
+    if _LM_EMBEDDING_DIRS_CACHE is None:
+        _LM_EMBEDDING_DIRS_CACHE = get_lora_manager_paths("embeddings")
+    return _LM_EMBEDDING_DIRS_CACHE
 
 
 def set_hash_log_mode(mode: str):
@@ -281,7 +292,12 @@ _EMBEDDING_TRAILING_STRIP = " ,，。.;；:：!?！？、·"
 
 def _ckpt_name_to_path(name_like: Any) -> tuple[str, str | None]:
     """Unified resolver wrapper for backward compatibility."""
-    res = try_resolve_artifact("checkpoints", name_like)
+    def _ckpt_index_resolver(stem: str) -> str | None:
+        key, _ = os.path.splitext(stem)
+        info = find_checkpoint_info(key if key else stem)
+        return info["abspath"] if info else None
+
+    res = try_resolve_artifact("checkpoints", name_like, post_resolvers=[_ckpt_index_resolver])
     if res.full_path:
         return res.display_name, res.full_path
     # Legacy fallback (ensures test patches to this module's folder_paths still work)
@@ -705,8 +721,13 @@ def calc_unet_hash(model_name: Any, input_data: list) -> str:
         10-character truncated hex hash or 'N/A'.
     """
 
+    def _unet_index_resolver(stem: str) -> str | None:
+        key, _ = os.path.splitext(stem)
+        info = find_unet_info(key if key else stem)
+        return info["abspath"] if info else None
+
     # Unified attempt
-    res = try_resolve_artifact("unet", model_name)
+    res = try_resolve_artifact("unet", model_name, post_resolvers=[_unet_index_resolver])
     filename = res.full_path
     if not filename and isinstance(model_name, str):  # legacy fallback for tests
         original = model_name
@@ -892,6 +913,7 @@ def _extract_embedding_candidates(text, input_data):
         parsed_weights = [(text, 1.0)]
 
     allow_resolution = clip is not None and bool(embedding_dir)
+    lm_embedding_dirs = _get_lm_embedding_dirs()
 
     embedding_names: list[str] = []
     resolved_paths: list[str | None] = []
@@ -934,10 +956,22 @@ def _extract_embedding_candidates(text, input_data):
                 resolved_path = None
                 if allow_resolution:
                     try:
-                        resolved_path = get_embedding_file_path(sanitized, clip)
+                        resolved_path = get_embedding_file_path(
+                            sanitized, clip, extra_dirs=lm_embedding_dirs or None
+                        )
                     except (OSError, TypeError, ValueError) as err:
                         logger.debug(
                             "[Metadata Lib] Embedding '%s' resolution error: %r",
+                            display_name,
+                            err,
+                        )
+                        resolved_path = None
+                elif lm_embedding_dirs:
+                    try:
+                        resolved_path = get_embedding_file_path(sanitized, None, extra_dirs=lm_embedding_dirs)
+                    except (OSError, TypeError, ValueError) as err:
+                        logger.debug(
+                            "[Metadata Lib] Embedding '%s' LoraManager resolution error: %r",
                             display_name,
                             err,
                         )

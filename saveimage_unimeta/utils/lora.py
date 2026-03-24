@@ -6,6 +6,7 @@ used in prompts (e.g., `<lora:name:strength>`). This allows for the efficient
 extraction and resolution of LoRA metadata from a ComfyUI workflow.
 Includes:
 * One-time index mapping LoRA base names to on-disk locations (for fast lookup).
+* One-time index mapping checkpoint/UNet base names to on-disk locations.
 """
 
 import logging
@@ -21,6 +22,10 @@ import json
 # This index will be built once and reused to speed up all subsequent LoRA lookups.
 _LORA_INDEX: dict[str, dict[str, str]] | None = None
 _LORA_INDEX_BUILT: bool = False
+_CHECKPOINT_INDEX: dict[str, dict[str, str]] | None = None
+_CHECKPOINT_INDEX_BUILT: bool = False
+_UNET_INDEX: dict[str, dict[str, str]] | None = None
+_UNET_INDEX_BUILT: bool = False
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -140,15 +145,21 @@ def _read_lora_manager_settings(plugin_root: str) -> dict | None:
     return None
 
 
-def _get_lora_manager_lora_paths() -> list[str]:
-    """Return lora directory paths from LoraManager's settings.json.
+def get_lora_manager_paths(model_type: str) -> list[str]:
+    """Return extra model directory paths from LoraManager's settings.json.
 
-    Reads from both ``extra_folder_paths.loras`` (paths exclusive to LoraManager)
-    and ``folder_paths.loras`` (which may differ from ComfyUI's paths when the
-    user has activated a non-default LoraManager library).
+    Reads from both ``extra_folder_paths.<model_type>`` and
+    ``folder_paths.<model_type>`` keys in the settings file.
 
-    Returns an empty list if LoraManager is not installed, has no settings file,
-    or has no additional lora paths configured.
+    Args:
+        model_type: The model type key used in LoraManager's settings
+            (e.g. ``"loras"``, ``"checkpoints"``, ``"unet"``,
+            ``"embeddings"``).
+
+    Returns:
+        Deduplicated list of absolute path strings, or an empty list if
+        LoraManager is not installed, has no settings file, or has no
+        paths for the requested type.
     """
     plugin_root = _find_lora_manager_root()
     if not plugin_root:
@@ -163,7 +174,7 @@ def _get_lora_manager_lora_paths() -> list[str]:
         section = settings.get(key)
         if not isinstance(section, dict):
             continue
-        for p in section.get("loras", []):
+        for p in section.get(model_type, []):
             if isinstance(p, str) and p.strip():
                 paths.append(p.strip())
 
@@ -176,6 +187,19 @@ def _get_lora_manager_lora_paths() -> list[str]:
             seen.add(norm)
             unique.append(p)
     return unique
+
+
+def _get_lora_manager_lora_paths() -> list[str]:
+    """Return lora directory paths from LoraManager's settings.json.
+
+    Reads from both ``extra_folder_paths.loras`` (paths exclusive to LoraManager)
+    and ``folder_paths.loras`` (which may differ from ComfyUI's paths when the
+    user has activated a non-default LoraManager library).
+
+    Returns an empty list if LoraManager is not installed, has no settings file,
+    or has no additional lora paths configured.
+    """
+    return get_lora_manager_paths("loras")
 
 
 def build_lora_index() -> None:
@@ -290,6 +314,200 @@ def find_lora_info(base_name: str) -> dict[str, str] | None:
     return _LORA_INDEX.get(base_name)
 
 
+# ---------------------------------------------------------------------------
+# TODO: LoraManager currently only populates extra_folder_paths.loras in
+#   practice, so build_checkpoint_index and build_unet_index will typically
+#   return no extra paths. These functions are implemented for forward
+#   compatibility when LoraManager expands its extra-paths support.
+# ---------------------------------------------------------------------------
+
+
+def build_checkpoint_index() -> None:
+    """Populate (idempotently) the in-memory checkpoint file index.
+
+    Mirrors :func:`build_lora_index` for checkpoint files.  Scans
+    ``folder_paths.get_folder_paths('checkpoints')`` plus any extra
+    paths from LoraManager's settings (forward-compat — not currently
+    populated by LoraManager).
+
+    Side Effects:
+        Mutates module-level caches ``_CHECKPOINT_INDEX`` and
+        ``_CHECKPOINT_INDEX_BUILT``.
+    """
+    global _CHECKPOINT_INDEX, _CHECKPOINT_INDEX_BUILT
+    if _CHECKPOINT_INDEX_BUILT:
+        return
+
+    logger.info("[Metadata Lib] Building checkpoint file index for the first time...")
+    _CHECKPOINT_INDEX = {}
+    ckpt_paths = folder_paths.get_folder_paths("checkpoints")
+    extensions = list(SUPPORTED_MODEL_EXTENSIONS)
+
+    extra_lm_paths = get_lora_manager_paths("checkpoints")
+
+    seen_dirs: set[str] = set()
+    all_ckpt_dirs: list[str] = []
+
+    for d in ckpt_paths:
+        norm = os.path.normcase(os.path.normpath(d))
+        if norm not in seen_dirs:
+            seen_dirs.add(norm)
+            all_ckpt_dirs.append(d)
+
+    extra_unique_dirs: list[str] = []
+    for d in extra_lm_paths:
+        norm = os.path.normcase(os.path.normpath(d))
+        if norm not in seen_dirs:
+            seen_dirs.add(norm)
+            all_ckpt_dirs.append(d)
+            extra_unique_dirs.append(d)
+
+    if extra_lm_paths:
+        if extra_unique_dirs:
+            logger.info(
+                "[Metadata Lib] Found %d extra checkpoint path(s) from LoraManager settings.",
+                len(extra_unique_dirs),
+            )
+        else:
+            logger.info(
+                "[Metadata Lib] LoraManager settings.json defined checkpoint paths,"
+                " but all are already covered by existing checkpoint directories.",
+            )
+
+    for ckpt_dir in all_ckpt_dirs:
+        for root, _, files in os.walk(ckpt_dir):
+            for file in files:
+                file_base, file_ext = os.path.splitext(file)
+                if file_ext in extensions and file_base not in _CHECKPOINT_INDEX:
+                    _CHECKPOINT_INDEX[file_base] = {
+                        "filename": file,
+                        "abspath": os.path.join(root, file),
+                    }
+
+    _CHECKPOINT_INDEX_BUILT = True
+    logger.info("[Metadata Lib] Checkpoint index built with %d entries.", len(_CHECKPOINT_INDEX))
+    try:
+        if dump_env := os.environ.get("METADATA_DUMP_CHECKPOINT_INDEX"):
+            dump_path = dump_env.strip()
+            if dump_path.lower() == "1":
+                dump_path = os.path.join(os.getcwd(), "_checkpoint_index_dump.json")
+            with open(dump_path, "w", encoding="utf-8") as f:
+                json.dump(_CHECKPOINT_INDEX, f, indent=2, sort_keys=True)
+            logger.info("[Metadata Lib] Checkpoint index dumped to %s", dump_path)
+    except Exception as e:  # pragma: no cover - diagnostic optional
+        logger.debug("[Metadata Lib] Failed dumping checkpoint index: %r", e)
+
+
+def find_checkpoint_info(base_name: str) -> dict[str, str] | None:
+    """Find the indexed information for a checkpoint by its base name.
+
+    Args:
+        base_name (str): The base name of the checkpoint file (without the
+            extension).
+
+    Returns:
+        dict[str, str] | None: A dictionary containing the ``filename`` and
+            ``abspath`` of the checkpoint, or None if not found.
+    """
+    build_checkpoint_index()
+    if _CHECKPOINT_INDEX is None:
+        return None
+    return _CHECKPOINT_INDEX.get(base_name)
+
+
+def build_unet_index() -> None:
+    """Populate (idempotently) the in-memory UNet file index.
+
+    Mirrors :func:`build_lora_index` for UNet files.  Scans
+    ``folder_paths.get_folder_paths('unet')`` plus any extra paths from
+    LoraManager's settings (forward-compat — not currently populated by
+    LoraManager).
+
+    Side Effects:
+        Mutates module-level caches ``_UNET_INDEX`` and
+        ``_UNET_INDEX_BUILT``.
+    """
+    global _UNET_INDEX, _UNET_INDEX_BUILT
+    if _UNET_INDEX_BUILT:
+        return
+
+    logger.info("[Metadata Lib] Building UNet file index for the first time...")
+    _UNET_INDEX = {}
+    unet_paths = folder_paths.get_folder_paths("unet")
+    extensions = list(SUPPORTED_MODEL_EXTENSIONS)
+
+    extra_lm_paths = get_lora_manager_paths("unet")
+
+    seen_dirs: set[str] = set()
+    all_unet_dirs: list[str] = []
+
+    for d in unet_paths:
+        norm = os.path.normcase(os.path.normpath(d))
+        if norm not in seen_dirs:
+            seen_dirs.add(norm)
+            all_unet_dirs.append(d)
+
+    extra_unique_dirs: list[str] = []
+    for d in extra_lm_paths:
+        norm = os.path.normcase(os.path.normpath(d))
+        if norm not in seen_dirs:
+            seen_dirs.add(norm)
+            all_unet_dirs.append(d)
+            extra_unique_dirs.append(d)
+
+    if extra_lm_paths:
+        if extra_unique_dirs:
+            logger.info(
+                "[Metadata Lib] Found %d extra UNet path(s) from LoraManager settings.",
+                len(extra_unique_dirs),
+            )
+        else:
+            logger.info(
+                "[Metadata Lib] LoraManager settings.json defined UNet paths,"
+                " but all are already covered by existing UNet directories.",
+            )
+
+    for unet_dir in all_unet_dirs:
+        for root, _, files in os.walk(unet_dir):
+            for file in files:
+                file_base, file_ext = os.path.splitext(file)
+                if file_ext in extensions and file_base not in _UNET_INDEX:
+                    _UNET_INDEX[file_base] = {
+                        "filename": file,
+                        "abspath": os.path.join(root, file),
+                    }
+
+    _UNET_INDEX_BUILT = True
+    logger.info("[Metadata Lib] UNet index built with %d entries.", len(_UNET_INDEX))
+    try:
+        if dump_env := os.environ.get("METADATA_DUMP_UNET_INDEX"):
+            dump_path = dump_env.strip()
+            if dump_path.lower() == "1":
+                dump_path = os.path.join(os.getcwd(), "_unet_index_dump.json")
+            with open(dump_path, "w", encoding="utf-8") as f:
+                json.dump(_UNET_INDEX, f, indent=2, sort_keys=True)
+            logger.info("[Metadata Lib] UNet index dumped to %s", dump_path)
+    except Exception as e:  # pragma: no cover - diagnostic optional
+        logger.debug("[Metadata Lib] Failed dumping UNet index: %r", e)
+
+
+def find_unet_info(base_name: str) -> dict[str, str] | None:
+    """Find the indexed information for a UNet by its base name.
+
+    Args:
+        base_name (str): The base name of the UNet file (without the
+            extension).
+
+    Returns:
+        dict[str, str] | None: A dictionary containing the ``filename`` and
+            ``abspath`` of the UNet, or None if not found.
+    """
+    build_unet_index()
+    if _UNET_INDEX is None:
+        return None
+    return _UNET_INDEX.get(base_name)
+
+
 # -----------------------------
 # Shared LoRA syntax utilities
 # -----------------------------
@@ -395,8 +613,13 @@ def resolve_lora_display_names(raw_names: list[str]) -> list[str]:
 
 
 __all__ = [
+    "get_lora_manager_paths",
     "build_lora_index",
     "find_lora_info",
+    "build_checkpoint_index",
+    "find_checkpoint_info",
+    "build_unet_index",
+    "find_unet_info",
     # syntax helpers
     "STRICT",
     "LEGACY",
