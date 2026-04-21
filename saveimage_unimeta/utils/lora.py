@@ -331,9 +331,20 @@ def build_checkpoint_index() -> None:
     paths from LoraManager's settings (forward-compat — not currently
     populated by LoraManager).
 
+    Environment:
+        ``METADATA_DUMP_CHECKPOINT_INDEX`` optionally writes the built
+        index to disk for diagnostics or tests. The current behavior is:
+        - unset or ``""``: skip writing a dump file;
+        - ``"1"``: write JSON to
+          ``os.path.join(os.getcwd(), "_checkpoint_index_dump.json")``;
+        - any other non-empty value: strip it and treat it as the output
+          file path.
+
     Side Effects:
         Mutates module-level caches ``_CHECKPOINT_INDEX`` and
-        ``_CHECKPOINT_INDEX_BUILT``.
+        ``_CHECKPOINT_INDEX_BUILT``. When
+        ``METADATA_DUMP_CHECKPOINT_INDEX`` is set as described above,
+        also writes a JSON dump of ``_CHECKPOINT_INDEX`` to disk.
     """
     global _CHECKPOINT_INDEX, _CHECKPOINT_INDEX_BUILT
     if _CHECKPOINT_INDEX_BUILT:
@@ -424,9 +435,20 @@ def build_unet_index() -> None:
     LoraManager's settings (forward-compat — not currently populated by
     LoraManager).
 
+    Environment:
+        ``METADATA_DUMP_UNET_INDEX`` optionally writes the built index to
+        disk for diagnostics or tests. The current behavior is:
+        - unset or ``""``: skip writing a dump file;
+        - ``"1"``: write JSON to
+          ``os.path.join(os.getcwd(), "_unet_index_dump.json")``;
+        - any other non-empty value: strip it and treat it as the output
+          file path.
+
     Side Effects:
         Mutates module-level caches ``_UNET_INDEX`` and
-        ``_UNET_INDEX_BUILT``.
+        ``_UNET_INDEX_BUILT``. When ``METADATA_DUMP_UNET_INDEX`` is set
+        as described above, also writes a JSON dump of ``_UNET_INDEX``
+        to disk.
     """
     global _UNET_INDEX, _UNET_INDEX_BUILT
     if _UNET_INDEX_BUILT:
