@@ -249,7 +249,7 @@ def test_lora_paths_from_extra_folder_paths(tmp_path, monkeypatch):
     monkeypatch.setattr(lora_mod, "_read_lora_manager_settings", lambda _root: settings)
 
     result = _get_lora_manager_lora_paths()
-    assert result == ["/extra/loras"]
+    assert result == [os.path.abspath("/extra/loras")]
 
 
 def test_lora_paths_from_folder_paths(tmp_path, monkeypatch):
@@ -259,7 +259,7 @@ def test_lora_paths_from_folder_paths(tmp_path, monkeypatch):
     monkeypatch.setattr(lora_mod, "_read_lora_manager_settings", lambda _root: settings)
 
     result = _get_lora_manager_lora_paths()
-    assert result == ["/library/loras"]
+    assert result == [os.path.abspath("/library/loras")]
 
 
 def test_lora_paths_merges_both_keys(tmp_path, monkeypatch):
@@ -272,8 +272,8 @@ def test_lora_paths_merges_both_keys(tmp_path, monkeypatch):
     monkeypatch.setattr(lora_mod, "_read_lora_manager_settings", lambda _root: settings)
 
     result = _get_lora_manager_lora_paths()
-    assert "/extra/loras" in result
-    assert "/standard/loras" in result
+    assert os.path.abspath("/extra/loras") in result
+    assert os.path.abspath("/standard/loras") in result
     assert len(result) == 2
 
 
@@ -288,7 +288,7 @@ def test_lora_paths_deduplicates_same_path(tmp_path, monkeypatch):
     monkeypatch.setattr(lora_mod, "_read_lora_manager_settings", lambda _root: settings)
 
     result = _get_lora_manager_lora_paths()
-    assert result == [shared]
+    assert result == [os.path.abspath(shared)]
 
 
 def test_lora_paths_returns_empty_when_plugin_not_installed(monkeypatch):
@@ -310,7 +310,7 @@ def test_lora_paths_ignores_empty_string_entries(tmp_path, monkeypatch):
     monkeypatch.setattr(lora_mod, "_find_lora_manager_root", lambda: str(tmp_path))
     monkeypatch.setattr(lora_mod, "_read_lora_manager_settings", lambda _root: settings)
     result = _get_lora_manager_lora_paths()
-    assert result == ["/real/path"]
+    assert result == [os.path.abspath("/real/path")]
 
 
 def test_lora_paths_tolerates_missing_loras_key(tmp_path, monkeypatch):
@@ -332,7 +332,34 @@ def test_get_lora_manager_paths_reads_non_lora_type(tmp_path, monkeypatch):
     monkeypatch.setattr(lora_mod, "_read_lora_manager_settings", lambda _root: settings)
 
     result = get_lora_manager_paths("checkpoints")
-    assert result == ["/ckpt/extra"]
+    assert result == [os.path.abspath("/ckpt/extra")]
+
+
+def test_get_lora_manager_paths_normalizes_and_deduplicates_paths(tmp_path, monkeypatch):
+    """get_lora_manager_paths expands user-relative paths and deduplicates normalized entries."""
+    home_dir = tmp_path / "home"
+    home_dir.mkdir()
+    settings = {
+        "extra_folder_paths": {"checkpoints": ["models", "./models"]},
+        "folder_paths": {"checkpoints": ["~/ckpts"]},
+    }
+    real_expanduser = lora_mod.os.path.expanduser
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(lora_mod, "_find_lora_manager_root", lambda: str(tmp_path))
+    monkeypatch.setattr(lora_mod, "_read_lora_manager_settings", lambda _root: settings)
+    monkeypatch.setattr(
+        lora_mod.os.path,
+        "expanduser",
+        lambda value: str(home_dir / value[2:]) if value.startswith("~/") else real_expanduser(value),
+    )
+
+    result = get_lora_manager_paths("checkpoints")
+
+    assert result == [
+        os.path.abspath(str(tmp_path / "models")),
+        os.path.abspath(str(home_dir / "ckpts")),
+    ]
 
 
 # ---------------------------------------------------------------------------

@@ -1,4 +1,5 @@
 import logging
+import types
 
 from saveimage_unimeta.defs import formatters
 
@@ -48,3 +49,47 @@ def test_hash_skipped_reason_debug(monkeypatch):
     assert "hash skipped reason=unresolved token=does_not_exist_model_123" in log_all
     assert "hash skipped reason=unresolved token=ghost_lora_999" in log_all
     assert "hash skipped reason=unresolved token=phantom_unet_777" in log_all
+
+
+def test_ckpt_index_resolver_uses_basename_for_subdir_tokens(tmp_path, monkeypatch):
+    model_file = tmp_path / "checkpoints" / "retryModel.safetensors"
+    model_file.parent.mkdir(parents=True, exist_ok=True)
+    model_file.write_text("content-retry", encoding="utf-8")
+
+    def _fake_try_resolve_artifact(_kind, _name_like, post_resolvers=None):
+        resolved = post_resolvers[0]("nested/retryModel.safetensors") if post_resolvers else None
+        return types.SimpleNamespace(display_name="retryModel", full_path=resolved)
+
+    monkeypatch.setattr(formatters, "try_resolve_artifact", _fake_try_resolve_artifact)
+    monkeypatch.setattr(
+        formatters,
+        "find_checkpoint_info",
+        lambda key: {"abspath": str(model_file)} if key == "retryModel" else None,
+    )
+
+    display, path = formatters._ckpt_name_to_path("nested/retryModel.safetensors")
+
+    assert display == "retryModel"
+    assert path == str(model_file)
+
+
+def test_unet_index_resolver_uses_basename_for_subdir_tokens(tmp_path, monkeypatch):
+    model_file = tmp_path / "unet" / "flux1-dev.safetensors"
+    model_file.parent.mkdir(parents=True, exist_ok=True)
+    model_file.write_text("content-unet", encoding="utf-8")
+
+    def _fake_try_resolve_artifact(_kind, _name_like, post_resolvers=None):
+        resolved = post_resolvers[0]("nested/flux1-dev.safetensors") if post_resolvers else None
+        return types.SimpleNamespace(display_name="flux1-dev", full_path=resolved)
+
+    monkeypatch.setattr(formatters, "try_resolve_artifact", _fake_try_resolve_artifact)
+    monkeypatch.setattr(
+        formatters,
+        "find_unet_info",
+        lambda key: {"abspath": str(model_file)} if key == "flux1-dev" else None,
+    )
+    monkeypatch.setattr(formatters, "_hash_file", lambda *_args, **_kwargs: "1234567890")
+
+    result = formatters.calc_unet_hash("nested/flux1-dev.safetensors", None)
+
+    assert result == "1234567890"

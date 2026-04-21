@@ -176,7 +176,8 @@ def get_lora_manager_paths(model_type: str) -> list[str]:
             continue
         for p in section.get(model_type, []):
             if isinstance(p, str) and p.strip():
-                paths.append(p.strip())
+                normalized = os.path.abspath(os.path.expanduser(p.strip()))
+                paths.append(normalized)
 
     # Deduplicate (case-insensitive on Windows) while preserving order.
     seen: set[str] = set()
