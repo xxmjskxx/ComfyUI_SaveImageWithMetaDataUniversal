@@ -160,10 +160,16 @@ def _get_node_id_list(prompt, field_name):
 
 
 def is_node_connected(node_id, prompt, *args):
+    """Validation function to check if a node has any output connections.
+    Caches the result for performance, invalidating stale entries
+    when the prompt graph changes.
     """
-    Validation function to check if a node has any output connections.
-    Caches the result for performance.
-    """
+    # Invalidate cache if prompt identity changed (different graph)
+    global _CONNECTION_CACHE
+    prompt_id = id(prompt)
+    if not hasattr(is_node_connected, '_cached_prompt_id') or is_node_connected._cached_prompt_id != prompt_id:
+        _CONNECTION_CACHE.clear()
+        is_node_connected._cached_prompt_id = prompt_id
     if node_id in _CONNECTION_CACHE:
         return _CONNECTION_CACHE[node_id]
     for other_node in prompt.values():

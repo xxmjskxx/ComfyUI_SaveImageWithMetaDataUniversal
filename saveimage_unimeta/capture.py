@@ -1809,7 +1809,7 @@ class Capture:
                     return v
             return None
 
-        t5 = _find_ci("t5 prompt") or _find_ci("t5 prompt")  # duplicate call harmless, keeps pattern
+        t5 = _find_ci("t5 prompt")  # was duplicated: or _find_ci("t5 prompt")
         clip = _find_ci("clip prompt")
 
         # Only keep T5/CLIP if BOTH exist (true dual-encoder like Flux)
