@@ -61,12 +61,14 @@ def test_ckpt_index_resolver_uses_basename_for_subdir_tokens(tmp_path, monkeypat
         resolved = post_resolvers[0]("nested/retryModel.safetensors") if post_resolvers else None
         return types.SimpleNamespace(display_name="retryModel", full_path=resolved)
 
+    def _fake_find_checkpoint_info(key):
+        queried_keys.append(key)
+        if key == "retryModel":
+            return {"abspath": str(model_file)}
+        return None
+
     monkeypatch.setattr(formatters, "try_resolve_artifact", _fake_try_resolve_artifact)
-    monkeypatch.setattr(
-        formatters,
-        "find_checkpoint_info",
-        lambda key: queried_keys.append(key) or ({"abspath": str(model_file)} if key == "retryModel" else None),
-    )
+    monkeypatch.setattr(formatters, "find_checkpoint_info", _fake_find_checkpoint_info)
 
     display, path = formatters._ckpt_name_to_path("nested/retryModel.safetensors")
 
@@ -85,12 +87,14 @@ def test_unet_index_resolver_uses_basename_for_subdir_tokens(tmp_path, monkeypat
         resolved = post_resolvers[0]("nested/flux1-dev.safetensors") if post_resolvers else None
         return types.SimpleNamespace(display_name="flux1-dev", full_path=resolved)
 
+    def _fake_find_unet_info(key):
+        queried_keys.append(key)
+        if key == "flux1-dev":
+            return {"abspath": str(model_file)}
+        return None
+
     monkeypatch.setattr(formatters, "try_resolve_artifact", _fake_try_resolve_artifact)
-    monkeypatch.setattr(
-        formatters,
-        "find_unet_info",
-        lambda key: queried_keys.append(key) or ({"abspath": str(model_file)} if key == "flux1-dev" else None),
-    )
+    monkeypatch.setattr(formatters, "find_unet_info", _fake_find_unet_info)
     monkeypatch.setattr(formatters, "_hash_file", lambda *_args, **_kwargs: "1234567890")
 
     result = formatters.calc_unet_hash("nested/flux1-dev.safetensors", None)
