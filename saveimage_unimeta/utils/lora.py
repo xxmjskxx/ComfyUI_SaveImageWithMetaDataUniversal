@@ -337,8 +337,9 @@ def build_checkpoint_index() -> None:
         - unset or ``""``: skip writing a dump file;
         - ``"1"``: write JSON to
           ``os.path.join(os.getcwd(), "_checkpoint_index_dump.json")``;
-        - any other non-empty value: strip it and treat it as the output
-          file path.
+        - any other non-empty value: trim leading and trailing
+          whitespace with ``str.strip()`` and treat the result as the
+          output file path.
 
     Side Effects:
         Mutates module-level caches ``_CHECKPOINT_INDEX`` and
@@ -441,8 +442,9 @@ def build_unet_index() -> None:
         - unset or ``""``: skip writing a dump file;
         - ``"1"``: write JSON to
           ``os.path.join(os.getcwd(), "_unet_index_dump.json")``;
-        - any other non-empty value: strip it and treat it as the output
-          file path.
+        - any other non-empty value: trim leading and trailing
+          whitespace with ``str.strip()`` and treat the result as the
+          output file path.
 
     Side Effects:
         Mutates module-level caches ``_UNET_INDEX`` and
