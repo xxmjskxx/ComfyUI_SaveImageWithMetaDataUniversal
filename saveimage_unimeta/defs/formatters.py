@@ -296,9 +296,6 @@ def _ckpt_name_to_path(name_like: Any) -> tuple[str, str | None]:
         basename = os.path.basename(stem)
         key, _ = os.path.splitext(basename)
         info = find_checkpoint_info(key if key else basename)
-        if not info and basename != stem:
-            raw_key, _ = os.path.splitext(stem)
-            info = find_checkpoint_info(raw_key if raw_key else stem)
         return info["abspath"] if info else None
 
     res = try_resolve_artifact("checkpoints", name_like, post_resolvers=[_ckpt_index_resolver])
@@ -729,9 +726,6 @@ def calc_unet_hash(model_name: Any, input_data: list) -> str:
         basename = os.path.basename(stem)
         key, _ = os.path.splitext(basename)
         info = find_unet_info(key if key else basename)
-        if not info and basename != stem:
-            raw_key, _ = os.path.splitext(stem)
-            info = find_unet_info(raw_key if raw_key else stem)
         return info["abspath"] if info else None
 
     # Unified attempt
