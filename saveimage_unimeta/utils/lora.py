@@ -392,7 +392,7 @@ def build_checkpoint_index() -> None:
         for root, _, files in os.walk(ckpt_dir):
             for file in files:
                 file_base, file_ext = os.path.splitext(file)
-                if file_ext in extensions and file_base not in _CHECKPOINT_INDEX:
+                if file_ext.lower() in extensions and file_base not in _CHECKPOINT_INDEX:
                     _CHECKPOINT_INDEX[file_base] = {
                         "filename": file,
                         "abspath": os.path.join(root, file),
@@ -497,7 +497,7 @@ def build_unet_index() -> None:
         for root, _, files in os.walk(unet_dir):
             for file in files:
                 file_base, file_ext = os.path.splitext(file)
-                if file_ext in extensions and file_base not in _UNET_INDEX:
+                if file_ext.lower() in extensions and file_base not in _UNET_INDEX:
                     _UNET_INDEX[file_base] = {
                         "filename": file,
                         "abspath": os.path.join(root, file),

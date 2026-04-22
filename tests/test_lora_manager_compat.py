@@ -515,6 +515,23 @@ def test_build_checkpoint_index_no_lora_manager_installed(monkeypatch, tmp_path)
     assert find_checkpoint_info("standard-model") is not None
 
 
+def test_build_checkpoint_index_accepts_uppercase_extensions(monkeypatch, tmp_path):
+    """Checkpoint indexing accepts uppercase supported file extensions."""
+    ckpt_dir = tmp_path / "ckpts"
+    ckpt_dir.mkdir()
+    (ckpt_dir / "upper-model.SAFETENSORS").write_bytes(b"dummy")
+
+    monkeypatch.setattr(folder_paths, "get_folder_paths", lambda kind: [str(ckpt_dir)] if kind == "checkpoints" else [])
+    monkeypatch.setattr(lora_mod, "get_lora_manager_paths", lambda model_type: [])
+    _reset_checkpoint_index()
+
+    build_checkpoint_index()
+
+    info = find_checkpoint_info("upper-model")
+    assert info is not None
+    assert info["filename"] == "upper-model.SAFETENSORS"
+
+
 def test_find_checkpoint_info_stem_only_lookup(monkeypatch, tmp_path):
     """find_checkpoint_info index key is stem only; resolver must strip extension before lookup."""
     ckpt_dir = tmp_path / "ckpts"
@@ -591,3 +608,20 @@ def test_build_unet_index_no_lora_manager_installed(monkeypatch, tmp_path):
 
     build_unet_index()
     assert find_unet_info("standard-unet") is not None
+
+
+def test_build_unet_index_accepts_uppercase_extensions(monkeypatch, tmp_path):
+    """UNet indexing accepts uppercase supported file extensions."""
+    unet_dir = tmp_path / "unets"
+    unet_dir.mkdir()
+    (unet_dir / "upper-unet.SAFETENSORS").write_bytes(b"dummy")
+
+    monkeypatch.setattr(folder_paths, "get_folder_paths", lambda kind: [str(unet_dir)] if kind == "unet" else [])
+    monkeypatch.setattr(lora_mod, "get_lora_manager_paths", lambda model_type: [])
+    _reset_unet_index()
+
+    build_unet_index()
+
+    info = find_unet_info("upper-unet")
+    assert info is not None
+    assert info["filename"] == "upper-unet.SAFETENSORS"
