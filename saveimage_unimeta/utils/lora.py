@@ -334,10 +334,10 @@ def find_lora_info(base_name: str) -> dict[str, str] | None:
 
 
 # ---------------------------------------------------------------------------
-# TODO: LoraManager currently only populates extra_folder_paths.loras in
-#   practice, so build_checkpoint_index and build_unet_index will typically
-#   return no extra paths. These functions are implemented for forward
-#   compatibility when LoraManager expands its extra-paths support.
+# Note: LoraManager (and similar integrations) may register extra paths for
+# any model kind — loras, checkpoints, UNet, or embeddings — depending on
+# the user's settings. The index builders below treat the "no extra paths"
+# case as normal and never assume a particular integration populates them.
 # ---------------------------------------------------------------------------
 
 
@@ -346,8 +346,8 @@ def build_checkpoint_index() -> None:
 
     Mirrors :func:`build_lora_index` for checkpoint files.  Scans
     ``folder_paths.get_folder_paths('checkpoints')`` plus any extra
-    paths from LoraManager's settings (forward-compat — not currently
-    populated by LoraManager).
+    checkpoint paths configured via LoraManager's settings, when
+    present.
 
     Environment:
         ``METADATA_DUMP_CHECKPOINT_INDEX`` optionally writes the built
@@ -464,9 +464,8 @@ def build_unet_index() -> None:
     """Populate (idempotently) the in-memory UNet file index.
 
     Mirrors :func:`build_lora_index` for UNet files.  Scans
-    ``folder_paths.get_folder_paths('unet')`` plus any extra paths from
-    LoraManager's settings (forward-compat — not currently populated by
-    LoraManager).
+    ``folder_paths.get_folder_paths('unet')`` plus any extra UNet paths
+    configured via LoraManager's settings, when present.
 
     Environment:
         ``METADATA_DUMP_UNET_INDEX`` optionally writes the built index to

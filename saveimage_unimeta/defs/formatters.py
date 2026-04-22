@@ -81,6 +81,10 @@ _LM_EMBEDDING_DIRS_CACHE: list[str] | None = None
 # circuits and avoids triggering a full directory walk via
 # `build_checkpoint_index` / `build_unet_index` whose contents would only mirror
 # what `try_resolve_artifact` already probed in the standard `folder_paths`.
+# Test mode (``PYTEST_CURRENT_TEST`` or ``METADATA_TEST_MODE``) also forces
+# these helpers to return ``[]`` so test outcomes do not depend on a developer's
+# local LoraManager installation; tests requiring non-empty paths should
+# monkeypatch the helpers explicitly.
 _LM_CKPT_DIRS_CACHE: list[str] | None = None
 _LM_UNET_DIRS_CACHE: list[str] | None = None
 _TEST_MODE_TRUTHY = {"1", "true", "yes", "on"}
@@ -119,28 +123,34 @@ def _get_lm_embedding_dirs() -> list[str]:
 
 
 def _get_lm_checkpoint_dirs() -> list[str]:
-    """Return cached LoraManager checkpoint paths.
+    """Return cached LoraManager checkpoint paths unless test mode disables settings reads.
 
-    Unlike :func:`_get_lm_embedding_dirs`, this helper does not gate on test
-    mode. Tests that exercise ``_ckpt_index_resolver`` directly should
-    monkeypatch this helper to return a non-empty list. In environments
-    without LoraManager installed (including CI) the underlying
-    :func:`get_lora_manager_paths` returns an empty list, which lets the
-    resolver short-circuit naturally.
+    Mirrors :func:`_get_lm_embedding_dirs`: pytest runs (and
+    ``METADATA_TEST_MODE``) skip LoraManager settings discovery so test
+    outcomes do not depend on a developer's local LoraManager installation.
+    Tests that need non-empty checkpoint paths should monkeypatch this helper
+    explicitly.
     """
     global _LM_CKPT_DIRS_CACHE
+    if _embedding_path_test_mode_enabled():
+        return []
     if _LM_CKPT_DIRS_CACHE is None:
         _LM_CKPT_DIRS_CACHE = get_lora_manager_paths("checkpoints")
     return _LM_CKPT_DIRS_CACHE
 
 
 def _get_lm_unet_dirs() -> list[str]:
-    """Return cached LoraManager UNet paths.
+    """Return cached LoraManager UNet paths unless test mode disables settings reads.
 
-    See :func:`_get_lm_checkpoint_dirs` for rationale on why this does not
-    apply the embedding-style test-mode gate.
+    Mirrors :func:`_get_lm_embedding_dirs`: pytest runs (and
+    ``METADATA_TEST_MODE``) skip LoraManager settings discovery so test
+    outcomes do not depend on a developer's local LoraManager installation.
+    Tests that need non-empty UNet paths should monkeypatch this helper
+    explicitly.
     """
     global _LM_UNET_DIRS_CACHE
+    if _embedding_path_test_mode_enabled():
+        return []
     if _LM_UNET_DIRS_CACHE is None:
         _LM_UNET_DIRS_CACHE = get_lora_manager_paths("unet")
     return _LM_UNET_DIRS_CACHE
