@@ -282,8 +282,11 @@ def build_lora_index() -> None:
             for root, _, files in os.walk(lora_dir, onerror=_walk_error):
                 for file in files:
                     file_base, file_ext = os.path.splitext(file)
-                    # Use the base name as the key for easy lookup
-                    if file_ext in extensions and file_base not in _LORA_INDEX:
+                    # Use the base name as the key for easy lookup. Normalize the
+                    # extension to lower-case so files with upper-case suffixes
+                    # (e.g. `.SAFETENSORS`) are indexed, mirroring the behavior
+                    # of `build_checkpoint_index` and `build_unet_index`.
+                    if file_ext.lower() in extensions and file_base not in _LORA_INDEX:
                         _LORA_INDEX[file_base] = {
                             "filename": file,
                             "abspath": os.path.join(root, file),
