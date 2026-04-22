@@ -69,6 +69,8 @@ def test_ckpt_index_resolver_uses_basename_for_subdir_tokens(tmp_path, monkeypat
 
     monkeypatch.setattr(formatters, "try_resolve_artifact", _fake_try_resolve_artifact)
     monkeypatch.setattr(formatters, "find_checkpoint_info", _fake_find_checkpoint_info)
+    # Force the index resolver to engage even though LoraManager isn't installed in CI.
+    monkeypatch.setattr(formatters, "_get_lm_checkpoint_dirs", lambda: ["<test-lm-dir>"])
 
     display, path = formatters._ckpt_name_to_path("nested/retryModel.safetensors")
 
@@ -96,6 +98,8 @@ def test_unet_index_resolver_uses_basename_for_subdir_tokens(tmp_path, monkeypat
     monkeypatch.setattr(formatters, "try_resolve_artifact", _fake_try_resolve_artifact)
     monkeypatch.setattr(formatters, "find_unet_info", _fake_find_unet_info)
     monkeypatch.setattr(formatters, "_hash_file", lambda *_args, **_kwargs: "1234567890")
+    # Force the index resolver to engage even though LoraManager isn't installed in CI.
+    monkeypatch.setattr(formatters, "_get_lm_unet_dirs", lambda: ["<test-lm-dir>"])
 
     result = formatters.calc_unet_hash("nested/flux1-dev.safetensors", None)
 

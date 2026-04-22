@@ -272,15 +272,29 @@ def build_lora_index() -> None:
             )
 
     for lora_dir in all_lora_dirs:
-        for root, _, files in os.walk(lora_dir):
-            for file in files:
-                file_base, file_ext = os.path.splitext(file)
-                # Use the base name as the key for easy lookup
-                if file_ext in extensions and file_base not in _LORA_INDEX:
-                    _LORA_INDEX[file_base] = {
-                        "filename": file,
-                        "abspath": os.path.join(root, file),
-                    }
+        def _walk_error(exc: OSError, _dir: str = lora_dir) -> None:
+            logger.warning(
+                "[Metadata Lib] Skipping unreadable LoRA path during index build: %s (%r)",
+                _dir,
+                exc,
+            )
+        try:
+            for root, _, files in os.walk(lora_dir, onerror=_walk_error):
+                for file in files:
+                    file_base, file_ext = os.path.splitext(file)
+                    # Use the base name as the key for easy lookup
+                    if file_ext in extensions and file_base not in _LORA_INDEX:
+                        _LORA_INDEX[file_base] = {
+                            "filename": file,
+                            "abspath": os.path.join(root, file),
+                        }
+        except OSError as exc:
+            logger.warning(
+                "[Metadata Lib] Aborted walk of LoRA directory %s during index build: %r",
+                lora_dir,
+                exc,
+            )
+            continue
 
     _LORA_INDEX_BUILT = True
     logger.info("[Metadata Lib] LoRA index built with %d entries.", len(_LORA_INDEX))
@@ -389,14 +403,28 @@ def build_checkpoint_index() -> None:
             )
 
     for ckpt_dir in all_ckpt_dirs:
-        for root, _, files in os.walk(ckpt_dir):
-            for file in files:
-                file_base, file_ext = os.path.splitext(file)
-                if file_ext.lower() in extensions and file_base not in _CHECKPOINT_INDEX:
-                    _CHECKPOINT_INDEX[file_base] = {
-                        "filename": file,
-                        "abspath": os.path.join(root, file),
-                    }
+        def _walk_error(exc: OSError, _dir: str = ckpt_dir) -> None:
+            logger.warning(
+                "[Metadata Lib] Skipping unreadable checkpoint path during index build: %s (%r)",
+                _dir,
+                exc,
+            )
+        try:
+            for root, _, files in os.walk(ckpt_dir, onerror=_walk_error):
+                for file in files:
+                    file_base, file_ext = os.path.splitext(file)
+                    if file_ext.lower() in extensions and file_base not in _CHECKPOINT_INDEX:
+                        _CHECKPOINT_INDEX[file_base] = {
+                            "filename": file,
+                            "abspath": os.path.join(root, file),
+                        }
+        except OSError as exc:
+            logger.warning(
+                "[Metadata Lib] Aborted walk of checkpoint directory %s during index build: %r",
+                ckpt_dir,
+                exc,
+            )
+            continue
 
     _CHECKPOINT_INDEX_BUILT = True
     logger.info("[Metadata Lib] Checkpoint index built with %d entries.", len(_CHECKPOINT_INDEX))
@@ -494,14 +522,28 @@ def build_unet_index() -> None:
             )
 
     for unet_dir in all_unet_dirs:
-        for root, _, files in os.walk(unet_dir):
-            for file in files:
-                file_base, file_ext = os.path.splitext(file)
-                if file_ext.lower() in extensions and file_base not in _UNET_INDEX:
-                    _UNET_INDEX[file_base] = {
-                        "filename": file,
-                        "abspath": os.path.join(root, file),
-                    }
+        def _walk_error(exc: OSError, _dir: str = unet_dir) -> None:
+            logger.warning(
+                "[Metadata Lib] Skipping unreadable UNet path during index build: %s (%r)",
+                _dir,
+                exc,
+            )
+        try:
+            for root, _, files in os.walk(unet_dir, onerror=_walk_error):
+                for file in files:
+                    file_base, file_ext = os.path.splitext(file)
+                    if file_ext.lower() in extensions and file_base not in _UNET_INDEX:
+                        _UNET_INDEX[file_base] = {
+                            "filename": file,
+                            "abspath": os.path.join(root, file),
+                        }
+        except OSError as exc:
+            logger.warning(
+                "[Metadata Lib] Aborted walk of UNet directory %s during index build: %r",
+                unet_dir,
+                exc,
+            )
+            continue
 
     _UNET_INDEX_BUILT = True
     logger.info("[Metadata Lib] UNet index built with %d entries.", len(_UNET_INDEX))

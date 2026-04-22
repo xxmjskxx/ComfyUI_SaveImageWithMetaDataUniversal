@@ -75,6 +75,14 @@ _BANNER_PRINTED = False
 
 # Session-lifetime cache for LoraManager embedding paths (avoids file I/O on every image)
 _LM_EMBEDDING_DIRS_CACHE: list[str] | None = None
+# Session-lifetime caches for LoraManager checkpoint/UNet paths. These gate the
+# basename-only index resolvers in `_ckpt_name_to_path` / `calc_unet_hash`: when
+# LoraManager registers no extra dirs for the model type, the resolver short-
+# circuits and avoids triggering a full directory walk via
+# `build_checkpoint_index` / `build_unet_index` whose contents would only mirror
+# what `try_resolve_artifact` already probed in the standard `folder_paths`.
+_LM_CKPT_DIRS_CACHE: list[str] | None = None
+_LM_UNET_DIRS_CACHE: list[str] | None = None
 _TEST_MODE_TRUTHY = {"1", "true", "yes", "on"}
 
 # Prevent duplicate module instances under different package names (runtime vs tests)
@@ -108,6 +116,34 @@ def _get_lm_embedding_dirs() -> list[str]:
     if _LM_EMBEDDING_DIRS_CACHE is None:
         _LM_EMBEDDING_DIRS_CACHE = get_lora_manager_paths("embeddings")
     return _LM_EMBEDDING_DIRS_CACHE
+
+
+def _get_lm_checkpoint_dirs() -> list[str]:
+    """Return cached LoraManager checkpoint paths.
+
+    Unlike :func:`_get_lm_embedding_dirs`, this helper does not gate on test
+    mode. Tests that exercise ``_ckpt_index_resolver`` directly should
+    monkeypatch this helper to return a non-empty list. In environments
+    without LoraManager installed (including CI) the underlying
+    :func:`get_lora_manager_paths` returns an empty list, which lets the
+    resolver short-circuit naturally.
+    """
+    global _LM_CKPT_DIRS_CACHE
+    if _LM_CKPT_DIRS_CACHE is None:
+        _LM_CKPT_DIRS_CACHE = get_lora_manager_paths("checkpoints")
+    return _LM_CKPT_DIRS_CACHE
+
+
+def _get_lm_unet_dirs() -> list[str]:
+    """Return cached LoraManager UNet paths.
+
+    See :func:`_get_lm_checkpoint_dirs` for rationale on why this does not
+    apply the embedding-style test-mode gate.
+    """
+    global _LM_UNET_DIRS_CACHE
+    if _LM_UNET_DIRS_CACHE is None:
+        _LM_UNET_DIRS_CACHE = get_lora_manager_paths("unet")
+    return _LM_UNET_DIRS_CACHE
 
 
 def set_hash_log_mode(mode: str):
@@ -308,6 +344,12 @@ _EMBEDDING_TRAILING_STRIP = " ,，。.;；:：!?！？、·"
 def _ckpt_name_to_path(name_like: Any) -> tuple[str, str | None]:
     """Unified resolver wrapper for backward compatibility."""
     def _ckpt_index_resolver(stem: str) -> str | None:
+        # `try_resolve_artifact` already exhausted standard `folder_paths`
+        # checkpoint dirs (with extension probing). The basename-only index
+        # only adds value when LoraManager registers extra dirs out-of-tree;
+        # otherwise skip the (potentially expensive) full directory walk.
+        if not _get_lm_checkpoint_dirs():
+            return None
         basename = os.path.basename(stem)
         key, _ = os.path.splitext(basename)
         info = find_checkpoint_info(key if key else basename)
@@ -738,6 +780,10 @@ def calc_unet_hash(model_name: Any, input_data: list) -> str:
     """
 
     def _unet_index_resolver(stem: str) -> str | None:
+        # See `_ckpt_index_resolver` for rationale: skip the index walk when
+        # LoraManager has not registered extra UNet dirs.
+        if not _get_lm_unet_dirs():
+            return None
         basename = os.path.basename(stem)
         key, _ = os.path.splitext(basename)
         info = find_unet_info(key if key else basename)
