@@ -147,7 +147,7 @@ def _read_lora_manager_settings(plugin_root: str) -> dict | None:
 
 
 def get_lora_manager_paths(model_type: str) -> list[str]:
-    """Return extra model directory paths from LoraManager's settings.json.
+    """Return model directory paths configured by LoraManager's settings.json.
 
     Reads from both ``extra_folder_paths.<model_type>`` and
     ``folder_paths.<model_type>`` keys in the settings file.
@@ -303,12 +303,14 @@ def build_lora_index() -> None:
     logger.info("[Metadata Lib] LoRA index built with %d entries.", len(_LORA_INDEX))
     try:
         if dump_env := os.environ.get("METADATA_DUMP_LORA_INDEX"):
+            # Whitespace-only env value is treated as unset.
             dump_path = dump_env.strip()
-            if dump_path.lower() == "1":
-                dump_path = os.path.join(os.getcwd(), "_lora_index_dump.json")
-            with open(dump_path, "w", encoding="utf-8") as f:
-                json.dump(_LORA_INDEX, f, indent=2, sort_keys=True)
-            logger.info("[Metadata Lib] LoRA index dumped to %s", dump_path)
+            if dump_path:
+                if dump_path.lower() == "1":
+                    dump_path = os.path.join(os.getcwd(), "_lora_index_dump.json")
+                with open(dump_path, "w", encoding="utf-8") as f:
+                    json.dump(_LORA_INDEX, f, indent=2, sort_keys=True)
+                logger.info("[Metadata Lib] LoRA index dumped to %s", dump_path)
     except Exception as e:  # pragma: no cover - diagnostic optional
         logger.debug("[Metadata Lib] Failed dumping LoRA index: %r", e)
 
@@ -433,12 +435,14 @@ def build_checkpoint_index() -> None:
     logger.info("[Metadata Lib] Checkpoint index built with %d entries.", len(_CHECKPOINT_INDEX))
     try:
         if dump_env := os.environ.get("METADATA_DUMP_CHECKPOINT_INDEX"):
+            # Whitespace-only env value is treated as unset.
             dump_path = dump_env.strip()
-            if dump_path.lower() == "1":
-                dump_path = os.path.join(os.getcwd(), "_checkpoint_index_dump.json")
-            with open(dump_path, "w", encoding="utf-8") as f:
-                json.dump(_CHECKPOINT_INDEX, f, indent=2, sort_keys=True)
-            logger.info("[Metadata Lib] Checkpoint index dumped to %s", dump_path)
+            if dump_path:
+                if dump_path.lower() == "1":
+                    dump_path = os.path.join(os.getcwd(), "_checkpoint_index_dump.json")
+                with open(dump_path, "w", encoding="utf-8") as f:
+                    json.dump(_CHECKPOINT_INDEX, f, indent=2, sort_keys=True)
+                logger.info("[Metadata Lib] Checkpoint index dumped to %s", dump_path)
     except Exception as e:  # pragma: no cover - diagnostic optional
         logger.debug("[Metadata Lib] Failed dumping checkpoint index: %r", e)
 
@@ -551,12 +555,14 @@ def build_unet_index() -> None:
     logger.info("[Metadata Lib] UNet index built with %d entries.", len(_UNET_INDEX))
     try:
         if dump_env := os.environ.get("METADATA_DUMP_UNET_INDEX"):
+            # Whitespace-only env value is treated as unset.
             dump_path = dump_env.strip()
-            if dump_path.lower() == "1":
-                dump_path = os.path.join(os.getcwd(), "_unet_index_dump.json")
-            with open(dump_path, "w", encoding="utf-8") as f:
-                json.dump(_UNET_INDEX, f, indent=2, sort_keys=True)
-            logger.info("[Metadata Lib] UNet index dumped to %s", dump_path)
+            if dump_path:
+                if dump_path.lower() == "1":
+                    dump_path = os.path.join(os.getcwd(), "_unet_index_dump.json")
+                with open(dump_path, "w", encoding="utf-8") as f:
+                    json.dump(_UNET_INDEX, f, indent=2, sort_keys=True)
+                logger.info("[Metadata Lib] UNet index dumped to %s", dump_path)
     except Exception as e:  # pragma: no cover - diagnostic optional
         logger.debug("[Metadata Lib] Failed dumping UNet index: %r", e)
 

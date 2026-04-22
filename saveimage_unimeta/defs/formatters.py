@@ -100,8 +100,17 @@ for _n in _ALT_NAMES:
         _sys.modules[_n] = _SELF
 
 
-def _embedding_path_test_mode_enabled() -> bool:
-    """Return True when embedding path resolution should stay deterministic in tests."""
+def _lora_manager_discovery_disabled_in_tests() -> bool:
+    """Return True when LoraManager settings discovery should be skipped for tests.
+
+    Gates the cached ``_get_lm_*_dirs`` helpers (embeddings, checkpoints,
+    UNet) so that test outcomes do not depend on a developer's local
+    LoraManager installation. Returns True when either ``PYTEST_CURRENT_TEST``
+    is set or ``METADATA_TEST_MODE`` is truthy. ``METADATA_TEST_MODE`` is the
+    project-wide opt-in test gate also used elsewhere (e.g. ``capture.py``)
+    to switch behavior under tests, so honoring it here is consistent with
+    the rest of the codebase.
+    """
     if os.environ.get("PYTEST_CURRENT_TEST"):
         return True
     return os.environ.get("METADATA_TEST_MODE", "").strip().lower() in _TEST_MODE_TRUTHY
@@ -115,7 +124,7 @@ def _get_lm_embedding_dirs() -> list[str]:
     hashing tests do not depend on a real ComfyUI custom_nodes installation.
     """
     global _LM_EMBEDDING_DIRS_CACHE
-    if _embedding_path_test_mode_enabled():
+    if _lora_manager_discovery_disabled_in_tests():
         return []
     if _LM_EMBEDDING_DIRS_CACHE is None:
         _LM_EMBEDDING_DIRS_CACHE = get_lora_manager_paths("embeddings")
@@ -132,7 +141,7 @@ def _get_lm_checkpoint_dirs() -> list[str]:
     explicitly.
     """
     global _LM_CKPT_DIRS_CACHE
-    if _embedding_path_test_mode_enabled():
+    if _lora_manager_discovery_disabled_in_tests():
         return []
     if _LM_CKPT_DIRS_CACHE is None:
         _LM_CKPT_DIRS_CACHE = get_lora_manager_paths("checkpoints")
@@ -149,7 +158,7 @@ def _get_lm_unet_dirs() -> list[str]:
     explicitly.
     """
     global _LM_UNET_DIRS_CACHE
-    if _embedding_path_test_mode_enabled():
+    if _lora_manager_discovery_disabled_in_tests():
         return []
     if _LM_UNET_DIRS_CACHE is None:
         _LM_UNET_DIRS_CACHE = get_lora_manager_paths("unet")
