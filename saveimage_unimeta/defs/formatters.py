@@ -75,6 +75,7 @@ _BANNER_PRINTED = False
 
 # Session-lifetime cache for LoraManager embedding paths (avoids file I/O on every image)
 _LM_EMBEDDING_DIRS_CACHE: list[str] | None = None
+_TEST_MODE_TRUTHY = {"1", "true", "yes", "on"}
 
 # Prevent duplicate module instances under different package names (runtime vs tests)
 _SELF = _sys.modules.get(__name__)
@@ -87,9 +88,23 @@ for _n in _ALT_NAMES:
         _sys.modules[_n] = _SELF
 
 
+def _embedding_path_test_mode_enabled() -> bool:
+    """Return True when embedding path resolution should stay deterministic in tests."""
+    if os.environ.get("PYTEST_CURRENT_TEST"):
+        return True
+    return os.environ.get("METADATA_TEST_MODE", "").strip().lower() in _TEST_MODE_TRUTHY
+
+
 def _get_lm_embedding_dirs() -> list[str]:
-    """Return LoraManager embedding paths, cached for the session lifetime."""
+    """Return cached LoraManager embedding paths unless test mode disables settings reads.
+
+    The embedding formatter path skips LoraManager settings discovery while
+    ``METADATA_TEST_MODE`` or ``PYTEST_CURRENT_TEST`` is active so prompt
+    hashing tests do not depend on a real ComfyUI custom_nodes installation.
+    """
     global _LM_EMBEDDING_DIRS_CACHE
+    if _embedding_path_test_mode_enabled():
+        return []
     if _LM_EMBEDDING_DIRS_CACHE is None:
         _LM_EMBEDDING_DIRS_CACHE = get_lora_manager_paths("embeddings")
     return _LM_EMBEDDING_DIRS_CACHE
