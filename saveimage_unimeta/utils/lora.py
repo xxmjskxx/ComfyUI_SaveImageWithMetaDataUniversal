@@ -9,6 +9,7 @@ Includes:
 * One-time index mapping checkpoint/UNet base names to on-disk locations.
 """
 
+import json
 import logging
 import os
 import platform
@@ -16,7 +17,7 @@ import re
 
 import folder_paths
 from .pathresolve import SUPPORTED_MODEL_EXTENSIONS
-import json
+
 
 # --- Caches and Indexes for Performance ---
 # This index will be built once and reused to speed up all subsequent LoRA lookups.
