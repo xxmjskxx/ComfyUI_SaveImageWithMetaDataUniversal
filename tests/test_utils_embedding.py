@@ -115,22 +115,30 @@ def test_get_embedding_file_path_extra_dirs_only_match(tmp_path):
     assert result == str(target)
 
 
-def test_get_embedding_file_path_extra_dirs_traversal_guard_uses_continue(tmp_path):
-    """Traversal guard skips offending extra_dir entry (continue) and searches remaining dirs."""
+def test_get_embedding_file_path_extra_dirs_traversal_guard_returns_none(tmp_path):
+    """Traversal-style embedding name escaping the only extra_dir returns None (does not raise)."""
     safe_dir = tmp_path / "safe"
     safe_dir.mkdir()
-    # 'sneaky_dir' is a sibling that could be escaped into
     sneaky_dir = tmp_path / "sneaky"
     sneaky_dir.mkdir()
-    target = safe_dir / "valid-embed.safetensors"
+    # A real file exists outside safe_dir; the traversal guard must prevent reaching it.
+    (sneaky_dir / "escape.safetensors").write_bytes(b"data")
+
+    result = embedding_mod.get_embedding_file_path(
+        "../sneaky/escape", None, extra_dirs=[str(safe_dir)]
+    )
+    assert result is None
+
+
+def test_get_embedding_file_path_extra_dirs_continues_past_bad_entry(tmp_path):
+    """Loop skips a bad extra_dir entry and resolves from a later valid dir in the same call."""
+    missing_dir = tmp_path / "does_not_exist"  # not created -> isdir False -> continue
+    good_dir = tmp_path / "good"
+    good_dir.mkdir()
+    target = good_dir / "valid-embed.safetensors"
     target.write_bytes(b"data")
 
-    # Using traversal name that escapes sneaky_dir — should be skipped, not abort entirely
-    # Then the safe_dir via a second call should still succeed
-    result_traversal = embedding_mod.get_embedding_file_path("../sneaky/escape", None, extra_dirs=[str(safe_dir)])
-    # The traversal resolves to outside safe_dir, so no match is found (returns None)
-    assert result_traversal is None
-
-    # A valid lookup in the same dir still works (proves continue not return None)
-    result_valid = embedding_mod.get_embedding_file_path("valid-embed", None, extra_dirs=[str(safe_dir)])
-    assert result_valid == str(target)
+    result = embedding_mod.get_embedding_file_path(
+        "valid-embed", None, extra_dirs=[str(missing_dir), str(good_dir)]
+    )
+    assert result == str(target)
