@@ -25,7 +25,7 @@ Authoritative onboarding for `ComfyUI_SaveImageWithMetaDataUniversal`. This repo
 
 ## Runtime Integration & Environment Flags
 - Runs embedded in ComfyUI; expect access to `folder_paths`, sampler nodes, and numerous other `comfy.` imports, and PIL. When unit testing, `saveimage_unimeta/piexif_alias.py` and `hook.py` provide safe stubs—only extend the stub surface actually required.
-- Runtime feature flags (read at execution time, no restart needed) include: `METADATA_TEST_MODE`, `METADATA_NO_HASH_DETAIL`, `METADATA_NO_LORA_SUMMARY`, `METADATA_FORCE_REHASH`, `METADATA_HASH_LOG_MODE`, `METADATA_HASH_LOG_PROPAGATE`, `METADATA_DUMP_LORA_INDEX`, `METADATA_ENABLE_TEST_NODES`, `METADATA_DEBUG_PROMPTS`. UI checkbox `include_lora_summary` overrides the env flag.
+- Runtime feature flags (read at execution time, no restart needed) include: `METADATA_TEST_MODE`, `METADATA_NO_HASH_DETAIL`, `METADATA_NO_LORA_SUMMARY`, `METADATA_FORCE_REHASH`, `METADATA_HASH_LOG_MODE`, `METADATA_HASH_LOG_PROPAGATE`, `METADATA_DUMP_LORA_INDEX`, `METADATA_DUMP_CHECKPOINT_INDEX`, `METADATA_DUMP_UNET_INDEX`, `METADATA_ENABLE_TEST_NODES`, `METADATA_DEBUG_PROMPTS`. UI checkbox `include_lora_summary` overrides the env flag.
 - JPEG/env documentation source of truth: `docs/JPEG_METADATA_FALLBACK.md`, `docs/WORKFLOW_COMPRESSION_DESIGN.md`, `docs/FUTURE_AND_PROTOTYPES.md`. Update both docs + this file when behavior changes.
 
 ## Build, Lint, Test (validated locally and mirrored by CI)
@@ -57,7 +57,7 @@ Authoritative onboarding for `ComfyUI_SaveImageWithMetaDataUniversal`. This repo
 - **Docs**: `docs/JPEG_METADATA_FALLBACK.md`, `docs/MIGRATIONS.md`, `docs/V3_SCHEMA_MIGRATION.md` (for future migration to V3; no specific timeline for implementing this yet), `docs/WAN22_SUPPORT.md`, `docs/FUTURE_AND_PROTOTYPES.md` (historical context). Keep them synchronized with behavior changes.
 - **Workflow samples**: `example_workflows/*.json` showcase Force Include, extra metadata, LoRA stacks, WAN/FLUX flows. Use them to reproduce bugs quickly.
 - **Testing aids**: `saveimage_unimeta/nodes/testing_stubs.py` exposes lightweight sampler nodes when `METADATA_ENABLE_TEST_NODES=1`; `tests/` contains stub fixtures demonstrating how to patch ComfyUI APIs.
-- **Troubleshooting tips**: enable `METADATA_DEBUG_PROMPTS=1` to log prompt aliasing, drop `max_jpeg_exif_kb` to 8 to hit fallback paths, set `METADATA_NO_HASH_DETAIL=1` or `METADATA_NO_LORA_SUMMARY=1` to verify UI overrides. Hash mismatches? delete `.sha256` sidecars or set `METADATA_FORCE_REHASH=1`.
+- **Troubleshooting tips**: enable `METADATA_DEBUG_PROMPTS=1` to log prompt aliasing, drop `max_jpeg_exif_kb` to 8 to hit fallback paths, set `METADATA_NO_HASH_DETAIL=1` or `METADATA_NO_LORA_SUMMARY=1` to verify UI overrides, and use `METADATA_DUMP_LORA_INDEX`, `METADATA_DUMP_CHECKPOINT_INDEX`, or `METADATA_DUMP_UNET_INDEX` to dump the first-built indexes for diagnostics. Hash mismatches? delete `.sha256` sidecars or set `METADATA_FORCE_REHASH=1`.
 
 ## Working Style & Search Discipline
 - Start from this file: it summarizes architecture, commands, and directory hotspots—search the codebase only if something here is missing or inaccurate. When in doubt, inspect `saveimage_unimeta/` modules referenced above before global greps.
