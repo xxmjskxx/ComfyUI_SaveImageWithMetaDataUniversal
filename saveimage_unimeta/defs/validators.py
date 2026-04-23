@@ -164,12 +164,13 @@ def is_node_connected(node_id, prompt, *args):
     Caches the result for performance, invalidating stale entries
     when the prompt graph changes.
     """
-    # Invalidate cache if prompt identity changed (different graph)
-    global _CONNECTION_CACHE
-    prompt_id = id(prompt)
-    if not hasattr(is_node_connected, '_cached_prompt_id') or is_node_connected._cached_prompt_id != prompt_id:
+    # Invalidate cache if the prompt object changed (different graph).
+    # Store the prompt object itself rather than ``id(prompt)`` so recycled
+    # object ids cannot accidentally preserve stale cache entries for a new
+    # prompt that happens to land at the same address.
+    if getattr(is_node_connected, "_cached_prompt", None) is not prompt:
         _CONNECTION_CACHE.clear()
-        is_node_connected._cached_prompt_id = prompt_id
+        is_node_connected._cached_prompt = prompt
     if node_id in _CONNECTION_CACHE:
         return _CONNECTION_CACHE[node_id]
     for other_node in prompt.values():

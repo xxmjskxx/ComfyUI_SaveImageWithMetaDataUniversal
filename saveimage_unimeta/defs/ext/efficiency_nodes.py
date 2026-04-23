@@ -252,7 +252,9 @@ def _is_advanced_mode(input_data) -> bool:
     to use the 'advanced' input mode, which affects how LoRA strengths are specified.
 
     Args:
-        input_data (dict): The input data for the node.
+        input_data: Sequence (``list`` or ``tuple``) of input batch dicts as
+            returned by ComfyUI's ``get_input_data``. Each dict maps an input
+            name to a list of values; only the first batch is inspected.
 
     Returns:
         bool: True if the node is in 'advanced' mode, False otherwise.
