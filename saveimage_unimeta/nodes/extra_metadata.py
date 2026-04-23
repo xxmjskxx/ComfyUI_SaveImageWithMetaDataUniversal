@@ -15,6 +15,46 @@ class CreateExtraMetaDataUniversal:
     modifying any configuration files.
     """
 
+    EXTRA_METADATA_PAIR_COUNT = 4
+
+    @classmethod
+    def _build_pair_inputs(cls, start_index, end_index):
+        """Build the repeated key/value string inputs for the node schema."""
+        pair_inputs = {}
+        for index in range(start_index, end_index + 1):
+            pair_inputs[f"key{index}"] = ("STRING", {"default": "", "multiline": False})
+            pair_inputs[f"value{index}"] = ("STRING", {"default": "", "multiline": False})
+        return pair_inputs
+
+    @classmethod
+    def _pair_field_names(cls):
+        """Return the ordered field names matching the declared key/value inputs."""
+        field_names = []
+        for index in range(1, cls.EXTRA_METADATA_PAIR_COUNT + 1):
+            field_names.extend((f"key{index}", f"value{index}"))
+        return tuple(field_names)
+
+    @classmethod
+    def _normalize_pair_arguments(cls, pair_args, pair_kwargs):
+        """Normalize positional and keyword pair inputs into a validated mapping."""
+        field_names = cls._pair_field_names()
+        if len(pair_args) > len(field_names):
+            raise TypeError(f"Expected at most {len(field_names)} pair values, got {len(pair_args)}")
+
+        unexpected_names = set(pair_kwargs) - set(field_names)
+        if unexpected_names:
+            unexpected_list = ", ".join(sorted(unexpected_names))
+            raise TypeError(f"Unexpected metadata arguments: {unexpected_list}")
+
+        normalized_pairs = {}
+        for field_name, field_value in zip(field_names, pair_args):
+            if field_name in pair_kwargs:
+                raise TypeError(f"Got multiple values for argument '{field_name}'")
+            normalized_pairs[field_name] = field_value
+
+        normalized_pairs.update(pair_kwargs)
+        return normalized_pairs
+
     @classmethod
     def INPUT_TYPES(cls):  # noqa: N802
         """Define the input types for the `CreateExtraMetaDataUniversal` node.
@@ -27,16 +67,10 @@ class CreateExtraMetaDataUniversal:
         """
         return {
             "required": {
-                "key1": ("STRING", {"default": "", "multiline": False}),
-                "value1": ("STRING", {"default": "", "multiline": False}),
+                **cls._build_pair_inputs(start_index=1, end_index=1),
             },
             "optional": {
-                "key2": ("STRING", {"default": "", "multiline": False}),
-                "value2": ("STRING", {"default": "", "multiline": False}),
-                "key3": ("STRING", {"default": "", "multiline": False}),
-                "value3": ("STRING", {"default": "", "multiline": False}),
-                "key4": ("STRING", {"default": "", "multiline": False}),
-                "value4": ("STRING", {"default": "", "multiline": False}),
+                **cls._build_pair_inputs(start_index=2, end_index=cls.EXTRA_METADATA_PAIR_COUNT),
                 "extra_metadata": ("EXTRA_METADATA",),
             },
         }
@@ -52,14 +86,8 @@ class CreateExtraMetaDataUniversal:
     def create_extra_metadata(
         self,
         extra_metadata=None,
-        key1="",
-        value1="",
-        key2="",
-        value2="",
-        key3="",
-        value3="",
-        key4="",
-        value4="",
+        *pair_args,
+        **kwargs,
     ):
         """Merge provided key/value pairs into a metadata dictionary.
 
@@ -68,16 +96,10 @@ class CreateExtraMetaDataUniversal:
         standard format for ComfyUI node outputs.
 
         Args:
-            key1 (str): The first key for the metadata.
-            value1 (str): The first value for the metadata.
             extra_metadata (dict, optional): An existing dictionary of metadata.
                 If None, a new dictionary is created. Defaults to None.
-            key2 (str, optional): The second key for the metadata. Defaults to "".
-            value2 (str, optional): The second value for the metadata. Defaults to "".
-            key3 (str, optional): The third key for the metadata. Defaults to "".
-            value3 (str, optional): The third value for the metadata. Defaults to "".
-            key4 (str, optional): The fourth key for the metadata. Defaults to "".
-            value4 (str, optional): The fourth value for the metadata. Defaults to "".
+            *pair_args: Positional ``keyN``/``valueN`` pairs kept for direct-call compatibility.
+            **kwargs: Dynamic ``keyN``/``valueN`` pairs aligned with ``INPUT_TYPES``.
 
         Returns:
             tuple: A tuple containing the updated metadata dictionary.
@@ -88,8 +110,11 @@ class CreateExtraMetaDataUniversal:
         # Copy existing metadata if provided
         if extra_metadata is not None:
             result.update(extra_metadata)
+        normalized_pairs = self._normalize_pair_arguments(pair_args, kwargs)
         # Add the new key-value pairs, only if the key is non-empty
-        for key, value in [(key1, value1), (key2, value2), (key3, value3), (key4, value4)]:
+        for index in range(1, self.EXTRA_METADATA_PAIR_COUNT + 1):
+            key = normalized_pairs.get(f"key{index}", "")
+            value = normalized_pairs.get(f"value{index}", "")
             if key:
                 result[key] = value
         return (result,)
