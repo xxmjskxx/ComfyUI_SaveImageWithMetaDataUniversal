@@ -15,6 +15,7 @@ Tests cover:
 from __future__ import annotations
 
 from saveimage_unimeta.defs.ext.efficiency_nodes import (
+    _is_advanced_mode,
     _stack_from_outputs,
     _normalize_connection_target,
     _collect_stack_from_connection,
@@ -25,6 +26,17 @@ from saveimage_unimeta.defs.ext.efficiency_nodes import (
 
 
 # --- _stack_from_outputs tests ---
+
+
+def test_is_advanced_mode_accepts_tuple_input_batches():
+    """Tuple batches from ComfyUI should still trigger advanced-mode detection."""
+    input_data = (
+        {
+            "input_mode": ["advanced"],
+        },
+    )
+
+    assert _is_advanced_mode(input_data) is True
 
 
 class TestStackFromOutputs:

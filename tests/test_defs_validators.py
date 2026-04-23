@@ -17,6 +17,7 @@ def reset_connection_cache(monkeypatch):
     """Ensure each test observes a clean connection cache."""
 
     monkeypatch.setattr(validators_mod, "_CONNECTION_CACHE", {}, raising=False)
+    validators_mod.is_node_connected.__dict__.pop("_cached_prompt", None)
 
 
 def test_is_link_input_rejects_literal_lists_without_output_index():
@@ -96,6 +97,28 @@ def test_is_node_connected_records_disconnected_nodes():
 
     assert not validators_mod.is_node_connected("isolated", prompt)
     assert validators_mod._CONNECTION_CACHE.get("isolated") is False
+
+
+# Cache must be invalidated when the prompt graph changes between calls.
+def test_is_node_connected_invalidates_cache_on_prompt_change():
+    """Switching to a new prompt object must clear stale cache entries."""
+    prompt_a = {
+        "encoder": {"class_type": "CLIPTextEncode", "inputs": {}},
+        "consumer": {"class_type": "ShowText", "inputs": {"text": ["encoder", 0]}},
+    }
+    prompt_b = {
+        "encoder": {"class_type": "CLIPTextEncode", "inputs": {}},
+        # No node references "encoder" so it must be reported disconnected.
+        "other": {"class_type": "ShowText", "inputs": {}},
+    }
+
+    assert validators_mod.is_node_connected("encoder", prompt_a) is True
+    assert validators_mod._CONNECTION_CACHE.get("encoder") is True
+
+    # Switching to a different prompt object must invalidate the cache and
+    # recompute the result against the new graph.
+    assert validators_mod.is_node_connected("encoder", prompt_b) is False
+    assert validators_mod._CONNECTION_CACHE.get("encoder") is False
 
 
 # --- CFGGuider / SamplerCustomAdvanced guider-aware traversal ---
