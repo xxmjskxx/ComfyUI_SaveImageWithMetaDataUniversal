@@ -14,6 +14,42 @@ os.environ["METADATA_TEST_MODE"] = "1"
 from saveimage_unimeta.nodes.extra_metadata import CreateExtraMetaDataUniversal
 
 
+class TestExtraMetadataInputTypes:
+    """Tests that INPUT_TYPES and runtime pair handling share one source of truth."""
+
+    def test_pair_count_drives_schema_and_runtime(self, monkeypatch):
+        """Changing the pair-count constant should update both schema and merge behavior."""
+        monkeypatch.setattr(CreateExtraMetaDataUniversal, "EXTRA_METADATA_PAIR_COUNT", 5)
+
+        input_types = CreateExtraMetaDataUniversal.INPUT_TYPES()
+
+        assert "key1" in input_types["required"]
+        assert "value1" in input_types["required"]
+        assert "key5" in input_types["optional"]
+        assert "value5" in input_types["optional"]
+
+        metadata = CreateExtraMetaDataUniversal().create_extra_metadata(key5="Medium", value5="Oil")[0]
+
+        assert metadata == {"Medium": "Oil"}
+
+    def test_positional_arguments_remain_supported(self):
+        """Direct Python callers should still be able to pass positional key/value pairs."""
+        metadata = CreateExtraMetaDataUniversal().create_extra_metadata(None, "Artist", "Alice")[0]
+
+        assert metadata == {"Artist": "Alice"}
+
+    def test_unexpected_keyword_arguments_raise_type_error(self):
+        """Typos in key/value field names should fail fast instead of being ignored."""
+        node = CreateExtraMetaDataUniversal()
+
+        try:
+            node.create_extra_metadata(valeu1="Alice")
+        except TypeError as exc:
+            assert "Unexpected metadata arguments" in str(exc)
+        else:
+            raise AssertionError("Expected TypeError for unexpected metadata argument")
+
+
 class TestExtraMetadataNoStaleCache:
     """Tests to ensure no stale cache issue from mutable default arguments."""
 
