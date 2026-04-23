@@ -259,7 +259,7 @@ def _is_advanced_mode(input_data) -> bool:
     """
     try:
         return (
-            isinstance(input_data, list)
+            isinstance(input_data, list | tuple)
             and input_data
             and isinstance(input_data[0], dict)
             and isinstance(input_data[0].get("input_mode"), list)
