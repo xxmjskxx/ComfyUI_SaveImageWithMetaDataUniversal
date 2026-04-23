@@ -407,7 +407,9 @@ Deferred and exploratory concepts are documented in:
 | `METADATA_HASH_LOG_MODE` | Hash logging mode: `none` (default), `filename`, `path`, `detailed`, `debug` (includes candidate lists + full hash timing). |
 | `METADATA_HASH_LOG_PROPAGATE` | `0` to suppress propagation to root logger (keep logs local); `1` (default) to propagate. |
 | `METADATA_FORCE_REHASH` | When set to `1`, recomputes hashes ignoring existing `.sha256` sidecars (diagnostics / mismatch recovery). |
-| `METADATA_DUMP_LORA_INDEX` | When set: dump LoRA index JSON after first build. Value `1` → `_lora_index_dump.json` in CWD; otherwise use as output path. |
+| `METADATA_DUMP_LORA_INDEX` | When set: dump LoRA index JSON after first build. Value `1` → `_lora_index_dump.json` in CWD; otherwise trim whitespace and use the value as the output path. |
+| `METADATA_DUMP_CHECKPOINT_INDEX` | When set: dump checkpoint index JSON after first build. Value `1` → `_checkpoint_index_dump.json` in CWD; otherwise trim whitespace and use the value as the output path. |
+| `METADATA_DUMP_UNET_INDEX` | When set: dump UNet index JSON after first build. Value `1` → `_unet_index_dump.json` in CWD; otherwise trim whitespace and use the value as the output path. |
 | `METADATA_ENABLE_TEST_NODES` | Enable lightweight stub nodes (e.g., `MetadataTestSampler`) for metadata-only workflows without loading real models. |
 
 Additional Support:
@@ -479,4 +481,3 @@ For extended sampler selection details and advanced capture behavior, refer to t
 </details>
 
 日本語版READMEは[こちら](README.jp.md)。
-

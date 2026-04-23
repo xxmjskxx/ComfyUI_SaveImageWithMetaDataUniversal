@@ -241,3 +241,6 @@ docs/releases/*
 /PR_DRAFT_*.md
 docs/releases/RELEASE_NOTES_*1.2*.md
 docs/releases/PR_DRAFT_*1.2*.md
+
+# Claude
+.claude/
