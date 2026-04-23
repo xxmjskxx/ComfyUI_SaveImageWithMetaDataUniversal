@@ -169,8 +169,10 @@ class SaveImageWithMetaDataUniversal:
                     {
                         "default": "ComfyUI",
                         "tooltip": (
-                            "You can use %seed%, %width%, %height%, %pprompt%, %nprompt%, %model%, %date% in the "
-                            "filename. Date can accept any variety of the yyyyMMddhhmmss format, e.g. %date:yy-MM-dd%."
+                            "Sets the output filename prefix and can also include subdirectories, so values like "
+                            "folder/image will save into a folder under your output directory. You can use %seed%, "
+                            "%width%, %height%, %pprompt%, %nprompt%, %model%, and %date% in the path or filename. "
+                            "Date can accept any variety of the yyyyMMddhhmmss format, e.g. %date:yy-MM-dd%."
                         ),
                     },
                 ),
