@@ -21,12 +21,15 @@ except Exception:  # noqa: BLE001 - test fallback
 __all__ = ["get_embedding_file_path"]
 
 
-def get_embedding_file_path(embedding_name: str, clip: object) -> str | None:
+def get_embedding_file_path(embedding_name: str, clip: object | None, *, extra_dirs: list[str] | None = None) -> str | None:
     """Resolve an embedding filename to an absolute path if it exists.
 
     The lookup expands the `clip.embedding_directory` attribute (string or sequence
     of strings) using ComfyUI's `expand_directory_list`, then searches each
     directory for the provided base name with or without a known extension.
+
+    When `clip` is None and `extra_dirs` is provided, only extra_dirs are searched.
+    When `clip` is None and no `extra_dirs` provided, returns None immediately.
 
     Search order per directory:
       1. Exact `embedding_name` as‑is (allows explicit extension callers)
@@ -41,9 +44,12 @@ def get_embedding_file_path(embedding_name: str, clip: object) -> str | None:
             extension). Should NOT contain parent references intended to escape
             search roots.
         clip: Object with an `embedding_directory` attribute (string or
-            iterable of strings). This mirrors the structure on ComfyUI CLIP
-            objects. Attribute absence or emptiness raises `ValueError` for
-            clearer upstream diagnostics.
+            iterable of strings), or None. When clip is None and no extra_dirs
+            provided, returns None immediately. Attribute absence or emptiness
+            raises `ValueError` for clearer upstream diagnostics.
+        extra_dirs: Optional list of additional absolute directory paths to
+            search after clip-derived dirs. `ValueError` from clip-side
+            validation fires before extra_dirs is searched.
 
     Returns:
         Absolute path to the first matching embedding file, or `None` if no
@@ -53,33 +59,46 @@ def get_embedding_file_path(embedding_name: str, clip: object) -> str | None:
         ValueError: If the embedding directory attribute is missing/empty, the
             expansion yields no valid directories, or expansion fails.
     """
-    embedding_directory = getattr(clip, "embedding_directory", None)
-    if not embedding_directory:
-        raise ValueError(
-            "The 'embedding_directory' attribute in the clip object is None or empty."  # noqa: E501
-        )
+    # Fast path: nothing to search
+    if clip is None and not extra_dirs:
+        return None
 
-    if isinstance(embedding_directory, str):
-        embedding_dirs: Sequence[str] = [embedding_directory]
-    elif isinstance(embedding_directory, list | tuple | set):
-        embedding_dirs = [str(p) for p in embedding_directory]
-    else:  # Fallback: treat single unknown object as string repr
-        embedding_dirs = [str(embedding_directory)]
+    dirs_to_search: list[str] = []
 
-    try:
-        expanded: list[str] = expand_directory_list(list(embedding_dirs))
-    except (OSError, TypeError, ValueError) as e:  # Narrow common failures
-        raise ValueError(f"Error expanding directory list: {e}") from e
-    except Exception as e:  # pragma: no cover - defensive catch
-        raise ValueError(f"Unexpected error expanding directory list: {e}") from e
+    if clip is not None:
+        embedding_directory = getattr(clip, "embedding_directory", None)
+        if not embedding_directory:
+            raise ValueError(
+                "The 'embedding_directory' attribute in the clip object is None or empty."
+            )
 
-    if not expanded:
-        raise ValueError("No valid directories found after expansion.")
+        if isinstance(embedding_directory, str):
+            embedding_dirs: Sequence[str] = [embedding_directory]
+        elif isinstance(embedding_directory, list | tuple | set):
+            embedding_dirs = [str(p) for p in embedding_directory]
+        else:
+            embedding_dirs = [str(embedding_directory)]
+
+        try:
+            expanded: list[str] = expand_directory_list(list(embedding_dirs))
+        except (OSError, TypeError, ValueError) as e:
+            raise ValueError(f"Error expanding directory list: {e}") from e
+        except Exception as e:  # pragma: no cover - defensive catch
+            raise ValueError(f"Unexpected error expanding directory list: {e}") from e
+
+        if not expanded:
+            raise ValueError("No valid directories found after expansion.")
+
+        dirs_to_search = expanded
+
+    # Append extra dirs (from e.g. LoraManager) after clip-derived dirs
+    if extra_dirs:
+        dirs_to_search = dirs_to_search + [d for d in extra_dirs if isinstance(d, str) and d.strip()]
 
     valid_file: str | None = None
     extensions = [".safetensors", ".pt", ".bin"]
 
-    for embed_dir in expanded:
+    for embed_dir in dirs_to_search:
         embed_dir_abs = os.path.abspath(embed_dir)
         if not os.path.isdir(embed_dir_abs):
             continue
@@ -89,13 +108,13 @@ def get_embedding_file_path(embedding_name: str, clip: object) -> str | None:
             if os.path.commonpath([embed_dir_abs, embed_path]) != embed_dir_abs:
                 # Path attempted to escape search root – ignore
                 continue
-        except (OSError, ValueError):  # Invalid path comparison edge cases
+        except (OSError, ValueError):
             continue
 
         # Direct file match
         if os.path.isfile(embed_path):
             valid_file = embed_path
-        else:  # Try with extensions
+        else:
             for ext in extensions:
                 candidate_path = embed_path + ext
                 if os.path.isfile(candidate_path):

@@ -13,6 +13,11 @@ from saveimage_unimeta.utils.lora import (
     _read_lora_manager_settings,
     build_lora_index,
     find_lora_info,
+    get_lora_manager_paths,
+    build_checkpoint_index,
+    find_checkpoint_info,
+    build_unet_index,
+    find_unet_info,
 )
 
 
@@ -25,15 +30,31 @@ def _reset_index():
     lora_mod._LORA_INDEX_BUILT = False
 
 
-def _make_settings(extra_dir: str = "", folder_dir: str = "", portable: bool = False) -> dict:
+def _reset_checkpoint_index():
+    lora_mod._CHECKPOINT_INDEX = None
+    lora_mod._CHECKPOINT_INDEX_BUILT = False
+
+
+def _reset_unet_index():
+    lora_mod._UNET_INDEX = None
+    lora_mod._UNET_INDEX_BUILT = False
+
+
+def _reset_all_indexes():
+    _reset_index()
+    _reset_checkpoint_index()
+    _reset_unet_index()
+
+
+def _make_settings(extra_dir: str = "", folder_dir: str = "", portable: bool = False, model_type: str = "loras") -> dict:
     """Build a minimal LoraManager settings dict for testing."""
     data: dict = {}
     if portable:
         data["use_portable_settings"] = True
     if extra_dir:
-        data["extra_folder_paths"] = {"loras": [extra_dir]}
+        data["extra_folder_paths"] = {model_type: [extra_dir]}
     if folder_dir:
-        data["folder_paths"] = {"loras": [folder_dir]}
+        data["folder_paths"] = {model_type: [folder_dir]}
     return data
 
 
@@ -228,7 +249,7 @@ def test_lora_paths_from_extra_folder_paths(tmp_path, monkeypatch):
     monkeypatch.setattr(lora_mod, "_read_lora_manager_settings", lambda _root: settings)
 
     result = _get_lora_manager_lora_paths()
-    assert result == ["/extra/loras"]
+    assert result == [os.path.abspath("/extra/loras")]
 
 
 def test_lora_paths_from_folder_paths(tmp_path, monkeypatch):
@@ -238,7 +259,7 @@ def test_lora_paths_from_folder_paths(tmp_path, monkeypatch):
     monkeypatch.setattr(lora_mod, "_read_lora_manager_settings", lambda _root: settings)
 
     result = _get_lora_manager_lora_paths()
-    assert result == ["/library/loras"]
+    assert result == [os.path.abspath("/library/loras")]
 
 
 def test_lora_paths_merges_both_keys(tmp_path, monkeypatch):
@@ -251,8 +272,8 @@ def test_lora_paths_merges_both_keys(tmp_path, monkeypatch):
     monkeypatch.setattr(lora_mod, "_read_lora_manager_settings", lambda _root: settings)
 
     result = _get_lora_manager_lora_paths()
-    assert "/extra/loras" in result
-    assert "/standard/loras" in result
+    assert os.path.abspath("/extra/loras") in result
+    assert os.path.abspath("/standard/loras") in result
     assert len(result) == 2
 
 
@@ -267,7 +288,7 @@ def test_lora_paths_deduplicates_same_path(tmp_path, monkeypatch):
     monkeypatch.setattr(lora_mod, "_read_lora_manager_settings", lambda _root: settings)
 
     result = _get_lora_manager_lora_paths()
-    assert result == [shared]
+    assert result == [os.path.abspath(shared)]
 
 
 def test_lora_paths_returns_empty_when_plugin_not_installed(monkeypatch):
@@ -289,7 +310,7 @@ def test_lora_paths_ignores_empty_string_entries(tmp_path, monkeypatch):
     monkeypatch.setattr(lora_mod, "_find_lora_manager_root", lambda: str(tmp_path))
     monkeypatch.setattr(lora_mod, "_read_lora_manager_settings", lambda _root: settings)
     result = _get_lora_manager_lora_paths()
-    assert result == ["/real/path"]
+    assert result == [os.path.abspath("/real/path")]
 
 
 def test_lora_paths_tolerates_missing_loras_key(tmp_path, monkeypatch):
@@ -298,6 +319,47 @@ def test_lora_paths_tolerates_missing_loras_key(tmp_path, monkeypatch):
     monkeypatch.setattr(lora_mod, "_find_lora_manager_root", lambda: str(tmp_path))
     monkeypatch.setattr(lora_mod, "_read_lora_manager_settings", lambda _root: settings)
     assert _get_lora_manager_lora_paths() == []
+
+
+# ---------------------------------------------------------------------------
+# _get_lora_manager_lora_paths / get_lora_manager_paths
+# ---------------------------------------------------------------------------
+
+def test_get_lora_manager_paths_reads_non_lora_type(tmp_path, monkeypatch):
+    """get_lora_manager_paths returns paths for non-lora model types."""
+    settings = {"extra_folder_paths": {"checkpoints": ["/ckpt/extra"]}}
+    monkeypatch.setattr(lora_mod, "_find_lora_manager_root", lambda: str(tmp_path))
+    monkeypatch.setattr(lora_mod, "_read_lora_manager_settings", lambda _root: settings)
+
+    result = get_lora_manager_paths("checkpoints")
+    assert result == [os.path.abspath("/ckpt/extra")]
+
+
+def test_get_lora_manager_paths_normalizes_and_deduplicates_paths(tmp_path, monkeypatch):
+    """get_lora_manager_paths expands user-relative paths and deduplicates normalized entries."""
+    home_dir = tmp_path / "home"
+    home_dir.mkdir()
+    settings = {
+        "extra_folder_paths": {"checkpoints": ["models", "./models"]},
+        "folder_paths": {"checkpoints": ["~/ckpts"]},
+    }
+    real_expanduser = lora_mod.os.path.expanduser
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(lora_mod, "_find_lora_manager_root", lambda: str(tmp_path))
+    monkeypatch.setattr(lora_mod, "_read_lora_manager_settings", lambda _root: settings)
+    monkeypatch.setattr(
+        lora_mod.os.path,
+        "expanduser",
+        lambda value: str(home_dir / value[2:]) if value.startswith("~/") else real_expanduser(value),
+    )
+
+    result = get_lora_manager_paths("checkpoints")
+
+    assert result == [
+        os.path.abspath(str(tmp_path / "models")),
+        os.path.abspath(str(home_dir / "ckpts")),
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -390,3 +452,176 @@ def test_build_lora_index_deduplicates_overlapping_paths(monkeypatch, tmp_path):
     assert info["filename"] == "overlap-lora.safetensors"
     # The directory must have been walked only once
     assert walk_calls.count(str(shared_dir)) == 1
+
+
+# ---------------------------------------------------------------------------
+# build_checkpoint_index integration
+# ---------------------------------------------------------------------------
+
+def test_build_checkpoint_index_includes_extra_lora_manager_paths(monkeypatch, tmp_path):
+    """Checkpoints stored only in LoraManager extra paths are indexed and findable."""
+    standard_dir = tmp_path / "standard_ckpts"
+    standard_dir.mkdir()
+
+    extra_dir = tmp_path / "extra_ckpts"
+    extra_dir.mkdir()
+    ckpt_file = extra_dir / "my-model.safetensors"
+    ckpt_file.write_bytes(b"dummy")
+
+    monkeypatch.setattr(folder_paths, "get_folder_paths", lambda kind: [str(standard_dir)] if kind == "checkpoints" else [])
+    monkeypatch.setattr(lora_mod, "get_lora_manager_paths", lambda model_type: [str(extra_dir)] if model_type == "checkpoints" else [])
+    _reset_checkpoint_index()
+
+    build_checkpoint_index()
+    info = find_checkpoint_info("my-model")
+    assert info is not None, "Expected my-model to be found in the extra path"
+    assert info["filename"] == "my-model.safetensors"
+    assert os.path.normcase(info["abspath"]) == os.path.normcase(str(ckpt_file))
+
+
+def test_build_checkpoint_index_standard_path_takes_priority_over_extra(monkeypatch, tmp_path):
+    """When the same stem exists in both standard and extra paths, the standard path wins."""
+    standard_dir = tmp_path / "standard"
+    standard_dir.mkdir()
+    extra_dir = tmp_path / "extra"
+    extra_dir.mkdir()
+
+    std_file = standard_dir / "base-model.safetensors"
+    std_file.write_bytes(b"standard")
+    extra_file = extra_dir / "base-model.safetensors"
+    extra_file.write_bytes(b"extra")
+
+    monkeypatch.setattr(folder_paths, "get_folder_paths", lambda kind: [str(standard_dir)] if kind == "checkpoints" else [])
+    monkeypatch.setattr(lora_mod, "get_lora_manager_paths", lambda model_type: [str(extra_dir)] if model_type == "checkpoints" else [])
+    _reset_checkpoint_index()
+
+    build_checkpoint_index()
+    info = find_checkpoint_info("base-model")
+    assert info is not None
+    assert os.path.normcase(info["abspath"]) == os.path.normcase(str(std_file))
+
+
+def test_build_checkpoint_index_no_lora_manager_installed(monkeypatch, tmp_path):
+    """build_checkpoint_index works normally when LoraManager returns no extra paths."""
+    ckpt_dir = tmp_path / "ckpts"
+    ckpt_dir.mkdir()
+    (ckpt_dir / "standard-model.safetensors").write_bytes(b"dummy")
+
+    monkeypatch.setattr(folder_paths, "get_folder_paths", lambda kind: [str(ckpt_dir)] if kind == "checkpoints" else [])
+    monkeypatch.setattr(lora_mod, "get_lora_manager_paths", lambda model_type: [])
+    _reset_checkpoint_index()
+
+    build_checkpoint_index()
+    assert find_checkpoint_info("standard-model") is not None
+
+
+def test_build_checkpoint_index_accepts_uppercase_extensions(monkeypatch, tmp_path):
+    """Checkpoint indexing accepts uppercase supported file extensions."""
+    ckpt_dir = tmp_path / "ckpts"
+    ckpt_dir.mkdir()
+    (ckpt_dir / "upper-model.SAFETENSORS").write_bytes(b"dummy")
+
+    monkeypatch.setattr(folder_paths, "get_folder_paths", lambda kind: [str(ckpt_dir)] if kind == "checkpoints" else [])
+    monkeypatch.setattr(lora_mod, "get_lora_manager_paths", lambda model_type: [])
+    _reset_checkpoint_index()
+
+    build_checkpoint_index()
+
+    info = find_checkpoint_info("upper-model")
+    assert info is not None
+    assert info["filename"] == "upper-model.SAFETENSORS"
+
+
+def test_find_checkpoint_info_stem_only_lookup(monkeypatch, tmp_path):
+    """find_checkpoint_info index key is stem only; resolver must strip extension before lookup."""
+    ckpt_dir = tmp_path / "ckpts"
+    ckpt_dir.mkdir()
+    (ckpt_dir / "big-model.safetensors").write_bytes(b"data")
+
+    monkeypatch.setattr(folder_paths, "get_folder_paths", lambda kind: [str(ckpt_dir)] if kind == "checkpoints" else [])
+    monkeypatch.setattr(lora_mod, "get_lora_manager_paths", lambda model_type: [])
+    _reset_checkpoint_index()
+
+    build_checkpoint_index()
+    # Lookup by stem succeeds
+    assert find_checkpoint_info("big-model") is not None
+    # Lookup by full filename fails (as expected — callers must strip ext)
+    assert find_checkpoint_info("big-model.safetensors") is None
+
+
+# ---------------------------------------------------------------------------
+# build_unet_index integration
+# ---------------------------------------------------------------------------
+
+def test_build_unet_index_includes_extra_lora_manager_paths(monkeypatch, tmp_path):
+    """UNets stored only in LoraManager extra paths are indexed and findable."""
+    standard_dir = tmp_path / "standard_unets"
+    standard_dir.mkdir()
+
+    extra_dir = tmp_path / "extra_unets"
+    extra_dir.mkdir()
+    unet_file = extra_dir / "flux-unet.safetensors"
+    unet_file.write_bytes(b"dummy")
+
+    monkeypatch.setattr(folder_paths, "get_folder_paths", lambda kind: [str(standard_dir)] if kind == "unet" else [])
+    monkeypatch.setattr(lora_mod, "get_lora_manager_paths", lambda model_type: [str(extra_dir)] if model_type == "unet" else [])
+    _reset_unet_index()
+
+    build_unet_index()
+    info = find_unet_info("flux-unet")
+    assert info is not None, "Expected flux-unet to be found in the extra path"
+    assert info["filename"] == "flux-unet.safetensors"
+    assert os.path.normcase(info["abspath"]) == os.path.normcase(str(unet_file))
+
+
+def test_build_unet_index_standard_path_takes_priority_over_extra(monkeypatch, tmp_path):
+    """When the same stem exists in both standard and extra paths, the standard path wins."""
+    standard_dir = tmp_path / "standard"
+    standard_dir.mkdir()
+    extra_dir = tmp_path / "extra"
+    extra_dir.mkdir()
+
+    std_file = standard_dir / "flux1-dev.safetensors"
+    std_file.write_bytes(b"standard")
+    extra_file = extra_dir / "flux1-dev.safetensors"
+    extra_file.write_bytes(b"extra")
+
+    monkeypatch.setattr(folder_paths, "get_folder_paths", lambda kind: [str(standard_dir)] if kind == "unet" else [])
+    monkeypatch.setattr(lora_mod, "get_lora_manager_paths", lambda model_type: [str(extra_dir)] if model_type == "unet" else [])
+    _reset_unet_index()
+
+    build_unet_index()
+    info = find_unet_info("flux1-dev")
+    assert info is not None
+    assert os.path.normcase(info["abspath"]) == os.path.normcase(str(std_file))
+
+
+def test_build_unet_index_no_lora_manager_installed(monkeypatch, tmp_path):
+    """build_unet_index works normally when LoraManager returns no extra paths."""
+    unet_dir = tmp_path / "unets"
+    unet_dir.mkdir()
+    (unet_dir / "standard-unet.safetensors").write_bytes(b"dummy")
+
+    monkeypatch.setattr(folder_paths, "get_folder_paths", lambda kind: [str(unet_dir)] if kind == "unet" else [])
+    monkeypatch.setattr(lora_mod, "get_lora_manager_paths", lambda model_type: [])
+    _reset_unet_index()
+
+    build_unet_index()
+    assert find_unet_info("standard-unet") is not None
+
+
+def test_build_unet_index_accepts_uppercase_extensions(monkeypatch, tmp_path):
+    """UNet indexing accepts uppercase supported file extensions."""
+    unet_dir = tmp_path / "unets"
+    unet_dir.mkdir()
+    (unet_dir / "upper-unet.SAFETENSORS").write_bytes(b"dummy")
+
+    monkeypatch.setattr(folder_paths, "get_folder_paths", lambda kind: [str(unet_dir)] if kind == "unet" else [])
+    monkeypatch.setattr(lora_mod, "get_lora_manager_paths", lambda model_type: [])
+    _reset_unet_index()
+
+    build_unet_index()
+
+    info = find_unet_info("upper-unet")
+    assert info is not None
+    assert info["filename"] == "upper-unet.SAFETENSORS"
