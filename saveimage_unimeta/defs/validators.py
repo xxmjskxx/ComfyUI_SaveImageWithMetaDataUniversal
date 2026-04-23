@@ -164,10 +164,21 @@ def is_node_connected(node_id, prompt, *args):
     Caches the result for performance, invalidating stale entries
     when the prompt graph changes.
     """
-    # Invalidate cache if the prompt object changed (different graph).
-    # Store the prompt object itself rather than ``id(prompt)`` so recycled
-    # object ids cannot accidentally preserve stale cache entries for a new
-    # prompt that happens to land at the same address.
+    # Invalidate cache when the prompt graph changes. We deliberately store
+    # the prompt object itself (not ``id(prompt)``) and compare with ``is``:
+    #
+    #   * ``id(prompt)`` is unsafe because CPython readily reuses freed
+    #     addresses for new dicts of the same size class. A user editing a
+    #     workflow's wiring without changing its node count could land at the
+    #     same address as the previous prompt and silently hit a stale cache,
+    #     corrupting metadata for every saved image in that session.
+    #   * ``weakref.ref(prompt)`` is not viable: ``dict`` does not support
+    #     weak references and call sites pass the raw prompt dict.
+    #
+    # The retained reference is bounded: a single dict, overwritten on the
+    # next call with a different prompt. ComfyUI itself keeps the active
+    # prompt alive for the duration of execution, so this attribute does not
+    # meaningfully extend the prompt's lifetime in practice.
     if getattr(is_node_connected, "_cached_prompt", None) is not prompt:
         _CONNECTION_CACHE.clear()
         is_node_connected._cached_prompt = prompt
