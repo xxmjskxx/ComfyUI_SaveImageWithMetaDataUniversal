@@ -297,6 +297,7 @@ class SaveImageWithMetaDataUniversal:
                 "suppress_missing_class_log": (
                     "BOOLEAN",
                     {
+                        "advanced": True,
                         "default": True,
                         "tooltip": (
                             "Hide the informational log about missing classes \nthat triggers a user JSON merge "
@@ -309,6 +310,7 @@ class SaveImageWithMetaDataUniversal:
                 "model_hash_log": (
                     ["none", "filename", "path", "detailed", "debug"],
                     {
+                        "advanced": True,
                         "default": "none",
                         "tooltip": (
                             "Artifact hashing log: filename=short, path=full, detailed=resolution+sidecar, " "debug=+candidates+full hash."[
