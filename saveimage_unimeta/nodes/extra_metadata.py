@@ -7,6 +7,7 @@ adding information that is not automatically captured by the metadata scanner.
 
 
 from collections.abc import Mapping
+from typing import Any
 
 
 class CreateExtraMetaDataUniversal:
@@ -22,7 +23,7 @@ class CreateExtraMetaDataUniversal:
     EXTRA_METADATA_PAIR_COUNT = 4
 
     @classmethod
-    def _validated_pair_count(cls):
+    def _validated_pair_count(cls) -> int:
         """Return the configured pair count after enforcing a valid minimum."""
         pair_count = cls.EXTRA_METADATA_PAIR_COUNT
         if not isinstance(pair_count, int) or isinstance(pair_count, bool):
@@ -37,7 +38,7 @@ class CreateExtraMetaDataUniversal:
         return pair_count
 
     @classmethod
-    def _build_pair_inputs(cls, start_index, end_index):
+    def _build_pair_inputs(cls, start_index: int, end_index: int) -> dict[str, tuple[str, dict[str, Any]]]:
         """Build the repeated key/value string inputs for the node schema."""
         cls._validated_pair_count()
         pair_inputs = {}
@@ -47,7 +48,7 @@ class CreateExtraMetaDataUniversal:
         return pair_inputs
 
     @classmethod
-    def _pair_field_names(cls):
+    def _pair_field_names(cls) -> tuple[str, ...]:
         """Return the ordered field names matching the declared key/value inputs."""
         field_names = []
         for index in range(1, cls._validated_pair_count() + 1):
@@ -55,7 +56,7 @@ class CreateExtraMetaDataUniversal:
         return tuple(field_names)
 
     @classmethod
-    def _normalize_pair_arguments(cls, pair_args, pair_kwargs):
+    def _normalize_pair_arguments(cls, pair_args: tuple[Any, ...], pair_kwargs: dict[str, Any]) -> dict[str, Any]:
         """Normalize positional and keyword pair inputs into a validated mapping."""
         field_names = cls._pair_field_names()
         if len(pair_args) > len(field_names):
@@ -101,15 +102,15 @@ class CreateExtraMetaDataUniversal:
     CATEGORY = "SaveImageWithMetaDataUniversal"
     DESCRIPTION = (
         "Manually create extra metadata key-value pairs to include in saved images.\n"
-        "Keys and values should be strings.\nPairs with empty keys or empty values are ignored."
+        "Keys and values are expected to be strings.\nPairs with empty keys or values equal to None or '' are ignored."
     )
 
     def create_extra_metadata(
         self,
-        extra_metadata=None,
-        *pair_args,
-        **kwargs,
-    ):
+        extra_metadata: Mapping[Any, Any] | None = None,
+        *pair_args: Any,
+        **kwargs: Any,
+    ) -> tuple[dict[Any, Any]]:
         """Merge provided key/value pairs into a metadata dictionary.
 
         This method combines the input key-value pairs with an optional existing
@@ -117,17 +118,19 @@ class CreateExtraMetaDataUniversal:
         standard format for ComfyUI node outputs.
 
         Args:
-            extra_metadata (dict, optional): An existing dictionary of metadata.
-                If None, a new dictionary is created. Defaults to None.
-            *pair_args: Positional ``keyN``/``valueN`` pairs kept for direct-call compatibility.
+            extra_metadata (Mapping[Any, Any] | None, optional): An existing
+                metadata mapping. If None, a new dictionary is created.
+                Defaults to None.
+            *pair_args: Positional ``keyN``/``valueN`` pairs for direct Python
+                callers after the optional ``extra_metadata`` argument.
             **kwargs: Dynamic ``keyN``/``valueN`` pairs aligned with ``INPUT_TYPES``.
 
         Returns:
-            tuple: A tuple containing the updated metadata dictionary.
+            tuple[dict[Any, Any]]: A tuple containing the updated metadata dictionary.
         """
-        # Create a new dictionary to avoid mutating the input and to prevent
-        # stale cache issues from mutable default arguments
-        result = {}
+        # Create a fresh dictionary so incoming metadata mappings are copied
+        # rather than mutated in place.
+        result: dict[Any, Any] = {}
         # Copy existing metadata if provided
         if extra_metadata is not None:
             if not isinstance(extra_metadata, Mapping):
@@ -138,7 +141,7 @@ class CreateExtraMetaDataUniversal:
             result.update(extra_metadata)
         normalized_pairs = self._normalize_pair_arguments(pair_args, kwargs)
         pair_count = self._validated_pair_count()
-        # Add the new key-value pairs, only if the key is non-empty
+        # Add key/value pairs only when the key is truthy and the value is neither None nor an empty string.
         for index in range(1, pair_count + 1):
             key = normalized_pairs.get(f"key{index}", "")
             value = normalized_pairs.get(f"value{index}", "")
