@@ -11,6 +11,8 @@ import os
 
 os.environ["METADATA_TEST_MODE"] = "1"
 
+import pytest
+
 from saveimage_unimeta.nodes.extra_metadata import CreateExtraMetaDataUniversal
 
 
@@ -42,12 +44,68 @@ class TestExtraMetadataInputTypes:
         """Typos in key/value field names should fail fast instead of being ignored."""
         node = CreateExtraMetaDataUniversal()
 
-        try:
+        with pytest.raises(TypeError, match="Unexpected metadata arguments"):
             node.create_extra_metadata(valeu1="Alice")
-        except TypeError as exc:
-            assert "Unexpected metadata arguments" in str(exc)
-        else:
-            raise AssertionError("Expected TypeError for unexpected metadata argument")
+
+    def test_pair_count_must_be_positive_for_input_types(self, monkeypatch):
+        """Schema generation should fail fast on invalid pair counts."""
+        monkeypatch.setattr(CreateExtraMetaDataUniversal, "EXTRA_METADATA_PAIR_COUNT", 0)
+
+        with pytest.raises(ValueError, match="EXTRA_METADATA_PAIR_COUNT must be >= 1"):
+            CreateExtraMetaDataUniversal.INPUT_TYPES()
+
+    def test_pair_count_must_be_positive_at_runtime(self, monkeypatch):
+        """Direct runtime calls should also fail fast on invalid pair counts."""
+        monkeypatch.setattr(CreateExtraMetaDataUniversal, "EXTRA_METADATA_PAIR_COUNT", 0)
+
+        with pytest.raises(ValueError, match="EXTRA_METADATA_PAIR_COUNT must be >= 1"):
+            CreateExtraMetaDataUniversal().create_extra_metadata(key1="Artist", value1="Alice")
+
+    def test_pair_count_must_be_an_integer_for_input_types(self, monkeypatch):
+        """Schema generation should reject non-integer pair counts clearly."""
+        monkeypatch.setattr(CreateExtraMetaDataUniversal, "EXTRA_METADATA_PAIR_COUNT", 1.5)
+
+        with pytest.raises(TypeError, match="EXTRA_METADATA_PAIR_COUNT must be an integer"):
+            CreateExtraMetaDataUniversal.INPUT_TYPES()
+
+    def test_pair_count_must_be_an_integer_at_runtime(self, monkeypatch):
+        """Direct runtime calls should reject non-integer pair counts clearly."""
+        monkeypatch.setattr(CreateExtraMetaDataUniversal, "EXTRA_METADATA_PAIR_COUNT", "4")
+
+        with pytest.raises(TypeError, match="EXTRA_METADATA_PAIR_COUNT must be an integer"):
+            CreateExtraMetaDataUniversal().create_extra_metadata(key1="Artist", value1="Alice")
+
+    def test_pair_count_bool_is_rejected(self, monkeypatch):
+        """Boolean values should not be accepted as integer pair counts."""
+        monkeypatch.setattr(CreateExtraMetaDataUniversal, "EXTRA_METADATA_PAIR_COUNT", True)
+
+        with pytest.raises(TypeError, match="EXTRA_METADATA_PAIR_COUNT must be an integer"):
+            CreateExtraMetaDataUniversal.INPUT_TYPES()
+
+    def test_pair_count_of_one_remains_valid(self, monkeypatch):
+        """The minimum supported pair count should still produce a usable schema."""
+        monkeypatch.setattr(CreateExtraMetaDataUniversal, "EXTRA_METADATA_PAIR_COUNT", 1)
+
+        input_types = CreateExtraMetaDataUniversal.INPUT_TYPES()
+        metadata = CreateExtraMetaDataUniversal().create_extra_metadata(key1="Artist", value1="Alice")[0]
+
+        assert set(input_types["required"]) == {"key1", "value1"}
+        assert input_types["optional"] == {"extra_metadata": ("EXTRA_METADATA",)}
+        assert metadata == {"Artist": "Alice"}
+
+    def test_duplicate_positional_and_keyword_arguments_raise_type_error(self):
+        """Overlapping positional and keyword fields should fail fast."""
+        node = CreateExtraMetaDataUniversal()
+
+        with pytest.raises(TypeError, match="Got multiple values for argument 'key1'"):
+            node.create_extra_metadata(None, "Artist", key1="Author")
+
+    def test_invalid_extra_metadata_argument_raises_type_error(self):
+        """extra_metadata should be validated before attempting to merge it."""
+        node = CreateExtraMetaDataUniversal()
+
+        with pytest.raises(TypeError, match="extra_metadata must be a mapping"):
+            node.create_extra_metadata("not-a-mapping", key1="Artist", value1="Alice")
 
 
 class TestExtraMetadataNoStaleCache:
@@ -222,6 +280,18 @@ class TestExtraMetadataEmptyKeys:
         assert "" not in metadata
         # Values for empty keys should not appear
         assert len(metadata) == 2
+
+    def test_empty_values_ignored_when_key_present(self):
+        """Verify empty string values are skipped even when the corresponding key is present."""
+        node = CreateExtraMetaDataUniversal()
+
+        result = node.create_extra_metadata(
+            key1="Artist",
+            value1="",
+        )
+        metadata = result[0]
+
+        assert "Artist" not in metadata
 
     def test_all_empty_keys_returns_empty_dict(self):
         """Verify that all empty keys returns an empty dict."""

@@ -6,20 +6,40 @@ adding information that is not automatically captured by the metadata scanner.
 """
 
 
+from collections.abc import Mapping
+
+
 class CreateExtraMetaDataUniversal:
     """A node to collect key/value pairs and emit an EXTRA_METADATA payload.
 
-    This node allows users to manually input up to four key-value pairs, which
-    are then merged with an optional incoming `extra_metadata` mapping. This
-    enables the injection of custom data into the metadata pipeline without
-    modifying any configuration files.
+    This node allows users to manually input up to
+    ``EXTRA_METADATA_PAIR_COUNT`` key-value pairs, which are then merged with
+    an optional incoming ``extra_metadata`` mapping. This enables the
+    injection of custom data into the metadata pipeline without modifying any
+    configuration files.
     """
 
     EXTRA_METADATA_PAIR_COUNT = 4
 
     @classmethod
+    def _validated_pair_count(cls):
+        """Return the configured pair count after enforcing a valid minimum."""
+        pair_count = cls.EXTRA_METADATA_PAIR_COUNT
+        if not isinstance(pair_count, int) or isinstance(pair_count, bool):
+            raise TypeError(
+                "CreateExtraMetaDataUniversal.EXTRA_METADATA_PAIR_COUNT must be an integer, "
+                f"got {type(pair_count).__name__}"
+            )
+        if pair_count < 1:
+            raise ValueError(
+                f"CreateExtraMetaDataUniversal.EXTRA_METADATA_PAIR_COUNT must be >= 1, got {pair_count}"
+            )
+        return pair_count
+
+    @classmethod
     def _build_pair_inputs(cls, start_index, end_index):
         """Build the repeated key/value string inputs for the node schema."""
+        cls._validated_pair_count()
         pair_inputs = {}
         for index in range(start_index, end_index + 1):
             pair_inputs[f"key{index}"] = ("STRING", {"default": "", "multiline": False})
@@ -30,7 +50,7 @@ class CreateExtraMetaDataUniversal:
     def _pair_field_names(cls):
         """Return the ordered field names matching the declared key/value inputs."""
         field_names = []
-        for index in range(1, cls.EXTRA_METADATA_PAIR_COUNT + 1):
+        for index in range(1, cls._validated_pair_count() + 1):
             field_names.extend((f"key{index}", f"value{index}"))
         return tuple(field_names)
 
@@ -60,7 +80,8 @@ class CreateExtraMetaDataUniversal:
         """Define the input types for the `CreateExtraMetaDataUniversal` node.
 
         This method specifies the required and optional inputs for the node,
-        including four key-value pairs and an optional `extra_metadata` input.
+        including a configurable number of key-value pairs plus an optional
+        ``extra_metadata`` input.
 
         Returns:
             dict: A dictionary defining the input schema for the node.
@@ -80,7 +101,7 @@ class CreateExtraMetaDataUniversal:
     CATEGORY = "SaveImageWithMetaDataUniversal"
     DESCRIPTION = (
         "Manually create extra metadata key-value pairs to include in saved images.\n"
-        "Keys and values should be strings.\nKeys without values will be ignored and vice versa."
+        "Keys and values should be strings.\nPairs with empty keys or empty values are ignored."
     )
 
     def create_extra_metadata(
@@ -109,12 +130,18 @@ class CreateExtraMetaDataUniversal:
         result = {}
         # Copy existing metadata if provided
         if extra_metadata is not None:
+            if not isinstance(extra_metadata, Mapping):
+                raise TypeError(
+                    "CreateExtraMetaDataUniversal.extra_metadata must be a mapping, "
+                    f"got {type(extra_metadata).__name__}"
+                )
             result.update(extra_metadata)
         normalized_pairs = self._normalize_pair_arguments(pair_args, kwargs)
+        pair_count = self._validated_pair_count()
         # Add the new key-value pairs, only if the key is non-empty
-        for index in range(1, self.EXTRA_METADATA_PAIR_COUNT + 1):
+        for index in range(1, pair_count + 1):
             key = normalized_pairs.get(f"key{index}", "")
             value = normalized_pairs.get(f"value{index}", "")
-            if key:
+            if key and value is not None and value != "":
                 result[key] = value
         return (result,)
