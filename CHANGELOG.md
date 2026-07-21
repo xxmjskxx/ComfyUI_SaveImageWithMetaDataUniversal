@@ -4,6 +4,38 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.4.3] - 2026-07-21
+### Highlights
+Patch release with LoRA Manager hash and path-resolution fixes, extra-metadata robustness improvements,
+bugfixes for efficiency-node tuple handling and validator cache invalidation, and minor UI/UX enhancements.
+
+### Added
+- LoraManager extra directory support for embeddings, checkpoints, and UNet models — model file resolution
+	now searches LoraManager-configured extra paths for all model types, not just LoRAs.
+- Advanced UI toggle (`advanced: True`) for `suppress_missing_class_log` and `model_hash_log` parameters,
+	reducing clutter in the save-node widget panel.
+
+### Changed
+- `CreateExtraMetaDataUniversal` now uses a configurable `EXTRA_METADATA_PAIR_COUNT` constant to generate
+	key/value input fields dynamically, replacing the previous hardcoded 4-pair limit. The node's `FUNCTION`
+	accepts variable positional/keyword arguments with normalization and validation. (#63)
+- Filename prefix tooltip enhanced with subdirectory support documentation and clarified token usage.
+
+### Fixed
+- Extra metadata values no longer have commas silently replaced with slashes, making the node usable for
+	storing prompt text that naturally contains commas. (#126)
+- LoRA Loader (LoraManager) hash calculation now works correctly when structured payloads with active-flag
+	fields are present, and scalar fallback strength parsing handles list/tuple widget values.
+- LoraManager extra LoRA paths are now included when building the LoRA index, with cross-platform path
+	deduplication preventing double-walks when the same path appears in multiple sources. (#127)
+- `_is_advanced_mode` in `efficiency_nodes.py` now accepts both `list` and `tuple` input batch types,
+	matching the same fix pattern already applied to `rgthree.py`. (#88)
+- Removed redundant duplicate `_find_ci("t5 prompt")` call in capture fallback logic.
+- `is_node_connected` cache in `validators.py` now invalidates stale entries when the prompt graph
+	changes between calls, preventing incorrect connection-state results across different workflows.
+- CI lint-autofix job now correctly checks out the pull request head repository and ref for fork-PR
+	workflows, fixing false negatives.
+
 ## [1.4.2] - 2026-03-19
 ### Highlights
 Patch release focused on closing gaps between runtime metadata capture and the workflow validator. Prompt routing
@@ -224,7 +256,7 @@ This is a major consolidation release bringing together 219 commits of improveme
 
 ### Fixed
 - Loader runtime test-mode path detection (ensures user JSON merges correctly under coverage import order).
-- Coverage “No source for code” error: placeholder `generated_user_rules.py` + coverage omit.
+- Coverage "No source for code" error: placeholder `generated_user_rules.py` + coverage omit.
 - Timestamp helper now validates optional `-N` suffix correctly.
 - Failing append placeholder test due to path mismatch after isolation changes.
 - Potential stale baseline in scanner cache when isolated test directory used.
@@ -300,7 +332,8 @@ Note: 1.0.0 was the first public registry release; this minor release formalizes
 
 ---
 
-[Unreleased]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.4.2...HEAD
+[Unreleased]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.4.3...HEAD
+[1.4.3]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.4.2...v1.4.3
 [1.4.2]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.4.0...v1.4.1
 [1.3.0]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.2.4...v1.3.0
@@ -318,62 +351,46 @@ Baseline derived from upstream [`nkchocoai/ComfyUI-SaveImageWithMetaData`](https
 | ---- | ------- |
 | `SaveImageWithMetaDataUniversal` | Core image save + enriched metadata & parameters (PNGInfo / EXIF / WebP). |
 | `Metadata Rule Scanner` | Analyze installed nodes, suggest capture rules & sampler associations. |
-| `Save Custom Metadata Rules` | Persist accepted rule suggestions to user rules file. |
-| `Metadata Force Include` | Manage globally forced node class names for guaranteed capture. |
-| `Create Extra MetaData` | Inject arbitrary additional key-value pairs. |
-| `Show generated_user_rules.py` | Display merged user rules for review/edit. |
-| `Save generated_user_rules.py` | Validate and write edited rules back to disk. |
-| `Show Text (UniMeta)` | Display connected text outputs (local variant). |
+| `Show Any (Any to String)` | Accept any input, convert to STRING, display on canvas; supports batching. |
 
 ### Core Additions
 - Universal capture pipeline (`Capture` + dynamic rule loading) covering prompts, models, VAEs, LoRAs, embeddings, samplers, guidance, shift, clip models.
-- Multi-format save: PNG (PNGInfo), lossless WebP, JPEG (EXIF) with staged fallback and parameter string annotation.
-- Dynamic rule generation workflow: `Metadata Rule Scanner` + `Save Custom Metadata Rules` nodes; persisted user rule file merge logic.
-- Global forced include management via `Metadata Force Include` node and `FORCED_INCLUDE_CLASSES` registry.
-- Parameter string generation aligned with Automatic1111 style (single-line) plus test mode (multiline) for deterministic snapshots.
-- Hash caching using `.sha256` sidecars for model, VAE, LoRA (truncated SHA256 display, reused once computed).
-- LoRA detection (single, stacked loaders, inline prompt tags) with optional summary + per-item detail lines.
-- Filename token system with truncation (`%pprompt:[n]%`, `%model:[n]%`, timestamp patterning).
-- Environment flag system (runtime evaluated) for hash detail suppression, LoRA summary suppression, test mode formatting, and prompt debug logging.
+- Metadata parameter engine: A1111-style parameter string generation and PNGInfo / EXIF embedding.
+- LoRA detection hierarchy: structured loaders, stack-oriented, A1111/Civitai inline syntax `<lora:name:str[:str_clip]>`.
+- Model / VAE / LoRA / embedding hashing with SHA256 sidecar caching—reusable across sessions by default.
+- Filename token replacement system (`%seed%`, `%pprompt%`, `%date%`, etc.) with optional truncation.
+- Optional `guidance_as_cfg` mapping and `civitai_sampler` naming normalization for downstream ecosystem compatibility.
 
 ### JPEG Metadata Fallback System
 - Size-aware staged degradation: full → reduced-exif → minimal → com-marker.
-- Minimal stage allowlist retains prompts, sampler core settings, seed, model/vae names+hashes, hash summary, generator version, LoRAs.
-- Automatic annotation `Metadata Fallback: <stage>` appended only once to parameter string.
-- Configurable UI cap `max_jpeg_exif_kb` (hard limit 64KB) with recommendations.
+- UI-tunable `max_jpeg_exif_kb` (default 60KB, max 64KB) with `Metadata Fallback: <stage>` signaling when trimming occurs.
+- COM marker fallback for exceeding limits, and `_last_fallback_stages` tracking diagnostic variable for downstream tests.
 
 ### Sampler & Graph Intelligence
 - BFS trace + sampler heuristic selection (`Trace`) with distance-based selection modes (Farthest, Nearest, By node ID).
-- Heuristic fallback when sampler not explicitly matched (based on presence of key metafields like Steps/CFG).
+- Compatible sampler definitions (`SamplerStage`) extended beyond KSampler for additional sampler nodes.
 
 ### Metadata Integrity & Ordering
 - Stable key ordering; only append new fields to avoid churn.
-- Consistent trimming rules for minimal fallback to preserve downstream parsing reliability.
-- Comma replacement with `/` in extra metadata values to avoid downstream naive split issues.
+- Fallback marker guaranteed append-once behavior.
 
 ### Developer / Maintenance Enhancements
 - Central AI assistant instructions (`.github/copilot-instructions.md`) describing architecture, constraints, safe-edit rules.
-- Expanded README with quick tips, fallback behavior explanation, environment flags table, filename token reference.
-- Logging over raw prints; debug flags for prompt capture.
-- Testing support: multiline deterministic parameters under `METADATA_TEST_MODE`.
+- Test mode (`METADATA_TEST_MODE`) for structured multiline parameter output.
+- Testing stub nodes (`MetadataTestSampler`, `MetadataTestLoraLoader`) enabled by `METADATA_ENABLE_TEST_NODES`.
 
 ### Archived / Deferred (Documented Separately)
 - Archived prototype in `web/disabled/metadata_rule_scanner/` (editor UI) documented in `docs/FUTURE_AND_PROTOTYPES.md`.
-- Workflow compression placeholder design (`docs/WORKFLOW_COMPRESSION_DESIGN.md`).
 
 ### Compatibility / Interop
 - Civitai-aligned sampler & CFG mapping option (`guidance_as_cfg`, `civitai_sampler`).
-- Lossless WebP parity with PNG for workflow embedding.
+- A1111/Civitai inline LoRA tag parsing.
 
 ### Security / Performance
 - Avoid repeated hashing by sidecar reuse; truncated display for readability.
-- No multi-segment EXIF writes (explicitly out-of-scope for simplicity & compatibility).
 
 ### Breaks / Differences From Upstream
-- Separation of scanning vs forced include responsibilities into dedicated nodes.
-- JPEG fallback semantics and parameter string marker (not present upstream).
-- Extended LoRA and embedding hashing & display structures.
-- Environment flag driven runtime behavior toggles (no restart required).
-
----
-
+- Reorganized module structure (no legacy `node.py` path).
+- User rules split between JSON and generated Python; upstream format not recognized.
+- `piexif` unavailable → graceful EXIF degradation for JPEG (COM marker only).
+- Multi‑format EXIF helper uses PIE approach from original but expanded for fallbacks.
