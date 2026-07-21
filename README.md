@@ -441,6 +441,7 @@ LoRA Manager hash/path-resolution fixes, extra-metadata robustness, bugfixes, an
 
 **Recent Prior Releases**
 
+- **v1.4.2 (2026-03-19)**: Prompt-routing and metadata-validation hardening release.
 - **v1.4.1 (2026-03-18)**: Save Image widget ordering and fit hotfix release.
 - **v1.4.0 (2026-03-17)**: ComfyUI 0.3.65+ compatibility, `lora_strengths_in_prompt`, and extension hardening release.
 
