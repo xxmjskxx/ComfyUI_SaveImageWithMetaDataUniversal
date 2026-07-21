@@ -319,28 +319,28 @@ Outputs: Updated forced class list (string + list form) for display/auditing.
 <details>
 <summary><strong>More:</strong></summary>
 
-### Metadata Rule Scanner doesn’t find the nodes I want to capture
+### Metadata Rule Scanner doesn't find the nodes I want to capture
 - Check `exclude_keywords` on the scanner. If a class name or pack prefix matches, the scanner filters it out.
 - Set `mode` to the broadest scan (e.g., include new + existing) and enable `include_existing` so suggestions merge with known rules.
 - Use `force_include_node_class` (exact class names, comma/newline separated) to force discovery even if it would be filtered.
-  - Tip: Find the exact class name via the node’s “type” in ComfyUI (or export workflow JSON and copy the class name).
+  - Tip: Find the exact class name via the node's "type" in ComfyUI (or export workflow JSON and copy the class name).
 - Use the `Metadata Force Include` node and wire its `forced_classes_str` to `Show Text (UniMeta)` to verify your forced list.
-- If the node still doesn’t appear, open an issue with: node pack name, node class, your scanner inputs, and a minimal workflow.
+- If the node still doesn't appear, open an issue with: node pack name, node class, your scanner inputs, and a minimal workflow.
 
 ### Scanner found my nodes but the suggested rules look wrong or fields are missing
 - Treat the scanner output as a starting point. Some nodes require manual mapping of inputs to metadata fields.
 - Check the outputs from the `Metadata Rule Scanner` and `Show generated_user_rules.py` nodes, reference the files mentioned in [reference examples](#reference-examples-jsonpython), make any necessary changes, and then save the adjusted rules with `Save Custom Metadata Rules` or `Save generated_user_rules.py`, respectively
-- Use the `Show generated_user_rules.py` node, adjust the suggested capture paths to match your node’s sockets/fields, then save with `Save generated_user_rules.py`.
+- Use the `Show generated_user_rules.py` node, adjust the suggested capture paths to match your node's sockets/fields, then save with `Save generated_user_rules.py`.
 - Prefer explicit hints:
   - Use scanner input `force_include_metafields` to bias suggestions toward specific fields you care about first.
   - If your downstream needs Civitai-style names, enable `civitai_sampler` in the save node and `guidance_as_cfg` when appropriate.
 - Sampler/scheduler mismatches: verify the node that actually did sampling (see Sampler Selection Method) and ensure its inputs are captured.
 - LoRA/embedding not showing:
   - Ensure those loaders exist in the graph upstream of sampling and are not bypassed.
-  - Inline tags like `<lora:name:sm[:sc]>` are detected; loader nodes may still need class forcing so they’re included in rule generation.
+  - Inline tags like `<lora:name:sm[:sc]>` are detected; loader nodes may still need class forcing so they're included in rule generation.
 - Hashes missing: make sure models/VAEs/LoRAs are readable by the process; hash sidecars (`.sha256`) are used when present, else computed.
 - Hash detail JSON absent: check that `METADATA_NO_HASH_DETAIL` is not set (UI parameter takes precedence where applicable).
-- JPEG missing fields is not a rules error: it’s a size fallback. Use PNG/WebP or increase `max_jpeg_exif_kb` within the 64KB cap.
+- JPEG missing fields is not a rules error: it's a size fallback. Use PNG/WebP or increase `max_jpeg_exif_kb` within the 64KB cap.
 
 Quick checklist when metadata seems incomplete:
 - Run the save with `METADATA_TEST_MODE=1` for deterministic multiline output and easier diffing.
@@ -430,21 +430,22 @@ Stable output characteristics to aid tooling & reproducibility:
 
 ### Changelog
 
-**Latest Release: v1.4.2 (2026-03-19)**
+**Latest Release: v1.4.3 (2026-07-21)**
 
-Prompt-routing and metadata-validation hardening release:
-- **Prompt capture fixes**: Generic guider/conditioning routing now preserves positive and negative prompts more reliably, including `Prompt (LoraManager)` and `TextEncodeQwenImageEditPlus` flows.
-- **Runtime metadata recovery**: Capture now falls back more gracefully for `Steps`, `Seed`, `Denoise`, `Size`, `Scheduler`, and `weight_dtype`, with better Civitai sampler normalization.
-- **Validator alignment**: Workflow validation now resolves nested seed refs, dual T5/CLIP prompt routes, LoRA stacks, baked VAE fields, batch indices, and indexed CLIP model names without synthesizing false dual-prompt expectations.
-- **Regression coverage**: Expanded tests around validators, capture fallbacks, prompt routing, reverse coverage, and real workflow matching.
-- **Tracked fixes**: Also resolves upstream tracker items #87, #89, #92, and #94.
+LoRA Manager hash/path-resolution fixes, extra-metadata robustness, bugfixes, and UI enhancements:
+- **LoRA Manager fixes**: Hash calculation now works with structured payloads; extra paths included for LoRAs, embeddings, checkpoints, and UNets with path deduplication.
+- **Extra metadata**: Commas are no longer replaced in values; dynamic key-value pair count replaces hardcoded 4-pair limit.
+- **Bugfixes**: Efficiency nodes now accept tuple batches for advanced mode; validator connection cache invalidates on prompt changes; redundant code removed.
+- **UI/UX**: Advanced toggle for log suppression; enhanced filename prefix tooltip with subdirectory support.
+- **CI**: Fork-PR lint-autofix checkout fixed.
 
 **Recent Prior Releases**
 
+- **v1.4.2 (2026-03-19)**: Prompt-routing and metadata-validation hardening release.
 - **v1.4.1 (2026-03-18)**: Save Image widget ordering and fit hotfix release.
 - **v1.4.0 (2026-03-17)**: ComfyUI 0.3.65+ compatibility, `lora_strengths_in_prompt`, and extension hardening release.
 
-See [CHANGELOG.md](CHANGELOG.md) for complete details or [RELEASE_NOTES_v1.4.2.md](docs/releases/RELEASE_NOTES_v1.4.2.md) for the full release notes.
+See [CHANGELOG.md](CHANGELOG.md) for complete details or [RELEASE_NOTES_v1.4.3.md](docs/releases/RELEASE_NOTES_v1.4.3.md) for the full release notes.
 
 **Previous Notable Changes:**
 - Refactor notice: legacy monolithic module removed; see [CHANGELOG.md](CHANGELOG.md) for new direct import paths
@@ -458,26 +459,3 @@ For testing workflows locally, see [DEV_WORKFLOW_TESTING.md](tests/comfyui_cli_t
 - Running workflows from the command line with `tests/tools/run_dev_workflows.py`
 - Automatically cleaning test output folders
 - Validating generated image metadata with `tests/tools/validate_metadata.py`
-- Complete testing workflow examples
-
-For workflow test coverage suggestions, see [WORKFLOW_TEST_SUGGESTIONS.md](tests/comfyui_cli_tests/WORKFLOW_TEST_SUGGESTIONS.md) which includes:
-- Analysis of current test coverage
-- 18 specific workflow test recommendations
-- Priority guidelines for comprehensive testing
-
-### Contributing (Summary)
-Run lint & tests before submitting PRs:
-```
-ruff check .
-pytest -q
-```
-See [CONTRIBUTING.md](CONTRIBUTING.md) for full guidelines.
-
-AI assistants / contributors: see [copilot-instructions.md](.github/copilot-instructions.md) for architecture map, safe-edit rules, JPEG fallback constraints, and metadata field extension guidance before making automated changes.
-
----
-For extended sampler selection details and advanced capture behavior, refer to the in-code docstrings (`Trace`, `Capture`) or open an issue if external docs would help.
-
-</details>
-
-日本語版READMEは[こちら](README.jp.md)。
