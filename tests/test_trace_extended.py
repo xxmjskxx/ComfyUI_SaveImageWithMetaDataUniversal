@@ -184,6 +184,28 @@ class TestTraceBFS:
         assert "a" in result
         assert "b" in result
 
+    def test_trace_skips_subgraph_dict_links(self, trace_module):
+        """V3 subgraph links (first element is a dict) must not crash BFS traversal."""
+        # Under the ComfyUI V3 schema, an input connected through a subgraph is
+        # serialised with a dict node reference instead of a string id.
+        prompt = {
+            "save": {
+                "class_type": "SaveNode",
+                "inputs": {
+                    "img": ["sampler", 0],
+                    "subgraph_out": [{"subgraph": "abc-123", "output": 0}, 0],
+                },
+            },
+            "sampler": {"class_type": "KSampler", "inputs": {}},
+        }
+
+        result = trace_module.Trace.trace("save", prompt)
+
+        # The dict link is not traceable in the flat prompt graph and is skipped.
+        assert result["save"].distance == 0
+        assert result["sampler"].distance == 1
+        assert len(result) == 2
+
 
 class TestFindSamplerNodeId:
     """Tests for Trace.find_sampler_node_id."""

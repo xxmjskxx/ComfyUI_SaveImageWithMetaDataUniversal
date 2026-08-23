@@ -84,6 +84,11 @@ class Trace:
             for value in input_fields.values():
                 if isinstance(value, list):
                     nid = value[0]
+                    if not isinstance(nid, str):
+                        # V3/subgraph links reference nodes as dicts (or other
+                        # non-string ids) and are not traceable in the flat prompt
+                        # graph, so skip them rather than crashing on hashing.
+                        continue
                     if nid not in visited and nid in prompt:  # Ensure the node is not visited and exists
                         class_type = prompt[nid]["class_type"]
                         trace_tree[nid] = TraceEntry(distance + 1, class_type)
