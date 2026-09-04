@@ -106,6 +106,35 @@ try:
 except OSError:
     pass
 
+
+@pytest.fixture(autouse=True, scope="session")
+def _preserve_generated_user_rules():
+    """Preserve the locally-generated module across the whole test run.
+
+    ``saveimage_unimeta/defs/ext/generated_user_rules.py`` is an uncommitted
+    build artifact the writer regenerates on the user's machine. Several tests
+    delete or overwrite it for isolation, so snapshot it once and restore it at
+    session end. This keeps ``pytest -q`` from destroying the user's local file
+    while still letting tests exercise the real (or placeholder) source.
+    """
+    snapshot = None
+    try:
+        if os.path.exists(_placeholder):
+            with open(_placeholder, encoding="utf-8") as _f:
+                snapshot = _f.read()
+    except OSError:
+        snapshot = None
+    yield
+    try:
+        if snapshot is None:
+            if os.path.exists(_placeholder):
+                os.remove(_placeholder)
+        else:
+            with open(_placeholder, "w", encoding="utf-8") as _f:
+                _f.write(snapshot)
+    except OSError:
+        pass
+
 # Provide lightweight stubs for ComfyUI runtime modules if absent.
 if "folder_paths" not in sys.modules:  # pragma: no cover - only for test env
     fp_mod = types.ModuleType("folder_paths")

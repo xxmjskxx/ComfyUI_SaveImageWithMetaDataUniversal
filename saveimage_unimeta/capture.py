@@ -133,6 +133,57 @@ class _OutputCacheCompat:
         return self.get_output_cache(input_unique_id, unique_id)
 
 
+def _sanitize_missing_links(input_data, node_inputs, prompt):
+    """Resolve ``get_input_data``'s ``(None,)`` markers from the prompt.
+
+    ComfyUI's ``get_input_data`` returns the ``(None,)`` marker for a linked
+    input when the source node's output is not in the cache at capture time
+    (e.g. a LoRA ``text``/``lora_syntax`` or a ``seed`` fed from an upstream
+    node). The source node's input value is always present in the prompt, so
+    fall back to it here so selectors and ``field_name`` extraction never see
+    ``(None,)``.
+    """
+    if not isinstance(input_data, tuple) or not isinstance(input_data[0], dict):
+        return input_data
+    if not isinstance(node_inputs, dict) or not isinstance(prompt, dict):
+        return input_data
+    data = input_data[0]
+    for key, value in list(data.items()):
+        if value != (None,):
+            continue
+        raw = node_inputs.get(key)
+        if not (isinstance(raw, list) and len(raw) >= 2 and isinstance(raw[0], str)):
+            continue
+        src = prompt.get(raw[0])
+        if not isinstance(src, dict):
+            continue
+        src_inputs = src.get("inputs", {})
+        if not isinstance(src_inputs, dict):
+            continue
+        candidates = [key]
+        for name in (
+            "seed",
+            "noise_seed",
+            "noise_seed_sde",
+            "value",
+            "text",
+            "string",
+            "prompt",
+            "lora_name",
+            "lora_syntax",
+            "lora_stack",
+            "cfg",
+            "steps",
+        ):
+            if name not in candidates:
+                candidates.append(name)
+        for name in candidates:
+            if name in src_inputs:
+                data[key] = src_inputs[name]
+                break
+    return input_data
+
+
 # Dynamic flag function so tests can toggle at runtime instead of snapshot at import
 def _include_hash_detail() -> bool:
     """Check if hash detail should be included in the metadata.
@@ -590,6 +641,7 @@ class Capture:
                 DynamicPrompt(prompt),
                 extra_data,
             )
+            input_data = _sanitize_missing_links(input_data, node_inputs, prompt)
 
             # --- Normalize keys to MetaField enum for both default and user rules ---
             for meta_key, field_data in CAPTURE_FIELD_LIST[class_type].items():
@@ -766,6 +818,8 @@ class Capture:
                     tag = field_data.get("source_tag") or getattr(selector, "__name__", None)
                     if isinstance(v, list):
                         for x in v:
+                            if x == (None,):
+                                continue
                             if tag is not None:
                                 inputs[meta].append((node_id, x, tag))
                             else:
@@ -780,6 +834,8 @@ class Capture:
                 if "field_name" in field_data:
                     field_name = field_data["field_name"]
                     value = input_data[0].get(field_name)
+                    if value == (None,) or (isinstance(value, list) and len(value) == 1 and value[0] is None):
+                        continue
                     if value is not None:
                         format_func = field_data.get("format")
                         v = value[0] if isinstance(value, list) and len(value) > 0 else value

@@ -250,7 +250,20 @@ def _merge_user_capture_entry(node_name: str, rules, allowed: set[str] | None) -
         return
     container = CAPTURE_FIELD_LIST.setdefault(node_name, {})
     if isinstance(container, MutableMapping) and isinstance(rules, Mapping):
-        container.update(rules)
+        for meta, incoming in rules.items():
+            existing = container.get(meta)
+            if (
+                isinstance(existing, MutableMapping)
+                and callable(existing.get("selector"))
+                and isinstance(incoming, Mapping)
+                and not callable(incoming.get("selector"))
+            ):
+                # A raw-JSON rule stores selector names as strings (JSON cannot
+                # hold callables). Never let it downgrade the compiled callable
+                # selector that the generated extension already resolved, or the
+                # curated selector would silently stop working at capture time.
+                continue
+            container[meta] = incoming
 
 
 def _merge_user_sampler_entry(key: str, val, allowed: set[str] | None) -> None:
