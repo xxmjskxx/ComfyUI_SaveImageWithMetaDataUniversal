@@ -184,16 +184,16 @@ class TestTraceBFS:
         assert "a" in result
         assert "b" in result
 
-    def test_trace_skips_subgraph_dict_links(self, trace_module):
-        """V3 subgraph links (first element is a dict) must not crash BFS traversal."""
-        # Under the ComfyUI V3 schema, an input connected through a subgraph is
-        # serialised with a dict node reference instead of a string id.
+    def test_trace_skips_list_of_dicts_inputs(self, trace_module):
+        """List-of-dicts widget values (e.g. LoRA stacks) must not crash BFS traversal."""
+        # A LoRA stack widget value is a list of dicts, not a [node_id, output_index]
+        # link. Trace.trace must skip it rather than hashing the dict.
         prompt = {
             "save": {
                 "class_type": "SaveNode",
                 "inputs": {
                     "img": ["sampler", 0],
-                    "subgraph_out": [{"subgraph": "abc-123", "output": 0}, 0],
+                    "lora_stack": [{"name": "foo.safetensors", "strength": 0.5}],
                 },
             },
             "sampler": {"class_type": "KSampler", "inputs": {}},
@@ -201,7 +201,7 @@ class TestTraceBFS:
 
         result = trace_module.Trace.trace("save", prompt)
 
-        # The dict link is not traceable in the flat prompt graph and is skipped.
+        # The list-of-dicts value is not a link and is skipped.
         assert result["save"].distance == 0
         assert result["sampler"].distance == 1
         assert len(result) == 2
