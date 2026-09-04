@@ -25,7 +25,7 @@ and aborted the save. The fix is backward-compatible with no migration required.
 
 - Added regression tests that feed a bare list-of-dicts input through the tracer and assert it is skipped
   without crashing.
-- `python -m pytest -q` passes for the affected modules; `python -m ruff check .` passes cleanly.
+- `python -m pytest -q`: 1164 passed, 1 skipped; `python -m ruff check .` passes cleanly.
 
 ## Breaking Changes
 
