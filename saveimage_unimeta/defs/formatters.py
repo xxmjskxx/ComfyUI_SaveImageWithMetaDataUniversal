@@ -51,12 +51,15 @@ except (ImportError, ModuleNotFoundError):  # noqa: BLE001 - provide minimal stu
 
 
 from ..utils.embedding import get_embedding_file_path
+from ..utils.hash import calc_all_hashes
+from ..utils.hash_cache import cache_key_for, get_hash_cache, utc_timestamp
 from ..utils.lora import find_lora_info, find_checkpoint_info, find_unet_info, get_lora_manager_paths
 from ..utils.pathresolve import (
     try_resolve_artifact,
     sanitize_candidate,
     EXTENSION_ORDER,
 )
+from .hash_values import HashRecord
 
 import os as _os
 import sys as _sys
@@ -88,6 +91,13 @@ _LM_EMBEDDING_DIRS_CACHE: list[str] | None = None
 _LM_CKPT_DIRS_CACHE: list[str] | None = None
 _LM_UNET_DIRS_CACHE: list[str] | None = None
 _TEST_MODE_TRUTHY = {"1", "true", "yes", "on"}
+
+# Session-lifetime registry of full hash records computed during capture, keyed
+# by the 10-char AutoV2 prefix so `add_hash_detail_section` can enrich entries
+# without re-resolving paths.
+_FULL_HASH_RECORDS: dict[str, HashRecord] = {}
+# Maps the internal hashing "kind" to the folder category used in the cache.
+_KIND_CATEGORY: dict[str, str] = {"model": "checkpoints", "vae": "vae", "lora": "loras", "unet": "unet"}
 
 # Prevent duplicate module instances under different package names (runtime vs tests)
 _SELF = _sys.modules.get(__name__)
@@ -311,6 +321,63 @@ def _maybe_debug_candidates(kind: str, display: str):
         _log(kind, f"candidates for '{display}': {_LAST_PROBE_CANDIDATES}")
 
 
+def get_full_hashes(truncated_hash: str | None) -> HashRecord | None:
+    """Return the full hash record captured for a 10-char hash, if any."""
+    if not truncated_hash:
+        return None
+    return _FULL_HASH_RECORDS.get(str(truncated_hash).strip().casefold())
+
+
+def _full_hashes_for_path(kind: str, path: str) -> HashRecord | None:
+    """Return all four hashes for a model-like file, using sidecar + JSON cache.
+
+    The full SHA-256/AutoV2 come from the existing ``.sha256`` sidecar path;
+    AutoV1/AutoV3 come from the central JSON cache. On a cache miss the file is
+    read once via :func:`calc_all_hashes` and both caches are populated.
+    """
+    if not path or not os.path.exists(path):
+        return None
+    from ..utils.pathresolve import load_or_calc_hash  # local import to avoid cycles
+
+    try:
+        stat = os.stat(path)
+    except OSError:
+        return None
+    category = _KIND_CATEGORY.get(kind)
+    if category is None:
+        return None
+    key = cache_key_for(category, os.path.basename(path), stat.st_size, stat.st_mtime_ns)
+    cache = get_hash_cache()
+    cached = cache.get(key)  # {"AutoV1": ..., "AutoV3": ...} or None
+
+    sha256_full = load_or_calc_hash(path, truncate=None)
+    if not sha256_full:
+        return None
+
+    if cached is not None:
+        return HashRecord(
+            sha256=sha256_full,
+            auto_v3=cached.get("AutoV3"),
+            auto_v2=sha256_full[:10],
+            auto_v1=cached.get("AutoV1"),
+        )
+
+    try:
+        computed = calc_all_hashes(path)
+    except OSError:
+        return None
+    auto_v1 = computed["auto_v1"]
+    auto_v3 = computed["auto_v3"]
+    if isinstance(auto_v1, str):
+        cache.put(key, auto_v1, auto_v3, timestamp=utc_timestamp())
+    return HashRecord(
+        sha256=computed["sha256"],
+        auto_v3=auto_v3,
+        auto_v2=(computed["sha256"] or "")[:10],
+        auto_v1=auto_v1,
+    )
+
+
 def _hash_file(kind: str, path: str, truncate: int = 10) -> str | None:
     """Calculate the hash of a file with sidecar caching and logging.
 
@@ -350,6 +417,15 @@ def _hash_file(kind: str, path: str, truncate: int = 10) -> str | None:
         full_hash = _lc(path, truncate=None) or "?"
         dur_ms = (time.perf_counter() - start) * 1000.0
         _log(kind, f"full hash {os.path.basename(path)}={full_hash} ({dur_ms:.1f} ms)")
+    # Record the full hash set for model-like resources so the structured
+    # "Hash detail" section can be enriched without re-reading files.
+    if kind in _KIND_CATEGORY and truncate == 10 and hashed:
+        try:
+            record = _full_hashes_for_path(kind, path)
+            if record is not None and record.auto_v2:
+                _FULL_HASH_RECORDS[record.auto_v2] = record
+        except OSError:
+            pass
     return hashed
 
 

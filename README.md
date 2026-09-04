@@ -116,6 +116,7 @@
 * Full PNG + lossless WebP workflow + metadata embedding; JPEG with staged fallback under 64KB EXIF limit.
   * See detailed fallback staging: [docs/JPEG_METADATA_FALLBACK.md](docs/JPEG_METADATA_FALLBACK.md)
 * Embedding name resolution & hashing with safe path normalization; model hash caching via `.sha256` sidecar files for speed after first run.
+* Civitai hashing: AutoV1 (8), AutoV2 (10), AutoV3 (12), and full SHA-256 (64) are computed for models/VAEs/LoRAs/UNets. AutoV1/AutoV3 are cached in a central JSON cache (`hash-cache.json` under ComfyUI's user directory) while `.sha256` sidecars stay unchanged. The structured `Hash detail` section includes all four hashes when available.
 * Configurable guidance mapping (`guidance_as_cfg`) and sampler naming normalization (minimal, avoids unexpected renames) for Civitai compatibility.
 * `Create Extra MetaData` node specifies metadata to be added to the image to be saved. Example: In [extra_metadata.json](example_workflows/extra_metadata.json).
 * Selective verbosity: hide hash detail (`METADATA_NO_HASH_DETAIL`) and/or aggregated LoRA summary (`METADATA_NO_LORA_SUMMARY` or UI toggle).
@@ -187,6 +188,7 @@
 - Hashes
   - Model, Loras, Embeddings
   - For [Civitai](https://civitai.com/)
+  - AutoV1 (8), AutoV2 (10), AutoV3 (12), and full SHA-256 (64) are surfaced in the structured `Hash detail` section when available
 
 
 ---

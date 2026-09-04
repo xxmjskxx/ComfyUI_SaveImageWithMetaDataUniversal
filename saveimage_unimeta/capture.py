@@ -2204,6 +2204,22 @@ class Capture:
                 "loras": [],
                 "embeddings": [],
             }
+
+            def _enrich(entry, truncated):
+                record = _hashfmt.get_full_hashes(truncated)
+                if record is None:
+                    return
+                if record.auto_v1:
+                    entry["autoV1"] = record.auto_v1
+                if record.auto_v2:
+                    entry["autoV2"] = record.auto_v2
+                if record.auto_v3:
+                    entry["autoV3"] = record.auto_v3
+                if record.sha256:
+                    entry["sha256"] = record.sha256
+
+            _enrich(hash_detail_payload["model"], pnginfo_dict.get("Model hash"))
+            _enrich(hash_detail_payload["vae"], pnginfo_dict.get("VAE hash"))
             if "Metadata generator version" in pnginfo_dict:
                 hash_detail_payload["version"] = pnginfo_dict["Metadata generator version"]
             lora_index = 0
@@ -2213,15 +2229,15 @@ class Capture:
                 model_hash_key = f"{base} Model hash"
                 if model_name_key not in pnginfo_dict and model_hash_key not in pnginfo_dict:
                     break
-                hash_detail_payload["loras"].append(
-                    {
-                        "index": lora_index,
-                        "name": pnginfo_dict.get(model_name_key),
-                        "hash": pnginfo_dict.get(model_hash_key),
-                        "strength_model": pnginfo_dict.get(f"{base} Strength model"),
-                        "strength_clip": pnginfo_dict.get(f"{base} Strength clip"),
-                    }
-                )
+                lora_entry = {
+                    "index": lora_index,
+                    "name": pnginfo_dict.get(model_name_key),
+                    "hash": pnginfo_dict.get(model_hash_key),
+                    "strength_model": pnginfo_dict.get(f"{base} Strength model"),
+                    "strength_clip": pnginfo_dict.get(f"{base} Strength clip"),
+                }
+                _enrich(lora_entry, lora_entry.get("hash"))
+                hash_detail_payload["loras"].append(lora_entry)
                 lora_index += 1
             embedding_index = 0
             while True:
@@ -2230,13 +2246,13 @@ class Capture:
                 embedding_hash_key = f"{base} hash"
                 if embedding_name_key not in pnginfo_dict and embedding_hash_key not in pnginfo_dict:
                     break
-                hash_detail_payload["embeddings"].append(
-                    {
-                        "index": embedding_index,
-                        "name": pnginfo_dict.get(embedding_name_key),
-                        "hash": pnginfo_dict.get(embedding_hash_key),
-                    }
-                )
+                embedding_entry = {
+                    "index": embedding_index,
+                    "name": pnginfo_dict.get(embedding_name_key),
+                    "hash": pnginfo_dict.get(embedding_hash_key),
+                }
+                _enrich(embedding_entry, embedding_entry.get("hash"))
+                hash_detail_payload["embeddings"].append(embedding_entry)
                 embedding_index += 1
             try:
                 pnginfo_dict["Hash detail"] = json.dumps(hash_detail_payload, sort_keys=True)
