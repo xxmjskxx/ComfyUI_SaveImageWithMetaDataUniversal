@@ -430,22 +430,19 @@ Stable output characteristics to aid tooling & reproducibility:
 
 ### Changelog
 
-**Latest Release: v1.4.3 (2026-07-21)**
+**Latest Release: v1.4.4 (2026-09-03)**
 
-LoRA Manager hash/path-resolution fixes, extra-metadata robustness, bugfixes, and UI enhancements:
-- **LoRA Manager fixes**: Hash calculation now works with structured payloads; extra paths included for LoRAs, embeddings, checkpoints, and UNets with path deduplication.
-- **Extra metadata**: Commas are no longer replaced in values; dynamic key-value pair count replaces hardcoded 4-pair limit.
-- **Bugfixes**: Efficiency nodes now accept tuple batches for advanced mode; validator connection cache invalidates on prompt changes; redundant code removed.
-- **UI/UX**: Advanced toggle for log suppression; enhanced filename prefix tooltip with subdirectory support.
-- **CI**: Fork-PR lint-autofix checkout fixed.
+Fix for a metadata capture crash on list-of-dicts widget values:
+- **Crash fix**: `Trace.trace` and the prompt validator now use the shared `_is_link_input` predicate, so list-of-dicts widget values (such as LoRA stacks) are skipped instead of crashing with `TypeError: unhashable type: 'dict'`. (#145)
 
 **Recent Prior Releases**
 
+- **v1.4.3 (2026-07-21)**: LoRA Manager hash/path-resolution fixes, extra-metadata robustness, bugfixes, and UI enhancements.
 - **v1.4.2 (2026-03-19)**: Prompt-routing and metadata-validation hardening release.
 - **v1.4.1 (2026-03-18)**: Save Image widget ordering and fit hotfix release.
 - **v1.4.0 (2026-03-17)**: ComfyUI 0.3.65+ compatibility, `lora_strengths_in_prompt`, and extension hardening release.
 
-See [CHANGELOG.md](CHANGELOG.md) for complete details or [RELEASE_NOTES_v1.4.3.md](docs/releases/RELEASE_NOTES_v1.4.3.md) for the full release notes.
+See [CHANGELOG.md](CHANGELOG.md) for complete details or [RELEASE_NOTES_v1.4.4.md](docs/releases/RELEASE_NOTES_v1.4.4.md) for the full release notes.
 
 **Previous Notable Changes:**
 - Refactor notice: legacy monolithic module removed; see [CHANGELOG.md](CHANGELOG.md) for new direct import paths
