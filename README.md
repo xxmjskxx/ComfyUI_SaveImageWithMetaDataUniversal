@@ -213,10 +213,7 @@
 Date pattern components:
 `yyyy` | `MM` | `dd` | `hh` | `mm` | `ss`
 
-All expanded tokens are sanitized before writing: absolute paths, drive letters, UNC roots, `..`
-traversal, reserved Windows device names (`CON`, `COM1`, …), and invalid filename characters are
-neutralized. Each path component is clamped to 120 chars and the full template to 512. See
-[SECURITY_REDACTION_AND_PATH_SAFETY.md](docs/SECURITY_REDACTION_AND_PATH_SAFETY.md).
+All expanded tokens are sanitized before writing: absolute paths, drive letters, UNC roots, `..` traversal, reserved Windows device names (`CON`, `COM1`, …), and invalid filename characters are neutralized. Each path component is clamped to 120 chars and the full template to 512. See [SECURITY_REDACTION_AND_PATH_SAFETY.md](docs/SECURITY_REDACTION_AND_PATH_SAFETY.md).
 
 ---
 

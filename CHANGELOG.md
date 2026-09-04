@@ -5,17 +5,11 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
-- New `sanitize_metadata` node toggle (default on) redacts secret-like values (API keys, tokens,
-	passwords, bearer credentials, absolute paths) from the embedded workflow JSON before it is written.
-	Redaction is bounded and never fails a save: if a safety limit is exceeded the raw workflow is
-	embedded instead. See `docs/SECURITY_REDACTION_AND_PATH_SAFETY.md`.
-- Always-on output filename sanitization: absolute paths, drive letters, UNC roots, directory
-	traversal (`..`), reserved Windows device names, and invalid filename characters are neutralized
-	before writing; each path component is clamped to 120 chars and the full template to 512.
+- New `sanitize_metadata` node toggle (default on) redacts secret-like values (API keys, tokens, passwords, bearer credentials, absolute paths) from the embedded workflow JSON before it is written. Redaction is bounded and never fails a save: if a safety limit is exceeded the raw workflow is embedded instead. See `docs/SECURITY_REDACTION_AND_PATH_SAFETY.md`.
+- Always-on output filename sanitization: absolute paths, drive letters, UNC roots, directory traversal (`..`), reserved Windows device names, and invalid filename characters are neutralized before writing; each path component is clamped to 120 chars and the full template to 512.
 
 ### Changed
-- Documented runtime floor raised from Python 3.9 to 3.10 (the codebase already uses PEP 604
-	`X | Y` runtime unions; CI targets 3.10–3.13).
+- Documented runtime floor raised from Python 3.9 to 3.10 (the codebase already uses PEP 604 `X | Y` runtime unions; CI targets 3.10–3.13).
 
 ## [1.4.4] - 2026-09-03
 ### Highlights
