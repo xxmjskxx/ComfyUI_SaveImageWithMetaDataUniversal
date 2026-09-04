@@ -137,13 +137,13 @@ class _OutputCacheCompat:
 def _include_hash_detail() -> bool:
     """Check if hash detail should be included in the metadata.
 
-    This function checks the `METADATA_NO_HASH_DETAIL` environment variable to
-    determine whether to include a detailed hash section in the metadata.
+    Delegates to ``formatters._hash_detail_enabled`` so the
+    ``METADATA_NO_HASH_DETAIL`` flag has a single source of truth.
 
     Returns:
         bool: True if hash detail should be included, False otherwise.
     """
-    return os.environ.get("METADATA_NO_HASH_DETAIL", "").strip() == ""
+    return _hashfmt._hash_detail_enabled()
 
 
 # LoRA summary toggle (enabled by default). Set METADATA_NO_LORA_SUMMARY to suppress
@@ -365,6 +365,47 @@ class Capture:
             rest = [e for e in ordered if Capture._entry_node_id(e) != model_node_id]
             ordered = primary + rest
         return ordered
+
+    @staticmethod
+    def _merge_model_entries(
+        names: list[Any], hashes: list[Any], model_node_id: Any
+    ) -> list[tuple[Any | None, Any | None]]:
+        """Merge model name and hash entries into aligned ``(name, hash)`` records.
+
+        Name and hash captures arrive as separate lists; ordering each
+        independently can desynchronize ``Model N`` / ``Model N hash`` indices
+        when a loader exposes a name without a usable hash (or vice versa).
+        Merging by node key keeps the two sides aligned so extras always share
+        the same ``N``.
+        """
+
+        def key_of(entry: Any, idx: int) -> Any:
+            nid = Capture._entry_node_id(entry)
+            return nid if nid is not None else ("__bare__", idx)
+
+        name_by_key: dict[Any, Any] = {}
+        for idx, entry in enumerate(names):
+            name_by_key.setdefault(key_of(entry, idx), entry)
+        hash_by_key: dict[Any, Any] = {}
+        for idx, entry in enumerate(hashes):
+            hash_by_key.setdefault(key_of(entry, idx), entry)
+
+        ordered_keys: list[Any] = []
+        seen: set[Any] = set()
+        for entries in (names, hashes):
+            for idx, entry in enumerate(entries):
+                key = key_of(entry, idx)
+                if key in seen:
+                    continue
+                seen.add(key)
+                ordered_keys.append(key)
+
+        if model_node_id is not None and model_node_id != -1:
+            primary = [k for k in ordered_keys if k == model_node_id]
+            rest = [k for k in ordered_keys if k != model_node_id]
+            ordered_keys = primary + rest
+
+        return [(name_by_key.get(k), hash_by_key.get(k)) for k in ordered_keys]
 
     @staticmethod
     def _iter_values(items: Iterable[Any]) -> Iterator[Any]:
@@ -1620,59 +1661,66 @@ class Capture:
                 except Exception:
                     pass  # Size parsing may fail - continue without Size field
 
-        # Ensure model name is a readable basename; hash populated separately
+        # Ensure model name is a readable basename; hash populated separately.
+        # Merge names and hashes by node key so "Model N" / "Model N hash"
+        # indices stay aligned even when a loader exposes a name without a
+        # usable hash (or vice versa).
         model_names = inputs_before_sampler_node.get(MetaField.MODEL_NAME, [])
-        if model_names:
-
-            def best_model_display(values):
-                # Prefer strings ending with common model extensions, else any string, else fallback to str of first
-                exts = pathresolve.SUPPORTED_MODEL_EXTENSIONS
-                str_candidates = []
-                for v in values:
-                    try:
-                        # If value is a tuple-like from odd loaders, consider first element
-                        if isinstance(v, tuple | list) and v:  # noqa: UP038
-                            v0 = v[0]
-                        else:
-                            v0 = v
-                        disp = display_model_name(v0)
-                    except Exception:
-                        disp = None
-                    if isinstance(disp, str) and disp:
-                        str_candidates.append(disp)
-                # Prefer those with known extensions
-                for s in str_candidates:
-                    ls = s.lower()
-                    if any(ls.endswith(e) for e in exts):
-                        return s
-                # Else any string candidate
-                if str_candidates:
-                    return str_candidates[0]
-                # Else fallback to raw string of first
-                return str(Capture._extract_value(model_names[0])) if model_names else None
-
-            ordered_names = Capture._order_model_entries(model_names, model_node_id)
-            m_disp = best_model_display([Capture._extract_value(e) for e in ordered_names])
-            if m_disp:
-                pnginfo_dict["Model"] = m_disp
-            extra_index = 2
-            for entry in ordered_names[1:]:
-                disp = best_model_display([Capture._extract_value(entry)])
-                if disp:
-                    pnginfo_dict[f"Model {extra_index}"] = disp
-                    extra_index += 1
         model_hashes = inputs_before_sampler_node.get(MetaField.MODEL_HASH, [])
-        if model_hashes:
+
+        def best_model_display(values):
+            # Prefer strings ending with common model extensions, else any string, else fallback to str of first
+            exts = pathresolve.SUPPORTED_MODEL_EXTENSIONS
+            str_candidates = []
+            for v in values:
+                try:
+                    # If value is a tuple-like from odd loaders, consider first element
+                    if isinstance(v, tuple | list) and v:  # noqa: UP038
+                        v0 = v[0]
+                    else:
+                        v0 = v
+                    disp = display_model_name(v0)
+                except Exception:
+                    disp = None
+                if isinstance(disp, str) and disp:
+                    str_candidates.append(disp)
+            # Prefer those with known extensions
+            for s in str_candidates:
+                ls = s.lower()
+                if any(ls.endswith(e) for e in exts):
+                    return s
+            # Else any string candidate
+            if str_candidates:
+                return str_candidates[0]
+            # Else fallback to raw string of first
+            return str(Capture._extract_value(model_names[0])) if model_names else None
+
+        records = Capture._merge_model_entries(model_names, model_hashes, model_node_id)
+        if records:
+            # Primary name: prefer the best-looking filename across all captured
+            # names (preserves the legacy single-field display heuristic).
+            if model_names:
+                m_disp = best_model_display(
+                    [Capture._extract_value(name_e) for name_e, _ in records if name_e is not None]
+                )
+                if m_disp:
+                    pnginfo_dict["Model"] = m_disp
+            # Primary hash: retain the legacy first-usable-over-ordered-hashes choice.
             ordered_hashes = Capture._order_model_entries(model_hashes, model_node_id)
             primary_hash = Capture._first_usable_value(ordered_hashes)
             if primary_hash is not None:
                 pnginfo_dict["Model hash"] = primary_hash
             extra_index = 2
-            for entry in ordered_hashes[1:]:
-                h = Capture._first_usable_value([entry])
-                if h is not None:
-                    pnginfo_dict[f"Model {extra_index} hash"] = h
-                    extra_index += 1
+            for name_entry, hash_entry in records[1:]:
+                if name_entry is not None:
+                    disp = best_model_display([Capture._extract_value(name_entry)])
+                    if disp:
+                        pnginfo_dict[f"Model {extra_index}"] = disp
+                if hash_entry is not None:
+                    h = Capture._first_usable_value([hash_entry])
+                    if h is not None:
+                        pnginfo_dict[f"Model {extra_index} hash"] = h
+                extra_index += 1
         # If model hash still missing but we have a plausible model display string, try to compute it
         if "Model hash" not in pnginfo_dict and "Model" in pnginfo_dict:
             try:

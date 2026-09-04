@@ -278,6 +278,27 @@ def _merge_user_sampler_entry(key: str, val, allowed: set[str] | None) -> None:
         existing_sampler.update(val)
 
 
+def resolve_user_rules_dir() -> str:
+    """Return the directory containing user rule JSON files.
+
+    The writer (``saveimage_unimeta/nodes/rules_writer.py``) persists
+    ``user_captures.json`` and ``user_samplers.json`` under
+    ``<package>/user_rules/``, so the loader must read from the same directory.
+    This helper resolves that location (falling back to the test-isolated
+    ``tests/_test_outputs/user_rules`` directory under ``METADATA_TEST_MODE``)
+    so loader and writer never drift apart.
+
+    Returns:
+        str: Absolute path to the user rules directory.
+    """
+    package_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    repo_root = os.path.dirname(package_dir)
+    test_isolated = os.path.join(repo_root, "tests/_test_outputs", "user_rules")
+    if _is_test_mode() and os.path.isdir(test_isolated):
+        return test_isolated
+    return os.path.join(package_dir, "user_rules")
+
+
 def load_user_definitions(required_classes: set | None = None, suppress_missing_log: bool = False) -> None:
     """Load and merge user-defined capture and sampler rules.
 
@@ -308,21 +329,13 @@ def load_user_definitions(required_classes: set | None = None, suppress_missing_
         if FORCED_INCLUDE_CLASSES:
             allowed_user_classes.update(FORCED_INCLUDE_CLASSES)
 
-    # Paths for user JSON
+    # Paths for user JSON. The writer persists these under <package>/user_rules/
+    # (see saveimage_unimeta/nodes/rules_writer.py); resolve the same directory so
+    # the loader never falls back to the stale repository-root 'user_rules/' layout.
     NODE_PACK_DIR = os.path.dirname(  # noqa: N806
         os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     )
-    # User rule directory relocation: legacy was 'py/'. New directory 'user_rules/'.
-    # In test mode, prefer an isolated tests/_test_outputs/user_rules directory if present to avoid polluting repo root.
-    TEST_OUTPUTS_DIR = os.path.join(NODE_PACK_DIR, "tests/_test_outputs")
-    # Re-evaluate test mode at runtime so late env mutation still enables
-    # isolation (coverage run import ordering can differ from local pytest).
-    runtime_test_mode = _is_test_mode()
-    preferred_user_rules = os.path.join(TEST_OUTPUTS_DIR, "user_rules") if runtime_test_mode else None
-    if preferred_user_rules and os.path.isdir(preferred_user_rules):
-        USER_RULES_DIR = preferred_user_rules  # noqa: N806
-    else:
-        USER_RULES_DIR = os.path.join(NODE_PACK_DIR, "user_rules")  # noqa: N806
+    USER_RULES_DIR = resolve_user_rules_dir()  # noqa: N806
     os.makedirs(USER_RULES_DIR, exist_ok=True)
     USER_CAPTURES_FILE = os.path.join(USER_RULES_DIR, "user_captures.json")  # noqa: N806
     USER_SAMPLERS_FILE = os.path.join(USER_RULES_DIR, "user_samplers.json")  # noqa: N806

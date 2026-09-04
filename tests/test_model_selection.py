@@ -28,7 +28,7 @@ def trace_rules(monkeypatch):
 
 
 def test_combo_values() -> None:
-    assert SAMPLER_SELECTION_METHOD == ["Farthest", "Auto (Nearest)", "By node ID"]
+    assert SAMPLER_SELECTION_METHOD == ["Farthest", "Auto (Nearest)", "By node ID", "Nearest"]
     assert MODEL_SELECTION_METHOD == ["Auto", "By node ID"]
 
 
@@ -103,3 +103,19 @@ def test_gen_pnginfo_dict_no_node_id_keeps_capture_order() -> None:
     assert pnginfo["Model hash"] == "aaaaaaaaaa"
     assert pnginfo.get("Model 2") == "second"
     assert pnginfo.get("Model 2 hash") == "bbbbbbbbbb"
+
+
+def test_gen_pnginfo_dict_extra_model_index_alignment() -> None:
+    # A middle model exposing a name but an "N/A" hash must not shift the
+    # "Model N hash" index of the following model.
+    inputs_before_sampler = {
+        MetaField.MODEL_NAME: [("1", "base", 1), ("2", "mid", 2), ("3", "tail", 3)],
+        MetaField.MODEL_HASH: [("1", "aaaaaaaaaa", 1), ("2", "N/A", 2), ("3", "cccccccccc", 3)],
+    }
+    pnginfo = Capture.gen_pnginfo_dict(inputs_before_sampler, {}, False, model_node_id="1")
+    assert pnginfo["Model"] == "base"
+    assert pnginfo["Model hash"] == "aaaaaaaaaa"
+    assert pnginfo.get("Model 2") == "mid"
+    assert "Model 2 hash" not in pnginfo
+    assert pnginfo.get("Model 3") == "tail"
+    assert pnginfo.get("Model 3 hash") == "cccccccccc"
