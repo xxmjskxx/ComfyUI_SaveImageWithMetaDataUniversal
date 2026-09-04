@@ -184,6 +184,28 @@ class TestTraceBFS:
         assert "a" in result
         assert "b" in result
 
+    def test_trace_skips_list_of_dicts_inputs(self, trace_module):
+        """List-of-dicts widget values (e.g. LoRA stacks) must not crash BFS traversal."""
+        # A LoRA stack widget value is a list of dicts, not a [node_id, output_index]
+        # link. Trace.trace must skip it rather than hashing the dict.
+        prompt = {
+            "save": {
+                "class_type": "SaveNode",
+                "inputs": {
+                    "img": ["sampler", 0],
+                    "lora_stack": [{"name": "foo.safetensors", "strength": 0.5}],
+                },
+            },
+            "sampler": {"class_type": "KSampler", "inputs": {}},
+        }
+
+        result = trace_module.Trace.trace("save", prompt)
+
+        # The list-of-dicts value is not a link and is skipped.
+        assert result["save"].distance == 0
+        assert result["sampler"].distance == 1
+        assert len(result) == 2
+
 
 class TestFindSamplerNodeId:
     """Tests for Trace.find_sampler_node_id."""

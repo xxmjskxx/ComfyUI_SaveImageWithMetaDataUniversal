@@ -17,6 +17,7 @@ from .defs import CAPTURE_FIELD_LIST
 from .defs.combo import SAMPLER_SELECTION_METHOD
 from .defs.meta import MetaField
 from .defs.samplers import SAMPLERS
+from .defs.validators import _is_link_input
 
 from .utils.color import cstr
 
@@ -82,7 +83,7 @@ class Trace:
             current_node_id, distance = node_queue.popleft()
             input_fields = prompt[current_node_id]["inputs"]
             for value in input_fields.values():
-                if isinstance(value, list):
+                if _is_link_input(value):
                     nid = value[0]
                     if nid not in visited and nid in prompt:  # Ensure the node is not visited and exists
                         class_type = prompt[nid]["class_type"]

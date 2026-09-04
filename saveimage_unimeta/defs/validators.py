@@ -121,7 +121,9 @@ def _get_node_id_list(prompt, field_name):
             d = deque()
             visited = set()
             if field_name in field_map and field_map[field_name] in node["inputs"]:
-                d.append(node["inputs"][field_map[field_name]][0])
+                inp = node["inputs"][field_map[field_name]]
+                if _is_link_input(inp):
+                    d.append(inp[0])
             while len(d) > 0:
                 current_node_id = d.popleft()
                 if current_node_id not in prompt or current_node_id in visited:

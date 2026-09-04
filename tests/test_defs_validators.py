@@ -49,6 +49,22 @@ def test_is_positive_prompt_detects_known_text_encoder():
     assert not validators_mod.is_positive_prompt("1", None, prompt, None, None, None)
 
 
+# A list-of-dicts widget value (e.g. a LoRA stack) is not a link and must not
+# raise TypeError: unhashable type: 'dict'.
+def test_positive_prompt_skips_list_of_dicts_inputs():
+    prompt = {
+        "1": {
+            "class_type": "KSampler",
+            "inputs": {
+                "positive": [{"name": "foo.safetensors", "strength": 0.5}],
+            },
+        },
+    }
+
+    assert not validators_mod.is_positive_prompt("1", None, prompt, None, None, None)
+    assert not validators_mod.is_negative_prompt("1", None, prompt, None, None, None)
+
+
 # Negative prompt validator must traverse intermediate nodes and match regex-based encoders.
 def test_is_negative_prompt_handles_regex_encoder_and_chains():
     prompt = {
