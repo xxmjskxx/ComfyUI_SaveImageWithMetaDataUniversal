@@ -213,6 +213,7 @@ tests/tools/Test/metadata_hash_cmpr.txt
 tests/tools/Test/validation_log.txt
 tests/tools/Test/validation_log.txt.bak
 example_workflows/old_workflows/
+tests/comfyui_cli_tests/dev_test_workflows/bak/
 
 
 # Local settings files
@@ -225,6 +226,7 @@ scripts/
 .vscode
 .ruff_cache/
 tasksync/
+TODO
 
 # Ephemeral local drafting files (root only). Keep actual published notes in docs/.
 docs/HIGH_PRIORITY_TASKS.md
@@ -245,3 +247,4 @@ docs/releases/PR_DRAFT_*1.2*.md
 # Claude
 .claude/
 AGENTS.md
+.github/skills/
