@@ -46,7 +46,10 @@ def sanitize_component(value: str) -> str:
     cleaned = cleaned.rstrip(" .")
     if not cleaned:
         return _FALLBACK_COMPONENT
-    if cleaned.upper().split(".")[0] in _RESERVED_WINDOWS_NAMES:
+    # Windows treats the pre-extension stem as a device name after stripping
+    # trailing dots/spaces, e.g. "CON .txt" still refers to the reserved "CON".
+    stem = cleaned.split(".", 1)[0].rstrip(" .").upper()
+    if stem in _RESERVED_WINDOWS_NAMES:
         cleaned = "_" + cleaned
     return cleaned[:MAX_COMPONENT_LENGTH]
 
@@ -67,7 +70,14 @@ def sanitize_filename(filename_prefix: str) -> str:
     safe_parts = [sanitize_component(part) for part in parts]
     if not safe_parts:
         return _FALLBACK_COMPONENT
-    return "/".join(safe_parts)[:MAX_TEMPLATE_LENGTH]
+    result = "/".join(safe_parts)
+    if len(result) > MAX_TEMPLATE_LENGTH:
+        # Truncation may land mid-component on a trailing dot or separator;
+        # strip both so the result never ends in a directory-like "/" or ".".
+        result = result[:MAX_TEMPLATE_LENGTH].rstrip(" /.")
+        if not result:
+            return _FALLBACK_COMPONENT
+    return result
 
 
 __all__ = [

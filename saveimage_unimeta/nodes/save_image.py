@@ -53,8 +53,7 @@ except ModuleNotFoundError:  # pragma: no cover - isolated test fallback
 import numpy as np
 from ..utils.color import cstr
 from ..utils.pathsafety import sanitize_filename
-from ..utils.redaction import MetadataSanitizationError
-from ..utils.redaction import sanitize_metadata_json
+from ..utils.redaction import MetadataSanitizationError, sanitize_metadata_json
 
 try:  # Comfy runtime provides this; tests may not
     from comfy.cli_args import args

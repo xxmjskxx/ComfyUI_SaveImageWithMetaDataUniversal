@@ -33,6 +33,23 @@ def test_sensitive_key_matching_is_alphanumeric() -> None:
     assert sanitize_metadata_json({"my_api_key_suffix": "x"}) == ({"my_api_key_suffix": "x"}, 0)
 
 
+@pytest.mark.parametrize(
+    "key",
+    [
+        "client_secret",
+        "api_token",
+        "private_key",
+        "secret_key",
+        "auth_token",
+        "passwd",
+        "access_token",
+        "refresh_token",
+    ],
+)
+def test_redacts_compound_secret_keys(key: str) -> None:
+    assert sanitize_metadata_json({key: "opaque-value"}) == ({key: REDACTED_SECRET}, 1)
+
+
 def test_redacts_bearer_token() -> None:
     sanitized, count = sanitize_metadata_json({"text": "Call Bearer abcdefghijklmnop now"})
     assert "abcdefghijklmnop" not in sanitized["text"]

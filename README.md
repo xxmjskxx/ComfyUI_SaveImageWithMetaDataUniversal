@@ -213,6 +213,11 @@
 Date pattern components:
 `yyyy` | `MM` | `dd` | `hh` | `mm` | `ss`
 
+All expanded tokens are sanitized before writing: absolute paths, drive letters, UNC roots, `..`
+traversal, reserved Windows device names (`CON`, `COM1`, …), and invalid filename characters are
+neutralized. Each path component is clamped to 120 chars and the full template to 512. See
+[SECURITY_REDACTION_AND_PATH_SAFETY.md](docs/SECURITY_REDACTION_AND_PATH_SAFETY.md).
+
 ---
 
 </details>
@@ -228,6 +233,7 @@ Key quality‑of‑life and compatibility controls exposed by the primary save n
 * `max_jpeg_exif_kb` (INT, default 60, min 4, max 64): UI‑enforced ceiling for attempted JPEG EXIF payload. Real-world single APP1 EXIF segment limit is ~64KB; exceeding it triggers staged fallback (reduced-exif → minimal → com-marker). For large workflows prefer PNG / lossless WebP.
 * `lora_strengths_in_prompt` (BOOLEAN, default False): When enabled, A1111-style LoRA designations (e.g. `<lora:name:strength>`) are appended to the positive prompt text and `Lora hashes` metadata is included so that Civitai can recognise LoRA strengths.
 * `suppress_missing_class_log` (BOOLEAN, default True): Hide the informational log listing missing classes that would trigger a user JSON rules merge. Useful to reduce noise in large custom node environments.
+* `sanitize_metadata` (BOOLEAN, default True): Redact secret-like values (API keys, tokens, passwords, bearer credentials, absolute paths) from the embedded workflow JSON before writing. Bounded and fail-open — if a safety limit is hit the raw workflow is embedded instead. See [SECURITY_REDACTION_AND_PATH_SAFETY.md](docs/SECURITY_REDACTION_AND_PATH_SAFETY.md).
 
 </details>
 
@@ -396,6 +402,7 @@ Notes:
 Deferred and exploratory concepts are documented in:
 * [WORKFLOW_COMPRESSION_DESIGN.md](docs/WORKFLOW_COMPRESSION_DESIGN.md) (workflow compression placeholder)
 * [FUTURE_AND_PROTOTYPES.md](docs/FUTURE_AND_PROTOTYPES.md) (archived prototype UI + additional speculative enhancements; Wan2.2 and multi-model workflow support)
+* [SECURITY_REDACTION_AND_PATH_SAFETY.md](docs/SECURITY_REDACTION_AND_PATH_SAFETY.md) (embedded-workflow secret redaction + output filename sanitization)
 
 ### Environment Flags
 | Flag | Effect |

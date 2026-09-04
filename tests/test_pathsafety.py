@@ -28,6 +28,10 @@ def test_component_reserved_windows_names() -> None:
     assert sanitize_component("LPT9") == "_LPT9"
 
 
+def test_component_reserved_name_with_space_before_extension() -> None:
+    assert sanitize_component("CON .txt") == "_CON .txt"
+
+
 def test_component_empty_falls_back() -> None:
     assert sanitize_component("") == "image"
     assert sanitize_component("... ") == "image"
@@ -71,3 +75,18 @@ def test_filename_preserves_percent_sign() -> None:
 def test_filename_clamps_total_length() -> None:
     long_path = "/".join("x" * 100 for _ in range(10))
     assert len(sanitize_filename(long_path)) <= 512
+
+
+def test_filename_never_ends_with_dot_or_slash() -> None:
+    prefixes = [
+        "x" * 300 + "." + "y" * 300,
+        "a" * 600,
+        "long/" * 200,
+        "abcd/" * 130,
+    ]
+    for prefix in prefixes:
+        result = sanitize_filename(prefix)
+        assert result
+        assert not result.endswith(".")
+        assert not result.endswith("/")
+        assert len(result) <= 512

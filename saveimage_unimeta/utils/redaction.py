@@ -35,16 +35,23 @@ _ABSOLUTE_PATH_FRAGMENT = re.compile(
 _BEARER_SECRET = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]{8,}")
 
 # Key names whose values are always redacted in full, regardless of shape.
+# Entries are the alphanumeric-normalized form (see ``_is_sensitive_key``), so
+# "api_key" and "apikey" both normalize to "apikey" and need only one entry.
 _SENSITIVE_KEYS = frozenset(
     {
         "accesstoken",
         "apikey",
-        "api_key",
+        "apitoken",
         "authorization",
+        "authtoken",
         "bearer",
+        "clientsecret",
         "password",
+        "passwd",
+        "privatekey",
         "refreshtoken",
         "secret",
+        "secretkey",
         "token",
     }
 )
