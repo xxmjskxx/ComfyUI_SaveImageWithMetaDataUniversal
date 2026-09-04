@@ -49,14 +49,14 @@ def test_is_positive_prompt_detects_known_text_encoder():
     assert not validators_mod.is_positive_prompt("1", None, prompt, None, None, None)
 
 
-# A sampler whose conditioning input references a V3 subgraph (dict link) must be
-# skipped safely instead of raising TypeError: unhashable type: 'dict'.
-def test_positive_prompt_skips_subgraph_dict_links():
+# A list-of-dicts widget value (e.g. a LoRA stack) is not a link and must not
+# raise TypeError: unhashable type: 'dict'.
+def test_positive_prompt_skips_list_of_dicts_inputs():
     prompt = {
         "1": {
             "class_type": "KSampler",
             "inputs": {
-                "positive": [{"subgraph": "abc-123", "output": 0}, 0],
+                "positive": [{"name": "foo.safetensors", "strength": 0.5}],
             },
         },
     }
