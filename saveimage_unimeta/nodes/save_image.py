@@ -52,6 +52,9 @@ except ModuleNotFoundError:  # pragma: no cover - isolated test fallback
     folder_paths = _FolderPathsStub()
 import numpy as np
 from ..utils.color import cstr
+from ..utils.pathsafety import sanitize_filename
+from ..utils.redaction import MetadataSanitizationError
+from ..utils.redaction import sanitize_metadata_json
 
 try:  # Comfy runtime provides this; tests may not
     from comfy.cli_args import args
@@ -285,6 +288,16 @@ class SaveImageWithMetaDataUniversal:
                         "tooltip": ("If disabled, the workflow data will not be saved in the image metadata."),
                     },
                 ),
+                "sanitize_metadata": (
+                    "BOOLEAN",
+                    {
+                        "default": True,
+                        "tooltip": (
+                            "Redact secrets (API keys, tokens, passwords, absolute paths) from embedded workflow "
+                            "metadata before saving."
+                        ),
+                    },
+                ),
                 "include_lora_summary": (
                     "BOOLEAN",
                     {
@@ -367,6 +380,7 @@ class SaveImageWithMetaDataUniversal:
         save_workflow_image=True,
         include_lora_summary=False,
         guidance_as_cfg=False,
+        sanitize_metadata=True,
         suppress_missing_class_log=True,
     ):
         """Save images to disk with embedded metadata.
@@ -412,6 +426,9 @@ class SaveImageWithMetaDataUniversal:
                 of LoRAs in the metadata. Defaults to False.
             guidance_as_cfg (bool, optional): Whether to treat guidance as CFG
                 scale. Defaults to False.
+            sanitize_metadata (bool, optional): Redact secret-like values (API
+                keys, tokens, passwords, absolute paths) from the embedded
+                workflow JSON before writing it. Defaults to True.
             suppress_missing_class_log (bool, optional): Whether to suppress
                 warnings about missing node classes. Defaults to True.
             lora_strengths_in_prompt (bool, optional): Add A1111-style LoRA
@@ -495,6 +512,22 @@ class SaveImageWithMetaDataUniversal:
         if extra_metadata_keys:
             pnginfo_dict_src["__extra_metadata_keys"] = extra_metadata_keys
 
+        # Redact secret-like values from the workflow JSON before embedding it in
+        # the image or sidecar. Falls back to the raw payload if sanitization
+        # exceeds safety limits, so saving the image never fails.
+        if sanitize_metadata:
+            try:
+                if prompt is not None:
+                    prompt, _redacted = sanitize_metadata_json(prompt)
+                    if _redacted:
+                        logger.info("Redacted %d secret-like value(s) from workflow prompt metadata.", _redacted)
+                if extra_pnginfo is not None:
+                    extra_pnginfo, _redacted = sanitize_metadata_json(extra_pnginfo)
+                    if _redacted:
+                        logger.info("Redacted %d secret-like value(s) from workflow pnginfo metadata.", _redacted)
+            except MetadataSanitizationError as exc:
+                logger.warning("Could not sanitize workflow metadata (%s); embedding raw workflow.", exc)
+
         ui_entries: list[dict[str, str]] = []
         self._last_fallback_stages.clear()
         for index, image in enumerate(images):
@@ -535,6 +568,7 @@ class SaveImageWithMetaDataUniversal:
                         metadata.add_text(x, json.dumps(extra_pnginfo[x]))
 
             filename_prefix = self.format_filename(filename_prefix, pnginfo_dict)
+            filename_prefix = sanitize_filename(filename_prefix)
             output_path = os.path.join(self.output_dir, filename_prefix)
             if not os.path.exists(os.path.dirname(output_path)):
                 os.makedirs(os.path.dirname(output_path), exist_ok=True)
