@@ -133,27 +133,6 @@
       "title": "Seed (rgthree)"
     }
   },
-  "36": {
-    "inputs": {
-      "rgthree_comparer": {
-        "images": [
-          {
-            "name": "A",
-            "selected": true,
-            "url": "/api/view?filename=rgthree.compare._temp_zamyx_00001_.png&type=temp&subfolder=&rand=0.6982558206564512"
-          }
-        ]
-      },
-      "image_a": [
-        "5",
-        0
-      ]
-    },
-    "class_type": "Image Comparer (rgthree)",
-    "_meta": {
-      "title": "Image Comparer (rgthree)"
-    }
-  },
   "48": {
     "inputs": {
       "image": "ref2.webp"
@@ -184,7 +163,7 @@
       "lora_name": "flux\\uso\\uso-flux1-dit-lora-v1.safetensors",
       "strength_model": 1,
       "model": [
-        "115",
+        "117",
         0
       ]
     },
@@ -212,6 +191,8 @@
       "filename_prefix": "Test\\%date:yyyy-MM-dd%//%date:yyyy-MM-dd-hhmmss%-USO",
       "sampler_selection_method": "Farthest",
       "sampler_selection_node_id": 0,
+      "model_selection_method": "Auto",
+      "model_selection_node_id": 0,
       "file_format": "png",
       "lossless_webp": true,
       "quality": 100,
@@ -221,9 +202,11 @@
       "civitai_sampler": false,
       "guidance_as_cfg": false,
       "save_workflow_image": true,
+      "sanitize_metadata": true,
       "include_lora_summary": false,
       "suppress_missing_class_log": true,
       "model_hash_log": "none",
+      "lora_strengths_in_prompt": false,
       "images": [
         "5",
         0
@@ -251,9 +234,9 @@
   "115": {
     "inputs": {
       "sage_attention": "auto",
-      "allow_compile": false,
+      "allow_compile": true,
       "model": [
-        "116",
+        "1",
         0
       ]
     },
@@ -262,17 +245,24 @@
       "title": "Patch Sage Attention KJ"
     }
   },
-  "116": {
+  "117": {
     "inputs": {
       "backend": "inductor",
+      "fullgraph": false,
+      "mode": "default",
+      "dynamic": "false",
+      "compile_transformer_blocks_only": true,
+      "dynamo_cache_size_limit": 64,
+      "debug_compile_keys": false,
+      "disable_dynamic_vram": false,
       "model": [
-        "1",
+        "115",
         0
       ]
     },
-    "class_type": "TorchCompileModel",
+    "class_type": "TorchCompileModelAdvanced",
     "_meta": {
-      "title": "TorchCompileModel"
+      "title": "TorchCompileModelAdvanced"
     }
   },
   "44:38": {

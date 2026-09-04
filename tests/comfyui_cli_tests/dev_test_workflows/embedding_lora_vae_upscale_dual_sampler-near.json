@@ -211,6 +211,8 @@
       "filename_prefix": "Test\\Embedding-Vae-near",
       "sampler_selection_method": "Nearest",
       "sampler_selection_node_id": 0,
+      "model_selection_method": "Auto",
+      "model_selection_node_id": 0,
       "file_format": "png",
       "lossless_webp": true,
       "quality": 100,
@@ -220,9 +222,11 @@
       "civitai_sampler": false,
       "guidance_as_cfg": false,
       "save_workflow_image": true,
+      "sanitize_metadata": true,
       "include_lora_summary": false,
       "suppress_missing_class_log": true,
       "model_hash_log": "none",
+      "lora_strengths_in_prompt": false,
       "images": [
         "3",
         0
