@@ -16,6 +16,7 @@ import json
 import logging
 import os
 import re
+from email.utils import formatdate
 from datetime import datetime
 
 # Attempt to import ComfyUI's folder_paths; provide a lightweight fallback stub when
@@ -533,6 +534,8 @@ class SaveImageWithMetaDataUniversal:
                         if not save_workflow_image and x == "workflow":
                             continue
                         metadata.add_text(x, json.dumps(extra_pnginfo[x]))
+                creation_time = formatdate(timeval=None, localtime=False, usegmt=True)
+                metadata.add_text("Creation Time", creation_time)
 
             filename_prefix = self.format_filename(filename_prefix, pnginfo_dict)
             output_path = os.path.join(self.output_dir, filename_prefix)
