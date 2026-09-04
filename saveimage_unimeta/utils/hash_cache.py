@@ -253,6 +253,8 @@ class HashCache:
                 try:
                     records = self._read_unlocked()
                     records = self._merge_into(records, validated)
+                    # Eviction is lexicographic by cacheKey (not recency/LRU);
+                    # acceptable at the default 50k-record / 16 MB bounds.
                     if len(records) > self.max_records:
                         records = records[-self.max_records :]
                     self._write_unlocked(records)
@@ -277,6 +279,9 @@ class HashCache:
             deadline = time.monotonic() + self.lock_timeout_seconds
             while True:
                 try:
+                    # Seek before locking so the locked byte range matches the
+                    # byte unlocked by _release_file_lock.
+                    handle.seek(0)
                     if os.name == "nt":
                         _locking_module.locking(handle.fileno(), _locking_module.LK_NBLCK, 1)
                     elif os.name == "posix":

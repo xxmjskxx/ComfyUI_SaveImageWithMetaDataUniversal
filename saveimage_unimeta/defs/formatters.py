@@ -51,7 +51,7 @@ except (ImportError, ModuleNotFoundError):  # noqa: BLE001 - provide minimal stu
 
 
 from ..utils.embedding import get_embedding_file_path
-from ..utils.hash import calc_all_hashes
+from ..utils.hash import calc_all_hashes, calc_auto_v1
 from ..utils.hash_cache import cache_key_for, get_hash_cache, utc_timestamp
 from ..utils.lora import find_lora_info, find_checkpoint_info, find_unet_info, get_lora_manager_paths
 from ..utils.pathresolve import (
@@ -94,10 +94,17 @@ _TEST_MODE_TRUTHY = {"1", "true", "yes", "on"}
 
 # Session-lifetime registry of full hash records computed during capture, keyed
 # by the 10-char AutoV2 prefix so `add_hash_detail_section` can enrich entries
-# without re-resolving paths.
+# without re-resolving paths. Keying by the 40-bit prefix (rather than full
+# name/size/mtime) keeps lookups cheap; collisions are astronomically unlikely
+# and the registry is cleared at process exit, so staleness is bounded.
 _FULL_HASH_RECORDS: dict[str, HashRecord] = {}
 # Maps the internal hashing "kind" to the folder category used in the cache.
 _KIND_CATEGORY: dict[str, str] = {"model": "checkpoints", "vae": "vae", "lora": "loras", "unet": "unet"}
+
+
+def _hash_detail_enabled() -> bool:
+    """Return True unless ``METADATA_NO_HASH_DETAIL`` suppresses Hash detail."""
+    return os.environ.get("METADATA_NO_HASH_DETAIL", "").strip() == ""
 
 # Prevent duplicate module instances under different package names (runtime vs tests)
 _SELF = _sys.modules.get(__name__)
@@ -362,18 +369,28 @@ def _full_hashes_for_path(kind: str, path: str) -> HashRecord | None:
             auto_v1=cached.get("AutoV1"),
         )
 
-    try:
-        computed = calc_all_hashes(path)
-    except OSError:
-        return None
-    auto_v1 = computed["auto_v1"]
-    auto_v3 = computed["auto_v3"]
+    is_safetensors = os.path.splitext(path)[1].casefold() == ".safetensors"
+    if is_safetensors:
+        # AutoV3 requires the payload digest, so read the file once for both.
+        try:
+            computed = calc_all_hashes(path)
+        except OSError:
+            return None
+        auto_v1 = computed["auto_v1"]
+        auto_v3 = computed["auto_v3"]
+    else:
+        # Non-safetensors: AutoV3 is null; AutoV1 only needs a 64 KiB window.
+        try:
+            auto_v1 = calc_auto_v1(path)
+        except OSError:
+            return None
+        auto_v3 = None
     if isinstance(auto_v1, str):
         cache.put(key, auto_v1, auto_v3, timestamp=utc_timestamp())
     return HashRecord(
-        sha256=computed["sha256"],
+        sha256=sha256_full,
         auto_v3=auto_v3,
-        auto_v2=(computed["sha256"] or "")[:10],
+        auto_v2=sha256_full[:10],
         auto_v1=auto_v1,
     )
 
@@ -418,8 +435,9 @@ def _hash_file(kind: str, path: str, truncate: int = 10) -> str | None:
         dur_ms = (time.perf_counter() - start) * 1000.0
         _log(kind, f"full hash {os.path.basename(path)}={full_hash} ({dur_ms:.1f} ms)")
     # Record the full hash set for model-like resources so the structured
-    # "Hash detail" section can be enriched without re-reading files.
-    if kind in _KIND_CATEGORY and truncate == 10 and hashed:
+    # "Hash detail" section can be enriched without re-reading files. Skip the
+    # (full-file AutoV3) work entirely when Hash detail is disabled.
+    if kind in _KIND_CATEGORY and truncate == 10 and hashed and _hash_detail_enabled():
         try:
             record = _full_hashes_for_path(kind, path)
             if record is not None and record.auto_v2:

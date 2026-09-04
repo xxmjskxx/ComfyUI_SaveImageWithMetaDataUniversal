@@ -38,7 +38,7 @@ dev = [
 
 [tool.ruff]
 line-length = 140
-target-version = "py39"  # Adjust based on your Python version
+target-version = "py310"  # Adjust based on your Python version
 # extend-exclude = ["static", "ci/templates"]
 src = ["src", "tests"]
 exclude = ["*cookiecutter.project_slug*", "tests/cookiecutter_template/**"]

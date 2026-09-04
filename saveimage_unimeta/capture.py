@@ -2184,6 +2184,10 @@ class Capture:
         `pnginfo_dict` under the "Hash detail" key. This provides a
         machine-readable summary of the key components used in the workflow.
 
+        Each resource entry carries the legacy 10-char ``hash`` plus, when
+        available, the full Civitai hashes as ``autoV1`` (8), ``autoV2`` (10),
+        ``autoV3`` (12), and ``sha256`` (64).
+
         Args:
             pnginfo_dict (dict): The PNG info dictionary to be augmented.
         """

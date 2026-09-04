@@ -15,7 +15,7 @@ from saveimage_unimeta.defs.hash_values import (
     hash_record_to_mapping,
     normalize_hash,
 )
-from saveimage_unimeta.utils.hash import calc_all_hashes
+from saveimage_unimeta.utils.hash import calc_all_hashes, calc_auto_v1
 from saveimage_unimeta.utils.hash_cache import HashCache, cache_key_for
 
 
@@ -83,6 +83,18 @@ def test_small_file_auto_v1_is_sha256_of_empty(tmp_path) -> None:
 
     result = calc_all_hashes(str(path))
     assert result["auto_v1"] == hashlib.sha256(b"").hexdigest()[:8]
+
+
+def test_calc_auto_v1_matches_streaming(tmp_path) -> None:
+    filler = b"\x00" * 0x100000
+    window = b"\xcd" * 0x10000
+    tail = b"\xff"
+    data = filler + window + tail
+    path = tmp_path / "big.bin"
+    path.write_bytes(data)
+
+    assert calc_auto_v1(str(path)) == hashlib.sha256(window).hexdigest()[:8]
+    assert calc_auto_v1(str(path)) == calc_all_hashes(str(path))["auto_v1"]
 
 
 # --------------------------------------------------------------------------- #
@@ -192,3 +204,25 @@ def test_hash_detail_enriched_with_auto_hashes(monkeypatch) -> None:
     assert detail["model"]["autoV2"] == "c" * 10
     assert detail["model"]["autoV3"] == "b" * 12
     assert detail["model"]["sha256"] == "a" * 64
+
+
+def test_hash_file_skips_full_hashes_when_detail_disabled(tmp_path, monkeypatch) -> None:
+    from saveimage_unimeta.defs import formatters
+
+    model_file = tmp_path / "model.ckpt"
+    model_file.write_bytes(b"model-bytes" * 100)
+
+    calls: list[str] = []
+    monkeypatch.setattr(
+        formatters,
+        "_full_hashes_for_path",
+        lambda kind, path: calls.append(path) or None,
+    )
+
+    monkeypatch.setenv("METADATA_NO_HASH_DETAIL", "1")
+    formatters._hash_file("model", str(model_file), truncate=10)
+    assert calls == []
+
+    monkeypatch.delenv("METADATA_NO_HASH_DETAIL")
+    formatters._hash_file("model", str(model_file), truncate=10)
+    assert calls == [str(model_file)]

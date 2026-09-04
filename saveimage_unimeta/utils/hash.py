@@ -6,6 +6,8 @@ exposes :func:`calc_all_hashes`, a single-pass reader that computes the four
 Civitai/A1111-compatible hashes (AutoV1, AutoV2, AutoV3, and full SHA-256) in
 one file scan.
 """
+from __future__ import annotations
+
 import hashlib
 import json
 import os
@@ -131,4 +133,16 @@ def calc_all_hashes(path: str) -> dict[str, str | None]:
     }
 
 
-__all__ = ["AUTO_V1_OFFSET", "AUTO_V1_SIZE", "calc_all_hashes", "calc_hash"]
+def calc_auto_v1(path: str) -> str:
+    """Return the AutoV1 hash (SHA-256 of the 64 KiB window at 1 MiB, 8 chars).
+
+    Unlike :func:`calc_all_hashes`, this performs a single targeted ``seek`` +
+    read and is the fast path for non-safetensors files whose AutoV3 is null.
+    """
+    with open(path, "rb") as handle:
+        handle.seek(AUTO_V1_OFFSET)
+        block = handle.read(AUTO_V1_SIZE)
+    return hashlib.sha256(block).hexdigest()[:8]
+
+
+__all__ = ["AUTO_V1_OFFSET", "AUTO_V1_SIZE", "calc_all_hashes", "calc_auto_v1", "calc_hash"]
