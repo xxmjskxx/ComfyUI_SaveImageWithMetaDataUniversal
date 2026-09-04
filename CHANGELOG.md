@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.4.4] - 2026-09-03
+### Highlights
+Patch release fixing a metadata capture crash (`TypeError: unhashable type: 'dict'`) when a list-of-dicts
+widget value (such as a LoRA stack) appears upstream of the save node.
+
+### Fixed
+- `Trace.trace` now uses the shared `_is_link_input` predicate instead of assuming every list-valued input
+	is a graph link, preventing a `TypeError: unhashable type: 'dict'` crash on list-of-dicts widget values
+	(e.g. LoRA stacks). This also fixes a latent `IndexError` on empty-list inputs and aligns `trace.py`
+	with `validators.py`. (#145)
+- `_get_node_id_list` in `validators.py` guards its initial sampler conditioning link with `_is_link_input`,
+	so non-link values are skipped instead of indexed blindly. (#145)
+
 ## [1.4.3] - 2026-07-21
 ### Highlights
 Patch release with LoRA Manager hash and path-resolution fixes, extra-metadata robustness improvements,
@@ -332,7 +345,8 @@ Note: 1.0.0 was the first public registry release; this minor release formalizes
 
 ---
 
-[Unreleased]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.4.3...HEAD
+[Unreleased]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.4.4...HEAD
+[1.4.4]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.4.3...v1.4.4
 [1.4.3]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.4.2...v1.4.3
 [1.4.2]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal/compare/v1.4.0...v1.4.1
