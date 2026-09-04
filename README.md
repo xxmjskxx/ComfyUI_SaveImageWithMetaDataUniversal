@@ -146,8 +146,19 @@
 
 - Specifies how to select a KSampler node that has been executed before this node.
   - **Farthest** Selects the farthest KSampler node from this node.
-  - **Nearest** Selects the nearest KSampler node to this node.
+  - **Auto (Nearest)** Selects the nearest KSampler node to this node (the legacy value "Nearest" is still accepted).
   - **By node ID** Selects the KSampler node whose node ID is set in `sampler_selection_node_id`.
+
+</details>
+
+## Model Selection Method
+<details>
+<summary><strong>More:</strong></summary>
+
+- Specifies how the primary base model (recorded as `Model` / `Model hash`) is chosen.
+  - **Auto** Selects the nearest model loader reached by walking upstream from the sampler's model input; ties are broken deterministically.
+  - **By node ID** Selects the loader whose node ID is set in `model_selection_node_id`.
+- Additional base models are emitted as `Model 2` / `Model 2 hash`, `Model 3` / `Model 3 hash`, and so on.
 
 </details>
 

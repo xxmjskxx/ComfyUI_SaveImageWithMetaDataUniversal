@@ -326,6 +326,47 @@ class Capture:
         return item
 
     @staticmethod
+    def _entry_node_id(entry: Any) -> Any:
+        """Return the node-id component of a capture entry, or ``None``."""
+        if isinstance(entry, list | tuple) and len(entry) >= 1:  # noqa: UP038
+            return entry[0]
+        return None
+
+    @staticmethod
+    def _first_usable_value(entries: Iterable[Any]) -> Any:
+        """Return the first non-empty, non-'N/A' value from capture entries."""
+        for entry in entries:
+            value = Capture._extract_value(entry)
+            if value is None:
+                continue
+            if isinstance(value, str) and value.strip().upper() == "N/A":
+                continue
+            return value
+        return None
+
+    @staticmethod
+    def _order_model_entries(entries: list[Any], model_node_id: Any) -> list[Any]:
+        """Order model entries: primary node first, then remaining capture order.
+
+        Deduplicates by node id (or position for entries without provenance) so
+        a single loader exposing multiple model fields isn't double-counted.
+        """
+        seen: set[Any] = set()
+        ordered: list[Any] = []
+        for idx, entry in enumerate(entries):
+            nid = Capture._entry_node_id(entry)
+            key: Any = nid if nid is not None else ("__bare__", idx)
+            if key in seen:
+                continue
+            seen.add(key)
+            ordered.append(entry)
+        if model_node_id is not None and model_node_id != -1:
+            primary = [e for e in ordered if Capture._entry_node_id(e) == model_node_id]
+            rest = [e for e in ordered if Capture._entry_node_id(e) != model_node_id]
+            ordered = primary + rest
+        return ordered
+
+    @staticmethod
     def _iter_values(items: Iterable[Any]) -> Iterator[Any]:
         """Iterate over the values of capture entries, yielding only the underlying values from heterogenous capture tuples.
 
@@ -883,6 +924,7 @@ class Capture:
         inputs_before_sampler_node: dict[MetaField, list[tuple[Any, ...]]],
         inputs_before_this_node: dict[MetaField, list[tuple[Any, ...]]],
         save_civitai_sampler: bool = False,
+        model_node_id: Any = None,
     ) -> dict[str, Any]:
         """Merge two capture snapshots into the normalized PNGInfo payload.
 
@@ -1609,10 +1651,28 @@ class Capture:
                 # Else fallback to raw string of first
                 return str(Capture._extract_value(model_names[0])) if model_names else None
 
-            m_disp = best_model_display([*Capture._iter_values(model_names)])
+            ordered_names = Capture._order_model_entries(model_names, model_node_id)
+            m_disp = best_model_display([Capture._extract_value(e) for e in ordered_names])
             if m_disp:
                 pnginfo_dict["Model"] = m_disp
-        update_pnginfo_dict(inputs_before_sampler_node, MetaField.MODEL_HASH, "Model hash")
+            extra_index = 2
+            for entry in ordered_names[1:]:
+                disp = best_model_display([Capture._extract_value(entry)])
+                if disp:
+                    pnginfo_dict[f"Model {extra_index}"] = disp
+                    extra_index += 1
+        model_hashes = inputs_before_sampler_node.get(MetaField.MODEL_HASH, [])
+        if model_hashes:
+            ordered_hashes = Capture._order_model_entries(model_hashes, model_node_id)
+            primary_hash = Capture._first_usable_value(ordered_hashes)
+            if primary_hash is not None:
+                pnginfo_dict["Model hash"] = primary_hash
+            extra_index = 2
+            for entry in ordered_hashes[1:]:
+                h = Capture._first_usable_value([entry])
+                if h is not None:
+                    pnginfo_dict[f"Model {extra_index} hash"] = h
+                    extra_index += 1
         # If model hash still missing but we have a plausible model display string, try to compute it
         if "Model hash" not in pnginfo_dict and "Model" in pnginfo_dict:
             try:

@@ -39,7 +39,7 @@ def test_batch_multiple_images_fallback_tracking(monkeypatch, tmp_path):
     def fake_gen(method, node_id, civitai):
         return _large_metadata_dict()
 
-    monkeypatch.setattr(SaveNode, "gen_pnginfo", classmethod(lambda cls, a, b, c: fake_gen(a, b, c)))
+    monkeypatch.setattr(SaveNode, "gen_pnginfo", classmethod(lambda cls, a, b, c, *_: fake_gen(a, b, c)))
 
     images = [DummyImage() for _ in range(3)]
     node.save_images(images, file_format="jpeg", max_jpeg_exif_kb=4, include_lora_summary=False)
@@ -56,7 +56,7 @@ def test_no_duplicate_metadata_fallback_marker(monkeypatch, tmp_path):
     def fake_gen(method, node_id, civitai):
         return _large_metadata_dict()
 
-    monkeypatch.setattr(SaveNode, "gen_pnginfo", classmethod(lambda cls, a, b, c: fake_gen(a, b, c)))
+    monkeypatch.setattr(SaveNode, "gen_pnginfo", classmethod(lambda cls, a, b, c, *_: fake_gen(a, b, c)))
 
     img = DummyImage()
     result = node.save_images([img], file_format="jpeg", max_jpeg_exif_kb=4, include_lora_summary=False)

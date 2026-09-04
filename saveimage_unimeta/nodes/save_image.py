@@ -79,7 +79,7 @@ from .. import defs as defs_module
 from ..capture import Capture
 from ..defs import CAPTURE_FIELD_LIST
 from ..defs import FORCED_INCLUDE_CLASSES
-from ..defs.combo import SAMPLER_SELECTION_METHOD
+from ..defs.combo import MODEL_SELECTION_METHOD, SAMPLER_SELECTION_METHOD
 from ..defs.samplers import SAMPLERS
 from ..trace import Trace
 from ..version import resolve_runtime_version
@@ -197,6 +197,25 @@ class SaveImageWithMetaDataUniversal:
                         "tooltip": (
                             "When method is 'By node ID', this specifies which sampler node to treat as " "authoritative for Steps/CFG/etc."
                         ),
+                    },
+                ),
+                "model_selection_method": (
+                    MODEL_SELECTION_METHOD,
+                    {
+                        "tooltip": (
+                            "How to choose the primary base model: automatic (nearest loader on the sampler's "
+                            "model input) or by node id."
+                        ),
+                    },
+                ),
+                "model_selection_node_id": (
+                    "INT",
+                    {
+                        "default": 0,
+                        "min": 0,
+                        "max": 999999999,
+                        "step": 1,
+                        "tooltip": ("When model method is 'By node ID', the loader node id recorded as the primary Model."),
                     },
                 ),
                 "file_format": (
@@ -364,6 +383,8 @@ class SaveImageWithMetaDataUniversal:
         filename_prefix="ComfyUI",
         sampler_selection_method=SAMPLER_SELECTION_METHOD[0],
         sampler_selection_node_id=0,
+        model_selection_method=MODEL_SELECTION_METHOD[0],
+        model_selection_node_id=0,
         file_format="png",
         model_hash_log="none",
         lossless_webp=True,
@@ -398,6 +419,10 @@ class SaveImageWithMetaDataUniversal:
                 sampler node. Defaults to the first method in `SAMPLER_SELECTION_METHOD`.
             sampler_selection_node_id (int, optional): The ID of the sampler node
                 to use when the selection method is "By node ID". Defaults to 0.
+            model_selection_method (str, optional): How to choose the primary
+                base model loader. Defaults to "Auto".
+            model_selection_node_id (int, optional): The loader node ID used when
+                model_selection_method is "By node ID". Defaults to 0.
             file_format (str, optional): The output file format. Defaults to "png".
             model_hash_log (str, optional): The logging level for model hashing.
                 Defaults to "none".
@@ -493,7 +518,13 @@ class SaveImageWithMetaDataUniversal:
                 cstr("[Metadata Loader] Using Samplers File with %d entries").msg,
                 len(SAMPLERS),
             )
-        pnginfo_dict_src = self.gen_pnginfo(sampler_selection_method, sampler_selection_node_id, civitai_sampler)
+        pnginfo_dict_src = self.gen_pnginfo(
+            sampler_selection_method,
+            sampler_selection_node_id,
+            civitai_sampler,
+            model_selection_method,
+            model_selection_node_id,
+        )
 
         # Remove any existing __extra_metadata_keys to prevent stale/internal keys from appearing in output.
         # The tracking and re-insertion of this key happens below, after collecting the new extra metadata keys.
@@ -893,7 +924,14 @@ class SaveImageWithMetaDataUniversal:
         return "\n".join(line for line in out_lines if line) + ("\n" if out_lines else "")
 
     @classmethod
-    def gen_pnginfo(cls, sampler_selection_method, sampler_selection_node_id, save_civitai_sampler):
+    def gen_pnginfo(
+        cls,
+        sampler_selection_method,
+        sampler_selection_node_id,
+        save_civitai_sampler,
+        model_selection_method=MODEL_SELECTION_METHOD[0],
+        model_selection_node_id=0,
+    ):
         """Generate the PNG info dictionary from the workflow.
 
         This method traces the workflow graph to identify the relevant sampler
@@ -905,6 +943,10 @@ class SaveImageWithMetaDataUniversal:
             sampler_selection_node_id (int): The ID of the sampler node to use.
             save_civitai_sampler (bool): Whether to include Civitai-compatible
                 sampler info.
+            model_selection_method (str): How to choose the primary base model
+                loader ("Auto" or "By node ID").
+            model_selection_node_id (int): The loader node ID used when
+                model_selection_method is "By node ID".
 
         Returns:
             dict: A dictionary containing the captured metadata.
@@ -940,11 +982,19 @@ class SaveImageWithMetaDataUniversal:
         trace_tree_from_sampler_node = Trace.trace(sampler_node_id, hook.current_prompt)
         inputs_before_sampler_node = Trace.filter_inputs_by_trace_tree(inputs, trace_tree_from_sampler_node)
 
+        model_node_id = Trace.find_model_node_id(
+            sampler_node_id,
+            hook.current_prompt,
+            model_selection_method,
+            model_selection_node_id,
+        )
+
         # generate PNGInfo from inputs
         pnginfo_dict = Capture.gen_pnginfo_dict(
             inputs_before_sampler_node,
             inputs_before_this_node,
             save_civitai_sampler,
+            model_node_id=model_node_id if model_node_id != -1 else None,
         )
         return pnginfo_dict
 
