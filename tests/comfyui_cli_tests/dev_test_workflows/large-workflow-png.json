@@ -200,27 +200,11 @@
   "1017": {
     "inputs": {
       "patch_order": "weight_patch_first",
-      "full_load": "auto",
-      "model": [
-        "1015",
-        0
-      ]
+      "full_load": "auto"
     },
     "class_type": "PatchModelPatcherOrder",
     "_meta": {
       "title": "Patch Model Patcher Order"
-    }
-  },
-  "1028": {
-    "inputs": {
-      "conditioning": [
-        "1031",
-        0
-      ]
-    },
-    "class_type": "ConditioningZeroOut",
-    "_meta": {
-      "title": "ConditioningZeroOut"
     }
   },
   "1029": {

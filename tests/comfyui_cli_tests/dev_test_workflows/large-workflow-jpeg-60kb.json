@@ -167,18 +167,6 @@
       "title": "Patch Sage Attention KJ"
     }
   },
-  "1028": {
-    "inputs": {
-      "conditioning": [
-        "1031",
-        0
-      ]
-    },
-    "class_type": "ConditioningZeroOut",
-    "_meta": {
-      "title": "ConditioningZeroOut"
-    }
-  },
   "1031": {
     "inputs": {
       "guidance": 3.5,
