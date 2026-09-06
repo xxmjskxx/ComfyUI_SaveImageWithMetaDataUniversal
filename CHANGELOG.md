@@ -15,6 +15,8 @@ All notable changes to this project will be documented in this file.
 - WebP saves now use the best-compression encoder (`method=6`).
 - The filename counter now scans the output folder across sessions, so a fresh session cannot silently overwrite an image saved earlier.
 - New `rules_mode` selector (`Off` / `Auto` / `Overwrite`): `Auto` generates capture rules when none exist and appends new rules when existing rules are outdated; `Overwrite` regenerates once per session; `Off` disables automation.
+- New `positive_prompt_override` / `negative_prompt_override` inputs replace the captured prompts in the embedded metadata (and the `%pprompt%`/`%nprompt%` filename tokens) when non-empty; the original text is not stored.
+- Workflow classification (txt2img vs img2img): the A1111 parameter string now emits `Denoising strength` only for img2img workflows (walking the sampler's latent input upstream to an image loader/VAE encoder); txt2img omits denoise entirely.
 
 ### Changed
 - Documented runtime floor raised from Python 3.9 to 3.10 (the codebase already uses PEP 604 `X | Y` runtime unions; CI targets 3.10–3.13).

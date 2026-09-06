@@ -171,7 +171,7 @@
 - Scheduler
 - CFG Scale
 - Guidance
-- Denoise
+- Denoising strength (img2img only)
 - Shift, max_shift, base_shift
 - Seed
 - Clip skip

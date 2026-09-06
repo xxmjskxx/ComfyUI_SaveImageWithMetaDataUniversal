@@ -470,6 +470,28 @@ class SaveImageWithMetaDataUniversal:
                         ),
                     },
                 ),
+                "positive_prompt_override": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "multiline": True,
+                        "tooltip": (
+                            "When non-empty, replaces the captured positive prompt in the embedded metadata and in "
+                            "the %pprompt% filename token. Leave empty to use the prompt captured from the workflow."
+                        ),
+                    },
+                ),
+                "negative_prompt_override": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "multiline": True,
+                        "tooltip": (
+                            "When non-empty, replaces the captured negative prompt in the embedded metadata and in "
+                            "the %nprompt% filename token. Leave empty to use the prompt captured from the workflow."
+                        ),
+                    },
+                ),
             },
             "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO"},
         }
@@ -512,6 +534,8 @@ class SaveImageWithMetaDataUniversal:
         sanitize_metadata=True,
         suppress_missing_class_log=True,
         rules_mode="Auto",
+        positive_prompt_override="",
+        negative_prompt_override="",
     ):
         """Save images to disk with embedded metadata.
 
@@ -571,6 +595,14 @@ class SaveImageWithMetaDataUniversal:
             rules_mode (str, optional): How capture rules are generated:
                 "Off", "Auto" (generate when missing, append when outdated), or
                 "Overwrite" (rebuild once per session). Defaults to "Auto".
+            positive_prompt_override (str, optional): When non-empty, replaces
+                the captured positive prompt in the embedded metadata (and the
+                %pprompt% filename token). The original is not stored. Defaults
+                to "" (no override).
+            negative_prompt_override (str, optional): When non-empty, replaces
+                the captured negative prompt in the embedded metadata (and the
+                %nprompt% filename token). The original is not stored. Defaults
+                to "" (no override).
 
         Returns:
             dict: A dictionary containing the UI data and the result, which
@@ -655,6 +687,18 @@ class SaveImageWithMetaDataUniversal:
             extra_metadata_keys.append(key)
         if extra_metadata_keys:
             pnginfo_dict_src["__extra_metadata_keys"] = extra_metadata_keys
+
+        # Apply explicit prompt overrides (empty string = no override). These
+        # replace the captured prompts outright before formatting, so the
+        # original text is never stored. For dual-encoder workflows we also drop
+        # the T5/CLIP prompt splits so the override is authoritative rather than
+        # being shadowed by the T5/CLIP header lines.
+        if positive_prompt_override:
+            pnginfo_dict_src["Positive prompt"] = positive_prompt_override
+            for _prompt_key in [k for k in pnginfo_dict_src if k.lower() in {"t5 prompt", "clip prompt"}]:
+                pnginfo_dict_src.pop(_prompt_key, None)
+        if negative_prompt_override:
+            pnginfo_dict_src["Negative prompt"] = negative_prompt_override
 
         # Redact secret-like values from the workflow JSON before embedding it in
         # the image or sidecar. Falls back to the raw payload if sanitization
@@ -1121,11 +1165,13 @@ class SaveImageWithMetaDataUniversal:
             logger.warning(
                 "[SaveImageWithMetaData] Sampler node not found; falling back to partial metadata generation."
             )
-            return Capture.gen_pnginfo_dict(
+            pnginfo_dict = Capture.gen_pnginfo_dict(
                 inputs_before_this_node,  # treat inputs before this node as the sampler context
                 inputs_before_this_node,
                 save_civitai_sampler,
             )
+            pnginfo_dict["_workflow_kind"] = "txt2img"
+            return pnginfo_dict
 
         # get inputs before sampler node
         trace_tree_from_sampler_node = Trace.trace(sampler_node_id, hook.current_prompt)
@@ -1145,6 +1191,7 @@ class SaveImageWithMetaDataUniversal:
             save_civitai_sampler,
             model_node_id=model_node_id if model_node_id != -1 else None,
         )
+        pnginfo_dict["_workflow_kind"] = Trace.classify_workflow_kind(sampler_node_id, hook.current_prompt)
         return pnginfo_dict
 
     @classmethod
