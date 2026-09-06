@@ -94,6 +94,8 @@ _DEBUG_VERBOSE = os.environ.get("METADATA_DEBUG", "0") not in (
     "",
 )
 _RULES_VERSION_WARNING_EMITTED = False
+_AUTO_RULES_CHECKED = False
+_OVERWRITE_RULES_DONE = False
 _REFRESH_RULES_WORKFLOW = "example_workflows/refresh-rules.json"
 
 
@@ -127,6 +129,48 @@ def _maybe_warn_outdated_rules() -> None:
     version_warning = cstr(f"[Metadata Loader] {reason} {guidance}").warn + nodes_workflow
     logger.warning(version_warning)
     _RULES_VERSION_WARNING_EMITTED = True
+
+
+def _maybe_auto_generate_rules(overwrite_rules: bool) -> None:
+    """Auto-generate capture rules on the first save when none exist.
+
+    Reuses the ``Metadata Rule Scanner`` and ``Save Custom Metadata Rules``
+    nodes programmatically (with default settings) so new users get correct
+    capture rules without touching those nodes. ``overwrite_rules`` re-runs the
+    scan and overwrites existing rules once per session.
+    """
+    global _AUTO_RULES_CHECKED, _OVERWRITE_RULES_DONE
+    rules_version = getattr(defs_module, "LOADED_RULES_VERSION", None)
+    has_rules = rules_version is not None
+    if has_rules and not overwrite_rules:
+        return
+    if not has_rules and _AUTO_RULES_CHECKED:
+        return
+    if overwrite_rules and _OVERWRITE_RULES_DONE:
+        return
+
+    try:
+        from .scanner import MetadataRuleScanner
+        from .rules_writer import SaveCustomMetadataRules
+
+        scan_result = MetadataRuleScanner().scan_for_rules()
+        # Normalize the runtime dict vs test-mode tuple return shape.
+        if isinstance(scan_result, dict):
+            rules_json = scan_result.get("scan_results")
+        else:
+            rules_json = scan_result[0] if isinstance(scan_result, tuple | list) and scan_result else None
+        if not rules_json:
+            return
+        SaveCustomMetadataRules().save_rules(rules_json, save_mode="overwrite", backup_before_save=True)
+        _AUTO_RULES_CHECKED = True
+        if overwrite_rules:
+            _OVERWRITE_RULES_DONE = True
+            logger.info("[Metadata Loader] Regenerated metadata capture rules from the current workflow.")
+        else:
+            logger.info("[Metadata Loader] Auto-generated metadata capture rules on first save.")
+    except Exception as exc:  # pragma: no cover - environment dependent
+        logger.warning("[Metadata Loader] Could not auto-generate capture rules: %s", exc)
+        _AUTO_RULES_CHECKED = True
 
 
 class SaveImageWithMetaDataUniversal:
@@ -276,6 +320,15 @@ class SaveImageWithMetaDataUniversal:
                         ),
                     },
                 ),
+                "overwrite_rules": (
+                    "BOOLEAN",
+                    {
+                        "default": False,
+                        "tooltip": (
+                            "Regenerate capture rules from the current workflow, overwriting existing rules once per session."
+                        ),
+                    },
+                ),
                 "civitai_sampler": (
                     "BOOLEAN",
                     {
@@ -404,6 +457,7 @@ class SaveImageWithMetaDataUniversal:
         guidance_as_cfg=False,
         sanitize_metadata=True,
         suppress_missing_class_log=True,
+        overwrite_rules=False,
     ):
         """Save images to disk with embedded metadata.
 
@@ -460,6 +514,9 @@ class SaveImageWithMetaDataUniversal:
             lora_strengths_in_prompt (bool, optional): Add A1111-style LoRA
                 designation to positive prompt so that Civitai can recognize LoRA
                 strengths.
+            overwrite_rules (bool, optional): Regenerate and overwrite capture
+                rules from the current workflow once per session. Defaults to
+                False.
 
         Returns:
             dict: A dictionary containing the UI data and the result, which
@@ -467,6 +524,7 @@ class SaveImageWithMetaDataUniversal:
         """
         if extra_metadata is None:
             extra_metadata = {}
+        _maybe_auto_generate_rules(overwrite_rules)
         # Refresh definitions each run with smarter merge order. We pass a set
         # of classes seen from the SaveImage node back through the graph so the
         # loader can decide if user JSON is needed or defaults+ext suffice.
