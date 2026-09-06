@@ -17,6 +17,7 @@ import sys
 import time
 from typing import Any
 
+from .. import defs as defs_mod
 from ..version import resolve_runtime_version
 
 logger = logging.getLogger(__name__)
@@ -187,18 +188,12 @@ class SaveCustomMetadataRules:
         Raises:
             ValueError: If an error occurs during the saving process.
         """
-        # Path constants (shared with loader semantics)
+        # Path constants (shared with loader semantics). Delegate to the loader's
+        # resolver so the writer, loader, and scanner stay in lockstep for both
+        # the production (<package>/user_rules) and test-isolated
+        # (<repo>/tests/_test_outputs/user_rules) locations.
         PY_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # noqa: N806
-        # Test isolation parity with loader: if METADATA_TEST_MODE and an existing
-        # tests/_test_outputs/user_rules directory is present, prefer it so writer output
-        # does not pollute real tree. (Do not auto-create to avoid unintended
-        # divergence from loader semantics which only prefers when it already exists.)
-        test_mode = os.environ.get("METADATA_TEST_MODE", "").strip().lower() in {"1", "true", "yes", "on"}
-        preferred_test_dir = os.path.join(PY_DIR, "tests/_test_outputs", "user_rules")
-        if test_mode and os.path.isdir(preferred_test_dir):
-            USER_RULES_DIR = preferred_test_dir  # noqa: N806
-        else:
-            USER_RULES_DIR = os.path.join(PY_DIR, "user_rules")  # noqa: N806
+        USER_RULES_DIR = defs_mod.resolve_user_rules_dir()  # noqa: N806
         os.makedirs(USER_RULES_DIR, exist_ok=True)
         USER_CAPTURES_FILE = os.path.join(USER_RULES_DIR, "user_captures.json")  # noqa: N806
         USER_SAMPLERS_FILE = os.path.join(USER_RULES_DIR, "user_samplers.json")  # noqa: N806
@@ -264,7 +259,9 @@ class SaveCustomMetadataRules:
                             restored_files.append("generated_user_rules.py (regenerated)")
                         except Exception as regen_err:  # pragma: no cover
                             logger.warning(
-                                "[Metadata Loader] Could not regenerate extension after restore: %s", regen_err
+                                "[Metadata Loader] Could not regenerate extension after restore: %s",
+                                regen_err,
+                                exc_info=True,
                             )
                 if missing:
                     metrics["partial"] = True
@@ -335,11 +332,17 @@ class SaveCustomMetadataRules:
                     with open(USER_SAMPLERS_FILE, "w", encoding="utf-8") as f:
                         json.dump(final_samplers, f, indent=4)
 
+            ext_generation_error: str | None = None
             if rebuild_python_rules:
                 try:
                     self._generate_python_extension(GENERATED_EXT_FILE, final_nodes, final_samplers)
                 except Exception as gen_err:  # pragma: no cover
-                    logger.warning("[Metadata Loader] Could not generate python ext from rules: %s", gen_err)
+                    logger.warning(
+                        "[Metadata Loader] Could not generate python ext from rules: %s",
+                        gen_err,
+                        exc_info=True,
+                    )
+                    ext_generation_error = str(gen_err)
 
             self._warn_uninstalled_nodes(list(sanitized_nodes.keys()))
 
@@ -353,6 +356,8 @@ class SaveCustomMetadataRules:
                     f"nodes={len(final_nodes)}",
                     f"samplers={len(final_samplers)}",
                 ]
+                if ext_generation_error:
+                    status_parts.append(f"ext_error={ext_generation_error}")
                 return ("; ".join(status_parts),)
             else:
                 status_parts = [
@@ -375,6 +380,8 @@ class SaveCustomMetadataRules:
                             f"sampler_roles_skipped={metrics['sampler_roles_skipped_conflict']}",
                         ]
                     )
+                if ext_generation_error:
+                    status_parts.append(f"ext_error={ext_generation_error}")
                 return ("; ".join(status_parts),)
         except Exception as e:  # pragma: no cover
             raise ValueError(f"Error saving rules: {e}")
@@ -750,21 +757,17 @@ class SaveCustomMetadataRules:
     def _invalidate_generated_module_cache() -> None:
         """Ensure subsequent imports observe the freshly written module.
 
-        Removes the known module aliases from ``sys.modules`` and invalidates
-        importlib caches so the next ``importlib.import_module`` call reloads
-        ``generated_user_rules`` from disk. Handles both editable installs
-        (``saveimage_unimeta``) and packaged namespaced installs
-        (``ComfyUI_SaveImageWithMetaDataUniversal``).
+        Removes every registered alias of ``generated_user_rules`` from
+        ``sys.modules`` regardless of how the package was imported (editable,
+        packaged namespaced, or ComfyUI's path-derived runtime name) and
+        invalidates importlib caches so the next ``importlib.import_module``
+        call reloads the module from disk.
         """
 
         importlib.invalidate_caches()
-        module_names = (
-            "saveimage_unimeta.defs.ext.generated_user_rules",
-            "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.ext.generated_user_rules",
-        )
-        for module_name in module_names:
-            if module_name in sys.modules:
-                sys.modules.pop(module_name)
+        for module_name in list(sys.modules):
+            if module_name == "generated_user_rules" or module_name.endswith(".defs.ext.generated_user_rules"):
+                sys.modules.pop(module_name, None)
 
 
 def _timestamp() -> str:

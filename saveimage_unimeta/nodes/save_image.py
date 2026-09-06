@@ -52,6 +52,8 @@ except ModuleNotFoundError:  # pragma: no cover - isolated test fallback
     folder_paths = _FolderPathsStub()
 import numpy as np
 from ..utils.color import cstr
+from ..utils.pathsafety import sanitize_filename
+from ..utils.redaction import MetadataSanitizationError, sanitize_metadata_json
 
 try:  # Comfy runtime provides this; tests may not
     from comfy.cli_args import args
@@ -77,7 +79,7 @@ from .. import defs as defs_module
 from ..capture import Capture
 from ..defs import CAPTURE_FIELD_LIST
 from ..defs import FORCED_INCLUDE_CLASSES
-from ..defs.combo import SAMPLER_SELECTION_METHOD
+from ..defs.combo import MODEL_SELECTION_METHOD, SAMPLER_SELECTION_METHOD
 from ..defs.samplers import SAMPLERS
 from ..trace import Trace
 from ..version import resolve_runtime_version
@@ -197,6 +199,25 @@ class SaveImageWithMetaDataUniversal:
                         ),
                     },
                 ),
+                "model_selection_method": (
+                    MODEL_SELECTION_METHOD,
+                    {
+                        "tooltip": (
+                            "How to choose the primary base model: automatic (nearest loader on the sampler's "
+                            "model input) or by node id."
+                        ),
+                    },
+                ),
+                "model_selection_node_id": (
+                    "INT",
+                    {
+                        "default": 0,
+                        "min": 0,
+                        "max": 999999999,
+                        "step": 1,
+                        "tooltip": ("When model method is 'By node ID', the loader node id recorded as the primary Model."),
+                    },
+                ),
                 "file_format": (
                     cls.SAVE_FILE_FORMATS,
                     {
@@ -285,6 +306,16 @@ class SaveImageWithMetaDataUniversal:
                         "tooltip": ("If disabled, the workflow data will not be saved in the image metadata."),
                     },
                 ),
+                "sanitize_metadata": (
+                    "BOOLEAN",
+                    {
+                        "default": True,
+                        "tooltip": (
+                            "Redact secrets (API keys, tokens, passwords, absolute paths) from embedded workflow "
+                            "metadata before saving."
+                        ),
+                    },
+                ),
                 "include_lora_summary": (
                     "BOOLEAN",
                     {
@@ -352,6 +383,8 @@ class SaveImageWithMetaDataUniversal:
         filename_prefix="ComfyUI",
         sampler_selection_method=SAMPLER_SELECTION_METHOD[0],
         sampler_selection_node_id=0,
+        model_selection_method=MODEL_SELECTION_METHOD[0],
+        model_selection_node_id=0,
         file_format="png",
         model_hash_log="none",
         lossless_webp=True,
@@ -367,6 +400,7 @@ class SaveImageWithMetaDataUniversal:
         save_workflow_image=True,
         include_lora_summary=False,
         guidance_as_cfg=False,
+        sanitize_metadata=True,
         suppress_missing_class_log=True,
     ):
         """Save images to disk with embedded metadata.
@@ -385,6 +419,10 @@ class SaveImageWithMetaDataUniversal:
                 sampler node. Defaults to the first method in `SAMPLER_SELECTION_METHOD`.
             sampler_selection_node_id (int, optional): The ID of the sampler node
                 to use when the selection method is "By node ID". Defaults to 0.
+            model_selection_method (str, optional): How to choose the primary
+                base model loader. Defaults to "Auto".
+            model_selection_node_id (int, optional): The loader node ID used when
+                model_selection_method is "By node ID". Defaults to 0.
             file_format (str, optional): The output file format. Defaults to "png".
             model_hash_log (str, optional): The logging level for model hashing.
                 Defaults to "none".
@@ -412,6 +450,9 @@ class SaveImageWithMetaDataUniversal:
                 of LoRAs in the metadata. Defaults to False.
             guidance_as_cfg (bool, optional): Whether to treat guidance as CFG
                 scale. Defaults to False.
+            sanitize_metadata (bool, optional): Redact secret-like values (API
+                keys, tokens, passwords, absolute paths) from the embedded
+                workflow JSON before writing it. Defaults to True.
             suppress_missing_class_log (bool, optional): Whether to suppress
                 warnings about missing node classes. Defaults to True.
             lora_strengths_in_prompt (bool, optional): Add A1111-style LoRA
@@ -477,7 +518,13 @@ class SaveImageWithMetaDataUniversal:
                 cstr("[Metadata Loader] Using Samplers File with %d entries").msg,
                 len(SAMPLERS),
             )
-        pnginfo_dict_src = self.gen_pnginfo(sampler_selection_method, sampler_selection_node_id, civitai_sampler)
+        pnginfo_dict_src = self.gen_pnginfo(
+            sampler_selection_method,
+            sampler_selection_node_id,
+            civitai_sampler,
+            model_selection_method,
+            model_selection_node_id,
+        )
 
         # Remove any existing __extra_metadata_keys to prevent stale/internal keys from appearing in output.
         # The tracking and re-insertion of this key happens below, after collecting the new extra metadata keys.
@@ -494,6 +541,22 @@ class SaveImageWithMetaDataUniversal:
             extra_metadata_keys.append(key)
         if extra_metadata_keys:
             pnginfo_dict_src["__extra_metadata_keys"] = extra_metadata_keys
+
+        # Redact secret-like values from the workflow JSON before embedding it in
+        # the image or sidecar. Falls back to the raw payload if sanitization
+        # exceeds safety limits, so saving the image never fails.
+        if sanitize_metadata:
+            try:
+                if prompt is not None:
+                    prompt, _redacted = sanitize_metadata_json(prompt)
+                    if _redacted:
+                        logger.info("Redacted %d secret-like value(s) from workflow prompt metadata.", _redacted)
+                if extra_pnginfo is not None:
+                    extra_pnginfo, _redacted = sanitize_metadata_json(extra_pnginfo)
+                    if _redacted:
+                        logger.info("Redacted %d secret-like value(s) from workflow pnginfo metadata.", _redacted)
+            except MetadataSanitizationError as exc:
+                logger.warning("Could not sanitize workflow metadata (%s); embedding raw workflow.", exc)
 
         ui_entries: list[dict[str, str]] = []
         self._last_fallback_stages.clear()
@@ -535,6 +598,7 @@ class SaveImageWithMetaDataUniversal:
                         metadata.add_text(x, json.dumps(extra_pnginfo[x]))
 
             filename_prefix = self.format_filename(filename_prefix, pnginfo_dict)
+            filename_prefix = sanitize_filename(filename_prefix)
             output_path = os.path.join(self.output_dir, filename_prefix)
             if not os.path.exists(os.path.dirname(output_path)):
                 os.makedirs(os.path.dirname(output_path), exist_ok=True)
@@ -860,7 +924,14 @@ class SaveImageWithMetaDataUniversal:
         return "\n".join(line for line in out_lines if line) + ("\n" if out_lines else "")
 
     @classmethod
-    def gen_pnginfo(cls, sampler_selection_method, sampler_selection_node_id, save_civitai_sampler):
+    def gen_pnginfo(
+        cls,
+        sampler_selection_method,
+        sampler_selection_node_id,
+        save_civitai_sampler,
+        model_selection_method=MODEL_SELECTION_METHOD[0],
+        model_selection_node_id=0,
+    ):
         """Generate the PNG info dictionary from the workflow.
 
         This method traces the workflow graph to identify the relevant sampler
@@ -872,6 +943,10 @@ class SaveImageWithMetaDataUniversal:
             sampler_selection_node_id (int): The ID of the sampler node to use.
             save_civitai_sampler (bool): Whether to include Civitai-compatible
                 sampler info.
+            model_selection_method (str): How to choose the primary base model
+                loader ("Auto" or "By node ID").
+            model_selection_node_id (int): The loader node ID used when
+                model_selection_method is "By node ID".
 
         Returns:
             dict: A dictionary containing the captured metadata.
@@ -907,11 +982,19 @@ class SaveImageWithMetaDataUniversal:
         trace_tree_from_sampler_node = Trace.trace(sampler_node_id, hook.current_prompt)
         inputs_before_sampler_node = Trace.filter_inputs_by_trace_tree(inputs, trace_tree_from_sampler_node)
 
+        model_node_id = Trace.find_model_node_id(
+            sampler_node_id,
+            hook.current_prompt,
+            model_selection_method,
+            model_selection_node_id,
+        )
+
         # generate PNGInfo from inputs
         pnginfo_dict = Capture.gen_pnginfo_dict(
             inputs_before_sampler_node,
             inputs_before_this_node,
             save_civitai_sampler,
+            model_node_id=model_node_id if model_node_id != -1 else None,
         )
         return pnginfo_dict
 

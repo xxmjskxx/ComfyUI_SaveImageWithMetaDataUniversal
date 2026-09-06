@@ -11,9 +11,13 @@ from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.version import res
 def _paths_for_generated_files():
     mod = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.rules_writer")
     base_py = os.path.dirname(os.path.dirname(os.path.abspath(mod.__file__)))
-    # Respect test-mode isolated directory if present (writer prefers it only if it already exists)
-    test_isolated = os.path.join(base_py, "tests/_test_outputs", "user_rules")
-    if os.environ.get("METADATA_TEST_MODE") and os.path.isdir(test_isolated):
+    repo_root = os.path.dirname(base_py)
+    # Writer delegates to defs.resolve_user_rules_dir(): in test mode it uses
+    # <repo>/tests/_test_outputs/user_rules when present. Ensure that directory
+    # exists so the resolver selects it (mirrors tests/conftest.py layout).
+    test_isolated = os.path.join(repo_root, "tests/_test_outputs", "user_rules")
+    if os.environ.get("METADATA_TEST_MODE"):
+        os.makedirs(test_isolated, exist_ok=True)
         user_dir = test_isolated
     else:
         user_dir = os.path.join(base_py, "user_rules")

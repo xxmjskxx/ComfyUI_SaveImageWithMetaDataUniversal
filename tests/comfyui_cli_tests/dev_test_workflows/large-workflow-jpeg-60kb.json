@@ -153,23 +153,10 @@
       "title": "CLIP Text Encode (Prompt)"
     }
   },
-  "1015": {
-    "inputs": {
-      "backend": "inductor",
-      "model": [
-        "1016",
-        0
-      ]
-    },
-    "class_type": "TorchCompileModel",
-    "_meta": {
-      "title": "TorchCompileModel"
-    }
-  },
   "1016": {
     "inputs": {
       "sage_attention": "auto",
-      "allow_compile": false,
+      "allow_compile": true,
       "model": [
         "693",
         0
@@ -178,32 +165,6 @@
     "class_type": "PathchSageAttentionKJ",
     "_meta": {
       "title": "Patch Sage Attention KJ"
-    }
-  },
-  "1017": {
-    "inputs": {
-      "patch_order": "weight_patch_first",
-      "full_load": "auto",
-      "model": [
-        "1015",
-        0
-      ]
-    },
-    "class_type": "PatchModelPatcherOrder",
-    "_meta": {
-      "title": "Patch Model Patcher Order"
-    }
-  },
-  "1028": {
-    "inputs": {
-      "conditioning": [
-        "1031",
-        0
-      ]
-    },
-    "class_type": "ConditioningZeroOut",
-    "_meta": {
-      "title": "ConditioningZeroOut"
     }
   },
   "1031": {
@@ -307,7 +268,7 @@
       "lora_name": "flux\\artstyle\\style\\lnrnr_flux_EliPot.safetensors",
       "strength_model": 0.15,
       "model": [
-        "1017",
+        "1118",
         0
       ]
     },
@@ -321,6 +282,8 @@
       "filename_prefix": "Test\\Large-Workflow-jpeg-60kb",
       "sampler_selection_method": "Farthest",
       "sampler_selection_node_id": 0,
+      "model_selection_method": "Auto",
+      "model_selection_node_id": 0,
       "file_format": "jpeg",
       "lossless_webp": true,
       "quality": 100,
@@ -330,9 +293,11 @@
       "civitai_sampler": true,
       "guidance_as_cfg": true,
       "save_workflow_image": true,
+      "sanitize_metadata": true,
       "include_lora_summary": false,
       "suppress_missing_class_log": false,
       "model_hash_log": "none",
+      "lora_strengths_in_prompt": false,
       "images": [
         "51",
         0
@@ -341,6 +306,26 @@
     "class_type": "SaveImageWithMetaDataUniversal",
     "_meta": {
       "title": "Save Image w/ Metadata Universal"
+    }
+  },
+  "1118": {
+    "inputs": {
+      "backend": "inductor",
+      "fullgraph": false,
+      "mode": "default",
+      "dynamic": "false",
+      "compile_transformer_blocks_only": true,
+      "dynamo_cache_size_limit": 64,
+      "debug_compile_keys": false,
+      "disable_dynamic_vram": false,
+      "model": [
+        "1016",
+        0
+      ]
+    },
+    "class_type": "TorchCompileModelAdvanced",
+    "_meta": {
+      "title": "TorchCompileModelAdvanced"
     }
   }
 }

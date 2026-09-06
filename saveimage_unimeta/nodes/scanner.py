@@ -666,18 +666,12 @@ class MetadataRuleScanner:
         def _current_rule_mtimes():
             """Return mtimes for user rule JSON files.
 
-            Mirrors path preference logic of loader/writer: in METADATA_TEST_MODE, if an
-            existing tests/_test_outputs/user_rules directory is present, prefer it. This keeps
-            scanner cache invalidation coherent during isolated tests.
+            Delegates to the loader's shared path resolver so the scanner tracks the
+            same user_rules directory the loader and writer use (including the
+            test-isolated location under METADATA_TEST_MODE).
             """
             try:
-                pack_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-                test_mode = os.environ.get("METADATA_TEST_MODE", "").strip().lower() in {"1", "true", "yes", "on"}
-                preferred = os.path.join(pack_dir, "tests/_test_outputs", "user_rules")
-                if test_mode and os.path.isdir(preferred):
-                    user_dir = preferred
-                else:
-                    user_dir = os.path.join(pack_dir, "user_rules")
+                user_dir = defs_mod.resolve_user_rules_dir()
                 cap = os.path.join(user_dir, "user_captures.json")
                 sam = os.path.join(user_dir, "user_samplers.json")
                 mt_cap = os.path.getmtime(cap) if os.path.exists(cap) else None

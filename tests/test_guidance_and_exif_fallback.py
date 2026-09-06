@@ -81,7 +81,7 @@ def test_jpeg_exif_fallback_stages(monkeypatch, tmp_path):
     def fake_gen_pnginfo(method, node_id, civitai):
         return big_pnginfo
 
-    monkeypatch.setattr(SaveNode, "gen_pnginfo", classmethod(lambda cls, a, b, c: fake_gen_pnginfo(a, b, c)))
+    monkeypatch.setattr(SaveNode, "gen_pnginfo", classmethod(lambda cls, a, b, c, *_: fake_gen_pnginfo(a, b, c)))
 
     # Prepare dummy image batch
     images = [DummyImage()]

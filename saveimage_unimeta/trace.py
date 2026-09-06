@@ -14,7 +14,7 @@ from typing import NamedTuple
 from .defs import CAPTURE_FIELD_LIST
 
 # from . import SAMPLERS
-from .defs.combo import SAMPLER_SELECTION_METHOD
+from .defs.combo import MODEL_SELECTION_METHOD, SAMPLER_SELECTION_METHOD
 from .defs.meta import MetaField
 from .defs.samplers import SAMPLERS
 from .defs.validators import _is_link_input
@@ -22,6 +22,40 @@ from .defs.validators import _is_link_input
 from .utils.color import cstr
 
 logger = logging.getLogger(__name__)
+
+# Priority ranking for model-input names used to break ties when a loader
+# exposes multiple model fields (e.g. base vs. refiner checkpoints).
+_PRIMARY_INPUT_PRIORITY = {
+    "base_ckpt_name": 0,
+    "model_name": 0,
+    "gguf_name": 1,
+    "unet_name": 2,
+    "diffusion_model_name": 3,
+    "ckpt_name": 4,
+    "checkpoint_name": 5,
+    "checkpoint": 6,
+    "stage_c": 7,
+    "stage_b": 8,
+    "extra_model_name": 9,
+    "model_path": 10,
+    "refiner_ckpt_name": 11,
+}
+
+# Sampler input names that may carry the base model, in lookup order.
+_SAMPLER_MODEL_INPUTS = (
+    "model",
+    "base_model",
+    "base_pipe",
+    "base_sampler",
+    "basic_pipe",
+    "detailer_pipe",
+    "guider",
+    "model_input",
+    "diffusion_model",
+    "pipe",
+    "refiner_model",
+    "sampler_inputs",
+)
 
 
 class TraceEntry(NamedTuple):
@@ -121,6 +155,10 @@ class Trace:
         Returns:
             str: The ID of the found sampler node, or -1 if no sampler is found.
         """
+        # Legacy alias: workflows saved before the rename stored "Nearest".
+        if sampler_selection_method == "Nearest":
+            sampler_selection_method = SAMPLER_SELECTION_METHOD[1]
+
         # Rely on the caller to have called the definitions loader with the
         # appropriate merge order and coverage. Do not reload here to avoid
         # overriding conditional merge decisions.
@@ -167,34 +205,131 @@ class Trace:
                 return node_id
             return -1
 
+        reverse = sampler_selection_method == SAMPLER_SELECTION_METHOD[0]
         sorted_by_distance_trace_tree = sorted(
             [(node_id, entry.distance, entry.class_type) for node_id, entry in trace_tree.items()],
             key=lambda x: x[1],
-            reverse=(sampler_selection_method == SAMPLER_SELECTION_METHOD[0]),
+            reverse=reverse,
         )
         if _trace_debug_enabled():
             try:
                 logger.debug(
                     cstr("[Trace] Candidate nodes by distance (reversed=%s): %s").msg,
-                    sampler_selection_method == SAMPLER_SELECTION_METHOD[0],
+                    reverse,
                     [f"{nid}:{dist}/{ctype}" for nid, dist, ctype in sorted_by_distance_trace_tree],
                 )
             except Exception:
                 pass  # Logging failure should not break sampler node finding
-        # Pass 1: exact matches defined in SAMPLERS
-        for nid, _, class_type in sorted_by_distance_trace_tree:
-            if class_type in SAMPLERS.keys():
-                if _trace_debug_enabled():
-                    logger.debug(cstr("[Trace] Exact SAMPLERS match: %s").msg, nid)
-                return nid
+        # Prefer exact matches defined in SAMPLERS; fall back to heuristics.
+        exact = [c for c in sorted_by_distance_trace_tree if c[2] in SAMPLERS]
+        candidates = exact or [c for c in sorted_by_distance_trace_tree if is_sampler_like(c[2])]
+        if not candidates:
+            return -1
+        best_distance = candidates[0][1]
+        tied = [c for c in candidates if c[1] == best_distance]
+        if len(tied) > 1:
+            logger.warning(
+                "[Trace] Sampler selection (%s) is ambiguous among %s; choosing the first deterministically.",
+                sampler_selection_method,
+                [f"{nid}:{ctype}" for nid, _, ctype in tied],
+            )
+            tied.sort(key=lambda c: str(c[0]))
+        return tied[0][0]
 
-        # Pass 2: heuristic sampler-like detection via CAPTURE_FIELD_LIST
-        for nid, _, class_type in sorted_by_distance_trace_tree:
-            if is_sampler_like(class_type):
-                if _trace_debug_enabled():
-                    logger.debug(cstr("[Trace] Heuristic sampler-like match: %s").msg, nid)
+    @classmethod
+    def _model_field_name(cls, class_type: str) -> str | None:
+        """Return the model field/prefix a class captures, or ``None``."""
+        rules = CAPTURE_FIELD_LIST.get(class_type)
+        if not rules:
+            return None
+        model_rule = rules.get(MetaField.MODEL_NAME) or rules.get(MetaField.MODEL_HASH)
+        if not model_rule:
+            return None
+        return model_rule.get("field_name") or model_rule.get("prefix")
+
+    @classmethod
+    def _primary_model_input_names(cls, sampler_node: dict) -> tuple[str, ...]:
+        """Return the sampler input names that carry the base model."""
+        inputs = sampler_node.get("inputs", {}) if isinstance(sampler_node, dict) else {}
+        for input_name in _SAMPLER_MODEL_INPUTS:
+            if input_name in inputs:
+                return (input_name,)
+        return _SAMPLER_MODEL_INPUTS
+
+    @classmethod
+    def _walk_upstream_from_inputs(cls, start_node_id, prompt, first_hop_inputs):
+        """BFS upstream from selected inputs of ``start_node_id``.
+
+        Only the first hop is constrained to ``first_hop_inputs``; subsequent
+        hops follow every link so intermediate nodes (model patches, LoRA
+        loaders) are traversed through to the actual model loader.
+        """
+        if start_node_id not in prompt:
+            return {}
+        start_inputs = prompt[start_node_id].get("inputs", {})
+        queue: deque[tuple[str, int]] = deque()
+        for input_name in first_hop_inputs:
+            value = start_inputs.get(input_name)
+            if _is_link_input(value) and value[0] in prompt:
+                queue.append((value[0], 1))
+        distances: dict[str, int] = {}
+        while queue:
+            node_id, distance = queue.popleft()
+            known = distances.get(node_id)
+            if known is not None and known <= distance:
+                continue
+            distances[node_id] = distance
+            for value in prompt[node_id].get("inputs", {}).values():
+                if _is_link_input(value) and value[0] in prompt:
+                    queue.append((value[0], distance + 1))
+        return distances
+
+    @classmethod
+    def find_model_node_id(
+        cls,
+        sampler_node_id,
+        prompt,
+        selection_method=MODEL_SELECTION_METHOD[0],
+        node_id=0,
+    ):
+        """Find the primary base-model loader node feeding ``sampler_node_id``.
+
+        With ``MODEL_SELECTION_METHOD[1]`` ("By node ID") the explicit
+        ``node_id`` is returned when it is a known model loader. Otherwise the
+        nearest loader reached by walking upstream from the sampler's model
+        inputs is selected, with ties broken by ``_PRIMARY_INPUT_PRIORITY`` and
+        a deterministic fallback.
+        """
+        if sampler_node_id not in prompt:
+            return -1
+        if selection_method == MODEL_SELECTION_METHOD[1]:
+            nid = str(node_id)
+            if nid in prompt and cls._model_field_name(prompt[nid].get("class_type", "")) is not None:
                 return nid
-        return -1
+            return -1
+        sampler_node = prompt[sampler_node_id]
+        model_inputs = cls._primary_model_input_names(sampler_node)
+        distances = cls._walk_upstream_from_inputs(sampler_node_id, prompt, model_inputs)
+        candidates = []
+        for nid, distance in distances.items():
+            field_name = cls._model_field_name(prompt[nid].get("class_type", ""))
+            if field_name is None:
+                continue
+            priority = _PRIMARY_INPUT_PRIORITY.get(field_name, 999)
+            candidates.append((distance, priority, str(nid)))
+        if not candidates:
+            if _trace_debug_enabled():
+                logger.warning("[Trace] No model loader found upstream of sampler %s", sampler_node_id)
+            return -1
+        candidates.sort(key=lambda c: (c[0], c[1]))
+        best = [c for c in candidates if c[0] == candidates[0][0] and c[1] == candidates[0][1]]
+        if len(best) > 1:
+            logger.warning(
+                "[Trace] Primary model selection is ambiguous among %s; choosing deterministically.",
+                [c[2] for c in best],
+            )
+            best.sort(key=lambda c: c[2])
+        return best[0][2]
 
     @classmethod
     def filter_inputs_by_trace_tree(cls, inputs, trace_tree):

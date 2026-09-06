@@ -1,0 +1,697 @@
+{
+  "22": {
+    "inputs": {
+      "model": [
+        "1034",
+        0
+      ],
+      "conditioning": [
+        "1031",
+        0
+      ]
+    },
+    "class_type": "BasicGuider",
+    "_meta": {
+      "title": "Basic Guider"
+    }
+  },
+  "51": {
+    "inputs": {
+      "samples": [
+        "1027",
+        0
+      ],
+      "vae": [
+        "663",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "183": {
+    "inputs": {
+      "noise_seed": [
+        "1040",
+        0
+      ]
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "Image Seed"
+    }
+  },
+  "663": {
+    "inputs": {
+      "vae_name": "ae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "693": {
+    "inputs": {
+      "unet_name": "flux\\flux1-dev-fp8-e4m3fn.safetensors",
+      "weight_dtype": "fp8_e4m3fn"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "Load Diffusion Model"
+    }
+  },
+  "694": {
+    "inputs": {
+      "clip_name1": "flux\\t5xxl_fp8_e4m3fn_scaled.safetensors",
+      "clip_name2": "flux\\Long-ViT-L-14-REG-TE-only-HF-format.safetensors",
+      "type": "flux",
+      "device": "default"
+    },
+    "class_type": "DualCLIPLoader",
+    "_meta": {
+      "title": "Load CLIP (Dual)"
+    }
+  },
+  "725": {
+    "inputs": {
+      "dimensions": " 832 x 1216  (portrait)",
+      "clip_scale": 1,
+      "batch_size": 1
+    },
+    "class_type": "SDXL Empty Latent Image (rgthree)",
+    "_meta": {
+      "title": "Choose Preset Resolution"
+    }
+  },
+  "888": {
+    "inputs": {
+      "prompt": "<lora:FluxMythR3alisticF:0.175> R3alisticF,<lora:retrograde-90s:0.533> retr0grade90s,<lora:ck-nc-luminal-genesis-000016:0.237> A digital anime artwork in the style of cklg,<lora:ck-shadow-circuit-000021:0.357> in the style of cksc,"
+    },
+    "class_type": "SeargePromptText",
+    "_meta": {
+      "title": "Append"
+    }
+  },
+  "990": {
+    "inputs": {
+      "text": [
+        "1007",
+        0
+      ],
+      "apply_hooks": true,
+      "tags": "",
+      "start": 0,
+      "end": 1,
+      "num_steps": 0
+    },
+    "class_type": "PCLazyLoraLoaderAdvanced",
+    "_meta": {
+      "title": "PC: Schedule LoRAs (Advanced)"
+    }
+  },
+  "1000": {
+    "inputs": {
+      "PowerLoraLoaderHeaderWidget": {
+        "type": "PowerLoraLoaderHeaderWidget"
+      },
+      "lora_1": {
+        "on": false,
+        "lora": "flux\\artstyle\\style\\FluxMythG0thicL1nes.safetensors",
+        "strength": 0.4
+      },
+      "lora_2": {
+        "on": false,
+        "lora": "flux\\artstyle\\style\\FantasyWizardWitchesFluxV2-000001.safetensors",
+        "strength": 0.8
+      },
+      "lora_3": {
+        "on": false,
+        "lora": "flux\\turbos\\FLUX.1-Turbo-Alpha.safetensors",
+        "strength": 1
+      },
+      "lora_4": {
+        "on": false,
+        "lora": "flux\\artstyle\\style\\FluxMythR3alisticF.safetensors",
+        "strength": 0.3
+      },
+      "lora_5": {
+        "on": true,
+        "lora": "flux\\artstyle\\manga_anime\\RetroAnimeFluxV1.safetensors",
+        "strength": 0.65
+      },
+      "lora_6": {
+        "on": false,
+        "lora": "flux\\artstyle\\style\\OB半写实肖像画V2.0.safetensors",
+        "strength": 0.4
+      },
+      "lora_7": {
+        "on": false,
+        "lora": "flux\\artstyle\\style\\ck-painterly-fantasy-000017.safetensors",
+        "strength": 0.4
+      },
+      "lora_8": {
+        "on": false,
+        "lora": "flux\\detail\\cheats.safetensors",
+        "strength": 1
+      },
+      "lora_9": {
+        "on": false,
+        "lora": "flux\\detail\\flux.1_lora_flyway_Epic-detail_v2.safetensors",
+        "strength": 1
+      },
+      "lora_10": {
+        "on": false,
+        "lora": "flux\\detail\\aidmaFluxProUltra-FLUX-v0.1.safetensors",
+        "strength": 0.3
+      },
+      "lora_11": {
+        "on": false,
+        "lora": "flux\\artstyle\\game\\Elden_Ring_-_Yoshitaka_Amano.safetensors",
+        "strength": 0.4
+      },
+      "lora_12": {
+        "on": true,
+        "lora": "flux\\detail\\flux.1_lora_flyway_Epic-detail_v2.safetensors",
+        "strength": 0.4
+      },
+      "lora_13": {
+        "on": false,
+        "lora": "flux\\artstyle\\pain_desperation_fear.safetensors",
+        "strength": 0.3
+      },
+      "lora_14": {
+        "on": false,
+        "lora": "flux\\detail\\flux.1_lora_flyway_Epic-Characters_v1.safetensors",
+        "strength": 0.3
+      },
+      "lora_15": {
+        "on": true,
+        "lora": "flux\\artstyle\\style\\sxz-Dark-Fantasy-v2-Flux.safetensors",
+        "strength": 0.3
+      },
+      "lora_16": {
+        "on": false,
+        "lora": "flux\\artstyle\\Xenomorph.safetensors",
+        "strength": 0.8
+      },
+      "lora_17": {
+        "on": false,
+        "lora": "flux\\turbos\\Optimazed-TurboFLUX-Accelerater_PAseer.safetensors",
+        "strength": 0.8
+      },
+      "➕ Add Lora": "",
+      "model": [
+        "1017",
+        0
+      ],
+      "clip": [
+        "694",
+        0
+      ]
+    },
+    "class_type": "Power Lora Loader (rgthree)",
+    "_meta": {
+      "title": "Power Lora Loader (rgthree)"
+    }
+  },
+  "1001": {
+    "inputs": {
+      "text": "oil painting, semi realistic, fantasy, anime style, solid color background, tall thin character, beautiful lush vibrant forest, backlighting, dramatic atmospheric glow, countless small tiny clumsy gentle spirits, great forest spirit, intricate highly detailed, natural fantastical elements, leaves flowers feathers, hair clothing, delicate translucent wings, gentle mystical business, forest secret heartbeat, branches arms, leaves hair, ethereal benevolent connection, natural world, deep abiding, magic, hushed reverence, wonder, mysticism, otherworldly aura, vibrant colors, bold brushstrokes, gradating background, blues emerald greens, slender athletic build, elegant arm, beckoning summoning, reverence awe, drinking in essence, character attire, mesmerizing blend, organic growth, R3alisticF, retr0grade90s, A digital anime artwork in the style of cklg, in the style of cksc,",
+      "clip": [
+        "694",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "1006": {
+    "inputs": {
+      "text": [
+        "1007",
+        0
+      ],
+      "model": [
+        "1088",
+        0
+      ],
+      "clip": [
+        "694",
+        0
+      ]
+    },
+    "class_type": "PCLazyLoraLoader",
+    "_meta": {
+      "title": "PC: Schedule LoRAs"
+    }
+  },
+  "1007": {
+    "inputs": {
+      "prompt": "<lora:3d-anaglyphs:0.7> \n<lora:aidmaAbadonedHorror-FLUX-V0.1:0.5> \n<lora:Elden_Ring_Style:0.5:0.45>\n"
+    },
+    "class_type": "SeargePromptText",
+    "_meta": {
+      "title": "Append"
+    }
+  },
+  "1015": {
+    "inputs": {
+      "backend": "inductor",
+      "model": [
+        "1016",
+        0
+      ]
+    },
+    "class_type": "TorchCompileModel",
+    "_meta": {
+      "title": "TorchCompileModel"
+    }
+  },
+  "1016": {
+    "inputs": {
+      "sage_attention": "auto",
+      "allow_compile": false,
+      "model": [
+        "693",
+        0
+      ]
+    },
+    "class_type": "PathchSageAttentionKJ",
+    "_meta": {
+      "title": "Patch Sage Attention KJ"
+    }
+  },
+  "1017": {
+    "inputs": {
+      "patch_order": "object_patch_first",
+      "full_load": "auto",
+      "model": [
+        "1015",
+        0
+      ]
+    },
+    "class_type": "PatchModelPatcherOrder",
+    "_meta": {
+      "title": "Patch Model Patcher Order"
+    }
+  },
+  "1027": {
+    "inputs": {
+      "eta": 0.5,
+      "sampler_name": "linear/euler",
+      "scheduler": "simple",
+      "steps": 1,
+      "steps_to_run": -1,
+      "denoise": 1,
+      "cfg": 1,
+      "seed": [
+        "1040",
+        0
+      ],
+      "sampler_mode": "standard",
+      "bongmath": true,
+      "model": [
+        "1034",
+        0
+      ],
+      "positive": [
+        "1031",
+        0
+      ],
+      "negative": [
+        "1028",
+        0
+      ],
+      "latent_image": [
+        "725",
+        0
+      ]
+    },
+    "class_type": "ClownsharKSampler_Beta",
+    "_meta": {
+      "title": "ClownsharKSampler"
+    }
+  },
+  "1028": {
+    "inputs": {
+      "conditioning": [
+        "1031",
+        0
+      ]
+    },
+    "class_type": "ConditioningZeroOut",
+    "_meta": {
+      "title": "Conditioning Zero Out"
+    }
+  },
+  "1031": {
+    "inputs": {
+      "guidance": 3.5,
+      "conditioning": [
+        "1001",
+        0
+      ]
+    },
+    "class_type": "FluxGuidance",
+    "_meta": {
+      "title": "FluxGuidance"
+    }
+  },
+  "1032": {
+    "inputs": {
+      "scheduler": "normal",
+      "steps": 1,
+      "denoise": 1,
+      "model": [
+        "1060",
+        0
+      ]
+    },
+    "class_type": "BasicScheduler",
+    "_meta": {
+      "title": "BasicScheduler"
+    }
+  },
+  "1033": {
+    "inputs": {
+      "sampler_name": "dpm_2"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "KSamplerSelect"
+    }
+  },
+  "1034": {
+    "inputs": {
+      "max_shift": 1.15,
+      "base_shift": 0.5,
+      "width": [
+        "725",
+        1
+      ],
+      "height": [
+        "725",
+        2
+      ],
+      "model": [
+        "1060",
+        0
+      ]
+    },
+    "class_type": "ModelSamplingFlux",
+    "_meta": {
+      "title": "ModelSamplingFlux"
+    }
+  },
+  "1040": {
+    "inputs": {
+      "seed": 888386147747087
+    },
+    "class_type": "Seed (rgthree)",
+    "_meta": {
+      "title": "Seed (rgthree)"
+    }
+  },
+  "1060": {
+    "inputs": {
+      "lora_name": "flux\\film\\ChadMichaelWard.safetensors",
+      "strength_model": 0.5,
+      "strength_clip": 0.3,
+      "prompt": "",
+      "example": "[none]",
+      "model": [
+        "1062",
+        0
+      ],
+      "clip": [
+        "1062",
+        1
+      ]
+    },
+    "class_type": "LoraLoader|pysssss",
+    "_meta": {
+      "title": "Lora Loader 🐍"
+    }
+  },
+  "1061": {
+    "inputs": {
+      "switch_1": "On",
+      "lora_name_1": "flux\\film\\80sFantasyMovieMJ7Flux.safetensors",
+      "model_weight_1": 0.96,
+      "clip_weight_1": 1.02,
+      "switch_2": "On",
+      "lora_name_2": "flux\\fashion\\closeupfilm.safetensors",
+      "model_weight_2": 1.05,
+      "clip_weight_2": 0.98,
+      "switch_3": "On",
+      "lora_name_3": "flux\\artstyle\\style\\aidmaDarkFantasy-FLUX-V0.1.safetensors",
+      "model_weight_3": 1,
+      "clip_weight_3": 1
+    },
+    "class_type": "CR LoRA Stack",
+    "_meta": {
+      "title": "💊 CR LoRA Stack"
+    }
+  },
+  "1062": {
+    "inputs": {
+      "model": [
+        "1006",
+        0
+      ],
+      "clip": [
+        "694",
+        0
+      ],
+      "lora_stack": [
+        "1061",
+        0
+      ]
+    },
+    "class_type": "CR Apply LoRA Stack",
+    "_meta": {
+      "title": "💊 CR Apply LoRA Stack"
+    }
+  },
+  "1088": {
+    "inputs": {
+      "__lm_autocomplete_meta_text": {
+        "version": 1,
+        "textWidgetName": "text"
+      },
+      "text": "<lora:FluxMythG0thicL1nes:0.47> <lora:FantasyWizardWitchesFluxV2-000001:0.22> <lora:FluxMythR3alisticF:0.15>",
+      "loras": {
+        "__value__": [
+          {
+            "name": "FluxMythG0thicL1nes",
+            "strength": 0.47,
+            "active": true,
+            "expanded": false,
+            "clipStrength": 0.47,
+            "selected": false,
+            "locked": false
+          },
+          {
+            "name": "FantasyWizardWitchesFluxV2-000001",
+            "strength": 0.22,
+            "active": true,
+            "expanded": false,
+            "clipStrength": 0.22,
+            "selected": false,
+            "locked": false
+          },
+          {
+            "name": "FluxMythR3alisticF",
+            "strength": 0.15,
+            "active": true,
+            "expanded": false,
+            "clipStrength": 0.15,
+            "selected": false,
+            "locked": false
+          }
+        ]
+      },
+      "model": [
+        "1089",
+        0
+      ],
+      "clip": [
+        "1089",
+        1
+      ],
+      "lora_stack": [
+        "1091",
+        0
+      ]
+    },
+    "class_type": "Lora Loader (LoraManager)",
+    "_meta": {
+      "title": "Lora Loader (LoraManager)"
+    }
+  },
+  "1089": {
+    "inputs": {
+      "model": [
+        "1000",
+        0
+      ],
+      "lora_syntax": [
+        "1097",
+        0
+      ],
+      "clip": [
+        "694",
+        0
+      ],
+      "lora_stack": [
+        "1090",
+        0
+      ]
+    },
+    "class_type": "LoRA Text Loader (LoraManager)",
+    "_meta": {
+      "title": "LoRA Text Loader (LoraManager)"
+    }
+  },
+  "1090": {
+    "inputs": {
+      "__lm_autocomplete_meta_text": {
+        "version": 1,
+        "textWidgetName": "text"
+      },
+      "text": "<lora:ancient_shadows_of_the_lens-FluxDev:0.31> <lora:FLUX-Kubrick-KBRCK-v2:0.20>",
+      "loras": {
+        "__value__": [
+          {
+            "name": "ancient_shadows_of_the_lens-FluxDev",
+            "strength": 0.31,
+            "active": true,
+            "expanded": false,
+            "clipStrength": 0.31,
+            "selected": false,
+            "locked": false
+          },
+          {
+            "name": "FLUX-Kubrick-KBRCK-v2",
+            "strength": "0.20",
+            "active": true,
+            "expanded": false,
+            "clipStrength": "0.20",
+            "selected": true,
+            "locked": false
+          }
+        ]
+      }
+    },
+    "class_type": "Lora Stacker (LoraManager)",
+    "_meta": {
+      "title": "Lora Stacker (LoraManager)"
+    }
+  },
+  "1091": {
+    "inputs": {
+      "__lm_autocomplete_meta_text": {
+        "version": 1,
+        "textWidgetName": "text"
+      },
+      "text": "<lora:aether-core-3:0.10>",
+      "loras": {
+        "__value__": [
+          {
+            "name": "aether-core-3",
+            "strength": 0.1,
+            "active": true,
+            "expanded": false,
+            "clipStrength": 0.1,
+            "selected": false,
+            "locked": false
+          }
+        ]
+      }
+    },
+    "class_type": "Lora Stacker (LoraManager)",
+    "_meta": {
+      "title": "Lora Stacker (LoraManager)"
+    }
+  },
+  "1097": {
+    "inputs": {
+      "string": "<lora:Comic book opus 3:0.51>\n<lora:bilibin:0.21>",
+      "strip_newlines": true
+    },
+    "class_type": "StringConstantMultiline",
+    "_meta": {
+      "title": "String Constant Multiline"
+    }
+  },
+  "1100": {
+    "inputs": {
+      "prompt": "",
+      "insert_lora": "CHOOSE",
+      "insert_embedding": "CHOOSE"
+    },
+    "class_type": "Power Prompt (rgthree)",
+    "_meta": {
+      "title": "Power Prompt (rgthree)"
+    }
+  },
+  "1101": {
+    "inputs": {
+      "prompt": "",
+      "insert_embedding": "CHOOSE"
+    },
+    "class_type": "Power Prompt - Simple (rgthree)",
+    "_meta": {
+      "title": "Power Prompt - Simple (rgthree)"
+    }
+  },
+  "1104": {
+    "inputs": {
+      "wildcard_text": "",
+      "populated_text": "",
+      "mode": "populate",
+      "Select to add LoRA": "Select the LoRA to add to the text",
+      "Select to add Wildcard": "Select the Wildcard to add to the text",
+      "seed": 767097465639505
+    },
+    "class_type": "ImpactWildcardEncode",
+    "_meta": {
+      "title": "ImpactWildcardEncode"
+    }
+  },
+  "1111": {
+    "inputs": {
+      "filename_prefix": "%date:yyyy-MM-dd%//%date:yyyy-MM-dd-hhmmss%",
+      "sampler_selection_method": "Farthest",
+      "sampler_selection_node_id": 0,
+      "model_selection_method": "Auto",
+      "model_selection_node_id": 0,
+      "file_format": "png",
+      "lossless_webp": true,
+      "quality": 100,
+      "max_jpeg_exif_kb": 60,
+      "save_workflow_json": false,
+      "add_counter_to_filename": true,
+      "civitai_sampler": false,
+      "guidance_as_cfg": false,
+      "save_workflow_image": true,
+      "sanitize_metadata": true,
+      "include_lora_summary": false,
+      "suppress_missing_class_log": true,
+      "model_hash_log": "none",
+      "lora_strengths_in_prompt": false,
+      "images": [
+        "51",
+        0
+      ]
+    },
+    "class_type": "SaveImageWithMetaDataUniversal",
+    "_meta": {
+      "title": "Save Image w/ Metadata Universal"
+    }
+  }
+}

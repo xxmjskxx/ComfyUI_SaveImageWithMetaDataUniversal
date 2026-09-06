@@ -190,7 +190,6 @@ tests/comfyui_cli_tests/demo_output.txt
 tests/comfyui_cli_tests/demo_validation_fixes.py
 tests/comfyui_cli_tests/DEV_WORKFLOW_TESTING.md
 tests/comfyui_cli_tests/WORKFLOW_TEST_SUGGESTIONS.md
-tests/comfyui_cli_tests/Test/
 tests/comfyui_cli_tests/Test/hash_logs.txt
 tests/comfyui_cli_tests/Test/metadata_dump.txt
 tests/comfyui_cli_tests/Test/metadata_dump.txt.bak
@@ -199,13 +198,11 @@ tests/comfyui_cli_tests/Test/metadata_hash_cmpr.txt
 tests/comfyui_cli_tests/Test/validation_log.txt
 tests/comfyui_cli_tests/Test/validation_log.txt.bak
 tests/comfyui_cli_tests/compare_hash_logs.bat
-tests/comfyui_cli_tests/WORKFLOW_TEST_SUGGESTIONS.md
 
 crap/
 
 #  Local development/testing tools
 tests/tools/Test/
-tests/tools/VALIDATE_METADATA_FIXES.md
 tests/tools/VALIDATION_FIXES_SUMMARY.md
 tests/tools/comfy_node_mappings.txt
 tests/tools/Test/hash_logs.txt
@@ -216,6 +213,7 @@ tests/tools/Test/metadata_hash_cmpr.txt
 tests/tools/Test/validation_log.txt
 tests/tools/Test/validation_log.txt.bak
 example_workflows/old_workflows/
+tests/comfyui_cli_tests/dev_test_workflows/bak/
 
 
 # Local settings files
@@ -226,9 +224,9 @@ scripts/
 .vscode/
 .vscode/settings.json
 .vscode
-.pytest_cache/
 .ruff_cache/
 tasksync/
+TODO
 
 # Ephemeral local drafting files (root only). Keep actual published notes in docs/.
 docs/HIGH_PRIORITY_TASKS.md
@@ -239,6 +237,7 @@ docs/releases/*
 !docs/releases/RELEASE_NOTES_v1.3.0.md
 !docs/releases/RELEASE_NOTES_v1.4.2.md
 !docs/releases/RELEASE_NOTES_v1.4.3.md
+!docs/releases/RELEASE_NOTES_v1.4.4.md
 !docs/releases/v1.3.0_REVIEW_SUMMARY.md
 /RELEASE_NOTES_*.md
 /PR_DRAFT_*.md
@@ -247,3 +246,5 @@ docs/releases/PR_DRAFT_*1.2*.md
 
 # Claude
 .claude/
+AGENTS.md
+.github/skills/

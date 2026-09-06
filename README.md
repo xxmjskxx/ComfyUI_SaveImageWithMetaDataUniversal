@@ -116,6 +116,7 @@
 * Full PNG + lossless WebP workflow + metadata embedding; JPEG with staged fallback under 64KB EXIF limit.
   * See detailed fallback staging: [docs/JPEG_METADATA_FALLBACK.md](docs/JPEG_METADATA_FALLBACK.md)
 * Embedding name resolution & hashing with safe path normalization; model hash caching via `.sha256` sidecar files for speed after first run.
+* Civitai hashing: AutoV1 (8), AutoV2 (10), AutoV3 (12), and full SHA-256 (64) are computed for models/VAEs/LoRAs/UNets. AutoV1/AutoV3 are cached in a central JSON cache (`hash-cache.json` under ComfyUI's user directory) while `.sha256` sidecars stay unchanged. The structured `Hash detail` section includes all four hashes when available.
 * Configurable guidance mapping (`guidance_as_cfg`) and sampler naming normalization (minimal, avoids unexpected renames) for Civitai compatibility.
 * `Create Extra MetaData` node specifies metadata to be added to the image to be saved. Example: In [extra_metadata.json](example_workflows/extra_metadata.json).
 * Selective verbosity: hide hash detail (`METADATA_NO_HASH_DETAIL`) and/or aggregated LoRA summary (`METADATA_NO_LORA_SUMMARY` or UI toggle).
@@ -145,8 +146,19 @@
 
 - Specifies how to select a KSampler node that has been executed before this node.
   - **Farthest** Selects the farthest KSampler node from this node.
-  - **Nearest** Selects the nearest KSampler node to this node.
+  - **Auto (Nearest)** Selects the nearest KSampler node to this node (the legacy value "Nearest" is still accepted).
   - **By node ID** Selects the KSampler node whose node ID is set in `sampler_selection_node_id`.
+
+</details>
+
+## Model Selection Method
+<details>
+<summary><strong>More:</strong></summary>
+
+- Specifies how the primary base model (recorded as `Model` / `Model hash`) is chosen.
+  - **Auto** Selects the nearest model loader reached by walking upstream from the sampler's model input; ties are broken deterministically.
+  - **By node ID** Selects the loader whose node ID is set in `model_selection_node_id`.
+- Additional base models are emitted as `Model 2` / `Model 2 hash`, `Model 3` / `Model 3 hash`, and so on.
 
 </details>
 
@@ -187,6 +199,7 @@
 - Hashes
   - Model, Loras, Embeddings
   - For [Civitai](https://civitai.com/)
+  - AutoV1 (8), AutoV2 (10), AutoV3 (12), and full SHA-256 (64) are surfaced in the structured `Hash detail` section when available
 
 
 ---
@@ -213,6 +226,8 @@
 Date pattern components:
 `yyyy` | `MM` | `dd` | `hh` | `mm` | `ss`
 
+All expanded tokens are sanitized before writing: absolute paths, drive letters, UNC roots, `..` traversal, reserved Windows device names (`CON`, `COM1`, …), and invalid filename characters are neutralized. Each path component is clamped to 120 chars and the full template to 512. See [SECURITY_REDACTION_AND_PATH_SAFETY.md](docs/SECURITY_REDACTION_AND_PATH_SAFETY.md).
+
 ---
 
 </details>
@@ -228,6 +243,7 @@ Key quality‑of‑life and compatibility controls exposed by the primary save n
 * `max_jpeg_exif_kb` (INT, default 60, min 4, max 64): UI‑enforced ceiling for attempted JPEG EXIF payload. Real-world single APP1 EXIF segment limit is ~64KB; exceeding it triggers staged fallback (reduced-exif → minimal → com-marker). For large workflows prefer PNG / lossless WebP.
 * `lora_strengths_in_prompt` (BOOLEAN, default False): When enabled, A1111-style LoRA designations (e.g. `<lora:name:strength>`) are appended to the positive prompt text and `Lora hashes` metadata is included so that Civitai can recognise LoRA strengths.
 * `suppress_missing_class_log` (BOOLEAN, default True): Hide the informational log listing missing classes that would trigger a user JSON rules merge. Useful to reduce noise in large custom node environments.
+* `sanitize_metadata` (BOOLEAN, default True): Redact secret-like values (API keys, tokens, passwords, bearer credentials, absolute paths) from the embedded workflow JSON before writing. Bounded and fail-open — if a safety limit is hit the raw workflow is embedded instead. See [SECURITY_REDACTION_AND_PATH_SAFETY.md](docs/SECURITY_REDACTION_AND_PATH_SAFETY.md).
 
 </details>
 
@@ -396,6 +412,7 @@ Notes:
 Deferred and exploratory concepts are documented in:
 * [WORKFLOW_COMPRESSION_DESIGN.md](docs/WORKFLOW_COMPRESSION_DESIGN.md) (workflow compression placeholder)
 * [FUTURE_AND_PROTOTYPES.md](docs/FUTURE_AND_PROTOTYPES.md) (archived prototype UI + additional speculative enhancements; Wan2.2 and multi-model workflow support)
+* [SECURITY_REDACTION_AND_PATH_SAFETY.md](docs/SECURITY_REDACTION_AND_PATH_SAFETY.md) (embedded-workflow secret redaction + output filename sanitization)
 
 ### Environment Flags
 | Flag | Effect |
