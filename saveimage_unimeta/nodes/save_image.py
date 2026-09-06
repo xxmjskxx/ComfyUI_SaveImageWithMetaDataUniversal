@@ -141,7 +141,7 @@ def _read_rules_version() -> str | None:
         ext_dir = os.path.join(os.path.dirname(os.path.abspath(defs_module.__file__)), "ext")
         path = os.path.join(ext_dir, "generated_user_rules.py")
         with open(path, encoding="utf-8") as fh:
-            content = fh.read(4096)
+            content = fh.read()
     except OSError:
         return None
     match = re.search(r'RULES_VERSION\s*=\s*["\']([^"\']+)["\']', content)
@@ -163,8 +163,6 @@ def _maybe_auto_generate_rules(mode: str) -> None:
     global _AUTO_RULES_CHECKED, _OVERWRITE_RULES_DONE
     if mode == "Off":
         return
-    rules_version = _read_rules_version()
-    has_rules = rules_version is not None
     if mode == "Overwrite":
         if _OVERWRITE_RULES_DONE:
             return
@@ -172,9 +170,12 @@ def _maybe_auto_generate_rules(mode: str) -> None:
     else:  # "Auto"
         if _AUTO_RULES_CHECKED:
             return
+        rules_version = _read_rules_version()
+        has_rules = rules_version is not None
         if has_rules:
             if rules_version == resolve_runtime_version():
-                return  # current; nothing to do
+                _AUTO_RULES_CHECKED = True  # current; skip further disk reads this session
+                return
             save_mode = "append_new"  # outdated: append new gaps, preserve custom rules
         else:
             save_mode = "overwrite"  # fresh install

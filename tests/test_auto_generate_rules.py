@@ -23,6 +23,10 @@ rules_writer_mod = _mod(
     "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.rules_writer",
     "saveimage_unimeta.nodes.rules_writer",
 )
+defs_mod = _mod(
+    "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs",
+    "saveimage_unimeta.defs",
+)
 
 
 @pytest.fixture(autouse=True)
@@ -149,3 +153,26 @@ def test_missing_scan_result_marks_checked(monkeypatch):
     save_image_mod._maybe_auto_generate_rules("Auto")
     assert calls["scan"] == 1
     assert calls["save"] == 0
+
+
+def test_read_rules_version_finds_version_beyond_4096(monkeypatch, tmp_path):
+    """_read_rules_version reads the whole file, not just the first 4096 bytes."""
+    ext_dir = tmp_path / "ext"
+    ext_dir.mkdir()
+    gen = ext_dir / "generated_user_rules.py"
+    gen.write_text(("x" * 5000) + "\n" + 'RULES_VERSION = "1.4.4"\n', encoding="utf-8")
+    monkeypatch.setattr(defs_mod, "__file__", str(tmp_path / "__init__.py"))
+    assert save_image_mod._read_rules_version() == "1.4.4"
+
+
+def test_read_rules_version_returns_none_when_absent(monkeypatch, tmp_path):
+    ext_dir = tmp_path / "ext"
+    ext_dir.mkdir()
+    (ext_dir / "generated_user_rules.py").write_text("# no version here\n", encoding="utf-8")
+    monkeypatch.setattr(defs_mod, "__file__", str(tmp_path / "__init__.py"))
+    assert save_image_mod._read_rules_version() is None
+
+
+def test_read_rules_version_returns_none_when_missing(monkeypatch, tmp_path):
+    monkeypatch.setattr(defs_mod, "__file__", str(tmp_path / "__init__.py"))
+    assert save_image_mod._read_rules_version() is None
