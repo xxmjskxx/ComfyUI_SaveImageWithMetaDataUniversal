@@ -161,6 +161,9 @@ def _maybe_auto_generate_rules(mode: str) -> None:
       session, replacing existing rules.
     """
     global _AUTO_RULES_CHECKED, _OVERWRITE_RULES_DONE
+    if mode not in ("Off", "Auto", "Overwrite"):
+        logger.warning("[Metadata Loader] Unknown rules_mode %r; skipping auto-generation.", mode)
+        return
     if mode == "Off":
         return
     if mode == "Overwrite":

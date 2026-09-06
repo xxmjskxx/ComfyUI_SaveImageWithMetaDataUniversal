@@ -72,6 +72,15 @@ def test_off_mode_never_runs(monkeypatch):
     assert calls["save"] == 0
 
 
+def test_unknown_mode_is_ignored(monkeypatch):
+    """An unknown rules_mode value is rejected instead of being treated as Auto."""
+    calls = _stub_scan_save(monkeypatch)
+    _set_rules(monkeypatch, None)
+    save_image_mod._maybe_auto_generate_rules("Garbage")
+    assert calls["scan"] == 0
+    assert calls["save"] == 0
+
+
 def test_auto_no_rules_generates_once(monkeypatch):
     """Auto with no rules generates once (overwrite), then the flag suppresses it."""
     calls = _stub_scan_save(monkeypatch)
