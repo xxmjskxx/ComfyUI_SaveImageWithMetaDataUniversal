@@ -271,7 +271,8 @@ class SaveImageWithMetaDataUniversal:
                     {
                         "default": True,
                         "tooltip": (
-                            "Automatically append an incrementing counter to avoid overwriting existing files " "with the same prefix."
+                            "Automatically append an incrementing counter to avoid overwriting existing files "
+                            "with the same prefix, across sessions too."
                         ),
                     },
                 ),
@@ -620,6 +621,7 @@ class SaveImageWithMetaDataUniversal:
                 subfolder = ""
             base_filename = filename
             if add_counter_to_filename:
+                counter = self._next_free_counter(full_output_folder, filename, file_format, counter)
                 base_filename += f"_{counter:05}_"
             output_filename = base_filename + "." + file_format
             file_path = os.path.join(full_output_folder, output_filename)
@@ -861,6 +863,36 @@ class SaveImageWithMetaDataUniversal:
         # Pass through the original tensor batch and the last saved filepath so
         # downstream nodes can reuse the images and locate the output file.
         return {"ui": {"images": ui_entries}, "result": (images, filepath)}
+
+    @staticmethod
+    def _next_free_counter(folder: str, base: str, extension: str, fallback: int) -> int:
+        """Return the first free counter for ``base_NNNNN_.<ext>`` in ``folder``.
+
+        Scans existing files from previous sessions (not just the current
+        session counter) and returns ``max(existing) + 1`` so a fresh session
+        cannot silently overwrite an image saved earlier. Falls back to
+        ``fallback`` when no matching files exist, and does a final existence
+        bump for racing writers.
+        """
+        pattern = re.compile(r"^" + re.escape(base) + r"_(\d{5})_\." + re.escape(extension) + r"$")
+        best = fallback
+        try:
+            entries = os.listdir(folder)
+        except OSError:
+            entries = []
+        for entry in entries:
+            match = pattern.match(entry)
+            if match is None:
+                continue
+            try:
+                parsed = int(match.group(1))
+            except ValueError:
+                continue
+            if parsed >= best:
+                best = parsed + 1
+        while os.path.exists(os.path.join(folder, f"{base}_{best:05d}.{extension}")):
+            best += 1
+        return best
 
     @staticmethod
     def _build_minimal_parameters(full_parameters: str) -> str:
