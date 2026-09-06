@@ -10,9 +10,15 @@ All notable changes to this project will be documented in this file.
 - Civitai AutoV1/AutoV2/AutoV3 + full SHA-256 hashing for models, VAEs, LoRAs, and UNets. AutoV1 (fixed 64 KiB window at 1 MiB) and AutoV3 (safetensors payload digest) are cached in a central JSON cache (`hash-cache.json` under ComfyUI's user directory); AutoV2/SHA-256 keep using the existing `.sha256` sidecars. The structured `Hash detail` section now includes all four hashes when available.
 - New `model_selection_method` ("Auto" / "By node ID") and `model_selection_node_id` inputs: the save node selects the primary base-model loader by walking upstream from the sampler's model input (nearest loader wins, tie-broken deterministically), and emits additional `Model N` / `Model N hash` fields for other base models.
 - Sampler selection method `Nearest` renamed to `Auto (Nearest)` (the legacy value is still accepted as an alias); nearest/farthest sampler selection now warns on ties and picks deterministically.
+- New `filepath` STRING output on the save node, returning the absolute path of the last saved image.
+- New `%timestamp%` filename token (Unix epoch seconds, supports `%timestamp:N%` truncation).
+- WebP saves now use the best-compression encoder (`method=6`).
+- The filename counter now scans the output folder across sessions, so a fresh session cannot silently overwrite an image saved earlier.
+- New `overwrite_rules` toggle: regenerate capture rules from the current workflow once per session. When no rules exist, the save node auto-generates them on first save.
 
 ### Changed
 - Documented runtime floor raised from Python 3.9 to 3.10 (the codebase already uses PEP 604 `X | Y` runtime unions; CI targets 3.10–3.13).
+- Save-node `RETURN_TYPES` changed from `("IMAGE",)` to `("IMAGE", "STRING")` to expose the `filepath` output. Existing workflows keep working (slot 0 unchanged), but workflows that connect the new `filepath` output won't load into older versions.
 
 ## [1.4.4] - 2026-09-03
 ### Highlights

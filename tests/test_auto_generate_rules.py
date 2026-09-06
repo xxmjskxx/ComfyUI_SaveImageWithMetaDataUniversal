@@ -38,13 +38,13 @@ def _reset_flags():
     save_image_mod._OVERWRITE_RULES_DONE = False
 
 
-def _stub_scan_save(monkeypatch):
+def _stub_scan_save(monkeypatch, scan_json='{"nodes": {"SomeNode": {"SomeField": {"field_name": "x"}}}}'):
     """Stub the scanner and writer nodes and return a call-count dict."""
     calls = {"scan": 0, "save": 0, "save_kwargs": None}
 
     def fake_scan(self):
         calls["scan"] += 1
-        return ('{"nodes": {}}', "diff")
+        return (scan_json, "diff")
 
     def fake_save(self, rules_json, **kwargs):
         calls["save"] += 1
@@ -121,3 +121,33 @@ def test_save_images_auto_generates_rules_once(monkeypatch, node_instance):
     node_instance.save_images(images=[], overwrite_rules=False)
     assert calls["scan"] == 1
     assert calls["save"] == 1
+
+
+def test_empty_scan_skips_save_rules(monkeypatch):
+    """An empty scan (nothing new) never calls save_rules and is checked once."""
+    calls = _stub_scan_save(monkeypatch, scan_json='{"nodes": {}, "samplers": {}}')
+    monkeypatch.setattr(defs_mod, "LOADED_RULES_VERSION", None)
+    save_image_mod._maybe_auto_generate_rules(False)
+    save_image_mod._maybe_auto_generate_rules(False)
+    assert calls["scan"] == 1
+    assert calls["save"] == 0
+
+
+def test_empty_scan_overwrite_is_suppressed(monkeypatch):
+    """An empty scan under overwrite_rules is also suppressed after the first try."""
+    calls = _stub_scan_save(monkeypatch, scan_json='{"nodes": {}, "samplers": {}}')
+    monkeypatch.setattr(defs_mod, "LOADED_RULES_VERSION", "1.4.4")
+    save_image_mod._maybe_auto_generate_rules(True)
+    save_image_mod._maybe_auto_generate_rules(True)
+    assert calls["scan"] == 1
+    assert calls["save"] == 0
+
+
+def test_missing_scan_result_marks_checked(monkeypatch):
+    """A falsy scan result sets the checked flag so it does not re-scan forever."""
+    calls = _stub_scan_save(monkeypatch, scan_json="")
+    monkeypatch.setattr(defs_mod, "LOADED_RULES_VERSION", None)
+    save_image_mod._maybe_auto_generate_rules(False)
+    save_image_mod._maybe_auto_generate_rules(False)
+    assert calls["scan"] == 1
+    assert calls["save"] == 0

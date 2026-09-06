@@ -160,6 +160,21 @@ def _maybe_auto_generate_rules(overwrite_rules: bool) -> None:
         else:
             rules_json = scan_result[0] if isinstance(scan_result, tuple | list) and scan_result else None
         if not rules_json:
+            _AUTO_RULES_CHECKED = True
+            return
+        # Detect the "nothing new" case so overwrite mode cannot regenerate an
+        # empty extension and silently drop existing user rules.
+        try:
+            parsed = json.loads(rules_json)
+            has_nodes = bool(parsed.get("nodes")) if isinstance(parsed, dict) else False
+            has_samplers = bool(parsed.get("samplers")) if isinstance(parsed, dict) else False
+        except (TypeError, ValueError):
+            has_nodes = has_samplers = False
+        if not has_nodes and not has_samplers:
+            _AUTO_RULES_CHECKED = True
+            if overwrite_rules:
+                _OVERWRITE_RULES_DONE = True
+            logger.info("[Metadata Loader] No new capture rules found; nothing to generate.")
             return
         SaveCustomMetadataRules().save_rules(rules_json, save_mode="overwrite", backup_before_save=True)
         _AUTO_RULES_CHECKED = True
@@ -218,7 +233,7 @@ class SaveImageWithMetaDataUniversal:
                         "tooltip": (
                             "Sets the output filename prefix and can also include subdirectories, so values like "
                             "folder/image will save into a folder under your output directory. You can use %seed%, "
-                            "%width%, %height%, %pprompt%, %nprompt%, %model%, and %date% in the path or filename. "
+                            "%width%, %height%, %pprompt%, %nprompt%, %model%, %timestamp%, and %date% in the path or filename. "
                             "Date can accept any variety of the yyyyMMddhhmmss format, e.g. %date:yy-MM-dd%."
                         ),
                     },

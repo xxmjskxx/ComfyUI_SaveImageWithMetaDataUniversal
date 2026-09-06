@@ -220,6 +220,8 @@
 | `%nprompt:[n]%` | First n chars of negative prompt |
 | `%model%` | Model base name |
 | `%model:[n]%` | First n chars of model name |
+| `%timestamp%` | Unix epoch timestamp (seconds) |
+| `%timestamp:[n]%` | First n digits of the Unix epoch |
 | `%date%` | Timestamp (yyyyMMddhhmmss) |
 | `%date:[format]%` | Custom pattern (yyyy, MM, dd, hh, mm, ss) |
 
@@ -244,6 +246,8 @@ Key quality‑of‑life and compatibility controls exposed by the primary save n
 * `lora_strengths_in_prompt` (BOOLEAN, default False): When enabled, A1111-style LoRA designations (e.g. `<lora:name:strength>`) are appended to the positive prompt text and `Lora hashes` metadata is included so that Civitai can recognise LoRA strengths.
 * `suppress_missing_class_log` (BOOLEAN, default True): Hide the informational log listing missing classes that would trigger a user JSON rules merge. Useful to reduce noise in large custom node environments.
 * `sanitize_metadata` (BOOLEAN, default True): Redact secret-like values (API keys, tokens, passwords, bearer credentials, absolute paths) from the embedded workflow JSON before writing. Bounded and fail-open — if a safety limit is hit the raw workflow is embedded instead. See [SECURITY_REDACTION_AND_PATH_SAFETY.md](docs/SECURITY_REDACTION_AND_PATH_SAFETY.md).
+* `overwrite_rules` (BOOLEAN, default False): Regenerate capture rules from the current workflow once per session, overwriting existing rules. Use the Metadata Rule Scanner + Save Custom Metadata Rules nodes for non-default options. When no rules exist, the save node auto-generates them on first save.
+* Output `filepath` (STRING): The save node now exposes a second `filepath` output returning the absolute path of the last saved image, so downstream nodes can locate the file. Unconnected outputs are ignored by ComfyUI.
 
 </details>
 
