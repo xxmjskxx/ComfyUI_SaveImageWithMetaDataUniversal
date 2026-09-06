@@ -16,6 +16,7 @@ import json
 import logging
 import os
 import re
+import time
 from datetime import datetime
 
 # Attempt to import ComfyUI's folder_paths; provide a lightweight fallback stub when
@@ -365,8 +366,8 @@ class SaveImageWithMetaDataUniversal:
             "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO"},
         }
 
-    RETURN_TYPES = ("IMAGE",)
-    RETURN_NAMES = ("images",)
+    RETURN_TYPES = ("IMAGE", "STRING")
+    RETURN_NAMES = ("images", "filepath")
     FUNCTION = "save_images"
     CATEGORY = "SaveImageWithMetaDataUniversal"
     DESCRIPTION = (
@@ -560,6 +561,7 @@ class SaveImageWithMetaDataUniversal:
 
         ui_entries: list[dict[str, str]] = []
         self._last_fallback_stages.clear()
+        filepath = ""
         for index, image in enumerate(images):
             # Support both torch tensors (with .cpu()) and raw numpy arrays in test mode.
             try:
@@ -621,6 +623,7 @@ class SaveImageWithMetaDataUniversal:
                 base_filename += f"_{counter:05}_"
             output_filename = base_filename + "." + file_format
             file_path = os.path.join(full_output_folder, output_filename)
+            filepath = file_path
 
             if file_format == "png":
                 # PNG: embed via PNGInfo
@@ -663,8 +666,9 @@ class SaveImageWithMetaDataUniversal:
                     "optimize": True,
                     "quality": quality,
                 }
-                if file_format == "webp":  # WebP only: allow lossless flag
+                if file_format == "webp":  # WebP only: allow lossless flag + best compression
                     save_kwargs["lossless"] = lossless_webp
+                    save_kwargs["method"] = 6
                 if exif_bytes is not None and file_format in {"jpeg", "jpg"}:
                     # Guard against oversized EXIF.
                     # Two limits:
@@ -854,8 +858,9 @@ class SaveImageWithMetaDataUniversal:
             except (TypeError, ValueError):
                 counter = 1
 
-        # Pass through original tensor batch as output so downstream nodes can reuse the images
-        return {"ui": {"images": ui_entries}, "result": (images,)}
+        # Pass through the original tensor batch and the last saved filepath so
+        # downstream nodes can reuse the images and locate the output file.
+        return {"ui": {"images": ui_entries}, "result": (images, filepath)}
 
     @staticmethod
     def _build_minimal_parameters(full_parameters: str) -> str:
@@ -1064,5 +1069,11 @@ class SaveImageWithMetaDataUniversal:
                     for k, v in date_table.items():
                         date_format = date_format.replace(k, str(v).zfill(len(k)))
                     filename = filename.replace(segment, date_format)
+            elif key == "timestamp":
+                ts = str(int(time.time()))
+                if len(parts) >= 2:
+                    length = int(parts[1])
+                    ts = ts[:length]
+                filename = filename.replace(segment, ts)
 
         return filename
