@@ -143,7 +143,7 @@ def _sanitize_missing_links(input_data, node_inputs, prompt):
     fall back to it here so selectors and ``field_name`` extraction never see
     ``(None,)``.
     """
-    if not isinstance(input_data, tuple) or not isinstance(input_data[0], dict):
+    if not isinstance(input_data, tuple) or not input_data or not isinstance(input_data[0], dict):
         return input_data
     if not isinstance(node_inputs, dict) or not isinstance(prompt, dict):
         return input_data
