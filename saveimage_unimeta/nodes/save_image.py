@@ -131,23 +131,53 @@ def _maybe_warn_outdated_rules() -> None:
     _RULES_VERSION_WARNING_EMITTED = True
 
 
-def _maybe_auto_generate_rules(overwrite_rules: bool) -> None:
-    """Auto-generate capture rules on the first save when none exist.
+def _read_rules_version() -> str | None:
+    """Return the ``RULES_VERSION`` stamped into the generated rules module, if any.
 
-    Reuses the ``Metadata Rule Scanner`` and ``Save Custom Metadata Rules``
-    nodes programmatically (with default settings) so new users get correct
-    capture rules without touching those nodes. ``overwrite_rules`` re-runs the
-    scan and overwrites existing rules once per session.
+    Reads ``generated_user_rules.py`` directly so the check does not depend on
+    whether rules have been loaded into memory this session.
+    """
+    try:
+        ext_dir = os.path.join(os.path.dirname(os.path.abspath(defs_module.__file__)), "ext")
+        path = os.path.join(ext_dir, "generated_user_rules.py")
+        with open(path, encoding="utf-8") as fh:
+            content = fh.read(4096)
+    except OSError:
+        return None
+    match = re.search(r'RULES_VERSION\s*=\s*["\']([^"\']+)["\']', content)
+    return match.group(1) if match else None
+
+
+def _maybe_auto_generate_rules(mode: str) -> None:
+    """Generate or refresh capture rules automatically based on ``mode``.
+
+    ``mode`` is one of the node's ``rules_mode`` values:
+
+    - ``"Off"``: never generate.
+    - ``"Auto"``: generate on first save when no rules exist, and append new
+      rules when the existing rules version is outdated (preserving custom
+      rules).
+    - ``"Overwrite"``: regenerate rules from the current workflow once per
+      session, replacing existing rules.
     """
     global _AUTO_RULES_CHECKED, _OVERWRITE_RULES_DONE
-    rules_version = getattr(defs_module, "LOADED_RULES_VERSION", None)
+    if mode == "Off":
+        return
+    rules_version = _read_rules_version()
     has_rules = rules_version is not None
-    if has_rules and not overwrite_rules:
-        return
-    if not has_rules and _AUTO_RULES_CHECKED:
-        return
-    if overwrite_rules and _OVERWRITE_RULES_DONE:
-        return
+    if mode == "Overwrite":
+        if _OVERWRITE_RULES_DONE:
+            return
+        save_mode = "overwrite"
+    else:  # "Auto"
+        if _AUTO_RULES_CHECKED:
+            return
+        if has_rules:
+            if rules_version == resolve_runtime_version():
+                return  # current; nothing to do
+            save_mode = "append_new"  # outdated: append new gaps, preserve custom rules
+        else:
+            save_mode = "overwrite"  # fresh install
 
     try:
         from .scanner import MetadataRuleScanner
@@ -162,8 +192,8 @@ def _maybe_auto_generate_rules(overwrite_rules: bool) -> None:
         if not rules_json:
             _AUTO_RULES_CHECKED = True
             return
-        # Detect the "nothing new" case so overwrite mode cannot regenerate an
-        # empty extension and silently drop existing user rules.
+        # Detect the "nothing new" case so we never regenerate an empty
+        # extension and silently drop existing user rules.
         try:
             parsed = json.loads(rules_json)
             has_nodes = bool(parsed.get("nodes")) if isinstance(parsed, dict) else False
@@ -172,17 +202,19 @@ def _maybe_auto_generate_rules(overwrite_rules: bool) -> None:
             has_nodes = has_samplers = False
         if not has_nodes and not has_samplers:
             _AUTO_RULES_CHECKED = True
-            if overwrite_rules:
+            if mode == "Overwrite":
                 _OVERWRITE_RULES_DONE = True
             logger.info("[Metadata Loader] No new capture rules found; nothing to generate.")
             return
-        SaveCustomMetadataRules().save_rules(rules_json, save_mode="overwrite", backup_before_save=True)
+        SaveCustomMetadataRules().save_rules(rules_json, save_mode=save_mode, backup_before_save=True)
         _AUTO_RULES_CHECKED = True
-        if overwrite_rules:
+        if mode == "Overwrite":
             _OVERWRITE_RULES_DONE = True
             logger.info("[Metadata Loader] Regenerated metadata capture rules from the current workflow.")
-        else:
+        elif not has_rules:
             logger.info("[Metadata Loader] Auto-generated metadata capture rules on first save.")
+        else:
+            logger.info("[Metadata Loader] Updated metadata capture rules (appended new rules).")
     except Exception as exc:  # pragma: no cover - environment dependent
         logger.warning("[Metadata Loader] Could not auto-generate capture rules: %s", exc)
         _AUTO_RULES_CHECKED = True
@@ -335,12 +367,15 @@ class SaveImageWithMetaDataUniversal:
                         ),
                     },
                 ),
-                "overwrite_rules": (
-                    "BOOLEAN",
+                "rules_mode": (
+                    ["Off", "Auto", "Overwrite"],
                     {
-                        "default": False,
+                        "default": "Auto",
                         "tooltip": (
-                            "Regenerate capture rules from the current workflow, overwriting existing rules once per session."
+                            "Rules generation mode. Off: never generate rules automatically. Auto: generate "
+                            "rules on first save when none exist, and append new rules when existing rules are "
+                            "outdated (preserving any custom rules). Overwrite: regenerate rules from the "
+                            "current workflow once per session, replacing existing rules."
                         ),
                     },
                 ),
@@ -472,7 +507,7 @@ class SaveImageWithMetaDataUniversal:
         guidance_as_cfg=False,
         sanitize_metadata=True,
         suppress_missing_class_log=True,
-        overwrite_rules=False,
+        rules_mode="Auto",
     ):
         """Save images to disk with embedded metadata.
 
@@ -529,9 +564,9 @@ class SaveImageWithMetaDataUniversal:
             lora_strengths_in_prompt (bool, optional): Add A1111-style LoRA
                 designation to positive prompt so that Civitai can recognize LoRA
                 strengths.
-            overwrite_rules (bool, optional): Regenerate and overwrite capture
-                rules from the current workflow once per session. Defaults to
-                False.
+            rules_mode (str, optional): How capture rules are generated:
+                "Off", "Auto" (generate when missing, append when outdated), or
+                "Overwrite" (rebuild once per session). Defaults to "Auto".
 
         Returns:
             dict: A dictionary containing the UI data and the result, which
@@ -539,7 +574,7 @@ class SaveImageWithMetaDataUniversal:
         """
         if extra_metadata is None:
             extra_metadata = {}
-        _maybe_auto_generate_rules(overwrite_rules)
+        _maybe_auto_generate_rules(rules_mode)
         # Refresh definitions each run with smarter merge order. We pass a set
         # of classes seen from the SaveImage node back through the graph so the
         # loader can decide if user JSON is needed or defaults+ext suffice.

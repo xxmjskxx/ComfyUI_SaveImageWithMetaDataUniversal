@@ -14,7 +14,7 @@ All notable changes to this project will be documented in this file.
 - New `%timestamp%` filename token (Unix epoch seconds, supports `%timestamp:N%` truncation).
 - WebP saves now use the best-compression encoder (`method=6`).
 - The filename counter now scans the output folder across sessions, so a fresh session cannot silently overwrite an image saved earlier.
-- New `overwrite_rules` toggle: regenerate capture rules from the current workflow once per session. When no rules exist, the save node auto-generates them on first save.
+- New `rules_mode` selector (`Off` / `Auto` / `Overwrite`): `Auto` generates capture rules when none exist and appends new rules when existing rules are outdated; `Overwrite` regenerates once per session; `Off` disables automation.
 
 ### Changed
 - Documented runtime floor raised from Python 3.9 to 3.10 (the codebase already uses PEP 604 `X | Y` runtime unions; CI targets 3.10–3.13).

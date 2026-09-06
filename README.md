@@ -3,14 +3,14 @@
 > Enhanced Automatic1111‑style, Civitai-compatible metadata capture with extended support for prompt encoders, LoRA and model loaders, embeddings, samplers, clip models, guidance, shift, and more.
 
 - An extensive rework of the [ComfyUI](https://github.com/comfyanonymous/ComfyUI) custom node pack [ComfyUI-SaveImageWithMetaData](https://github.com/nkchocoai/ComfyUI-SaveImageWithMetaData/), that attempts to add **universal support for all custom node packs**, while also adding explicit support for a few custom nodes.
-- The `Save Image w/ Metadata Universal` node saves images with metadata extracted automatically from the input values of any node—no manual node connecting required.
+- The `Save Image w/ Metadata Universal` node saves images with metadata extracted automatically from the input values of any node—no manual node connecting required. It auto-generates capture rules when none exist and appends new rules after updates (controlled by the `rules_mode` setting, default `Auto`; as of v1.5.0).
 - Provides full support for saving workflows and metadata to WEBP images.
 - Supports saving workflows and metadata to JPEGs (limited to 64KB—only smaller workflows can be saved to JPEGs).
 - Stores model hashes in `.sha256` files so you only ever have to hash models once, saving lots of time.
-- Includes `Metadata Rule Scanner` and `Save Custom Metadata Rules` nodes, which scan all installed nodes and generate metadata capture rules
 - Designed to work with most custom packs and fall back gracefully when a node lacks heuristics (I can't test with every custom node pack, but it has been working well so far).
 - Since the value extraction rules are created dynamically, values output by most custom nodes can be added to metadata.
-- Tested with SD1.5, SDXL, FLUX, QWEN, WAN (2.1 supported); GGUF, Nunchaku
+- You can optionally use the `Metadata Rule Scanner` and `Save Custom Metadata Rules` nodes to manually edit the capture rules.
+- Tested with SD1.5, SDXL, FLUX, QWEN, WAN (2.1 supported for images only); GGUF, Nunchaku
 
 ## Table of Contents
 <details open>
@@ -30,6 +30,7 @@
   * [JPEG Metadata Size & Fallback Behavior](#jpeg-metadata-size--fallback-behavior)
   * [Metadata Rule Tools](#metadata-rule-tools)
 * Advanced / Power Users
+  * [Manual Capture Rule Editing](#manual-capture-rule-editing)
   * [Environment Flags](#environment-flags)
   * [Parameter String Formatting Modes](#parameter-string-formatting-modes)
   * [Ordering Guarantees](#ordering-guarantees)
@@ -69,15 +70,12 @@
 <details open>
 <summary><strong></strong></summary>
 
-1. Use the `Metadata Rule Scanner` + `Save Custom Metadata Rules` nodes to create and save capture rules. 
-    - Use the [simple workflow](example_workflows/scan-and-save-custom-metadata-rules-simple.png) if you want quick and easy.
-    - If you want to manually edit the generated rules JSON before saving it, use the [advanced workflow](example_workflows/scan-and-save-custom-metadata-rules.png).
-    - NOTE: These two nodes should be rerun every time you update this node pack or add new nodes to ComfyUI that you want to capture from, using either of the above workflows.
-2. Add `Save Image w/ Metadata Universal` to your workflow and connect to the image input to save images using your custom capture ruleset.
-3. (Optional) Use `Create Extra MetaData` node(s) to manually record additional info.
-4. (Optional) For full Civitai style parity enable the `civitai_sampler`, `guidance_as_cfg`, and `lora_strengths_in_prompt` toggles in the save node.
-5. Prefer PNG (or lossless WebP) when you need guaranteed full workflow embedding (JPEG has strict size limits—[see tips below](#format--fallback-quick-tips)).
-6. Hover any parameters on the nodes in this pack for concise tooltips (fallback stages, `max_jpeg_exif_kb`, LoRA summary toggle, guidance→CFG mapping, sampler naming, filename tokens). For further detail see: [Node UI Parameters](#node-ui-parameters-key-additions), [JPEG Metadata Size & Fallback Behavior](#jpeg-metadata-size--fallback-behavior); advanced env tuning: [Environment Flags](#environment-flags).
+1. Add `Save Image w/ Metadata Universal` to your workflow and connect your workflow's `IMAGE` output to its `image` input to save images. It automatically generates capture rules when none exist and appends new rules after updates (controlled by the `rules_mode` selector, default `Auto`; as of v1.5.0).
+2. (Optional) Use `Create Extra MetaData` node(s) to manually record additional info.
+3. (Optional) For full Civitai style parity enable the `civitai_sampler`, `guidance_as_cfg`, and `lora_strengths_in_prompt` toggles in the save node.
+
+- Prefer PNG (or lossless WebP) when you need guaranteed full workflow embedding (JPEG has strict size limits—[see tips below](#format--fallback-quick-tips)).
+- Hover any parameters on the nodes in this pack for concise tooltips (fallback stages, `max_jpeg_exif_kb`, LoRA summary toggle, guidance→CFG mapping, sampler naming, filename tokens). For further detail see: [Node UI Parameters](#node-ui-parameters-key-additions), [JPEG Metadata Size & Fallback Behavior](#jpeg-metadata-size--fallback-behavior); advanced env tuning: [Environment Flags](#environment-flags).
 
 </details>
 
@@ -116,7 +114,7 @@
 * Full PNG + lossless WebP workflow + metadata embedding; JPEG with staged fallback under 64KB EXIF limit.
   * See detailed fallback staging: [docs/JPEG_METADATA_FALLBACK.md](docs/JPEG_METADATA_FALLBACK.md)
 * Embedding name resolution & hashing with safe path normalization; model hash caching via `.sha256` sidecar files for speed after first run.
-* Civitai hashing: AutoV1 (8), AutoV2 (10), AutoV3 (12), and full SHA-256 (64) are computed for models/VAEs/LoRAs/UNets. AutoV1/AutoV3 are cached in a central JSON cache (`hash-cache.json` under ComfyUI's user directory) while `.sha256` sidecars stay unchanged. The structured `Hash detail` section includes all four hashes when available.
+* Civitai hashing: AutoV2 (10) hashes are written to the `Hashes:` block for model/VAE/LoRA matching on Civitai. AutoV1 (8), AutoV3 (12), and full SHA-256 (64) are also computed and cached (`.sha256` sidecars plus a central `hash-cache.json`) for future use.
 * Configurable guidance mapping (`guidance_as_cfg`) and sampler naming normalization (minimal, avoids unexpected renames) for Civitai compatibility.
 * `Create Extra MetaData` node specifies metadata to be added to the image to be saved. Example: In [extra_metadata.json](example_workflows/extra_metadata.json).
 * Selective verbosity: hide hash detail (`METADATA_NO_HASH_DETAIL`) and/or aggregated LoRA summary (`METADATA_NO_LORA_SUMMARY` or UI toggle).
@@ -199,7 +197,7 @@
 - Hashes
   - Model, Loras, Embeddings
   - For [Civitai](https://civitai.com/)
-  - AutoV1 (8), AutoV2 (10), AutoV3 (12), and full SHA-256 (64) are surfaced in the structured `Hash detail` section when available
+  - AutoV2 (10) values, written to the `Hashes:` block for Civitai resource matching
 
 
 ---
@@ -246,7 +244,7 @@ Key quality‑of‑life and compatibility controls exposed by the primary save n
 * `lora_strengths_in_prompt` (BOOLEAN, default False): When enabled, A1111-style LoRA designations (e.g. `<lora:name:strength>`) are appended to the positive prompt text and `Lora hashes` metadata is included so that Civitai can recognise LoRA strengths.
 * `suppress_missing_class_log` (BOOLEAN, default True): Hide the informational log listing missing classes that would trigger a user JSON rules merge. Useful to reduce noise in large custom node environments.
 * `sanitize_metadata` (BOOLEAN, default True): Redact secret-like values (API keys, tokens, passwords, bearer credentials, absolute paths) from the embedded workflow JSON before writing. Bounded and fail-open — if a safety limit is hit the raw workflow is embedded instead. See [SECURITY_REDACTION_AND_PATH_SAFETY.md](docs/SECURITY_REDACTION_AND_PATH_SAFETY.md).
-* `overwrite_rules` (BOOLEAN, default False): Regenerate capture rules from the current workflow once per session, overwriting existing rules. Use the Metadata Rule Scanner + Save Custom Metadata Rules nodes for non-default options. When no rules exist, the save node auto-generates them on first save.
+* `rules_mode` (list, default `Auto`): How capture rules are generated. `Off` never generates; `Auto` generates when no rules exist and appends new rules when the existing rules are outdated (preserving custom rules); `Overwrite` regenerates rules from the current workflow once per session, replacing existing rules. Power users can still use the Metadata Rule Scanner + Save Custom Metadata Rules nodes for full manual control.
 * Output `filepath` (STRING): The save node now exposes a second `filepath` output returning the absolute path of the last saved image, so downstream nodes can locate the file. Unconnected outputs are ignored by ComfyUI.
 
 </details>
@@ -412,11 +410,14 @@ Notes:
 <details>
 <summary><strong>More:</strong></summary>
 
-### Design / Future Ideas
-Deferred and exploratory concepts are documented in:
-* [WORKFLOW_COMPRESSION_DESIGN.md](docs/WORKFLOW_COMPRESSION_DESIGN.md) (workflow compression placeholder)
-* [FUTURE_AND_PROTOTYPES.md](docs/FUTURE_AND_PROTOTYPES.md) (archived prototype UI + additional speculative enhancements; Wan2.2 and multi-model workflow support)
-* [SECURITY_REDACTION_AND_PATH_SAFETY.md](docs/SECURITY_REDACTION_AND_PATH_SAFETY.md) (embedded-workflow secret redaction + output filename sanitization)
+### Manual Capture Rule Editing
+
+- Use the `Metadata Rule Scanner` + `Save Custom Metadata Rules` nodes to create capture rules and save them to `generated_user_rules.py`.
+- NOTE: These nodes run automatically on first save when no capture rules exist, and `rules_mode` = `Auto` also appends new rules when existing rules are outdated — so you no longer need to run them manually for initial setup or updates. To force a full rebuild, set `rules_mode` to `Overwrite`, or rerun the Scan/Save nodes manually.
+- If you want to manually edit the generated rules JSON before saving it, use the [advanced workflow](example_workflows/scan-and-save-custom-metadata-rules.png).
+- Use `restore_backup_set` to restore a previous set of rules. 20 sets of rules are backed up before they start overwriting the oldest ones.
+
+- If you want to edit `generated_user_rules.py` directly, use the `Show generated_user_rules.py` to display the current user rules file. Then use the `Save generated_user_rules.py` node to validate and write your edited rules text back to the user rules file.
 
 ### Environment Flags
 | Flag | Effect |
@@ -470,6 +471,13 @@ See [CHANGELOG.md](CHANGELOG.md) for complete details or [RELEASE_NOTES_v1.4.4.m
 - JPEG fallback staging, 64KB EXIF cap enforcement
 - Dynamic rule scanner separation
 - Logging overhaul and documentation structure improvements
+
+### Design / Future Ideas
+
+Deferred and exploratory concepts are documented in:
+- [WORKFLOW_COMPRESSION_DESIGN.md](docs/WORKFLOW_COMPRESSION_DESIGN.md) (workflow compression placeholder)
+- [FUTURE_AND_PROTOTYPES.md](docs/FUTURE_AND_PROTOTYPES.md) (archived prototype UI + additional speculative enhancements; Wan2.2 and multi-model workflow support)
+- [SECURITY_REDACTION_AND_PATH_SAFETY.md](docs/SECURITY_REDACTION_AND_PATH_SAFETY.md) (embedded-workflow secret redaction + output filename sanitization)
 
 ### Development & Testing
 

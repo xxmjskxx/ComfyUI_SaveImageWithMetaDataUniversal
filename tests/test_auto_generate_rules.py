@@ -1,4 +1,4 @@
-"""Tests for auto-generating capture rules on first save (E)."""
+"""Tests for auto-generating capture rules with the rules_mode selector (E)."""
 import importlib
 
 import pytest
@@ -22,10 +22,6 @@ scanner_mod = _mod(
 rules_writer_mod = _mod(
     "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.rules_writer",
     "saveimage_unimeta.nodes.rules_writer",
-)
-defs_mod = _mod(
-    "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs",
-    "saveimage_unimeta.defs",
 )
 
 
@@ -56,69 +52,71 @@ def _stub_scan_save(monkeypatch, scan_json='{"nodes": {"SomeNode": {"SomeField":
     return calls
 
 
-def test_auto_generate_runs_exactly_once_when_no_rules(monkeypatch):
-    """With no rules, scan+save runs once, then the session flag suppresses it."""
-    calls = _stub_scan_save(monkeypatch)
-    monkeypatch.setattr(defs_mod, "LOADED_RULES_VERSION", None)
-    save_image_mod._maybe_auto_generate_rules(False)
-    save_image_mod._maybe_auto_generate_rules(False)
-    assert calls["scan"] == 1
-    assert calls["save"] == 1
+def _set_rules(monkeypatch, version):
+    """Stub the disk-based rules-version read and the runtime version."""
+    monkeypatch.setattr(save_image_mod, "_read_rules_version", lambda: version)
+    monkeypatch.setattr(save_image_mod, "resolve_runtime_version", lambda: "1.4.4")
 
 
-def test_rules_present_never_runs(monkeypatch):
-    """With rules present, scan+save never runs."""
+def test_off_mode_never_runs(monkeypatch):
+    """Off mode never scans or saves, even with no rules."""
     calls = _stub_scan_save(monkeypatch)
-    monkeypatch.setattr(defs_mod, "LOADED_RULES_VERSION", "1.4.4")
-    save_image_mod._maybe_auto_generate_rules(False)
+    _set_rules(monkeypatch, None)
+    save_image_mod._maybe_auto_generate_rules("Off")
+    save_image_mod._maybe_auto_generate_rules("Off")
     assert calls["scan"] == 0
     assert calls["save"] == 0
 
 
-def test_outdated_rules_not_regenerated(monkeypatch):
-    """Outdated-but-present rules are only warned about, never regenerated."""
+def test_auto_no_rules_generates_once(monkeypatch):
+    """Auto with no rules generates once (overwrite), then the flag suppresses it."""
     calls = _stub_scan_save(monkeypatch)
-    monkeypatch.setattr(defs_mod, "LOADED_RULES_VERSION", "0.0.0")
-    save_image_mod._maybe_auto_generate_rules(False)
+    _set_rules(monkeypatch, None)
+    save_image_mod._maybe_auto_generate_rules("Auto")
+    save_image_mod._maybe_auto_generate_rules("Auto")
+    assert calls["scan"] == 1
+    assert calls["save"] == 1
+    assert calls["save_kwargs"]["save_mode"] == "overwrite"
+
+
+def test_auto_current_rules_noop(monkeypatch):
+    """Auto with current rules does nothing."""
+    calls = _stub_scan_save(monkeypatch)
+    _set_rules(monkeypatch, "1.4.4")
+    save_image_mod._maybe_auto_generate_rules("Auto")
     assert calls["scan"] == 0
     assert calls["save"] == 0
 
 
-def test_overwrite_rules_runs_once_then_suppressed(monkeypatch):
-    """overwrite_rules re-runs scan+save once, then the session flag suppresses it."""
+def test_auto_outdated_rules_appends_once(monkeypatch):
+    """Auto with outdated rules appends new rules once (preserving existing)."""
     calls = _stub_scan_save(monkeypatch)
-    monkeypatch.setattr(defs_mod, "LOADED_RULES_VERSION", "1.4.4")
-    save_image_mod._maybe_auto_generate_rules(True)
-    save_image_mod._maybe_auto_generate_rules(True)
+    _set_rules(monkeypatch, "1.4.3")
+    save_image_mod._maybe_auto_generate_rules("Auto")
+    save_image_mod._maybe_auto_generate_rules("Auto")
     assert calls["scan"] == 1
     assert calls["save"] == 1
+    assert calls["save_kwargs"]["save_mode"] == "append_new"
 
 
-def test_overwrite_rules_uses_overwrite_and_backup(monkeypatch):
-    """overwrite_rules saves with overwrite mode and a backup."""
+def test_overwrite_runs_once_then_suppressed(monkeypatch):
+    """Overwrite regenerates once per session, with overwrite mode and a backup."""
     calls = _stub_scan_save(monkeypatch)
-    monkeypatch.setattr(defs_mod, "LOADED_RULES_VERSION", "1.4.4")
-    save_image_mod._maybe_auto_generate_rules(True)
+    _set_rules(monkeypatch, "1.4.4")
+    save_image_mod._maybe_auto_generate_rules("Overwrite")
+    save_image_mod._maybe_auto_generate_rules("Overwrite")
+    assert calls["scan"] == 1
+    assert calls["save"] == 1
     assert calls["save_kwargs"]["save_mode"] == "overwrite"
     assert calls["save_kwargs"]["backup_before_save"] is True
-
-
-def test_overwrite_with_no_rules_runs_once(monkeypatch):
-    """overwrite_rules with no rules still runs scan+save exactly once."""
-    calls = _stub_scan_save(monkeypatch)
-    monkeypatch.setattr(defs_mod, "LOADED_RULES_VERSION", None)
-    save_image_mod._maybe_auto_generate_rules(True)
-    save_image_mod._maybe_auto_generate_rules(True)
-    assert calls["scan"] == 1
-    assert calls["save"] == 1
 
 
 def test_save_images_auto_generates_rules_once(monkeypatch, node_instance):
     """The save node triggers auto-generation once across multiple saves."""
     calls = _stub_scan_save(monkeypatch)
-    monkeypatch.setattr(defs_mod, "LOADED_RULES_VERSION", None)
-    node_instance.save_images(images=[], overwrite_rules=False)
-    node_instance.save_images(images=[], overwrite_rules=False)
+    _set_rules(monkeypatch, None)
+    node_instance.save_images(images=[], rules_mode="Auto")
+    node_instance.save_images(images=[], rules_mode="Auto")
     assert calls["scan"] == 1
     assert calls["save"] == 1
 
@@ -126,19 +124,19 @@ def test_save_images_auto_generates_rules_once(monkeypatch, node_instance):
 def test_empty_scan_skips_save_rules(monkeypatch):
     """An empty scan (nothing new) never calls save_rules and is checked once."""
     calls = _stub_scan_save(monkeypatch, scan_json='{"nodes": {}, "samplers": {}}')
-    monkeypatch.setattr(defs_mod, "LOADED_RULES_VERSION", None)
-    save_image_mod._maybe_auto_generate_rules(False)
-    save_image_mod._maybe_auto_generate_rules(False)
+    _set_rules(monkeypatch, None)
+    save_image_mod._maybe_auto_generate_rules("Auto")
+    save_image_mod._maybe_auto_generate_rules("Auto")
     assert calls["scan"] == 1
     assert calls["save"] == 0
 
 
 def test_empty_scan_overwrite_is_suppressed(monkeypatch):
-    """An empty scan under overwrite_rules is also suppressed after the first try."""
+    """An empty scan under Overwrite is also suppressed after the first try."""
     calls = _stub_scan_save(monkeypatch, scan_json='{"nodes": {}, "samplers": {}}')
-    monkeypatch.setattr(defs_mod, "LOADED_RULES_VERSION", "1.4.4")
-    save_image_mod._maybe_auto_generate_rules(True)
-    save_image_mod._maybe_auto_generate_rules(True)
+    _set_rules(monkeypatch, "1.4.4")
+    save_image_mod._maybe_auto_generate_rules("Overwrite")
+    save_image_mod._maybe_auto_generate_rules("Overwrite")
     assert calls["scan"] == 1
     assert calls["save"] == 0
 
@@ -146,8 +144,8 @@ def test_empty_scan_overwrite_is_suppressed(monkeypatch):
 def test_missing_scan_result_marks_checked(monkeypatch):
     """A falsy scan result sets the checked flag so it does not re-scan forever."""
     calls = _stub_scan_save(monkeypatch, scan_json="")
-    monkeypatch.setattr(defs_mod, "LOADED_RULES_VERSION", None)
-    save_image_mod._maybe_auto_generate_rules(False)
-    save_image_mod._maybe_auto_generate_rules(False)
+    _set_rules(monkeypatch, None)
+    save_image_mod._maybe_auto_generate_rules("Auto")
+    save_image_mod._maybe_auto_generate_rules("Auto")
     assert calls["scan"] == 1
     assert calls["save"] == 0
