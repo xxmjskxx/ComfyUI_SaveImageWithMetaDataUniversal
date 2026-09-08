@@ -71,7 +71,7 @@ applyTo: '**/*.py'
 - Metadata failures must never prevent an image from saving. Wrap risky sections in `try/except`, log via the module logger, and still return success to the caller.
 - Emit `"error: see log"` placeholders only when a metadata field would otherwise be blank, and ensure the corresponding log explains the issue.
 - Sanitize user-provided metadata exactly like `saveimage_unimeta/nodes/extra_metadata.py` (replace commas with `/`, trim whitespace) to keep downstream CSV consumers stable.
-- Keep UI-facing strings (labels, tooltips) ≤140 characters so they fit within ComfyUI’s limits.
+- Keep UI-facing strings clear and complete; there is no 140-character limit on node tooltips (ComfyUI wraps multi-line tooltips — the `filename_prefix` tooltip already exceeds 140 chars). The 140-character rule from `ruff.toml` applies to code line length only, not to tooltip string literals.
 
 ## Edge Cases, Testing & Artifacts
 

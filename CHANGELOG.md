@@ -10,9 +10,17 @@ All notable changes to this project will be documented in this file.
 - Civitai AutoV1/AutoV2/AutoV3 + full SHA-256 hashing for models, VAEs, LoRAs, and UNets. AutoV1 (fixed 64 KiB window at 1 MiB) and AutoV3 (safetensors payload digest) are cached in a central JSON cache (`hash-cache.json` under ComfyUI's user directory); AutoV2/SHA-256 keep using the existing `.sha256` sidecars. The structured `Hash detail` section now includes all four hashes when available.
 - New `model_selection_method` ("Auto" / "By node ID") and `model_selection_node_id` inputs: the save node selects the primary base-model loader by walking upstream from the sampler's model input (nearest loader wins, tie-broken deterministically), and emits additional `Model N` / `Model N hash` fields for other base models.
 - Sampler selection method `Nearest` renamed to `Auto (Nearest)` (the legacy value is still accepted as an alias); nearest/farthest sampler selection now warns on ties and picks deterministically.
+- New `filepath` STRING output on the save node, returning the absolute path of the last saved image.
+- New `%timestamp%` filename token (Unix epoch seconds, supports `%timestamp:N%` truncation).
+- WebP saves now use the best-compression encoder (`method=6`).
+- The filename counter now scans the output folder across sessions, so a fresh session cannot silently overwrite an image saved earlier.
+- New `rules_mode` selector (`Off` / `Auto` / `Overwrite`): `Auto` generates capture rules when none exist and appends new rules when existing rules are outdated; `Overwrite` regenerates once per session; `Off` disables automation.
+- New `positive_prompt_override` / `negative_prompt_override` inputs replace the captured prompts in the embedded metadata (and the `%pprompt%`/`%nprompt%` filename tokens) when non-empty; the original text is not stored.
+- Workflow classification (txt2img vs img2img): the A1111 parameter string now emits `Denoising strength` only for img2img workflows (walking the sampler's latent input upstream to an image loader/VAE encoder); txt2img omits denoise entirely.
 
 ### Changed
 - Documented runtime floor raised from Python 3.9 to 3.10 (the codebase already uses PEP 604 `X | Y` runtime unions; CI targets 3.10–3.13).
+- Save-node `RETURN_TYPES` changed from `("IMAGE",)` to `("IMAGE", "STRING")` to expose the `filepath` output. Existing workflows keep working (slot 0 unchanged), but workflows that connect the new `filepath` output won't load into older versions.
 
 ## [1.4.4] - 2026-09-03
 ### Highlights

@@ -139,6 +139,7 @@
       "max_jpeg_exif_kb": 60,
       "save_workflow_json": false,
       "add_counter_to_filename": true,
+      "rules_mode": "Auto",
       "civitai_sampler": false,
       "guidance_as_cfg": false,
       "save_workflow_image": true,
