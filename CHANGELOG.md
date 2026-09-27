@@ -14,6 +14,9 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - Documented runtime floor raised from Python 3.9 to 3.10 (the codebase already uses PEP 604 `X | Y` runtime unions; CI targets 3.10–3.13).
 
+### Fixed
+- Positive and negative prompts are now captured from core `TextEncodeQwenImage21` (Text Encode Qwen Image 2.1), which takes both prompts on a single node.
+
 ## [1.4.4] - 2026-09-03
 ### Highlights
 Patch release fixing a metadata capture crash (`TypeError: unhashable type: 'dict'`) when a list-of-dicts
