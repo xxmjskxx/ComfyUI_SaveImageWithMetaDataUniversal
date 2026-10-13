@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Metadata capture rules for EreNodes' `Prompt Lora Loader` (`ErePromptLoraLoader`): LoRAs from its `prefix` input and `text` widget, in apply order.
 - New `sanitize_metadata` node toggle (default on) redacts secret-like values (API keys, tokens, passwords, bearer credentials, absolute paths) from the embedded workflow JSON before it is written. Redaction is bounded and never fails a save: if a safety limit is exceeded the raw workflow is embedded instead. See `docs/SECURITY_REDACTION_AND_PATH_SAFETY.md`.
 - Always-on output filename sanitization: absolute paths, drive letters, UNC roots, directory traversal (`..`), reserved Windows device names, and invalid filename characters are neutralized before writing; each path component is clamped to 120 chars and the full template to 512.
 - Civitai AutoV1/AutoV2/AutoV3 + full SHA-256 hashing for models, VAEs, LoRAs, and UNets. AutoV1 (fixed 64 KiB window at 1 MiB) and AutoV3 (safetensors payload digest) are cached in a central JSON cache (`hash-cache.json` under ComfyUI's user directory); AutoV2/SHA-256 keep using the existing `.sha256` sidecars. The structured `Hash detail` section now includes all four hashes when available.
