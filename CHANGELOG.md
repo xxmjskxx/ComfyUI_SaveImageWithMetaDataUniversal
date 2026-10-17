@@ -16,6 +16,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - Positive and negative prompts are now captured from core `TextEncodeQwenImage21` (Text Encode Qwen Image 2.1), which takes both prompts on a single node.
+- `Lora Loader (LoraManager)` with a connected `lora_stack` now records the stack plus its own active widget LoRAs. Previously the widget LoRAs were read from the text field, which also lists inactive LoRAs.
+- LoRA Manager's `Checkpoint Loader (LoraManager)`, `Unet Loader (LoraManager)` and `Create Hook LoRA (LoraManager)` nodes are now captured without running the rule scanner.
 
 ## [1.4.4] - 2026-09-03
 ### Highlights

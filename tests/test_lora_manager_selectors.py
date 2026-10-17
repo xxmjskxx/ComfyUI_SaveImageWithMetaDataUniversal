@@ -408,3 +408,32 @@ def test_lora_manager_scalar_fallback_unwraps_strength_lists(monkeypatch):
     assert hashes == ["hash::wrapped_strengths.safetensors"]
     assert model_strengths == [0.35]
     assert clip_strengths == [0.15]
+
+
+def test_lora_manager_loader_combines_upstream_stack_with_active_widget_loras(monkeypatch):
+    """'Lora Loader (LoraManager)' applies the connected lora_stack AND its own active widget LoRAs.
+
+    Shapes mirror get_input_data: lora_stack holds the upstream (path, model, clip) tuples, while the
+    loras widget carries active flags and the text widget lists every LoRA, including inactive ones.
+    """
+    mod = _load_module(monkeypatch)
+    input_data = (
+        {
+            "lora_stack": [[("StackA.safetensors", 0.5, 0.4)]],
+            "loras": [
+                {
+                    "__value__": [
+                        {"name": "WidgetB", "strength": 0.8, "clipStrength": 0.7, "active": True},
+                        {"name": "WidgetOff", "strength": 1.0, "clipStrength": 1.0, "active": False},
+                    ]
+                }
+            ],
+            "text": ["<lora:WidgetB:0.8:0.7> <lora:WidgetOff:1.0>"],
+        },
+    )
+    names = mod.get_lora_model_names("combo_widget", None, None, None, None, input_data)
+    model_strengths = mod.get_lora_model_strengths("combo_widget", None, None, None, None, input_data)
+    clip_strengths = mod.get_lora_clip_strengths("combo_widget", None, None, None, None, input_data)
+    assert names == ["StackA.safetensors", "WidgetB"]
+    assert model_strengths == [0.5, 0.8]
+    assert clip_strengths == [0.4, 0.7]
