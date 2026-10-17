@@ -216,7 +216,7 @@ def test_hash_file_skips_full_hashes_when_detail_disabled(tmp_path, monkeypatch)
     monkeypatch.setattr(
         formatters,
         "_full_hashes_for_path",
-        lambda kind, path: calls.append(path) or None,
+        lambda kind, path, **_callbacks: calls.append(path) or None,
     )
 
     monkeypatch.setenv("METADATA_NO_HASH_DETAIL", "1")
@@ -226,3 +226,40 @@ def test_hash_file_skips_full_hashes_when_detail_disabled(tmp_path, monkeypatch)
     monkeypatch.delenv("METADATA_NO_HASH_DETAIL")
     formatters._hash_file("model", str(model_file), truncate=10)
     assert calls == [str(model_file)]
+
+
+def test_new_safetensors_model_is_read_once(tmp_path, monkeypatch) -> None:
+    """A model with no sidecar and no cache entry gets its sidecar from the single calc_all_hashes pass."""
+    import importlib
+
+    from saveimage_unimeta.defs import formatters
+
+    # formatters may be aliased to another package name; patch the utils it actually uses.
+    pkg = formatters.__package__.rsplit(".", 1)[0]
+    hash_mod = importlib.import_module(f"{pkg}.utils.hash")
+    hash_cache = importlib.import_module(f"{pkg}.utils.hash_cache")
+    pathresolve = importlib.import_module(f"{pkg}.utils.pathresolve")
+
+    monkeypatch.setenv("METADATA_HASH_CACHE_PATH", str(tmp_path / "cache.json"))
+    monkeypatch.delenv("METADATA_NO_HASH_DETAIL", raising=False)
+    hash_cache.reset_hash_cache()
+    model = _write_safetensors(tmp_path, b"weights" * 1000, name="new-model.safetensors")
+    hash_mod.cache_model_hash.pop(model, None)
+
+    real_calc_hash = pathresolve.calc_hash
+
+    def calc_hash_without_reread(filename, **kwargs):
+        assert filename in hash_mod.cache_model_hash, "sidecar step re-read the model file"
+        return real_calc_hash(filename, **kwargs)
+
+    monkeypatch.setattr(pathresolve, "calc_hash", calc_hash_without_reread)
+    try:
+        truncated = formatters._hash_file("model", model, truncate=10)
+    finally:
+        hash_cache.reset_hash_cache()
+
+    expected = calc_all_hashes(model)
+    assert truncated == expected["auto_v2"]
+    assert (tmp_path / "new-model.sha256").read_text(encoding="utf-8") == expected["sha256"]
+    record = formatters.get_full_hashes(expected["auto_v2"])
+    assert record is not None and record.auto_v3 == expected["auto_v3"]
