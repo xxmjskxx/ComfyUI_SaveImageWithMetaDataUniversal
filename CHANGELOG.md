@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 - Civitai AutoV1/AutoV2/AutoV3 + full SHA-256 hashing for models, VAEs, LoRAs, and UNets. AutoV1 (fixed 64 KiB window at 1 MiB) and AutoV3 (safetensors payload digest) are cached in a central JSON cache (`hash-cache.json` under ComfyUI's user directory); AutoV2/SHA-256 keep using the existing `.sha256` sidecars. The structured `Hash detail` section now includes all four hashes when available.
 - New `model_selection_method` ("Auto" / "By node ID") and `model_selection_node_id` inputs: the save node selects the primary base-model loader by walking upstream from the sampler's model input (nearest loader wins, tie-broken deterministically), and emits additional `Model N` / `Model N hash` fields for other base models.
 - Sampler selection method `Nearest` renamed to `Auto (Nearest)` (the legacy value is still accepted as an alias); nearest/farthest sampler selection now warns on ties and picks deterministically.
+- Capture rules for the [ComfyUI-Krea2T-Enhancer](https://github.com/capitan01R/ComfyUI-Krea2T-Enhancer) LoRA loaders (`Krea2TCharacterLoraImageOnly`, `Krea2SelectiveLoraLoaderModelOnlyProjection`). A loader that bypasses its LoRA (`enabled` off or `strength_model` 0) is skipped.
 
 ### Changed
 - Documented runtime floor raised from Python 3.9 to 3.10 (the codebase already uses PEP 604 `X | Y` runtime unions; CI targets 3.10–3.13).
