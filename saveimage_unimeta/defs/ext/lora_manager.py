@@ -26,7 +26,7 @@ from ...utils.lora import (
     parse_lora_syntax,
     resolve_lora_display_names,
 )
-from ..formatters import calc_lora_hash
+from ..formatters import calc_lora_hash, calc_model_hash, calc_unet_hash
 from ..meta import MetaField
 from ..validators import is_negative_prompt, is_positive_prompt
 
@@ -446,6 +446,24 @@ CAPTURE_FIELD_LIST = {
         MetaField.LORA_MODEL_HASH: {"selector": get_lora_model_hashes},
         MetaField.LORA_STRENGTH_MODEL: {"selector": get_lora_model_strengths},
         MetaField.LORA_STRENGTH_CLIP: {"selector": get_lora_clip_strengths},
+    },
+    # Hook LoRAs use the same text + ``loras`` widget pair as the stacker.
+    "Create Hook LoRA (LoraManager)": {
+        MetaField.LORA_MODEL_NAME: {"selector": get_lora_model_names},
+        MetaField.LORA_MODEL_HASH: {"selector": get_lora_model_hashes},
+        MetaField.LORA_STRENGTH_MODEL: {"selector": get_lora_model_strengths},
+        MetaField.LORA_STRENGTH_CLIP: {"selector": get_lora_clip_strengths},
+    },
+    # Model loaders take the same inputs as core CheckpointLoaderSimple / UNETLoader;
+    # LoraManager's extra model roots are already handled by the hash resolvers.
+    "Checkpoint Loader (LoraManager)": {
+        MetaField.MODEL_NAME: {"field_name": "ckpt_name"},
+        MetaField.MODEL_HASH: {"field_name": "ckpt_name", "format": calc_model_hash},
+    },
+    "Unet Loader (LoraManager)": {
+        MetaField.MODEL_NAME: {"field_name": "unet_name"},
+        MetaField.MODEL_HASH: {"field_name": "unet_name", "format": calc_unet_hash},
+        MetaField.WEIGHT_DTYPE: {"field_name": "weight_dtype"},
     },
     # Prompt nodes produce CONDITIONING from text input, similar to CLIPTextEncode.
     # Adding prompt rules here lets _is_text_encoder() in validators.py detect
