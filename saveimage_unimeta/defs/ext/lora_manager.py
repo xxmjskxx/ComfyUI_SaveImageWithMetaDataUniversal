@@ -212,15 +212,23 @@ def _has_active_fields(value) -> bool:
 
 
 def _extract_structured_entries(batch: dict) -> tuple[str | None, tuple[tuple[str | None, float | None, float | None], ...], bool]:
-    """Return the first stack-like field that yields concrete entries.
+    """Collect entries from every stack-like field on the node.
+
+    ``Lora Loader (LoraManager)`` applies an upstream ``lora_stack`` *and* its own
+    ``loras`` widget, so stopping at the first populated field would drop the
+    widget LoRAs (and let the text fallback re-add inactive ones).
 
     Returns:
-        tuple: (field_name, entries, has_active_fields)
-            - field_name: The field that contained the entries
-            - entries: Tuple of (name, model_strength, clip_strength) tuples
-            - has_active_fields: True if the raw data contained 'active' fields
+        tuple: (field_names, entries, has_active_fields)
+            - field_names: Comma-joined fields that contributed (cache signature only)
+            - entries: Tuple of (name, model_strength, clip_strength) tuples, first occurrence per name
+            - has_active_fields: True if any raw data contained 'active' fields
     """
 
+    fields: list[str] = []
+    entries: list[tuple[str | None, float | None, float | None]] = []
+    seen: set[str] = set()
+    has_active = False
     for field in _STACK_FIELD_CANDIDATES:
         if field not in batch:
             continue
@@ -228,11 +236,18 @@ def _extract_structured_entries(batch: dict) -> tuple[str | None, tuple[tuple[st
         # Check for 'active' fields BEFORE filtering entries, so that a payload
         # where every entry is inactive still sets has_active=True and prevents
         # the text-merge path from re-adding those inactive LoRAs.
-        has_active = _has_active_fields(raw_value)
-        entries = _parse_stack_entries_from_value(raw_value)
-        if entries or has_active:
-            return field, tuple(entries), has_active
-    return None, (), False
+        field_has_active = _has_active_fields(raw_value)
+        field_entries = _parse_stack_entries_from_value(raw_value)
+        if not (field_entries or field_has_active):
+            continue
+        fields.append(field)
+        has_active = has_active or field_has_active
+        for entry in field_entries:
+            key = str(entry[0]).lower()
+            if key not in seen:
+                seen.add(key)
+                entries.append(entry)
+    return (",".join(fields) or None), tuple(entries), has_active
 
 
 def _build_result_from_text(text: str | None):
