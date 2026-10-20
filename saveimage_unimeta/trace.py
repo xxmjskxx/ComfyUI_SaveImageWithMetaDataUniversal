@@ -57,6 +57,29 @@ _SAMPLER_MODEL_INPUTS = (
     "sampler_inputs",
 )
 
+# Sampler input names that carry the latent/samples being denoised, in lookup
+# order. These are the inputs we walk upstream from when classifying a workflow
+# as txt2img vs img2img.
+_SAMPLER_LATENT_INPUTS = (
+    "latent_image",
+    "latent",
+    "samples",
+)
+
+
+def _is_image_source(class_type: str) -> bool:
+    """Return True when a node class feeds pixel data into the latent path.
+
+    An img2img workflow reaches a pixel-consuming node (an image loader such as
+    ``LoadImage``/``LoadImageMask`` or a VAE encoder such as ``VAEEncode``)
+    somewhere upstream of the sampler's latent input. Matching by prefix keeps
+    this resilient to node variants (``LoadImageBase64``, ``VAEEncodeForInpaint``,
+    ``VAEEncodeTiled``, etc.).
+    """
+    if not isinstance(class_type, str):
+        return False
+    return class_type.startswith("LoadImage") or class_type.startswith("VAEEncode")
+
 
 class TraceEntry(NamedTuple):
     """Distance/class pair describing how far a node sits upstream."""
@@ -330,6 +353,45 @@ class Trace:
             )
             best.sort(key=lambda c: c[2])
         return best[0][2]
+
+    @classmethod
+    def classify_workflow_kind(cls, sampler_node_id, prompt):
+        """Classify a sampler's latent source as ``"txt2img"`` or ``"img2img"``.
+
+        Walks upstream from the sampler's latent/samples inputs. If the walk
+        reaches a pixel-consuming node (an image loader or a VAE encoder), the
+        workflow is img2img; otherwise (e.g. it terminates at an empty/random
+        latent node) it is txt2img. A missing sampler node defaults to
+        txt2img.
+
+        Args:
+            sampler_node_id (str): The node ID of the selected sampler.
+            prompt (dict): The workflow prompt graph.
+
+        Returns:
+            str: ``"img2img"`` when an image source is found upstream, else
+            ``"txt2img"``.
+        """
+        if sampler_node_id not in prompt:
+            return "txt2img"
+        sampler_inputs = prompt[sampler_node_id].get("inputs", {}) or {}
+        queue: deque[str] = deque()
+        visited: set[str] = set()
+        for name in _SAMPLER_LATENT_INPUTS:
+            value = sampler_inputs.get(name)
+            if _is_link_input(value) and value[0] in prompt and value[0] not in visited:
+                visited.add(value[0])
+                queue.append(value[0])
+        while queue:
+            node_id = queue.popleft()
+            node = prompt[node_id]
+            if _is_image_source(node.get("class_type", "")):
+                return "img2img"
+            for value in node.get("inputs", {}).values():
+                if _is_link_input(value) and value[0] in prompt and value[0] not in visited:
+                    visited.add(value[0])
+                    queue.append(value[0])
+        return "txt2img"
 
     @classmethod
     def filter_inputs_by_trace_tree(cls, inputs, trace_tree):

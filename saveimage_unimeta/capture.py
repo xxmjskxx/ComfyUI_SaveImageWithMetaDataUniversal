@@ -2033,6 +2033,17 @@ class Capture:
             if k.lower() in {"t5 prompt", "clip prompt"}:
                 exclude_keys.add(k)
         metadata_fields = {k: v for k, v in pnginfo_dict.items() if k not in exclude_keys}
+        # Workflow-kind-aware Denoise handling: A1111 records denoising strength
+        # only for img2img, so rename it for img2img and drop it otherwise. When
+        # the kind is unknown (direct callers without a stamped kind), keep the
+        # legacy behaviour of dropping the field rather than emitting a denoise
+        # that is not meaningful for txt2img.
+        workflow_kind = metadata_fields.pop("_workflow_kind", None)
+        if "Denoise" in metadata_fields:
+            if workflow_kind == "img2img":
+                metadata_fields["Denoising strength"] = metadata_fields.pop("Denoise")
+            else:
+                metadata_fields.pop("Denoise", None)
         # Pull out metadata generator version to force it last later
         metadata_version = metadata_fields.pop("Metadata generator version", None)
         extra_metadata_keys_raw = metadata_fields.pop("__extra_metadata_keys", None)
@@ -2089,7 +2100,7 @@ class Capture:
             "Sampler",
             "CFG scale",
             "Guidance",
-            "Denoise",
+            "Denoising strength",
             "Seed",
             "Size",
             "Batch index",
@@ -2222,7 +2233,7 @@ class Capture:
             "Steps",
             "Sampler",
             "CFG scale",
-            "Denoise",
+            "Denoising strength",
             "Seed",
             "Size",
             "Batch index",

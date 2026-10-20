@@ -16,6 +16,7 @@ import json
 import logging
 import os
 import re
+import time
 from datetime import datetime
 
 # Attempt to import ComfyUI's folder_paths; provide a lightweight fallback stub when
@@ -93,6 +94,8 @@ _DEBUG_VERBOSE = os.environ.get("METADATA_DEBUG", "0") not in (
     "",
 )
 _RULES_VERSION_WARNING_EMITTED = False
+_AUTO_RULES_CHECKED = False
+_OVERWRITE_RULES_DONE = False
 _REFRESH_RULES_WORKFLOW = "example_workflows/refresh-rules.json"
 
 
@@ -126,6 +129,99 @@ def _maybe_warn_outdated_rules() -> None:
     version_warning = cstr(f"[Metadata Loader] {reason} {guidance}").warn + nodes_workflow
     logger.warning(version_warning)
     _RULES_VERSION_WARNING_EMITTED = True
+
+
+def _read_rules_version() -> str | None:
+    """Return the ``RULES_VERSION`` stamped into the generated rules module, if any.
+
+    Reads ``generated_user_rules.py`` directly so the check does not depend on
+    whether rules have been loaded into memory this session.
+    """
+    try:
+        ext_dir = os.path.join(os.path.dirname(os.path.abspath(defs_module.__file__)), "ext")
+        path = os.path.join(ext_dir, "generated_user_rules.py")
+        with open(path, encoding="utf-8") as fh:
+            content = fh.read()
+    except OSError:
+        return None
+    match = re.search(r'RULES_VERSION\s*=\s*["\']([^"\']+)["\']', content)
+    return match.group(1) if match else None
+
+
+def _maybe_auto_generate_rules(mode: str) -> None:
+    """Generate or refresh capture rules automatically based on ``mode``.
+
+    ``mode`` is one of the node's ``rules_mode`` values:
+
+    - ``"Off"``: never generate.
+    - ``"Auto"``: generate on first save when no rules exist, and append new
+      rules when the existing rules version is outdated (preserving custom
+      rules).
+    - ``"Overwrite"``: regenerate rules from the current workflow once per
+      session, replacing existing rules.
+    """
+    global _AUTO_RULES_CHECKED, _OVERWRITE_RULES_DONE
+    if mode not in ("Off", "Auto", "Overwrite"):
+        logger.warning("[Metadata Loader] Unknown rules_mode %r; skipping auto-generation.", mode)
+        return
+    if mode == "Off":
+        return
+    if mode == "Overwrite":
+        if _OVERWRITE_RULES_DONE:
+            return
+        save_mode = "overwrite"
+    else:  # "Auto"
+        if _AUTO_RULES_CHECKED:
+            return
+        rules_version = _read_rules_version()
+        has_rules = rules_version is not None
+        if has_rules:
+            if rules_version == resolve_runtime_version():
+                _AUTO_RULES_CHECKED = True  # current; skip further disk reads this session
+                return
+            save_mode = "append_new"  # outdated: append new gaps, preserve custom rules
+        else:
+            save_mode = "overwrite"  # fresh install
+
+    try:
+        from .scanner import MetadataRuleScanner
+        from .rules_writer import SaveCustomMetadataRules
+
+        scan_result = MetadataRuleScanner().scan_for_rules()
+        # Normalize the runtime dict vs test-mode tuple return shape.
+        if isinstance(scan_result, dict):
+            rules_json = scan_result.get("scan_results")
+        else:
+            rules_json = scan_result[0] if isinstance(scan_result, tuple | list) and scan_result else None
+        if not rules_json:
+            _AUTO_RULES_CHECKED = True
+            return
+        # Detect the "nothing new" case so we never regenerate an empty
+        # extension and silently drop existing user rules.
+        try:
+            parsed = json.loads(rules_json)
+            has_nodes = bool(parsed.get("nodes")) if isinstance(parsed, dict) else False
+            has_samplers = bool(parsed.get("samplers")) if isinstance(parsed, dict) else False
+        except (TypeError, ValueError):
+            has_nodes = has_samplers = False
+        if not has_nodes and not has_samplers:
+            _AUTO_RULES_CHECKED = True
+            if mode == "Overwrite":
+                _OVERWRITE_RULES_DONE = True
+            logger.info("[Metadata Loader] No new capture rules found; nothing to generate.")
+            return
+        SaveCustomMetadataRules().save_rules(rules_json, save_mode=save_mode, backup_before_save=True)
+        _AUTO_RULES_CHECKED = True
+        if mode == "Overwrite":
+            _OVERWRITE_RULES_DONE = True
+            logger.info("[Metadata Loader] Regenerated metadata capture rules from the current workflow.")
+        elif not has_rules:
+            logger.info("[Metadata Loader] Auto-generated metadata capture rules on first save.")
+        else:
+            logger.info("[Metadata Loader] Updated metadata capture rules (appended new rules).")
+    except Exception as exc:  # pragma: no cover - environment dependent
+        logger.warning("[Metadata Loader] Could not auto-generate capture rules: %s", exc)
+        _AUTO_RULES_CHECKED = True
 
 
 class SaveImageWithMetaDataUniversal:
@@ -173,7 +269,7 @@ class SaveImageWithMetaDataUniversal:
                         "tooltip": (
                             "Sets the output filename prefix and can also include subdirectories, so values like "
                             "folder/image will save into a folder under your output directory. You can use %seed%, "
-                            "%width%, %height%, %pprompt%, %nprompt%, %model%, and %date% in the path or filename. "
+                            "%width%, %height%, %pprompt%, %nprompt%, %model%, %timestamp%, and %date% in the path or filename. "
                             "Date can accept any variety of the yyyyMMddhhmmss format, e.g. %date:yy-MM-dd%."
                         ),
                     },
@@ -270,7 +366,20 @@ class SaveImageWithMetaDataUniversal:
                     {
                         "default": True,
                         "tooltip": (
-                            "Automatically append an incrementing counter to avoid overwriting existing files " "with the same prefix."
+                            "Automatically append an incrementing counter to avoid overwriting existing files "
+                            "with the same prefix, across sessions too."
+                        ),
+                    },
+                ),
+                "rules_mode": (
+                    ["Off", "Auto", "Overwrite"],
+                    {
+                        "default": "Auto",
+                        "tooltip": (
+                            "Rules generation mode. Off: never generate rules automatically. Auto: generate "
+                            "rules on first save when none exist, and append new rules when existing rules are "
+                            "outdated (preserving any custom rules). Overwrite: regenerate rules from the "
+                            "current workflow once per session, replacing existing rules."
                         ),
                     },
                 ),
@@ -361,12 +470,34 @@ class SaveImageWithMetaDataUniversal:
                         ),
                     },
                 ),
+                "positive_prompt_override": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "multiline": True,
+                        "tooltip": (
+                            "When non-empty, replaces the captured positive prompt in the embedded metadata and in "
+                            "the %pprompt% filename token. Leave empty to use the prompt captured from the workflow."
+                        ),
+                    },
+                ),
+                "negative_prompt_override": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "multiline": True,
+                        "tooltip": (
+                            "When non-empty, replaces the captured negative prompt in the embedded metadata and in "
+                            "the %nprompt% filename token. Leave empty to use the prompt captured from the workflow."
+                        ),
+                    },
+                ),
             },
             "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO"},
         }
 
-    RETURN_TYPES = ("IMAGE",)
-    RETURN_NAMES = ("images",)
+    RETURN_TYPES = ("IMAGE", "STRING")
+    RETURN_NAMES = ("images", "filepath")
     FUNCTION = "save_images"
     CATEGORY = "SaveImageWithMetaDataUniversal"
     DESCRIPTION = (
@@ -402,6 +533,9 @@ class SaveImageWithMetaDataUniversal:
         guidance_as_cfg=False,
         sanitize_metadata=True,
         suppress_missing_class_log=True,
+        rules_mode="Auto",
+        positive_prompt_override="",
+        negative_prompt_override="",
     ):
         """Save images to disk with embedded metadata.
 
@@ -458,6 +592,17 @@ class SaveImageWithMetaDataUniversal:
             lora_strengths_in_prompt (bool, optional): Add A1111-style LoRA
                 designation to positive prompt so that Civitai can recognize LoRA
                 strengths.
+            rules_mode (str, optional): How capture rules are generated:
+                "Off", "Auto" (generate when missing, append when outdated), or
+                "Overwrite" (rebuild once per session). Defaults to "Auto".
+            positive_prompt_override (str, optional): When non-empty, replaces
+                the captured positive prompt in the embedded metadata (and the
+                %pprompt% filename token). The original is not stored. Defaults
+                to "" (no override).
+            negative_prompt_override (str, optional): When non-empty, replaces
+                the captured negative prompt in the embedded metadata (and the
+                %nprompt% filename token). The original is not stored. Defaults
+                to "" (no override).
 
         Returns:
             dict: A dictionary containing the UI data and the result, which
@@ -465,6 +610,7 @@ class SaveImageWithMetaDataUniversal:
         """
         if extra_metadata is None:
             extra_metadata = {}
+        _maybe_auto_generate_rules(rules_mode)
         # Refresh definitions each run with smarter merge order. We pass a set
         # of classes seen from the SaveImage node back through the graph so the
         # loader can decide if user JSON is needed or defaults+ext suffice.
@@ -542,6 +688,18 @@ class SaveImageWithMetaDataUniversal:
         if extra_metadata_keys:
             pnginfo_dict_src["__extra_metadata_keys"] = extra_metadata_keys
 
+        # Apply explicit prompt overrides (empty string = no override). These
+        # replace the captured prompts outright before formatting, so the
+        # original text is never stored. For dual-encoder workflows we also drop
+        # the T5/CLIP prompt splits so the override is authoritative rather than
+        # being shadowed by the T5/CLIP header lines.
+        if positive_prompt_override:
+            pnginfo_dict_src["Positive prompt"] = positive_prompt_override
+            for _prompt_key in [k for k in pnginfo_dict_src if k.lower() in {"t5 prompt", "clip prompt"}]:
+                pnginfo_dict_src.pop(_prompt_key, None)
+        if negative_prompt_override:
+            pnginfo_dict_src["Negative prompt"] = negative_prompt_override
+
         # Redact secret-like values from the workflow JSON before embedding it in
         # the image or sidecar. Falls back to the raw payload if sanitization
         # exceeds safety limits, so saving the image never fails.
@@ -560,6 +718,7 @@ class SaveImageWithMetaDataUniversal:
 
         ui_entries: list[dict[str, str]] = []
         self._last_fallback_stages.clear()
+        filepath = ""
         for index, image in enumerate(images):
             # Support both torch tensors (with .cpu()) and raw numpy arrays in test mode.
             try:
@@ -618,9 +777,11 @@ class SaveImageWithMetaDataUniversal:
                 subfolder = ""
             base_filename = filename
             if add_counter_to_filename:
+                counter = self._next_free_counter(full_output_folder, filename, file_format, counter)
                 base_filename += f"_{counter:05}_"
             output_filename = base_filename + "." + file_format
             file_path = os.path.join(full_output_folder, output_filename)
+            filepath = file_path
 
             if file_format == "png":
                 # PNG: embed via PNGInfo
@@ -663,8 +824,9 @@ class SaveImageWithMetaDataUniversal:
                     "optimize": True,
                     "quality": quality,
                 }
-                if file_format == "webp":  # WebP only: allow lossless flag
+                if file_format == "webp":  # WebP only: allow lossless flag + best compression
                     save_kwargs["lossless"] = lossless_webp
+                    save_kwargs["method"] = 6
                 if exif_bytes is not None and file_format in {"jpeg", "jpg"}:
                     # Guard against oversized EXIF.
                     # Two limits:
@@ -854,8 +1016,39 @@ class SaveImageWithMetaDataUniversal:
             except (TypeError, ValueError):
                 counter = 1
 
-        # Pass through original tensor batch as output so downstream nodes can reuse the images
-        return {"ui": {"images": ui_entries}, "result": (images,)}
+        # Pass through the original tensor batch and the last saved filepath so
+        # downstream nodes can reuse the images and locate the output file.
+        return {"ui": {"images": ui_entries}, "result": (images, filepath)}
+
+    @staticmethod
+    def _next_free_counter(folder: str, base: str, extension: str, fallback: int) -> int:
+        """Return the first free counter for ``base_NNNNN_.<ext>`` in ``folder``.
+
+        Scans existing files from previous sessions (not just the current
+        session counter) and returns ``max(existing) + 1`` so a fresh session
+        cannot silently overwrite an image saved earlier. Falls back to
+        ``fallback`` when no matching files exist, and does a final existence
+        bump for racing writers.
+        """
+        pattern = re.compile(r"^" + re.escape(base) + r"_(\d{5})_\." + re.escape(extension) + r"$")
+        best = fallback
+        try:
+            entries = os.listdir(folder)
+        except OSError:
+            entries = []
+        for entry in entries:
+            match = pattern.match(entry)
+            if match is None:
+                continue
+            try:
+                parsed = int(match.group(1))
+            except ValueError:
+                continue
+            if parsed >= best:
+                best = parsed + 1
+        while os.path.exists(os.path.join(folder, f"{base}_{best:05d}.{extension}")):
+            best += 1
+        return best
 
     @staticmethod
     def _build_minimal_parameters(full_parameters: str) -> str:
@@ -972,11 +1165,13 @@ class SaveImageWithMetaDataUniversal:
             logger.warning(
                 "[SaveImageWithMetaData] Sampler node not found; falling back to partial metadata generation."
             )
-            return Capture.gen_pnginfo_dict(
+            pnginfo_dict = Capture.gen_pnginfo_dict(
                 inputs_before_this_node,  # treat inputs before this node as the sampler context
                 inputs_before_this_node,
                 save_civitai_sampler,
             )
+            pnginfo_dict["_workflow_kind"] = "txt2img"
+            return pnginfo_dict
 
         # get inputs before sampler node
         trace_tree_from_sampler_node = Trace.trace(sampler_node_id, hook.current_prompt)
@@ -996,6 +1191,7 @@ class SaveImageWithMetaDataUniversal:
             save_civitai_sampler,
             model_node_id=model_node_id if model_node_id != -1 else None,
         )
+        pnginfo_dict["_workflow_kind"] = Trace.classify_workflow_kind(sampler_node_id, hook.current_prompt)
         return pnginfo_dict
 
     @classmethod
@@ -1064,5 +1260,11 @@ class SaveImageWithMetaDataUniversal:
                     for k, v in date_table.items():
                         date_format = date_format.replace(k, str(v).zfill(len(k)))
                     filename = filename.replace(segment, date_format)
+            elif key == "timestamp":
+                ts = str(int(time.time()))
+                if len(parts) >= 2:
+                    length = int(parts[1])
+                    ts = ts[:length]
+                filename = filename.replace(segment, ts)
 
         return filename

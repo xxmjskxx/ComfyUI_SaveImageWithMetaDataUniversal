@@ -104,7 +104,7 @@ git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
 - Positive prompt
 - Negative prompt
 - Steps / Sampler / Scheduler
-- CFG Scale / Guidance / Denoise
+- CFG Scale / Guidance / Denoising strength (img2img のみ)
 - Shift, max_shift, base_shift
 - Seed / Clip skip / Clip model / Size
 - Model / Model hash
