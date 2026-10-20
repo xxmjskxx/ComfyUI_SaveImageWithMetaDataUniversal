@@ -12,6 +12,7 @@ import hashlib
 import json
 import os
 import struct
+from concurrent.futures import ThreadPoolExecutor
 
 cache_model_hash: dict[str, str] = {}
 
@@ -107,23 +108,31 @@ def calc_all_hashes(path: str) -> dict[str, str | None]:
     payload_digest = hashlib.sha256() if payload_offset is not None else None
     auto_v1_bytes = bytearray()
     position = 0
-    with open(path, "rb") as handle:
+    # The payload digest runs on a worker thread so the two SHA-256 passes overlap
+    # (hashlib releases the GIL on large updates). Waiting on the previous update
+    # before submitting the next keeps the payload bytes in order.
+    with open(path, "rb") as handle, ThreadPoolExecutor(max_workers=1) as payload_worker:
+        pending = None
         while True:
             chunk = handle.read(_HASH_CHUNK_SIZE)
             if not chunk:
                 break
-            full_digest.update(chunk)
             chunk_end = position + len(chunk)
+            # Hash only the payload (everything after the safetensors header).
+            if payload_digest is not None and payload_offset is not None and chunk_end > payload_offset:
+                payload_start = max(position, payload_offset)
+                if pending is not None:
+                    pending.result()
+                pending = payload_worker.submit(payload_digest.update, chunk[payload_start - position :])
+            full_digest.update(chunk)
             # Collect the AutoV1 window [AUTO_V1_OFFSET, AUTO_V1_OFFSET + AUTO_V1_SIZE).
             auto_start = max(position, AUTO_V1_OFFSET)
             auto_end = min(chunk_end, AUTO_V1_OFFSET + AUTO_V1_SIZE)
             if auto_start < auto_end:
                 auto_v1_bytes.extend(chunk[auto_start - position : auto_end - position])
-            # Hash only the payload (everything after the safetensors header).
-            if payload_digest is not None and payload_offset is not None and chunk_end > payload_offset:
-                payload_start = max(position, payload_offset)
-                payload_digest.update(chunk[payload_start - position :])
             position = chunk_end
+        if pending is not None:
+            pending.result()
     sha256 = full_digest.hexdigest()
     return {
         "sha256": sha256,
