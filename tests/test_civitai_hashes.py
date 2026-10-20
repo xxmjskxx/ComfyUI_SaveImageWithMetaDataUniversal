@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import struct
+from pathlib import Path
 
 import pytest
 
@@ -42,6 +43,30 @@ def test_calc_all_hashes_safetensors_payload(tmp_path) -> None:
     assert result["sha256"] == hashlib.sha256(data).hexdigest()
     assert result["auto_v2"] == result["sha256"][:10]
     assert result["auto_v3"] == hashlib.sha256(payload).hexdigest()[:12]
+
+
+def test_calc_all_hashes_safetensors_multichunk_payload(tmp_path: Path) -> None:
+    """Hash distinct payload chunks in order, including the final partial chunk."""
+    # Distinct blocks expose reordered updates; the short tail exposes dropped bytes.
+    payload = b"".join(bytes([value]) * (1024 * 1024) for value in (0x11, 0x42, 0x7F, 0xC3)) + b"\xfe" * 257
+    header = json.dumps(
+        {"weights": {"dtype": "U8", "shape": [len(payload)], "data_offsets": [0, len(payload)]}},
+        separators=(",", ":"),
+    ).encode("utf-8")
+    header += b" " * (-len(header) % 8)  # Safetensors headers are padded to 8-byte alignment.
+    data = struct.pack("<Q", len(header)) + header + payload
+    path = tmp_path / "multichunk.safetensors"
+    path.write_bytes(data)
+
+    result = calc_all_hashes(str(path))
+
+    full_sha256 = hashlib.sha256(data).hexdigest()
+    assert result == {
+        "sha256": full_sha256,
+        "auto_v2": full_sha256[:10],
+        "auto_v1": hashlib.sha256(data[0x100000:0x110000]).hexdigest()[:8],
+        "auto_v3": hashlib.sha256(payload).hexdigest()[:12],
+    }
 
 
 def test_calc_all_hashes_ckpt_has_no_auto_v3(tmp_path) -> None:
