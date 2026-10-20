@@ -141,8 +141,9 @@ def _parse_stack_entries_from_value(value):
             return entries
         name = value.get("name") or value.get("model")
         if name is not None and any(k in value for k in ("strength", "clipStrength", "clip_strength")):
-            ms = value.get("strength") or value.get("model_strength") or value.get("weight")
-            cs = value.get("clipStrength") or value.get("clip_strength") or ms
+            # Explicit None checks: a strength of 0 is a real value, not a missing one.
+            ms = next((value[k] for k in ("strength", "model_strength", "weight") if value.get(k) is not None), None)
+            cs = next((value[k] for k in ("clipStrength", "clip_strength") if value.get(k) is not None), ms)
             entries.append((name, _coerce_float(ms), _coerce_float(cs)))
             return entries
         for candidate in value.values():
@@ -410,6 +411,30 @@ def get_lora_strengths(node_id, *args):
     return _get_lora_data_from_node(node_id, args[-1])["model_strengths"]
 
 
+def _get_hook_lora_data(node_id, outputs, input_data):
+    """LoRA data for ``Create Hook LoRA (LoraManager)``, preferring its executed output.
+
+    The hook node skips LoRAs that are missing, fail to load, or have both strengths at 0,
+    so its ``active_loras`` output (index 2, ``<lora:...>`` text) is what was really applied.
+    An empty output is authoritative. Falls back to the widgets only when the output is not cached.
+    """
+    try:
+        entry = outputs.get_local(node_id) if hasattr(outputs, "get_local") else outputs.get(node_id)
+        text = getattr(entry, "outputs", entry)[2][0]  # CacheEntry (0.3.65+) or legacy list
+    except Exception:
+        text = None
+    if not isinstance(text, str):
+        return _get_lora_data_from_node(node_id, input_data)
+    return _build_result_from_text(text) or {"names": [], "hashes": [], "model_strengths": [], "clip_strengths": []}
+
+
+def _hook_selector(key):
+    def selector(node_id, obj, prompt, extra_data, outputs, input_data):
+        return _get_hook_lora_data(node_id, outputs, input_data)[key]
+
+    return selector
+
+
 # We need to update the main capture list with our new definition
 CAPTURE_FIELD_LIST = {
     "Lora Loader (LoraManager)": {
@@ -447,12 +472,12 @@ CAPTURE_FIELD_LIST = {
         MetaField.LORA_STRENGTH_MODEL: {"selector": get_lora_model_strengths},
         MetaField.LORA_STRENGTH_CLIP: {"selector": get_lora_clip_strengths},
     },
-    # Hook LoRAs use the same text + ``loras`` widget pair as the stacker.
+    # Hook LoRAs: read the node's ``active_loras`` output so LoRAs it skipped are not recorded.
     "Create Hook LoRA (LoraManager)": {
-        MetaField.LORA_MODEL_NAME: {"selector": get_lora_model_names},
-        MetaField.LORA_MODEL_HASH: {"selector": get_lora_model_hashes},
-        MetaField.LORA_STRENGTH_MODEL: {"selector": get_lora_model_strengths},
-        MetaField.LORA_STRENGTH_CLIP: {"selector": get_lora_clip_strengths},
+        MetaField.LORA_MODEL_NAME: {"selector": _hook_selector("names")},
+        MetaField.LORA_MODEL_HASH: {"selector": _hook_selector("hashes")},
+        MetaField.LORA_STRENGTH_MODEL: {"selector": _hook_selector("model_strengths")},
+        MetaField.LORA_STRENGTH_CLIP: {"selector": _hook_selector("clip_strengths")},
     },
     # Model loaders take the same inputs as core CheckpointLoaderSimple / UNETLoader;
     # LoraManager's extra model roots are already handled by the hash resolvers.
