@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - Documented runtime floor raised from Python 3.9 to 3.10 (the codebase already uses PEP 604 `X | Y` runtime unions; CI targets 3.10–3.13).
+- Faster first save with a new model: a `.safetensors` file with no `.sha256` sidecar is now read once (not twice) to produce the sidecar plus AutoV1/AutoV3, and the full-file and payload digests run in parallel. Hash values are unchanged.
 
 ### Fixed
 - Positive and negative prompts are now captured from core `TextEncodeQwenImage21` (Text Encode Qwen Image 2.1), which takes both prompts on a single node.

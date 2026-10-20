@@ -51,7 +51,7 @@ except (ImportError, ModuleNotFoundError):  # noqa: BLE001 - provide minimal stu
 
 
 from ..utils.embedding import get_embedding_file_path
-from ..utils.hash import calc_all_hashes, calc_auto_v1
+from ..utils.hash import cache_model_hash as calc_hash_cache, calc_all_hashes, calc_auto_v1
 from ..utils.hash_cache import cache_key_for, get_hash_cache, utc_timestamp
 from ..utils.lora import find_lora_info, find_checkpoint_info, find_unet_info, get_lora_manager_paths
 from ..utils.pathresolve import (
@@ -335,12 +335,15 @@ def get_full_hashes(truncated_hash: str | None) -> HashRecord | None:
     return _FULL_HASH_RECORDS.get(str(truncated_hash).strip().casefold())
 
 
-def _full_hashes_for_path(kind: str, path: str) -> HashRecord | None:
+def _full_hashes_for_path(kind: str, path: str, **sidecar_callbacks) -> HashRecord | None:
     """Return all four hashes for a model-like file, using sidecar + JSON cache.
 
     The full SHA-256/AutoV2 come from the existing ``.sha256`` sidecar path;
     AutoV1/AutoV3 come from the central JSON cache. On a cache miss the file is
-    read once via :func:`calc_all_hashes` and both caches are populated.
+    read once via :func:`calc_all_hashes`, and that same pass also supplies the
+    SHA-256 for a missing sidecar, so a new model is read once, not twice.
+    ``sidecar_callbacks`` (``on_compute`` / ``sidecar_error_cb``) are forwarded
+    to :func:`load_or_calc_hash`.
     """
     if not path or not os.path.exists(path):
         return None
@@ -357,7 +360,19 @@ def _full_hashes_for_path(kind: str, path: str) -> HashRecord | None:
     cache = get_hash_cache()
     cached = cache.get(key)  # {"AutoV1": ..., "AutoV3": ...} or None
 
-    sha256_full = load_or_calc_hash(path, truncate=None)
+    is_safetensors = os.path.splitext(path)[1].casefold() == ".safetensors"
+    computed = None
+    if cached is None and is_safetensors:
+        # AutoV3 requires the payload digest, so read the file once for all four hashes.
+        try:
+            computed = calc_all_hashes(path)
+        except OSError:
+            return None
+        # Seed calc_hash's in-memory cache so a missing sidecar is written from
+        # this digest below instead of re-reading the whole file.
+        calc_hash_cache[path] = computed["sha256"]
+
+    sha256_full = load_or_calc_hash(path, truncate=None, **sidecar_callbacks)
     if not sha256_full:
         return None
 
@@ -369,13 +384,7 @@ def _full_hashes_for_path(kind: str, path: str) -> HashRecord | None:
             auto_v1=cached.get("AutoV1"),
         )
 
-    is_safetensors = os.path.splitext(path)[1].casefold() == ".safetensors"
-    if is_safetensors:
-        # AutoV3 requires the payload digest, so read the file once for both.
-        try:
-            computed = calc_all_hashes(path)
-        except OSError:
-            return None
+    if computed is not None:
         auto_v1 = computed["auto_v1"]
         auto_v3 = computed["auto_v3"]
     else:
@@ -417,6 +426,19 @@ def _hash_file(kind: str, path: str, truncate: int = 10) -> str | None:
     def _on_compute(_):
         fresh_computed["flag"] = True
 
+    # Record the full hash set for model-like resources so the structured
+    # "Hash detail" section can be enriched without re-reading files. Skip the
+    # (full-file AutoV3) work entirely when Hash detail is disabled. This runs
+    # before the sidecar lookup below so a new model's single full read also
+    # produces its sidecar.
+    if kind in _KIND_CATEGORY and truncate == 10 and _hash_detail_enabled():
+        try:
+            record = _full_hashes_for_path(kind, path, on_compute=_on_compute, sidecar_error_cb=_sidecar_error_once)
+            if record is not None and record.auto_v2:
+                _FULL_HASH_RECORDS[record.auto_v2] = record
+        except OSError:
+            pass
+
     hashed = load_or_calc_hash(
         path,
         truncate=truncate,
@@ -434,16 +456,6 @@ def _hash_file(kind: str, path: str, truncate: int = 10) -> str | None:
         full_hash = _lc(path, truncate=None) or "?"
         dur_ms = (time.perf_counter() - start) * 1000.0
         _log(kind, f"full hash {os.path.basename(path)}={full_hash} ({dur_ms:.1f} ms)")
-    # Record the full hash set for model-like resources so the structured
-    # "Hash detail" section can be enriched without re-reading files. Skip the
-    # (full-file AutoV3) work entirely when Hash detail is disabled.
-    if kind in _KIND_CATEGORY and truncate == 10 and hashed and _hash_detail_enabled():
-        try:
-            record = _full_hashes_for_path(kind, path)
-            if record is not None and record.auto_v2:
-                _FULL_HASH_RECORDS[record.auto_v2] = record
-        except OSError:
-            pass
     return hashed
 
 
