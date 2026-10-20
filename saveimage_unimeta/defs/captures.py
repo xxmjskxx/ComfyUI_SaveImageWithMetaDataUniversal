@@ -236,6 +236,17 @@ CAPTURE_FIELD_LIST = {
             "validate": is_negative_prompt,
         },
     },
+    # One node encodes both prompts and emits them as its positive/negative outputs.
+    "TextEncodeQwenImage21": {
+        MetaField.POSITIVE_PROMPT: {
+            "field_name": "prompt",
+            "validate": is_positive_prompt,
+        },
+        MetaField.NEGATIVE_PROMPT: {
+            "field_name": "negative_prompt",
+            "validate": is_negative_prompt,
+        },
+    },
     "MetadataTestSampler": {
         MetaField.POSITIVE_PROMPT: {
             "field_name": "positive_prompt",

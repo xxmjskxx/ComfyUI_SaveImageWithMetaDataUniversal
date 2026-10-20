@@ -346,3 +346,41 @@ def test_qwen_image_edit_plus_prompts_in_parameters(monkeypatch):
 
     assert 'Draw the text "Hello" in white.' in param_str
     assert "Negative prompt: blurry text, landscape," in param_str
+
+
+def test_qwen_image_21_prompts_in_parameters(monkeypatch):
+    """TextEncodeQwenImage21 feeds both sampler branches from one node via prompt / negative_prompt."""
+    cap = importlib.import_module(MODULE_PATH)
+    meta_mod = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.meta")
+    MetaField = meta_mod.MetaField
+    captures_mod = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.captures")
+
+    prompt = {
+        "1": {
+            "class_type": "KSampler",
+            "inputs": {
+                "positive": ["enc", 0],
+                "negative": ["enc", 1],
+                "steps": 20,
+                "cfg": 3.0,
+                "sampler_name": "euler",
+                "scheduler": "simple",
+                "seed": 12345,
+            },
+        },
+        "enc": {
+            "class_type": "TextEncodeQwenImage21",
+            "inputs": {"prompt": "An anime illustration of a fox girl", "negative_prompt": "blurry, lowres"},
+        },
+    }
+
+    install_prompt_environment(monkeypatch, cap, prompt)
+    monkeypatch.setattr(cap, "CAPTURE_FIELD_LIST", captures_mod.CAPTURE_FIELD_LIST)
+
+    inputs = cap.Capture.get_inputs()
+    assert [v[1] for v in inputs[MetaField.POSITIVE_PROMPT]] == ["An anime illustration of a fox girl"]
+    assert [v[1] for v in inputs[MetaField.NEGATIVE_PROMPT]] == ["blurry, lowres"]
+
+    pnginfo = cap.Capture.gen_pnginfo_dict(inputs, inputs, save_civitai_sampler=False)
+    param_str = cap.Capture.gen_parameters_str(pnginfo)
+    assert param_str.startswith("An anime illustration of a fox girl\nNegative prompt: blurry, lowres\n")
