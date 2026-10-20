@@ -408,3 +408,92 @@ def test_lora_manager_scalar_fallback_unwraps_strength_lists(monkeypatch):
     assert hashes == ["hash::wrapped_strengths.safetensors"]
     assert model_strengths == [0.35]
     assert clip_strengths == [0.15]
+
+
+def test_lora_manager_loader_combines_upstream_stack_with_active_widget_loras(monkeypatch):
+    """'Lora Loader (LoraManager)' applies the connected lora_stack AND its own active widget LoRAs.
+
+    Shapes mirror get_input_data: lora_stack holds the upstream (path, model, clip) tuples, while the
+    loras widget carries active flags and the text widget lists every LoRA, including inactive ones.
+    """
+    mod = _load_module(monkeypatch)
+    input_data = (
+        {
+            "lora_stack": [[("StackA.safetensors", 0.5, 0.4)]],
+            "loras": [
+                {
+                    "__value__": [
+                        {"name": "WidgetB", "strength": 0.8, "clipStrength": 0.7, "active": True},
+                        {"name": "WidgetOff", "strength": 1.0, "clipStrength": 1.0, "active": False},
+                    ]
+                }
+            ],
+            "text": ["<lora:WidgetB:0.8:0.7> <lora:WidgetOff:1.0>"],
+        },
+    )
+    names = mod.get_lora_model_names("combo_widget", None, None, None, None, input_data)
+    model_strengths = mod.get_lora_model_strengths("combo_widget", None, None, None, None, input_data)
+    clip_strengths = mod.get_lora_clip_strengths("combo_widget", None, None, None, None, input_data)
+    assert names == ["StackA.safetensors", "WidgetB"]
+    assert model_strengths == [0.5, 0.8]
+    assert clip_strengths == [0.4, 0.7]
+
+
+def test_lora_manager_widget_zero_strengths_are_preserved(monkeypatch):
+    """A strength of 0 in the loras widget is a real value, not a missing one (with or without a stack)."""
+    mod = _load_module(monkeypatch)
+    input_data = (
+        {
+            "lora_stack": [[("StackA.safetensors", 0.5, 0.4)]],
+            "loras": [
+                {
+                    "__value__": [
+                        {"name": "ZeroModel", "strength": 0, "clipStrength": 0.7, "active": True},
+                        {"name": "ZeroClip", "strength": 0.8, "clipStrength": 0, "active": True},
+                    ]
+                }
+            ],
+        },
+    )
+    assert mod.get_lora_model_names("zero", None, None, None, None, input_data) == ["StackA.safetensors", "ZeroModel", "ZeroClip"]
+    assert mod.get_lora_model_strengths("zero", None, None, None, None, input_data) == [0.5, 0.0, 0.8]
+    assert mod.get_lora_clip_strengths("zero", None, None, None, None, input_data) == [0.4, 0.7, 0.0]
+
+
+class _CacheEntry:
+    """Mimics ComfyUI's CacheEntry(ui, outputs): one list of batch values per output."""
+
+    def __init__(self, outputs):
+        self.outputs = outputs
+
+
+def test_create_hook_lora_uses_executed_active_loras_output(monkeypatch):
+    """The hook node skips LoRAs that fail to load; its active_loras output wins over the widget."""
+    mod = _load_module(monkeypatch)
+    rule = mod.CAPTURE_FIELD_LIST["Create Hook LoRA (LoraManager)"]
+    names = rule[mod.MetaField.LORA_MODEL_NAME]["selector"]
+    model_strengths = rule[mod.MetaField.LORA_STRENGTH_MODEL]["selector"]
+    clip_strengths = rule[mod.MetaField.LORA_STRENGTH_CLIP]["selector"]
+    input_data = (
+        {
+            "loras": [
+                {
+                    "__value__": [
+                        {"name": "Loaded", "strength": 0.8, "clipStrength": 0.6, "active": True},
+                        {"name": "Broken", "strength": 1.0, "clipStrength": 1.0, "active": True},
+                    ]
+                }
+            ],
+        },
+    )
+    outputs = {"7": _CacheEntry([[None], [""], ["<lora:Loaded:0.8:0.6>"]])}
+    assert names("7", None, None, None, outputs, input_data) == ["Loaded"]
+    assert model_strengths("7", None, None, None, outputs, input_data) == [0.8]
+    assert clip_strengths("7", None, None, None, outputs, input_data) == [0.6]
+
+    # Every LoRA failed: an empty output is authoritative.
+    outputs = {"7": _CacheEntry([[None], [""], [""]])}
+    assert names("7", None, None, None, outputs, input_data) == []
+
+    # Output not cached: fall back to the active widget entries.
+    assert names("7", None, None, None, {}, input_data) == ["Loaded", "Broken"]

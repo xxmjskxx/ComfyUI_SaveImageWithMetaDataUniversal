@@ -26,7 +26,7 @@ from ...utils.lora import (
     parse_lora_syntax,
     resolve_lora_display_names,
 )
-from ..formatters import calc_lora_hash
+from ..formatters import calc_lora_hash, calc_model_hash, calc_unet_hash
 from ..meta import MetaField
 from ..validators import is_negative_prompt, is_positive_prompt
 
@@ -141,8 +141,9 @@ def _parse_stack_entries_from_value(value):
             return entries
         name = value.get("name") or value.get("model")
         if name is not None and any(k in value for k in ("strength", "clipStrength", "clip_strength")):
-            ms = value.get("strength") or value.get("model_strength") or value.get("weight")
-            cs = value.get("clipStrength") or value.get("clip_strength") or ms
+            # Explicit None checks: a strength of 0 is a real value, not a missing one.
+            ms = next((value[k] for k in ("strength", "model_strength", "weight") if value.get(k) is not None), None)
+            cs = next((value[k] for k in ("clipStrength", "clip_strength") if value.get(k) is not None), ms)
             entries.append((name, _coerce_float(ms), _coerce_float(cs)))
             return entries
         for candidate in value.values():
@@ -212,15 +213,23 @@ def _has_active_fields(value) -> bool:
 
 
 def _extract_structured_entries(batch: dict) -> tuple[str | None, tuple[tuple[str | None, float | None, float | None], ...], bool]:
-    """Return the first stack-like field that yields concrete entries.
+    """Collect entries from every stack-like field on the node.
+
+    ``Lora Loader (LoraManager)`` applies an upstream ``lora_stack`` *and* its own
+    ``loras`` widget, so stopping at the first populated field would drop the
+    widget LoRAs (and let the text fallback re-add inactive ones).
 
     Returns:
-        tuple: (field_name, entries, has_active_fields)
-            - field_name: The field that contained the entries
-            - entries: Tuple of (name, model_strength, clip_strength) tuples
-            - has_active_fields: True if the raw data contained 'active' fields
+        tuple: (field_names, entries, has_active_fields)
+            - field_names: Comma-joined fields that contributed (cache signature only)
+            - entries: Tuple of (name, model_strength, clip_strength) tuples, first occurrence per name
+            - has_active_fields: True if any raw data contained 'active' fields
     """
 
+    fields: list[str] = []
+    entries: list[tuple[str | None, float | None, float | None]] = []
+    seen: set[str] = set()
+    has_active = False
     for field in _STACK_FIELD_CANDIDATES:
         if field not in batch:
             continue
@@ -228,11 +237,18 @@ def _extract_structured_entries(batch: dict) -> tuple[str | None, tuple[tuple[st
         # Check for 'active' fields BEFORE filtering entries, so that a payload
         # where every entry is inactive still sets has_active=True and prevents
         # the text-merge path from re-adding those inactive LoRAs.
-        has_active = _has_active_fields(raw_value)
-        entries = _parse_stack_entries_from_value(raw_value)
-        if entries or has_active:
-            return field, tuple(entries), has_active
-    return None, (), False
+        field_has_active = _has_active_fields(raw_value)
+        field_entries = _parse_stack_entries_from_value(raw_value)
+        if not (field_entries or field_has_active):
+            continue
+        fields.append(field)
+        has_active = has_active or field_has_active
+        for entry in field_entries:
+            key = str(entry[0]).lower()
+            if key not in seen:
+                seen.add(key)
+                entries.append(entry)
+    return (",".join(fields) or None), tuple(entries), has_active
 
 
 def _build_result_from_text(text: str | None):
@@ -395,6 +411,30 @@ def get_lora_strengths(node_id, *args):
     return _get_lora_data_from_node(node_id, args[-1])["model_strengths"]
 
 
+def _get_hook_lora_data(node_id, outputs, input_data):
+    """LoRA data for ``Create Hook LoRA (LoraManager)``, preferring its executed output.
+
+    The hook node skips LoRAs that are missing, fail to load, or have both strengths at 0,
+    so its ``active_loras`` output (index 2, ``<lora:...>`` text) is what was really applied.
+    An empty output is authoritative. Falls back to the widgets only when the output is not cached.
+    """
+    try:
+        entry = outputs.get_local(node_id) if hasattr(outputs, "get_local") else outputs.get(node_id)
+        text = getattr(entry, "outputs", entry)[2][0]  # CacheEntry (0.3.65+) or legacy list
+    except Exception:
+        text = None
+    if not isinstance(text, str):
+        return _get_lora_data_from_node(node_id, input_data)
+    return _build_result_from_text(text) or {"names": [], "hashes": [], "model_strengths": [], "clip_strengths": []}
+
+
+def _hook_selector(key):
+    def selector(node_id, obj, prompt, extra_data, outputs, input_data):
+        return _get_hook_lora_data(node_id, outputs, input_data)[key]
+
+    return selector
+
+
 # We need to update the main capture list with our new definition
 CAPTURE_FIELD_LIST = {
     "Lora Loader (LoraManager)": {
@@ -431,6 +471,24 @@ CAPTURE_FIELD_LIST = {
         MetaField.LORA_MODEL_HASH: {"selector": get_lora_model_hashes},
         MetaField.LORA_STRENGTH_MODEL: {"selector": get_lora_model_strengths},
         MetaField.LORA_STRENGTH_CLIP: {"selector": get_lora_clip_strengths},
+    },
+    # Hook LoRAs: read the node's ``active_loras`` output so LoRAs it skipped are not recorded.
+    "Create Hook LoRA (LoraManager)": {
+        MetaField.LORA_MODEL_NAME: {"selector": _hook_selector("names")},
+        MetaField.LORA_MODEL_HASH: {"selector": _hook_selector("hashes")},
+        MetaField.LORA_STRENGTH_MODEL: {"selector": _hook_selector("model_strengths")},
+        MetaField.LORA_STRENGTH_CLIP: {"selector": _hook_selector("clip_strengths")},
+    },
+    # Model loaders take the same inputs as core CheckpointLoaderSimple / UNETLoader;
+    # LoraManager's extra model roots are already handled by the hash resolvers.
+    "Checkpoint Loader (LoraManager)": {
+        MetaField.MODEL_NAME: {"field_name": "ckpt_name"},
+        MetaField.MODEL_HASH: {"field_name": "ckpt_name", "format": calc_model_hash},
+    },
+    "Unet Loader (LoraManager)": {
+        MetaField.MODEL_NAME: {"field_name": "unet_name"},
+        MetaField.MODEL_HASH: {"field_name": "unet_name", "format": calc_unet_hash},
+        MetaField.WEIGHT_DTYPE: {"field_name": "weight_dtype"},
     },
     # Prompt nodes produce CONDITIONING from text input, similar to CLIPTextEncode.
     # Adding prompt rules here lets _is_text_encoder() in validators.py detect
