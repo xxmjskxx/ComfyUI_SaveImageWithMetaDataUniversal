@@ -176,8 +176,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "MetadataRuleScanner": "Metadata Rule Scanner",
     "MetadataTestSampler|unimeta": "Metadata Test Sampler",
     "SaveCustomMetadataRules": "Save Custom Metadata Rules",
-    "ShowGeneratedUserRules": "Show generated_user_rules.py",
-    "SaveGeneratedUserRules": "Save generated_user_rules.py",
+    "ShowGeneratedUserRules": "Show Saved Metadata Rules",
+    "SaveGeneratedUserRules": "Save generated_user_rules.py (deprecated)",
     "ShowText|unimeta": "Show Text (UniMeta)",
     "ShowAny|unimeta": "Show Any (Any to String)",
 }

@@ -117,22 +117,6 @@ def test_merge_append_new():
     assert out_n["Node1"]["Meta1"] == "Conflict"
     assert metrics["metafields_replaced"] == 1
 
-def test_generate_python_extension(tmp_path):
-    # Minimal test to ensure file generation and content structure
-    out_file = tmp_path / "generated.py"
-    nodes = {"Node1": {"Meta1": {"field_name": "f", "validate": "is_positive_prompt"}}}
-    samplers = {}
-
-    SaveCustomMetadataRules._generate_python_extension(str(out_file), nodes, samplers)
-
-    assert out_file.exists()
-    content = out_file.read_text()
-    assert "class MetaField" in content or "from ..meta import MetaField" in content
-    assert '"Node1": {' in content
-    assert "MetaField.Meta1:" in content
-    # Code uses KNOWN["..."] (double quotes)
-    assert 'KNOWN["is_positive_prompt"]' in content
-
 def test_save_rules_integration(tmp_path, monkeypatch):
     writer = SaveCustomMetadataRules()
 
@@ -141,8 +125,7 @@ def test_save_rules_integration(tmp_path, monkeypatch):
          patch("json.dump"), \
          patch("json.load", return_value={}), \
          patch("shutil.copy2"), \
-         patch("os.listdir", return_value=[]), \
-         patch.object(SaveCustomMetadataRules, "_generate_python_extension"):
+         patch("os.listdir", return_value=[]):
 
         res = writer.save_rules(
             rules_json_string='{"nodes": {"N": {}}, "samplers": {}}',

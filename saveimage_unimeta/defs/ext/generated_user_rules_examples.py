@@ -1,5 +1,9 @@
 """Provides a comprehensive set of reference examples for user-generated metadata capture rules.
 
+Note: user rules are now saved and loaded as JSON only (`user_rules/user_captures.json`); a
+`generated_user_rules.py` file is no longer imported. Use these examples as a schema reference
+for JSON rules or for a bundled extension module.
+
 This module serves as a detailed guide and a source of copy-pasteable examples for users who wish
 to customize their metadata capture by creating or editing the `generated_user_rules.py` file.
 

@@ -87,35 +87,15 @@ def create_test_files():  # pragma: no cover - file system helper
     return _create
 
 
-# Coverage helper: create an empty placeholder generated_user_rules.py so that
-# if tests import the module then delete/regenerate it, coverage still has a
-# source file to attribute (prevents 'No source for code' error in CI when the
-# file is momentarily absent at report time). The real writer will overwrite.
-_ext_dir = os.path.join(_ROOT, "saveimage_unimeta", "defs", "ext")
-try:
-    os.makedirs(_ext_dir, exist_ok=True)
-    _placeholder = os.path.join(_ext_dir, "generated_user_rules.py")
-    if not os.path.exists(_placeholder):
-        with open(_placeholder, "w", encoding="utf-8") as _f:
-            _f.write(
-                "# Placeholder generated_user_rules.py for test coverage stability.\n"
-                "CAPTURE_FIELD_LIST = {}\n"
-                "SAMPLERS = {}\n"
-                "KNOWN = {}\n"
-            )
-except OSError:
-    pass
+_placeholder = os.path.join(_ROOT, "saveimage_unimeta", "defs", "ext", "generated_user_rules.py")
 
 
 @pytest.fixture(autouse=True, scope="session")
 def _preserve_generated_user_rules():
-    """Preserve the locally-generated module across the whole test run.
+    """Preserve a legacy local ``generated_user_rules.py`` across the test run.
 
-    ``saveimage_unimeta/defs/ext/generated_user_rules.py`` is an uncommitted
-    build artifact the writer regenerates on the user's machine. Several tests
-    delete or overwrite it for isolation, so snapshot it once and restore it at
-    session end. This keeps ``pytest -q`` from destroying the user's local file
-    while still letting tests exercise the real (or placeholder) source.
+    The loader no longer imports it, but some tests plant or delete it, so
+    snapshot it once and restore it at session end.
     """
     snapshot = None
     try:

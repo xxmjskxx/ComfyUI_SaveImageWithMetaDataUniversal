@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file.
 - Sampler selection method `Nearest` renamed to `Auto (Nearest)` (the legacy value is still accepted as an alias); nearest/farthest sampler selection now warns on ties and picks deterministically.
 
 ### Changed
+- User capture rules are stored and loaded as JSON data only. `Save Custom Metadata Rules` no longer writes `defs/ext/generated_user_rules.py`, and the loader no longer imports it, so a workflow can no longer cause Python to be written and run. Selectors named in user JSON resolve only through the fixed allowlist in `utils/deserialize.py`. The rules version stamp moves to `user_rules/rules_version.json`. `rebuild_python_rules` is deprecated and ignored; `Save generated_user_rules.py` is deprecated and writes nothing; `Show generated_user_rules.py` is now `Show Saved Metadata Rules` and shows the saved JSON. Re-save rules with the scanner + `Save Custom Metadata Rules` (or `example_workflows/refresh-rules.json`) to refresh the version stamp.
 - Documented runtime floor raised from Python 3.9 to 3.10 (the codebase already uses PEP 604 `X | Y` runtime unions; CI targets 3.10–3.13).
 - Faster first save with a new model: a `.safetensors` file with no `.sha256` sidecar is now read once (not twice) to produce the sidecar plus AutoV1/AutoV3, and the full-file and payload digests run in parallel. Hash values are unchanged.
 

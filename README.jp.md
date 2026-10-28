@@ -61,9 +61,9 @@ git clone https://github.com/xxmjskxx/ComfyUI_SaveImageWithMetaDataUniversal.git
 | `SaveImageWithMetaDataUniversal` | 画像保存 + メタデータ生成 (PNGInfo / EXIF) & パラメータ文字列。 |
 | `Create Extra MetaData` | 任意の追加キー/値メタデータ挿入。 |
 | `Metadata Rule Scanner` | インストール済みノードを走査しキャプチャルール候補生成。 |
-| `Save Custom Metadata Rules` | 生成ルールを `generated_user_rules.py` に保存（追記/上書き）。 |
-| `Show generated_user_rules.py` | マージ済みユーザルール内容表示/編集。 |
-| `Save generated_user_rules.py` | 編集テキストを検証しユーザルールへ書込。 |
+| `Save Custom Metadata Rules` | 生成ルールを JSON (`user_captures.json` / `user_samplers.json`) に保存（追記/上書き）。 |
+| `Show Saved Metadata Rules` | 保存済みユーザルール JSON の表示/編集。 |
+| `Save generated_user_rules.py (deprecated)` | 非推奨。何も書き込みません（旧ワークフロー互換のため残存）。 |
 | `Metadata Force Include` | 強制含有ノードクラス名を設定。 |
 | `Show Text (UniMeta)` | 接続テキスト出力表示（ローカル派生版）。 |
 | `Show Any (Any to String)` | 任意値を文字列化して表示; `Create Extra MetaData` へ整数/浮動小数等を接続する用途。 |

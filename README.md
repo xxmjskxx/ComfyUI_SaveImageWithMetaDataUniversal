@@ -90,9 +90,9 @@
 | `SaveImageWithMetaDataUniversal` | Save images + produce enriched metadata (PNGInfo / EXIF) & parameter string. |
 | `Create Extra MetaData` | Inject any additional custom key-value metadata pairs. |
 | `Metadata Rule Scanner` | Scan installed nodes to suggest metadata capture rules (options for: exclude keywords, modes, metafield forcing). |
-| `Save Custom Metadata Rules` | Save generated rule suggestions to `generated_user_rules.py` (append or overwrite). |
-| `Show generated_user_rules.py` | Display the current merged user rules file contents for review/editing (optional). |
-| `Save generated_user_rules.py` | Validate and write edited rules text back to the user rules file (optional). |
+| `Save Custom Metadata Rules` | Save rule suggestions as JSON (`user_captures.json` / `user_samplers.json`; append or overwrite). |
+| `Show Saved Metadata Rules` | Display the saved user rules JSON for review/editing (optional). |
+| `Save generated_user_rules.py (deprecated)` | No longer writes anything; kept so older workflows load. |
 | `Metadata Force Include` | Configure global forced node class names for capture definition loading (optional). |
 | `Show Text (UniMeta)` | Local variant for displaying connected text outputs; based on [pythongosssss](https://github.com/pythongosssss/ComfyUI-Custom-Scripts) `Show Text 🐍` (MIT). |
 | `Show Any (Any to String)` | Display any connected value by converting it to a string; useful to wire ints/floats/etc. into `Create Extra MetaData`. |
@@ -325,8 +325,8 @@ Outputs: Updated forced class list (string + list form) for display/auditing.
 ### Saving Rules (`Save Custom Metadata Rules`)
 * Modes: `overwrite` (replace) or `append_new` (add only missing; optional conflict replacement).
 * Automatic timestamped backups (limit retained sets) + dropdown restore (`restore_backup_set`).
-* Generates deterministic `generated_user_rules.py` (disable via `rebuild_python_rules` toggle for speed while iterating).
-* The generated module embeds a `RULES_VERSION` matching the installed node pack. The save node logs a `[Metadata Loader] ... version ...` warning if your saved rules are missing/outdated—rerun the scanner + saver or use `example_workflows/refresh-rules.json` after updating the pack.
+* Rules are stored and loaded as JSON data only; no Python is generated or imported (`rebuild_python_rules` is deprecated and ignored). A legacy `defs/ext/generated_user_rules.py` is ignored.
+* Saving writes `user_rules/rules_version.json` with the installed node pack version. The save node logs a `[Metadata Loader] ... version ...` warning if your saved rules are missing/outdated—rerun the scanner + saver or use `example_workflows/refresh-rules.json` after updating the pack.
 * Rules JSON field tooltip documents required schema (top-level `nodes` & `samplers`). `status` keys from scanner are ignored when saving.
 
 </details>
@@ -345,8 +345,8 @@ Outputs: Updated forced class list (string + list form) for display/auditing.
 
 ### Scanner found my nodes but the suggested rules look wrong or fields are missing
 - Treat the scanner output as a starting point. Some nodes require manual mapping of inputs to metadata fields.
-- Check the outputs from the `Metadata Rule Scanner` and `Show generated_user_rules.py` nodes, reference the files mentioned in [reference examples](#reference-examples-jsonpython), make any necessary changes, and then save the adjusted rules with `Save Custom Metadata Rules` or `Save generated_user_rules.py`, respectively
-- Use the `Show generated_user_rules.py` node, adjust the suggested capture paths to match your node's sockets/fields, then save with `Save generated_user_rules.py`.
+- Check the outputs from the `Metadata Rule Scanner` and `Show Saved Metadata Rules` nodes, reference the files mentioned in [reference examples](#reference-examples-jsonpython), make any necessary changes, and then save the adjusted JSON with `Save Custom Metadata Rules`
+- Use the `Show Saved Metadata Rules` node, adjust the capture paths to match your node's sockets/fields, then save the JSON with `Save Custom Metadata Rules`.
 - Prefer explicit hints:
   - Use scanner input `force_include_metafields` to bias suggestions toward specific fields you care about first.
   - If your downstream needs Civitai-style names, enable `civitai_sampler` in the save node and `guidance_as_cfg` when appropriate.
@@ -362,7 +362,7 @@ Quick checklist when metadata seems incomplete:
 - Run the save with `METADATA_TEST_MODE=1` for deterministic multiline output and easier diffing.
 - Temporarily set a small `max_jpeg_exif_kb` to exercise fallback stages and confirm minimal allowlist contents.
 - Enable `METADATA_DEBUG_PROMPTS=1` to log prompt/alias capture decisions (review logs for skipped or aliased fields).
-- Force‑include the node classes involved, rescan, and re‑save user rules; then verify with `Show generated_user_rules.py`.
+- Force‑include the node classes involved, rescan, and re‑save user rules; then verify with `Show Saved Metadata Rules`.
 
 ### Why is my workflow JSON missing in a JPEG? 
 
@@ -396,10 +396,10 @@ Reference-only files you can use as a guide when customizing rules. These are ne
 
 - `saveimage_unimeta/user_captures_examples.json` — JSON examples for capture rules. Copy snippets you need into `saveimage_unimeta/user_captures.json` to activate. Uses MetaField names as strings (e.g., "MODEL_HASH") and callable names as strings (e.g., "calc_model_hash").
 - `saveimage_unimeta/user_samplers_example.json` — JSON examples for sampler role mapping. Copy into `saveimage_unimeta/user_samplers.json` if you need to map semantic roles ("positive"/"negative") to actual input names on sampler-like nodes.
-- `saveimage_unimeta/defs/ext/generated_user_rules_examples.py` — Python examples mirroring the real `generated_user_rules.py` schema, including a `KNOWN` mapping for callables. This module is not imported by the loader and serves only as a reference.
+- `saveimage_unimeta/defs/ext/generated_user_rules_examples.py` — Python examples of the rule schema, for writing a bundled extension. This module is not imported by the loader and serves only as a reference.
 
 Notes:
-- All Python extensions in `saveimage_unimeta/defs/ext/` are loaded, except any module named `__*`, ending in `*_examples`, or `generated_user_rules_examples` which are intentionally skipped.
+- All Python extensions in `saveimage_unimeta/defs/ext/` are loaded, except any module named `__*`, ending in `*_examples`, or a legacy `generated_user_rules.py`, which are intentionally skipped.
 - The only JSONs conditionally merged at runtime when needed are `saveimage_unimeta/user_captures.json` and `saveimage_unimeta/user_samplers.json`.
 
 </details>

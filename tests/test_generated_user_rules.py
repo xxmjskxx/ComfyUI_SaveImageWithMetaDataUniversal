@@ -7,9 +7,11 @@ import pytest
 
 from ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.version import resolve_runtime_version
 
+PKG = "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta"
+
 
 def _paths_for_generated_files():
-    mod = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes.rules_writer")
+    mod = importlib.import_module(f"{PKG}.nodes.rules_writer")
     base_py = os.path.dirname(os.path.dirname(os.path.abspath(mod.__file__)))
     repo_root = os.path.dirname(base_py)
     # Writer delegates to defs.resolve_user_rules_dir(): in test mode it uses
@@ -23,47 +25,22 @@ def _paths_for_generated_files():
         user_dir = os.path.join(base_py, "user_rules")
     user_captures = os.path.join(user_dir, "user_captures.json")
     user_samplers = os.path.join(user_dir, "user_samplers.json")
-    ext_dir = os.path.join(base_py, "defs", "ext")
-    gen_py = os.path.join(ext_dir, "generated_user_rules.py")
-    return base_py, user_captures, user_samplers, gen_py, ext_dir
+    version_file = os.path.join(user_dir, "rules_version.json")
+    gen_py = os.path.join(base_py, "defs", "ext", "generated_user_rules.py")
+    return user_captures, user_samplers, version_file, gen_py
 
 
 def _cleanup_generated_files():
-    _, user_captures, user_samplers, gen_py, ext_dir = _paths_for_generated_files()
-    for p in [user_captures, user_samplers, gen_py]:
+    for p in _paths_for_generated_files():
         try:
             if os.path.exists(p):
                 os.remove(p)
         except OSError:
             pass
-    # Recreate a placeholder generated_user_rules.py so coverage can always
-    # resolve the source file even if tests delete the real generated module.
-    try:
-        if not os.path.exists(gen_py):
-            with open(gen_py, "w", encoding="utf-8") as f:
-                f.write(
-                    "# Placeholder generated_user_rules.py (test coverage stability)\n"
-                    "CAPTURE_FIELD_LIST = {}\nSAMPLERS = {}\nKNOWN = {}\n"
-                )
-    except OSError:
-        pass
-    # Best-effort: remove compiled cache for generated module to avoid bleed between tests
-    try:
-        cache_dir = os.path.join(ext_dir, "__pycache__")
-        if os.path.isdir(cache_dir):
-            for f in os.listdir(cache_dir):
-                if f.startswith("generated_user_rules."):
-                    try:
-                        os.remove(os.path.join(cache_dir, f))
-                    except OSError:
-                        pass
-    except OSError:
-        pass
 
 
 @pytest.fixture(autouse=True)
 def _ensure_cleanup():
-    # Clean up before and after each test to ensure isolation
     _cleanup_generated_files()
     try:
         yield
@@ -71,8 +48,8 @@ def _ensure_cleanup():
         _cleanup_generated_files()
 
 
-def test_save_custom_rules_generates_valid_ext_and_jsons():
-    nodes_mod = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes")
+def test_save_custom_rules_writes_json_and_version_only():
+    nodes_mod = importlib.import_module(f"{PKG}.nodes")
     writer = nodes_mod.SaveCustomMetadataRules()
 
     rules = {
@@ -81,63 +58,48 @@ def test_save_custom_rules_generates_valid_ext_and_jsons():
                 # include a 'status' to ensure it is stripped by the writer
                 "MODEL_NAME": {"field_name": "ckpt", "status": "auto"},
                 "MODEL_HASH": {"field_name": "ckpt", "format": "calc_model_hash"},
-                "POSITIVE_PROMPT": {"field_name": "positive"},
-                "NEGATIVE_PROMPT": {"field_name": "negative"},
+                "LORA_MODEL_NAME": {"selector": "get_lora_model_name_stack"},
             }
         },
         "samplers": {"UnitTestSampler": {"positive": "positive", "negative": "negative"}},
     }
 
     (status,) = writer.save_rules(json.dumps(rules))
-    # New writer returns metrics summary; assert key metrics present
     assert status.startswith("mode=overwrite"), status
 
-    base_py, user_captures, user_samplers, gen_py, _ = _paths_for_generated_files()
+    user_captures, user_samplers, version_file, gen_py = _paths_for_generated_files()
     assert os.path.exists(user_captures)
     assert os.path.exists(user_samplers)
-    assert os.path.exists(gen_py)
-
-    # Generated file should import and expose CAPTURE_FIELD_LIST/SAMPLERS
-    pkg = "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.ext.generated_user_rules"
-    gen_mod = importlib.import_module(pkg)
-    assert hasattr(gen_mod, "CAPTURE_FIELD_LIST") and isinstance(gen_mod.CAPTURE_FIELD_LIST, dict)
-    assert hasattr(gen_mod, "SAMPLERS") and isinstance(gen_mod.SAMPLERS, dict)
-    # KNOWN mapping should exist with core callables
-    assert hasattr(gen_mod, "KNOWN") and isinstance(gen_mod.KNOWN, dict)
-    assert getattr(gen_mod, "RULES_VERSION") == resolve_runtime_version()
-    for k in [
-        "calc_model_hash",
-        "convert_skip_clip",
-        "get_lora_model_name_stack",
-        "get_lora_strength_clip_stack",
-    ]:
-        assert k in gen_mod.KNOWN
-
-    # Confirm our node appears with MetaField keys
-    meta_mod = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.meta")
-    assert "UnitTestNode" in gen_mod.CAPTURE_FIELD_LIST
-    node_rules = gen_mod.CAPTURE_FIELD_LIST["UnitTestNode"]
-    assert meta_mod.MetaField.MODEL_HASH in node_rules
-    # Ensure status key was stripped from JSON
+    assert not os.path.exists(gen_py), "writer must not produce an importable Python file"
+    with open(version_file, encoding="utf-8") as f:
+        assert json.load(f) == {"rules_version": resolve_runtime_version()}
     with open(user_captures, encoding="utf-8") as f:
-        uc = json.load(f)
-    assert "status" not in uc["UnitTestNode"]["MODEL_NAME"]
+        assert "status" not in json.load(f)["UnitTestNode"]["MODEL_NAME"]
 
-    # Loader should merge this module when loading extensions only
-    defs_mod = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs")
+    defs_mod = importlib.import_module(f"{PKG}.defs")
+    meta_mod = importlib.import_module(f"{PKG}.defs.meta")
+    defs_mod.load_user_definitions()
+    assert defs_mod.LOADED_RULES_VERSION == resolve_runtime_version()
+    node_rules = defs_mod.CAPTURE_FIELD_LIST["UnitTestNode"]
+    assert callable(node_rules[meta_mod.MetaField.MODEL_HASH]["format"])
+    assert callable(node_rules[meta_mod.MetaField.LORA_MODEL_NAME]["selector"])
+    assert "UnitTestSampler" in defs_mod.SAMPLERS
+
+
+def test_loader_never_imports_generated_user_rules_py():
+    _, _, _, gen_py = _paths_for_generated_files()
+    with open(gen_py, "w", encoding="utf-8") as f:
+        f.write("raise RuntimeError('generated_user_rules.py must not be imported')\n")
+
+    defs_mod = importlib.import_module(f"{PKG}.defs")
+    defs_mod.load_user_definitions()
     defs_mod.load_extensions_only()
-    # In regular mode, loader should merge our generated module.
-    # Under METADATA_TEST_MODE, defaults/ext loading may differ; only assert merge in regular mode.
-    import os as _os
-
-    if not _os.environ.get("METADATA_TEST_MODE"):
-        assert "UnitTestNode" in defs_mod.CAPTURE_FIELD_LIST
-        assert "UnitTestSampler" in defs_mod.SAMPLERS
+    assert not any(name.endswith("ext.generated_user_rules") for name in sys.modules)
 
 
-def test_scanner_roundtrip_generates_importable_module(monkeypatch):
+def test_scanner_roundtrip_loads_as_json():
     # Register a simple dummy node so the scanner always finds at least one
-    nodes_pkg = importlib.import_module("ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.nodes")
+    nodes_pkg = importlib.import_module(f"{PKG}.nodes")
     comfy_nodes = importlib.import_module("nodes")
 
     class DummyNode:
@@ -152,7 +114,6 @@ def test_scanner_roundtrip_generates_importable_module(monkeypatch):
                 }
             }
 
-    # Temporarily register our dummy
     nodes_pkg.NODE_CLASS_MAPPINGS["UnitTestClipEncode"] = DummyNode
     comfy_nodes.NODE_CLASS_MAPPINGS["UnitTestClipEncode"] = DummyNode
     try:
@@ -168,16 +129,13 @@ def test_scanner_roundtrip_generates_importable_module(monkeypatch):
         node_rules = parsed["nodes"].get("UnitTestClipEncode")
         assert node_rules["POSITIVE_PROMPT"].get("inline_lora_candidate") is True
         assert node_rules["NEGATIVE_PROMPT"].get("inline_lora_candidate") is True
-        # Save via writer
         writer = nodes_pkg.SaveCustomMetadataRules()
         (status,) = writer.save_rules(result_json)
         assert status.startswith("mode=overwrite"), status
 
-        # Import generated module to ensure it compiles
-        pkg = "ComfyUI_SaveImageWithMetaDataUniversal.saveimage_unimeta.defs.ext.generated_user_rules"
-        gen_mod = importlib.import_module(pkg)
-        assert hasattr(gen_mod, "CAPTURE_FIELD_LIST") and isinstance(gen_mod.CAPTURE_FIELD_LIST, dict)
-        assert isinstance(gen_mod.SAMPLERS, dict)
+        defs_mod = importlib.import_module(f"{PKG}.defs")
+        defs_mod.load_user_definitions()
+        assert "UnitTestClipEncode" in defs_mod.CAPTURE_FIELD_LIST
     finally:
         nodes_pkg.NODE_CLASS_MAPPINGS.pop("UnitTestClipEncode", None)
         comfy_nodes.NODE_CLASS_MAPPINGS.pop("UnitTestClipEncode", None)

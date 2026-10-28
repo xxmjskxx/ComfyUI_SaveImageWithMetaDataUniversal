@@ -128,26 +128,15 @@ def _load_extensions() -> None:
     to propagate because they likely indicate programmer errors in extension code.
     """
     dir_name = os.path.dirname(os.path.abspath(__file__))
-    global LOADED_RULES_VERSION
-    module_paths = glob.glob(os.path.join(dir_name, "ext", "*.py"))
-    # Load generated_user_rules first so curated modules can override its raw field captures.
-    module_paths.sort(
-        key=lambda path: (
-            os.path.splitext(os.path.basename(path))[0].lower() != "generated_user_rules",
-            os.path.basename(path).lower(),
-        )
-    )
+    module_paths = sorted(glob.glob(os.path.join(dir_name, "ext", "*.py")), key=lambda p: os.path.basename(p).lower())
 
     package_base = __name__  # Resolve relative imports regardless of install layout
 
     for module_path in module_paths:
         module_name = os.path.splitext(os.path.basename(module_path))[0]
-        # Never import example/reference files
-        if (
-            module_name.startswith("__")
-            or module_name.endswith("_examples")
-            or module_name == "generated_user_rules_examples"
-        ):
+        # Never import example/reference files, nor the legacy node-written
+        # generated_user_rules.py: user rules are loaded only as JSON data.
+        if module_name.startswith("__") or module_name.endswith("_examples") or module_name == "generated_user_rules":
             continue
         rel_module = f".ext.{module_name}"
         try:
@@ -166,14 +155,6 @@ def _load_extensions() -> None:
         except ImportError as e:
             logger.warning("[Metadata Loader] Failed to import extension '%s': %s", module_name, e)
             continue
-        try:
-            rules_version = getattr(module, "RULES_VERSION", None)
-        except AttributeError:
-            rules_version = None
-        if isinstance(rules_version, str):
-            normalized_version = rules_version.strip()
-            if normalized_version and module_name == "generated_user_rules":
-                LOADED_RULES_VERSION = normalized_version
         # Merge captured dicts defensively
         # Merge CAPTURE_FIELD_LIST: deep-merge per node to avoid clobbering earlier fields
         try:
@@ -252,16 +233,10 @@ def _merge_user_capture_entry(node_name: str, rules, allowed: set[str] | None) -
     if isinstance(container, MutableMapping) and isinstance(rules, Mapping):
         for meta, incoming in rules.items():
             existing = container.get(meta)
-            if (
-                isinstance(existing, MutableMapping)
-                and callable(existing.get("selector"))
-                and isinstance(incoming, Mapping)
-                and not callable(incoming.get("selector"))
-            ):
-                # A raw-JSON rule stores selector names as strings (JSON cannot
-                # hold callables). Never let it downgrade the compiled callable
-                # selector that the generated extension already resolved, or the
-                # curated selector would silently stop working at capture time.
+            if isinstance(existing, MutableMapping) and callable(existing.get("selector")) and isinstance(incoming, Mapping):
+                # Curated selector rules (defaults and bundled extensions) win over
+                # user JSON for the same metafield, as they did when user rules were
+                # loaded from a generated module before the curated extensions.
                 continue
             container[meta] = incoming
 
@@ -352,6 +327,13 @@ def load_user_definitions(required_classes: set | None = None, suppress_missing_
     os.makedirs(USER_RULES_DIR, exist_ok=True)
     USER_CAPTURES_FILE = os.path.join(USER_RULES_DIR, "user_captures.json")  # noqa: N806
     USER_SAMPLERS_FILE = os.path.join(USER_RULES_DIR, "user_samplers.json")  # noqa: N806
+    global LOADED_RULES_VERSION
+    try:
+        with open(os.path.join(USER_RULES_DIR, "rules_version.json"), encoding="utf-8") as f:
+            stamp = json.load(f).get("rules_version")
+        LOADED_RULES_VERSION = (stamp.strip() or None) if isinstance(stamp, str) else None
+    except (OSError, ValueError, AttributeError):
+        LOADED_RULES_VERSION = None
     # Migration shim: if new files absent but legacy exist, migrate once.
     LEGACY_PY_DIR = os.path.join(NODE_PACK_DIR, "py")  # noqa: N806
     # Test isolation: allow legacy files placed in tests/_test_outputs/py to migrate too.

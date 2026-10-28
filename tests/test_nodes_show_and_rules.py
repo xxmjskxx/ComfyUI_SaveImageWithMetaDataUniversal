@@ -130,48 +130,43 @@ class TestShowGeneratedUserRules:
         assert rules_view_node.FUNCTION == "show_rules"
         assert "rules" in rules_view_node.CATEGORY
 
-    def test_rules_path_returns_valid_path(self, rules_view_node):
-        """_rules_path should return a path to generated_user_rules.py."""
-        path = rules_view_node._rules_path()
+    def test_rules_path_is_user_rules_dir(self, rules_view_node):
+        """_rules_path should point at the JSON user rules directory."""
+        from saveimage_unimeta.defs import resolve_user_rules_dir
 
-        assert path.endswith("generated_user_rules.py")
-        assert "defs" in path
-        assert "ext" in path
+        assert rules_view_node._rules_path() == resolve_user_rules_dir()
 
     def test_show_rules_returns_empty_for_nonexistent_file(
         self, rules_view_node, monkeypatch
     ):
-        """show_rules should return empty string if file doesn't exist."""
-        monkeypatch.setattr(
-            rules_view_node,
-            "_rules_path",
-            lambda: "/nonexistent/path/generated_user_rules.py",
-        )
+        """show_rules should return empty string if no rules are saved."""
+        monkeypatch.setattr(rules_view_node, "_rules_path", lambda: "/nonexistent/path")
 
         result = rules_view_node.show_rules()
 
         assert result == ("",)
 
     def test_show_rules_reads_file_contents(self, rules_view_node, tmp_path):
-        """show_rules should read and return file contents."""
-        test_content = "# Generated rules\nFOO = 'bar'"
-        test_file = tmp_path / "generated_user_rules.py"
-        test_file.write_text(test_content, encoding="utf-8")
+        """show_rules should combine both JSON files in the scanner shape."""
+        import json
 
-        # Monkey-patch the path method
-        rules_view_node._rules_path = lambda: str(test_file)
+        (tmp_path / "user_captures.json").write_text('{"N": {"MODEL_NAME": {"field_name": "ckpt"}}}', encoding="utf-8")
+        (tmp_path / "user_samplers.json").write_text('{"S": {"positive": "positive"}}', encoding="utf-8")
+        rules_view_node._rules_path = lambda: str(tmp_path)
 
         result = rules_view_node.show_rules()
 
-        assert result == (test_content,)
+        assert json.loads(result[0]) == {
+            "nodes": {"N": {"MODEL_NAME": {"field_name": "ckpt"}}},
+            "samplers": {"S": {"positive": "positive"}},
+        }
 
     def test_show_rules_handles_read_error(
         self, rules_view_node, tmp_path, monkeypatch, caplog
     ):
         """show_rules should handle and log I/O errors."""
-        test_file = tmp_path / "generated_user_rules.py"
-        test_file.write_text("content")
-        rules_view_node._rules_path = lambda: str(test_file)
+        (tmp_path / "user_captures.json").write_text("{}")
+        rules_view_node._rules_path = lambda: str(tmp_path)
 
         # Make the file unreadable by patching open to raise
         def mock_open(*args, **kwargs):
@@ -182,7 +177,7 @@ class TestShowGeneratedUserRules:
         with caplog.at_level(logging.WARNING):
             result = rules_view_node.show_rules()
 
-        assert "Error reading generated_user_rules.py" in result[0]
+        assert "Error reading user_captures.json" in result[0]
 
 
 # --- Node registration tests ---

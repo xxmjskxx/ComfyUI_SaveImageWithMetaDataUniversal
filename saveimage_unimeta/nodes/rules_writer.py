@@ -3,17 +3,15 @@
 This module provides the `SaveCustomMetadataRules` class, which is a ComfyUI
 node that allows users to save, back up, and restore their custom metadata
 capture rules. It supports both overwriting and appending to existing rule
-files and can generate a Python extension module from the rules.
+files. Rules are stored as JSON data only.
 """
 
 from __future__ import annotations
 
-import importlib
 import json
 import logging
 import os
 import shutil
-import sys
 import time
 from typing import Any
 
@@ -29,12 +27,10 @@ class SaveCustomMetadataRules:
     This class provides a comprehensive solution for managing user-defined
     metadata rules. It allows for saving in overwrite or append mode, creating
     timestamped backups, restoring from backups, and pruning old backups.
-    It also handles the generation of a Python extension from the JSON rules.
     Flow summary:
-      * Optional restore of a selected backup set (short-circuits other inputs except rebuild flag).
+      * Optional restore of a selected backup set (short-circuits other inputs).
       * Normal save path can create a timestamped backup (set folder) before applying changes.
       * Two save modes: overwrite (legacy) and append_new (only add missing / optionally replace conflicts).
-      * Deterministic python extension generation (sorted order) when requested.
     """
 
     @classmethod
@@ -103,7 +99,7 @@ class SaveCustomMetadataRules:
                         "default": "none",
                         "tooltip": (
                             "Restore a previous backup set.\n"
-                            "If not 'none', other inputs (except rebuild_python_rules) are ignored."
+                            "If not 'none', other inputs are ignored."
                         ),
                     },
                 ),
@@ -121,10 +117,7 @@ class SaveCustomMetadataRules:
                     "BOOLEAN",
                     {
                         "default": True,
-                        "tooltip": (
-                            "Generate defs/ext/generated_user_rules.py reflecting the resulting JSON.\n"
-                            "Disable to only adjust JSON (faster when iterating)."
-                        ),
+                        "tooltip": "Deprecated, no effect. Rules are stored and loaded as JSON only.",
                     },
                 ),
                 "limit_backup_sets": (
@@ -165,7 +158,7 @@ class SaveCustomMetadataRules:
 
         This method is the main entry point for the node's functionality. It
         handles the logic for restoring from a backup, saving rules in
-        different modes, and generating the Python extension file.
+        different modes, and stamping the rules version.
 
         Args:
             rules_json_string (str): The JSON string containing the metadata rules.
@@ -177,8 +170,8 @@ class SaveCustomMetadataRules:
                 restore. Defaults to "none".
             replace_conflicts (bool, optional): Whether to replace conflicting
                 entries when appending. Defaults to False.
-            rebuild_python_rules (bool, optional): Whether to regenerate the
-                Python extension file. Defaults to True.
+            rebuild_python_rules (bool, optional): Deprecated and ignored; kept so
+                saved workflows keep their widget order.
             limit_backup_sets (int, optional): The maximum number of backup sets
                 to retain. Defaults to 20.
 
@@ -192,14 +185,11 @@ class SaveCustomMetadataRules:
         # resolver so the writer, loader, and scanner stay in lockstep for both
         # the production (<package>/user_rules) and test-isolated
         # (<repo>/tests/_test_outputs/user_rules) locations.
-        PY_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # noqa: N806
         USER_RULES_DIR = defs_mod.resolve_user_rules_dir()  # noqa: N806
         os.makedirs(USER_RULES_DIR, exist_ok=True)
         USER_CAPTURES_FILE = os.path.join(USER_RULES_DIR, "user_captures.json")  # noqa: N806
         USER_SAMPLERS_FILE = os.path.join(USER_RULES_DIR, "user_samplers.json")  # noqa: N806
-        EXT_DIR = os.path.join(PY_DIR, "defs", "ext")  # noqa: N806
-        os.makedirs(EXT_DIR, exist_ok=True)
-        GENERATED_EXT_FILE = os.path.join(EXT_DIR, "generated_user_rules.py")  # noqa: N806
+        RULES_VERSION_FILE = os.path.join(USER_RULES_DIR, "rules_version.json")  # noqa: N806
         BACKUPS_ROOT = os.path.join(USER_RULES_DIR, "backups")  # noqa: N806
         os.makedirs(BACKUPS_ROOT, exist_ok=True)
         metrics: dict[str, Any] = {
@@ -224,7 +214,7 @@ class SaveCustomMetadataRules:
             if restore_backup_set and restore_backup_set != "none":
                 pre_ts = _timestamp()
                 created_dir = self._create_backup(
-                    BACKUPS_ROOT, pre_ts, USER_CAPTURES_FILE, USER_SAMPLERS_FILE, GENERATED_EXT_FILE
+                    BACKUPS_ROOT, pre_ts, USER_CAPTURES_FILE, USER_SAMPLERS_FILE, RULES_VERSION_FILE
                 )
                 if created_dir:
                     logger.info("[Metadata Loader] Created backup %s before restoring %s.", pre_ts, restore_backup_set)
@@ -244,25 +234,13 @@ class SaveCustomMetadataRules:
                         restored_files.append(fname)
                     else:
                         missing.append(fname)
-                ext_src = os.path.join(target_dir, "generated_user_rules.py")
-                if rebuild_python_rules:
-                    if os.path.exists(ext_src):
-                        shutil.copy2(ext_src, GENERATED_EXT_FILE)
-                        restored_files.append("generated_user_rules.py")
-                    else:
-                        try:
-                            self._generate_python_extension(
-                                GENERATED_EXT_FILE,
-                                self._safe_load_json(USER_CAPTURES_FILE),
-                                self._safe_load_json(USER_SAMPLERS_FILE),
-                            )
-                            restored_files.append("generated_user_rules.py (regenerated)")
-                        except Exception as regen_err:  # pragma: no cover
-                            logger.warning(
-                                "[Metadata Loader] Could not regenerate extension after restore: %s",
-                                regen_err,
-                                exc_info=True,
-                            )
+                # Older backup sets have no version stamp; drop the current one so the
+                # restored rules are reported as unversioned rather than current.
+                version_src = os.path.join(target_dir, "rules_version.json")
+                if os.path.exists(version_src):
+                    shutil.copy2(version_src, RULES_VERSION_FILE)
+                elif os.path.exists(RULES_VERSION_FILE):
+                    os.remove(RULES_VERSION_FILE)
                 if missing:
                     metrics["partial"] = True
                 status = f"Restored backup {restore_backup_set} (files: {', '.join(restored_files) or 'none'})"
@@ -289,7 +267,7 @@ class SaveCustomMetadataRules:
 
             if backup_before_save:
                 ts = _timestamp()
-                if self._create_backup(BACKUPS_ROOT, ts, USER_CAPTURES_FILE, USER_SAMPLERS_FILE, GENERATED_EXT_FILE):
+                if self._create_backup(BACKUPS_ROOT, ts, USER_CAPTURES_FILE, USER_SAMPLERS_FILE, RULES_VERSION_FILE):
                     metrics["backup"] = ts
                     if limit_backup_sets and limit_backup_sets > 0:
                         metrics["pruned"] = self._prune_backups(BACKUPS_ROOT, limit_backup_sets)
@@ -332,17 +310,8 @@ class SaveCustomMetadataRules:
                     with open(USER_SAMPLERS_FILE, "w", encoding="utf-8") as f:
                         json.dump(final_samplers, f, indent=4)
 
-            ext_generation_error: str | None = None
-            if rebuild_python_rules:
-                try:
-                    self._generate_python_extension(GENERATED_EXT_FILE, final_nodes, final_samplers)
-                except Exception as gen_err:  # pragma: no cover
-                    logger.warning(
-                        "[Metadata Loader] Could not generate python ext from rules: %s",
-                        gen_err,
-                        exc_info=True,
-                    )
-                    ext_generation_error = str(gen_err)
+            with open(RULES_VERSION_FILE, "w", encoding="utf-8") as f:
+                json.dump({"rules_version": resolve_runtime_version()}, f)
 
             self._warn_uninstalled_nodes(list(sanitized_nodes.keys()))
 
@@ -356,8 +325,6 @@ class SaveCustomMetadataRules:
                     f"nodes={len(final_nodes)}",
                     f"samplers={len(final_samplers)}",
                 ]
-                if ext_generation_error:
-                    status_parts.append(f"ext_error={ext_generation_error}")
                 return ("; ".join(status_parts),)
             else:
                 status_parts = [
@@ -380,8 +347,6 @@ class SaveCustomMetadataRules:
                             f"sampler_roles_skipped={metrics['sampler_roles_skipped_conflict']}",
                         ]
                     )
-                if ext_generation_error:
-                    status_parts.append(f"ext_error={ext_generation_error}")
                 return ("; ".join(status_parts),)
         except Exception as e:  # pragma: no cover
             raise ValueError(f"Error saving rules: {e}")
@@ -394,12 +359,12 @@ class SaveCustomMetadataRules:
         timestamp: str,
         captures_path: str,
         samplers_path: str,
-        ext_path: str,
+        version_path: str,
     ) -> str | None:
         """Create a backup of the current rules files.
 
         This method creates a timestamped directory and copies the existing
-        `user_captures.json`, `user_samplers.json`, and `generated_user_rules.py`
+        `user_captures.json`, `user_samplers.json`, and `rules_version.json`
         files into it.
 
         Args:
@@ -407,7 +372,7 @@ class SaveCustomMetadataRules:
             timestamp (str): The timestamp to use for the backup directory name.
             captures_path (str): The path to the `user_captures.json` file.
             samplers_path (str): The path to the `user_samplers.json` file.
-            ext_path (str): The path to the `generated_user_rules.py` file.
+            version_path (str): The path to the `rules_version.json` file.
 
         Returns:
             str | None: The name of the created backup directory, or None if no
@@ -422,7 +387,7 @@ class SaveCustomMetadataRules:
             target_dir = f"{target_dir}-{i}"
         os.makedirs(target_dir, exist_ok=True)
         copied = 0
-        for p in (captures_path, samplers_path, ext_path):
+        for p in (captures_path, samplers_path, version_path):
             if os.path.exists(p):
                 try:
                     shutil.copy2(p, os.path.join(target_dir, os.path.basename(p)))
@@ -579,159 +544,6 @@ class SaveCustomMetadataRules:
         return nodes_out, samplers_out
 
     @staticmethod
-    def _generate_python_extension(path: str, nodes_dict: dict[str, Any], samplers_dict: dict[str, Any]) -> None:
-        """Generate the `generated_user_rules.py` extension file.
-
-        This method creates a Python module from the provided node and sampler
-        rules. The generated module is deterministic and includes imports,
-        helper functions, and the rules dictionaries.
-
-        Args:
-            path (str): The path to write the generated Python file to.
-            nodes_dict (dict[str, Any]): The dictionary of node rules.
-            samplers_dict (dict[str, Any]): The dictionary of sampler rules.
-        """
-        # Build deterministic Python module similar to legacy builder but sorted
-        lines: list[str] = []
-        lines.extend(
-            [
-                '"""Auto-generated metadata rule extension for SaveImageWithMetaDataUniversal.',
-                "",
-                'This module is written by the Metadata Rule Scanner / Save Custom Metadata Rules nodes when you click',
-                '"Save Generated User Rules" or restore a scanner backup.',
-                'It mirrors the merged contents of `user_captures.json` and `user_samplers.json`.',
-                'This lets metadata loading import a fast Python module instead of reparsing JSON on every run.',
-                'Manual edits will be overwritten whenever the generator runs, so adjust the JSON files',
-                'or rerun the scanner instead of editing this file directly.',
-                'Treat this as a build artifact you can always regenerate.',
-                '"""',
-                "",
-            ]
-        )
-        lines.append("from ..meta import MetaField")
-        lines.append(
-            "from ..formatters import (\n"
-            "    calc_model_hash, calc_vae_hash, calc_lora_hash, calc_unet_hash,\n"
-            "    convert_skip_clip, get_scaled_width, get_scaled_height,\n"
-            "    extract_embedding_names, extract_embedding_hashes\n"
-            ")"
-        )
-        lines.append("from ..validators import (\n" "    is_positive_prompt, is_negative_prompt\n" ")")
-        lines.append(
-            "from ..selectors import (\n"
-            "    select_stack_by_prefix,\n"
-            "    collect_lora_stack,\n"
-            "    select_lora_names,\n"
-            "    select_lora_model_strengths,\n"
-            "    select_lora_clip_strengths,\n"
-            ")"
-        )
-        lines.append("")
-        lines.append("def _collect_lora_stack(input_data):")
-        lines.append("    stack = collect_lora_stack(input_data)")
-        lines.append("    if stack:")
-        lines.append("        return stack")
-        lines.append("    names = select_stack_by_prefix(input_data, 'lora_name', counter_key='lora_count')")
-        lines.append("    if not names:")
-        lines.append("        return []")
-        lines.append("    model_strengths = select_stack_by_prefix(input_data, 'model_str', counter_key='lora_count')")
-        lines.append("    if not model_strengths:")
-        lines.append(
-            "        model_strengths = select_stack_by_prefix(input_data, 'lora_wt', counter_key='lora_count')"
-        )
-        lines.append("    clip_strengths = select_stack_by_prefix(input_data, 'clip_str', counter_key='lora_count')")
-        lines.append("    if not clip_strengths:")
-        lines.append("        clip_strengths = select_stack_by_prefix(input_data, 'lora_wt', counter_key='lora_count')")
-        lines.append("    stack = []")
-        lines.append("    for idx, name in enumerate(names):")
-        lines.append("        model = model_strengths[idx] if idx < len(model_strengths) else None")
-        lines.append("        clip = clip_strengths[idx] if idx < len(clip_strengths) else model")
-        lines.append("        stack.append((name, model, clip))")
-        lines.append("    return stack")
-        lines.append("")
-        lines.append("def get_lora_model_name_stack(node_id, obj, prompt, extra_data, outputs, input_data):")
-        lines.append("    stack = _collect_lora_stack(input_data)")
-        lines.append("    return [entry[0] for entry in stack]")
-        lines.append("")
-        lines.append("def get_lora_model_hash_stack(node_id, obj, prompt, extra_data, outputs, input_data):")
-        lines.append("    stack = _collect_lora_stack(input_data)")
-        lines.append("    return [calc_lora_hash(entry[0], input_data) for entry in stack]")
-        lines.append("")
-        lines.append("def get_lora_strength_model_stack(node_id, obj, prompt, extra_data, outputs, input_data):")
-        lines.append("    stack = _collect_lora_stack(input_data)")
-        lines.append("    return [entry[1] for entry in stack]")
-        lines.append("")
-        lines.append("def get_lora_strength_clip_stack(node_id, obj, prompt, extra_data, outputs, input_data):")
-        lines.append("    stack = _collect_lora_stack(input_data)")
-        lines.append("    return [entry[2] for entry in stack]")
-        lines.append("")
-        lines.append("KNOWN = {")
-        lines.append("    'calc_model_hash': calc_model_hash,")
-        lines.append("    'calc_vae_hash': calc_vae_hash,")
-        lines.append("    'calc_lora_hash': calc_lora_hash,")
-        lines.append("    'calc_unet_hash': calc_unet_hash,")
-        lines.append("    'convert_skip_clip': convert_skip_clip,")
-        lines.append("    'get_scaled_width': get_scaled_width,")
-        lines.append("    'get_scaled_height': get_scaled_height,")
-        lines.append("    'extract_embedding_names': extract_embedding_names,")
-        lines.append("    'extract_embedding_hashes': extract_embedding_hashes,")
-        lines.append("    'is_positive_prompt': is_positive_prompt,")
-        lines.append("    'is_negative_prompt': is_negative_prompt,")
-        lines.append("    'collect_lora_stack': collect_lora_stack,")
-        lines.append("    'select_lora_names': select_lora_names,")
-        lines.append("    'select_lora_model_strengths': select_lora_model_strengths,")
-        lines.append("    'select_lora_clip_strengths': select_lora_clip_strengths,")
-        lines.append("    'get_lora_model_name_stack': get_lora_model_name_stack,")
-        lines.append("    'get_lora_model_hash_stack': get_lora_model_hash_stack,")
-        lines.append("    'get_lora_strength_model_stack': get_lora_strength_model_stack,")
-        lines.append("    'get_lora_strength_clip_stack': get_lora_strength_clip_stack,")
-        lines.append("}")
-        lines.append("")
-        lines.append(f"RULES_VERSION = {json.dumps(resolve_runtime_version())}")
-        lines.append("")
-        lines.append("SAMPLERS = " + json.dumps(samplers_dict, indent=4))
-        lines.append("")
-        lines.append("CAPTURE_FIELD_LIST = {")
-        for node_name in sorted(nodes_dict.keys()):
-            rules = nodes_dict[node_name]
-            lines.append("    " + json.dumps(node_name) + ": {")
-            for metafield_name in sorted(rules.keys()):
-                rule = rules[metafield_name]
-                rule_copy = dict(rule)
-                body_parts: list[str] = []
-                if "field_name" in rule_copy:
-                    body_parts.append(f"'field_name': {json.dumps(rule_copy['field_name'])}")
-                if "fields" in rule_copy and isinstance(rule_copy.get("fields"), list | tuple):
-                    body_parts.append(f"'fields': {json.dumps(rule_copy['fields'])}")
-                if "prefix" in rule_copy:
-                    body_parts.append(f"'prefix': {json.dumps(rule_copy['prefix'])}")
-                if "selector" in rule_copy:
-                    sel = rule_copy["selector"]
-                    if isinstance(sel, str):
-                        body_parts.append("'selector': KNOWN[" + json.dumps(sel) + "]")
-                    else:
-                        body_parts.append(f"'selector': {json.dumps(sel)}")
-                if "validate" in rule_copy:
-                    val = rule_copy["validate"]
-                    if isinstance(val, str):
-                        body_parts.append("'validate': KNOWN[" + json.dumps(val) + "]")
-                    else:
-                        body_parts.append(f"'validate': {json.dumps(val)}")
-                if "format" in rule_copy:
-                    fmt = rule_copy["format"]
-                    if isinstance(fmt, str):
-                        body_parts.append("'format': KNOWN[" + json.dumps(fmt) + "]")
-                    else:
-                        body_parts.append(f"'format': {json.dumps(fmt)}")
-                body = ", ".join(body_parts)
-                lines.append(f"        MetaField.{metafield_name}: {{" + body + "},")
-            lines.append("    },")
-        lines.append("}")
-        with open(path, "w", encoding="utf-8") as f:
-            f.write("\n".join(lines) + "\n")
-        SaveCustomMetadataRules._invalidate_generated_module_cache()
-
-    @staticmethod
     def _warn_uninstalled_nodes(node_names):  # best-effort detection
         """Log a warning for any node classes that are not currently installed.
 
@@ -752,22 +564,6 @@ class SaveCustomMetadataRules:
                 )
         except Exception:  # pragma: no cover - environment dependent
             pass
-
-    @staticmethod
-    def _invalidate_generated_module_cache() -> None:
-        """Ensure subsequent imports observe the freshly written module.
-
-        Removes every registered alias of ``generated_user_rules`` from
-        ``sys.modules`` regardless of how the package was imported (editable,
-        packaged namespaced, or ComfyUI's path-derived runtime name) and
-        invalidates importlib caches so the next ``importlib.import_module``
-        call reloads the module from disk.
-        """
-
-        importlib.invalidate_caches()
-        for module_name in list(sys.modules):
-            if module_name == "generated_user_rules" or module_name.endswith(".defs.ext.generated_user_rules"):
-                sys.modules.pop(module_name, None)
 
 
 def _timestamp() -> str:

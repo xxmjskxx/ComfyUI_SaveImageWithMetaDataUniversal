@@ -20,10 +20,56 @@ from ..defs.formatters import (
     get_scaled_width,
 )
 from ..defs.meta import MetaField
+from ..defs.selectors import (
+    collect_lora_stack,
+    select_lora_clip_strengths,
+    select_lora_model_strengths,
+    select_lora_names,
+    select_stack_by_prefix,
+)
 from ..defs.validators import is_negative_prompt, is_positive_prompt
 
 # Logging setup
 logger = logging.getLogger(__name__)
+
+
+def _collect_lora_stack(input_data):
+    stack = collect_lora_stack(input_data)
+    if stack:
+        return stack
+    names = select_stack_by_prefix(input_data, "lora_name", counter_key="lora_count")
+    if not names:
+        return []
+    model_strengths = select_stack_by_prefix(input_data, "model_str", counter_key="lora_count")
+    if not model_strengths:
+        model_strengths = select_stack_by_prefix(input_data, "lora_wt", counter_key="lora_count")
+    clip_strengths = select_stack_by_prefix(input_data, "clip_str", counter_key="lora_count")
+    if not clip_strengths:
+        clip_strengths = select_stack_by_prefix(input_data, "lora_wt", counter_key="lora_count")
+    stack = []
+    for idx, name in enumerate(names):
+        model = model_strengths[idx] if idx < len(model_strengths) else None
+        clip = clip_strengths[idx] if idx < len(clip_strengths) else model
+        stack.append((name, model, clip))
+    return stack
+
+
+# LoRA stack selectors the Metadata Rule Scanner emits by name for user rules.
+def get_lora_model_name_stack(node_id, obj, prompt, extra_data, outputs, input_data):
+    return [entry[0] for entry in _collect_lora_stack(input_data)]
+
+
+def get_lora_model_hash_stack(node_id, obj, prompt, extra_data, outputs, input_data):
+    return [calc_lora_hash(entry[0], input_data) for entry in _collect_lora_stack(input_data)]
+
+
+def get_lora_strength_model_stack(node_id, obj, prompt, extra_data, outputs, input_data):
+    return [entry[1] for entry in _collect_lora_stack(input_data)]
+
+
+def get_lora_strength_clip_stack(node_id, obj, prompt, extra_data, outputs, input_data):
+    return [entry[2] for entry in _collect_lora_stack(input_data)]
+
 
 # --- Lookup Tables for Deserialization ---
 # This table maps function names from the JSON to actual callable Python functions.
@@ -39,6 +85,14 @@ FUNCTIONS = {
     "extract_embedding_hashes": extract_embedding_hashes,
     "is_positive_prompt": is_positive_prompt,
     "is_negative_prompt": is_negative_prompt,
+    "collect_lora_stack": collect_lora_stack,
+    "select_lora_names": select_lora_names,
+    "select_lora_model_strengths": select_lora_model_strengths,
+    "select_lora_clip_strengths": select_lora_clip_strengths,
+    "get_lora_model_name_stack": get_lora_model_name_stack,
+    "get_lora_model_hash_stack": get_lora_model_hash_stack,
+    "get_lora_strength_model_stack": get_lora_strength_model_stack,
+    "get_lora_strength_clip_stack": get_lora_strength_clip_stack,
 }
 
 # This table maps enum names from the JSON to the actual MetaField enum members.
